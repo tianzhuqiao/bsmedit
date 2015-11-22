@@ -1,0 +1,9 @@
+backup/
+res/
+systemc-2.1/
+temp/
+test/
+*.pyc
+*.pyo
+*.dll
+License

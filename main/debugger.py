@@ -1,0 +1,1470 @@
+"""
+Engine debugger
+---------------
+- Handles all the debugger functions for the engine.
+- Can set block files where tracing stops to prevent locks in communications thread
+- Can set breakpoints to pause code.
+- Can manually pause in traced code.
+"""
+import time
+import wx.py
+
+import inspect                          #for debugger frame inpsection
+import sys                              #for set_trace etc
+import thread                           #for keyboard interrupt
+import os.path                          #for absolute filename conversions
+import ctypes                           #for pythonapi calls
+
+help_msg = """
+\"\"\"
+#help | #h:
+    - show this text.
+#step | #s:
+    - step to the next line.
+#stepin | #si:
+    - step into a new code block call.
+#stepout | #so: 
+    - step out of the current code block.
+#resume | #r: 
+    - resume running the code.
+#setscope [L] | #ss [L]: 
+    - set the active scope level L (default: 0 for the main user namespace).
+#line | #l: 
+    - print the current line of source (if available).
+#end | #e: 
+    - quit the debugger.
+\"\"\"
+"""
+#-------------------------------------------------------------------------------
+class PseudoEvent():
+    """
+    An object with the same interface as a threading.Event for the internal 
+    engine. This prevents the readline/readlines and debugger from blocking
+    when waiting for user input.
+
+    This calls the doyield function and sleeps until the event is set.
+    """
+    def __init__(self):
+        self._set = False
+
+    def set(self):
+        self._set = True
+
+    def clear(self):
+        self._set = False
+
+    def wait(self, timeout=None):
+        if timeout is not None:
+            raise NotImplementedError('Timeout not implemented')
+        while (self._set is False): #and (self._eng._stop is False):
+            wx.YieldIfNeeded()
+            time.sleep(0.05)
+
+class EngineDebugger():
+    bpnum = 0
+    def __init__(self, shell):
+        self.shell = shell                  #parent engine
+        self.compiler = EngineCompiler()
+        #debugger state
+        self._paused     = False #is paused.
+        self._can_stepin = False #debugger is about to enter a new scope
+        self._can_stepout= False #debugger can be stepped out of a scope
+
+        #debugger command flags
+        self._resume     = False #debugging was resumed.
+        self._end        = False #stop debugging, finish running code
+        self._stop       = False #stop running code
+        self._stepin     = False #debugger step in to scope
+        self._stepout    = False #debugger step out of scope
+
+        #event used to wake the trace function when paused
+        self._resume_event = PseudoEvent()
+
+        #user commands to execute when the debugger is paused
+        #this is check in the trace function and executed in the active scope. 
+        self._cmd = None
+
+        #debugger scopes:
+        #keep track of the different scopes available for tools to query
+        self._scopes    = []        #list of scope (function) names
+        self._frames    = []        #list of scope frames
+        self._active_scope = 0 #the current scope level used for exec/eval/commands
+
+        #internal variable used to keep track of where wer started debugging
+        self._bottom_frame = None
+
+        #files to look for when tracing...
+        self._fncache = {}      #absolute filename cache
+        self._block_files = []  #list of filepaths not to trace in (or any further)
+
+        #prevent trace in all engine module files to avoid locks blocking comms threads.
+        self.set_block_file(os.path.dirname(__file__)+os.sep+'*.*')
+
+        #break points - info on breakpoints is stored in an MKeyDict instance
+        # which allows items (the breakpoint data dict) to be retrieved by 
+        # filename or id. The keys hcount, icount and tcount are breakpoint 
+        # counters for hits, ignores and trigger counts and are reset before 
+        # each user command.
+        self.bpoints = DictList()
+        self._bp_hcount = {} # hit counter {id: hcount}
+        self._bp_tcount = {} # trigger counter {id: tcount}
+
+        #Register message handlers for the debugger
+        wx.py.dispatcher.connect(self.debug_pause,    'debugger.pause')
+        wx.py.dispatcher.connect(self.debug_resume,   'debugger.resume')
+        wx.py.dispatcher.connect(self.debug_stop,     'debugger.stop')
+        wx.py.dispatcher.connect(self.debug_end,      'debugger.end')
+        wx.py.dispatcher.connect(self.debug_step,     'debugger.step')
+        wx.py.dispatcher.connect(self.debug_stepinto, 'debugger.stepinto')
+        wx.py.dispatcher.connect(self.debug_stepout,  'debugger.stepout')
+        wx.py.dispatcher.connect(self.debug_setscope, 'debugger.setscope')
+        wx.py.dispatcher.connect(self.dbg_setbp,      'debugger.setbreakpoint')
+        wx.py.dispatcher.connect(self.dbg_clearbp,    'debugger.clearbreakpoint')
+        wx.py.dispatcher.connect(self.dbg_editbp,     'debugger.editbreakpoint')
+        wx.py.dispatcher.connect(self.dbg_getbp,      'debugger.getbreakpoint')
+    #---------------------------------------------------------------------------
+    # Interface methods
+    #---------------------------------------------------------------------------
+    def reset(self):
+        """Reset the debugger internal state"""
+        self._paused     = False 
+        self._can_stepin = False 
+        self._can_stepout= False 
+
+        self._resume     = False 
+        self._end        = False 
+        self._stop       = False
+        self._step_in    = False 
+        self._step_out   = False 
+
+        self._resume_event.clear()
+
+        self._scopes = []
+        self._frames = []
+        self._active_scope = 0
+
+        self._bottom_frame = None
+
+        #resest breakpoint counters
+        self._bp_hcount = {} # hit counter {id: hcount}
+        self._bp_icount = {} # ignore counter {id: icount}
+        self._bp_tcount = {} # trigger counter {id: tcount}
+
+    def stop_code(self):
+        """
+        Attempt to stop the running code by raising a keyboard interrupt in
+        the main thread
+        """
+        self._stop = True       #stops the code if paused
+        if self._paused is True:
+             #turn console debug mode off -Note: None to turn off, True/False
+             #is line continuation
+             wx.py.dispatcher.send(signal='debugger.prompt')
+    
+        self._resume_event.set()
+        
+        #try a keyboard interrupt - this will not work for the internal engine 
+        # as the error is raised here instead of the running code, hence put in 
+        #try clause.
+        try:
+            thread.interrupt_main()
+        except:
+            pass
+    def end(self):
+        """ End the debugging and finsish running the code """
+        #set the end flag and wake the traceback function
+        #if necessary
+        self._end=True  
+        self._resume=True
+        self._resume_event.set()
+        return True
+
+    def pause(self, flag=True):
+        """ Pause currently running code - returns success """
+        if flag is False:
+            return not self.resume()
+
+        #already paused do nothing.
+        if self._paused is True:
+            return True
+
+        #set the paused flag to pause at next oppertunity
+        self._paused=True
+        return True
+
+    def resume(self):
+        """ Unpause currently running code """
+        #not paused - so cannot resume
+        if self._paused is False:
+            return False
+        #set flag to false
+        self._resume = True
+        #set resume event to wake the traceback function
+        self._resume_event.set()
+        return True
+
+    def step(self):
+        """
+        Step to the next line of code when the debugger is paused
+        """
+        #not paused - cannot step
+        if self._paused is False:
+            return False
+        #make sure the step_in flag is False, so we don't step into a new scope
+        #but rather step 'over' it.
+        self._step_in = False
+        #set the event so the trace function can resume - but don't change the 
+        #paused flag so the code will pause again after the next line.
+        self._resume_event.set()
+        return True
+
+    def step_in(self):
+        """
+        Step into the new scope (function/callable).
+        This is only available if the next line is a 'call' event
+        """
+        #not paused or not at a call event
+        if (self._paused is False) or (self._can_stepin) is False:
+            return False
+
+        #set the step in flag and wake the traceback function
+        self._stepin = True 
+        self._resume_event.set()
+        return True
+
+    def step_out(self):
+        """
+        Step out of a scope (function/callable).
+        This is only available if the debugger is currently in a scope other
+        than the main user namespace.
+        """
+        #check if we can step out
+        if (self._paused is False) or (self._can_stepout is False):
+            return False
+
+        #set the step out flag and wake the traceback function
+        #this will turn the traceback off for the current scope by returning 
+        #None, as the new local trace function.
+        self._can_stepout = False
+        self._stepout = True
+        self._resume_event.set()
+        return True
+
+    #breakpoints
+    def set_breakpoint(self, bpdata):
+        """
+        Set a break point
+        bpdata =  {id, filename, lineno, condition, ignore_count, trigger_count}
+        where id should be a unique identifier for this breakpoint
+        """
+        #check if the id to use already exists.
+        if len(self.bpoints.filter( ('id',),(id,)))!=0:
+            return False
+            
+        #check bpdata
+        keys = bpdata.keys()
+        if 'id' not in keys:
+            bpdata['id'] = EngineDebugger.bpnum;
+            EngineDebugger.bpnum += 1
+        elif 'filename' not in keys:
+            return False
+        elif 'lineno' not in keys:
+            return False
+        if 'condition' not in keys:
+            bpdata['condition'] = None
+        if 'ignore_count' not in keys:
+            bpdata['ignore_count'] = None
+        if 'trigger_count' not in keys:
+            bpdata['trigger_count'] = None
+
+        #create new breakpoint
+        bpdata['filename'] = self._abs_filename(bpdata['filename'])
+        self.bpoints.append(bpdata)
+        wx.py.dispatcher.send(signal='debugger.breakpoint_added', bpdata=bpdata)
+        return True
+
+    def get_breakpoint(self, filename, lineno):
+        """
+        Return the break point according to the (filename, lineno),
+        if not found, return None
+        """
+        bps = self.bpoints.filter( ('filename','lineno'), (self._abs_filename(filename),lineno) )
+        if bps:
+            return bps[0]
+        return None
+       
+    def clear_breakpoint(self, id):
+        """
+        Clear the debugger breakpoint with the id given.
+        If id is None all breakpoints will be cleared.
+        """
+        if id is None:
+            self.bpoints.clear()
+            return True
+
+        #check if the id to clear exists.
+        bps = self.bpoints.filter( ('id',),(id,))
+        if len(bps)==0:
+            return False
+
+        #remove the breakpoint
+        bp = bps[0]
+        self.bpoints.remove( bp )
+        wx.py.dispatcher.send(signal='debugger.breakpoint_cleared', bpdata=bp)
+        return True
+
+    def edit_breakpoint(self, id, **kwargs):
+        """
+        Edit a breakpoint.
+
+        Only modify the keywords given (from filename, lineno, condition,
+        trigger_count and ignore_count).
+
+        e.g. edit_breakpoint( id=1, filename='test.py', lineno=23) will modify
+        the breakpoint filename and lineno.
+        """
+        #check if the id to clear exists.
+        bps = self.bpoints.filter( ('id',),(id,))
+        if len(bps)==0:
+            return False
+
+        bpdata= bps[0]
+        if kwargs.has_key('filename'):
+            kwargs['filename'] = self._abs_filename( kwargs['filename'] )
+        bpdata.update(kwargs)
+        return True
+
+    #debugger command/interogration interface
+    def get_scope(self, level=None):
+        """
+        Get the scope name,frame, globals and locals dictionaries for the scope at the
+        level given (None=current scope, 0=user namespace dictionary).
+
+        Note: To make any changes permanent you should call 
+        _update_frame_locals(frame), with the frame.
+        """
+        #Note see http://utcc.utoronto.ca/~cks/space/blog/python/FLocalsAndTraceFunctions for possible problem!
+        #Confirmed this issue - making a change to an existing variable will not
+        #'stick' if the locals/globals are retreived again before the next line
+        #is executed. 
+
+        #To get round this either:
+        #1)Keep a cache of the scopes globals/locals
+        #to only fetch the dictionary once, after the next line the changes will
+        #stick - but only to the top frame!
+        #
+        #2)Or using the python c api call that is called after the trace function
+        #returns to make the changes stick immediately. This is done in the 
+        #function  _update_frame_locals(frame)
+        if level is None:
+            level=self._active_scope
+        if level>len(self._scopes) or level<0:
+            raise Exception('Level out of range: '+str(level))
+        #get the scope name
+        name = self._scopes[level]
+        frame = self._frames[level]
+        globals = frame.f_globals
+        locals = frame.f_locals
+        return name,frame,globals,locals
+
+    def set_scope(self, level):
+        """
+        Set the scope level to use for interogration when paused. This will be 
+        reset at the next pause (i.e. after stepping).
+        """
+        #check level is an int
+        if isinstance(level, int) is False:
+            return False
+        #check level is in range
+        if level > (len(self._scopes)-1):
+            return False
+        #check if already in this level
+        if level==self._active_scope:
+            return True
+        self._active_scope = level
+
+        #print console message
+        #send scope change message
+        #data = (self._scopes, self._active_scope)
+        wx.py.dispatcher.send(signal='debugger.updatescopes', frames = self._frames, level = level)
+        return True
+
+    def push_line(self,line):
+        """
+        A debugger commands to run - this is called from the engine when a 
+        line is pushed and we are debugging and paused, so store internally and
+        wake the debugger.
+        """
+        #not paused so not expecting any commands???
+        if self._paused is False:
+            return
+        #have some code to execute so call run_user_command to do something with it
+        #this wakes the resume event and runs the code in the mainthread
+        self._cmd = line
+        self._resume_event.set()
+    #filepaths
+    def set_block_file(self, filepath):
+        """
+        Set a filepath to block from tracing.
+        use path* to include multiple files.
+        """
+        filepath = self._abs_filename(filepath)
+        self._block_files.append(filepath)
+
+    def get_block_files(self):
+        """
+        Get the filepaths that are currently blocked from tracing
+        """
+        return self._block_files
+
+    #engine like interfaces
+    def evaluate(self,expression, level=None):
+        """
+        Evaluate expression in the active debugger scope and return result 
+        (like builtin eval)
+        
+        It is intened to be used to provide functionality to the GUI, so commands
+        should be fairly quick to process to avoid blocking.
+
+        The optional level argument controls the scope that will be used. 
+        scope=None uses the current debugger scope and scope=0 is the top level 
+        scope (the usernamespace).
+        
+        Returns None on errors
+        """
+        #get the scope locals/globals
+        name,frame,globals,locals = self.get_scope(level)
+
+        #try to evaluate the expression
+        try:
+            result = eval(expression, globals, locals)
+        except:
+            result = None
+
+        #update the locals
+        self._update_frame_locals(frame)
+        return result
+
+    def execute(self,expression, level=None):
+        """
+        Execute expression in engine (like builtin exec)
+
+        It is intened to be used to provide functionality to the GUI interface,
+        so commands should be fairly quick to process to avoid blocking the 
+        communications thread.
+        
+        The optional level argument controls the scope that will be used. 
+        scope=None uses the current debugger scope and scope=0 is the top level 
+        scope (the usernamespace).
+        """
+        #get the scope locals/globals
+        name,frame,globals,locals = self.get_scope(level)
+
+        #execute the expression
+        try:
+            exec(expression, globals, locals)
+        except:
+            pass
+
+        #update the locals
+        self._update_frame_locals(frame)
+
+    def run_task(self, taskname, args=(), kwargs={}, level=None):
+        """
+        Run a complex task in the engine; taskname is the name of a registered 
+        task function taking the following arguments: 
+                task(globals, locals, *args, **kwargs)
+        
+        The optional level argument controls the scope that will be used. 
+        scope=None uses the current debugger scope and scope=0 is the top level 
+        scope (the usernamespace).
+
+        Returns None on errors.
+        """
+        #get the task
+        task = self.eng.get_task(taskname)
+        if task is None:
+            raise NameError('No task with name: '+taskname)
+
+        #get the scope locals/globals
+        name,frame,globals,locals = self.get_scope(level)
+
+        #run the task
+        try:
+            result=task(globals, locals, *args, **kwargs)
+        except:
+            result=None
+
+        #update the locals
+        self._update_frame_locals(frame)
+
+        return result
+
+    #---------------------------------------------------------------------------
+    # trace methods
+    #---------------------------------------------------------------------------
+    #Trace every line - why? 
+    #1) It allows step out to work from a breakpoint in a nested scope
+    #2) It makes the code easier to follow
+    #3) It allows running code to be paused anywhere rather than just in traced scopes
+    #The downside is speed, with every line now causing a call into python code
+    def __call__(self, frame, event, arg):
+        """ This trace function is called only once when debugging starts."""
+        #store the first frame so we know where user code starts
+        self._bottom_frame = frame
+        #set the new global trace function
+        sys.settrace(self._trace_global)
+
+        #update the scope list
+        self._update_scopes(frame)
+    
+        #return the local trace function for the first call
+        return self._trace_global(frame, event, arg)
+
+    def _trace_global(self, frame, event, arg):
+        """The main trace function called on call events """
+        ##---Prepause-----------------------------------------------------------
+        #check if the engine wants to stop running code
+        if self._stop is True:
+            raise KeyboardInterrupt
+        #check if the debugger want to end debugging.   
+        if self._end is True:
+            sys.settrace(None)
+            wx.py.dispatcher.send(signal = 'debugger.ended') 
+            #use a blank trace function as returning None doesn't work
+            return self._trace_off
+
+        #file and name of scope being called.
+        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        name = frame.f_code.co_name
+        lineno =  frame.f_lineno
+
+        #if the file is on the block list do not trace
+        #this is mainly engine/message bus files and prevents the user pausing and
+        #locking the engine communications.
+        if self._check_files(filename, self._block_files):
+            return None
+        #if the calling frame is also blocked return None
+        if (frame.f_back.f_trace is None and frame!=self._bottom_frame):
+            return None
+
+        #if trace_stepout is the parent frames trace function then do not pause 
+        #here unless there is a breakpoint set, just return the stepout trace function
+        #which only checks for breakpoints and exits.
+        elif (frame.f_back.f_trace) == (self._trace_stepout):
+            return self._trace_stepout
+
+        #check for breakpoints
+        filename = self._abs_filename( filename )
+        bps = self.bpoints.filter( ('filename','lineno'), (filename,lineno) )
+        for bpdata in bps:
+            paused = self._hit_bp( bpdata, frame)
+            if paused is True:
+                break
+        ##---Pause--------------------------------------------------------------
+        ##pause at this line?
+        if self._paused is True:
+            #This pauses until stepped/resumed
+            self._trace_pause(frame, event, arg)
+            
+        ##---After pause--------------------------------------------------------
+        #if paused and stepping in print a message
+        if self._paused:
+            if self._stepin is True:
+                #self.write_debug('Tracing in new scope: '+name)
+                local_trace = self._trace_local
+            else:
+                #not stepping in so use the stepout function
+                local_trace = self._trace_stepout
+        #not paused so carry on with the normal trace function
+        else:
+            local_trace = self._trace_local
+
+        #reset the can step in flags
+        self._can_stepin = False 
+        self._stepin = False
+
+        return local_trace
+
+    def _trace_local(self, frame, event, arg):
+        """
+        The local trace function
+        - the main local trace function checks for breakpoints and pause requests
+        - used for all traced scopes unless stepping out, or ending debugging.
+        """
+        #check if the engine wants to stop running code
+        if self._stop is True:
+            raise KeyboardInterrupt
+
+        #print 'local:',event
+        #check if the debugger want to end debugging.   
+        if self._end is True:
+            #self.write_debug('Ending debugging')
+            wx.py.dispatcher.send('debugger.ended') 
+            sys.settrace(None)
+            #use a blank trace function as returning None doesn't work
+            #this is a python bug (as of python2.7 01/2011)
+            return self._trace_off
+
+        #file and name of scope being called.
+        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        name = frame.f_code.co_name
+        lineno =  frame.f_lineno
+
+        #check for breakpoints
+        filename = self._abs_filename( filename )
+        bps = self.bpoints.filter( ('filename','lineno'), (filename,lineno) )
+        for bpdata in bps:
+            paused = self._hit_bp( bpdata, frame)
+            if paused is True:
+                break
+        
+        #-----------------------------------------------------------------------
+        #Need to pause/already paused here
+        if self._paused is True:
+            #This pauses until stepped/resumed
+            self._trace_pause(frame, event, arg)
+        #-----------------------------------------------------------------------
+
+        #check for step out
+        if self._stepout is True:
+            #set the previous frame to use the local trace function incase it is
+            #not using it already
+            frame.f_back.f_trace = self._trace_local
+            #and use the stepout function from now on - _trace_local will only be
+            #called again when a new breakpoint is encountered or if we are back
+            #in the frame above (frame.f_back)
+            self._stepout = False
+            return self._trace_stepout
+
+        return self._trace_local
+
+    def _trace_stepout(self, frame, event, arg):
+        """
+        A minimial local trace function used when stepping out of a scope.
+        - it will only pause if a breakpoint is encountered (it passes control back to trace_local)
+        """
+        #check if the engine wants to stop running code
+        if self._stop is True:
+            raise KeyboardInterrupt
+        #print 'stepout:',event
+        #check if the debugger want to end debugging.   
+        if self._end is True:
+            #self.write_debug('Ending debugging')
+            wx.py.dispatcher.send('debugger.ended') 
+            sys.settrace(None)
+            #use a blank trace function as returning None doesn't work
+            return self._trace_off
+
+        #file and name of scope being called.
+        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        name = frame.f_code.co_name
+        lineno =  frame.f_lineno
+
+        #check for breakpoints
+        filename = self._abs_filename( filename )
+        bps = self.bpoints.filter( ('filename','lineno'), (filename,lineno) )
+        for bpdata in bps:
+            will_break = self._check_bp( bpdata, frame)
+            if will_break is True:
+                #do not bother to continue checking
+                #pass to the full trace function.
+                return self._trace_local(frame, event, arg)
+        return self._trace_stepout
+    
+    def _trace_pause(self, frame, event, arg):
+        """
+        A function called from within the local trace function to handle a pauses at this event
+        """
+        #print the event message to the console     
+        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        name = frame.f_code.co_name
+        lineno = frame.f_lineno
+
+        #update the scope list
+        self._update_scopes(frame)
+        #if self._paused_active_scope != self._active_scope:
+        #    return
+        if event == 'call':                
+            self._can_stepout = False
+            self._can_stepin  = True
+        elif len(self._scopes)>1:
+            self._can_stepout = True
+            self._can_stepin  = True
+        else:
+            self._can_stepout = False
+            self._can_stepin  = True
+        if event == 'call' and not self._stepin:
+            return
+        #send a paused message to the console 
+        #(it will publish an ENGINE_DEBUG_PAUSED message after updating internal
+        #state)
+        data =( (name,self._abs_filename( filename ),lineno), 
+                self._scopes, self._active_scope, 
+                (self._can_stepin,self._can_stepout),self._frames)
+
+        wx.py.dispatcher.send(signal='debugger.paused', bpdata = data)
+        #The user can then select whether to resume, step, step-in, step-out 
+        #cancel the code or stop debugging.
+
+        #Make the console prompt for debugger commands at this pause.
+        wx.py.dispatcher.send(signal='debugger.prompt')
+        ##Paused loop - waiting for user instructions
+        loop = True
+        while loop:
+            self._resume_event.wait()
+            self._resume_event.clear()
+
+            #check if the engine wants to stop running code
+            if self._stop is True:
+                raise KeyboardInterrupt
+
+            #check if there is user code the execute
+            if self._cmd is None: 
+                #turn console debug mode off -Note: None to turn off, True/False
+                #is line continuation
+                #need to step or resume so exit this while block
+                wx.py.dispatcher.send(signal='debugger.prompt')
+                loop = False
+
+            #user command to process.
+            else:
+                line = self._cmd
+                self._cmd = None
+                #check for debugger commands
+                handled = self._process_dbg_command(line)
+                if handled is False:
+                    #not a command so execute as python source
+                    self._process_dbg_source(line)
+
+        #reset stepin flag
+        self._can_stepin = False
+    
+        ##Debugger will run next line
+        #check if we have resumed (will not pause again until a breakpoint/pause request)
+        if self._resume is True:
+            self._paused = False
+            self._resume = False
+            self._active_scope = 0
+            #Publish a resumed message
+            #self.eng.publish_msg(   eng_messages.ENGINE_DEBUG_RESUMED+'.'+
+            #                        self.eng.name, (None,) )
+        #else still paused (will pause at next line)
+
+    def _trace_off(self, frame, event, arg):
+        """
+        A dummy tracing function used when ending tracing as returning None
+        doesn't work (python bug v2.7 as of 01/2011)
+        """
+        return None
+
+    #---------------------------------------------------------------------------
+    # Internal methods
+    #---------------------------------------------------------------------------
+    def _check_bp(self, bpdata, frame):
+        """
+        Decide whether to break at the bpdata given. 
+        The frame is used to evaluate any conditons.
+        """
+        bpid = bpdata['id']
+
+        #check if the breakpoint should be ignored.
+        #(used to trigger after n hits)
+        ignore_count = bpdata['ignore_count']
+        icount = self._bp_hcount.get(bpid, 0)
+        if (ignore_count is not None) and (icount < ignore_count):   
+            #ignoring... 
+            return False
+
+        #check if this breakpoint has been triggered enough times
+        #(used for temporay breakpoints - only triggered n times)
+        trigger_count = bpdata['trigger_count']
+        tcount = self._bp_tcount.get(bpid, 0)
+        if (trigger_count is not None) and (tcount >= trigger_count):
+            #ignoring as already triggered enougth times
+            return False
+
+        #checkif there is an expression to evaluate
+        condition = bpdata['condition']
+        if condition is None:
+            #no condition triggering... 
+            return True
+
+        #evaluate it
+        try:
+            trigger = eval(condition, frame.f_globals, frame.f_locals)
+        except:
+            #fail safe - so trigger anyway.
+            return True
+        return trigger
+
+    def _hit_bp(self, bpdata, frame):
+        """
+        Decide whether to break at the bpdata given and update internal counters
+        and pause if necesary. The frame is used to evaluate any conditons.
+
+        _hit_bp (this method) will check, update counters and pause if necessary
+        _check_bp will only check - not pause or update counters.
+        """
+        bpid = bpdata['id']
+
+        #increament the hit counter
+        hcount = self._bp_hcount.get(bpid, 0)
+        self._bp_hcount[bpid] = hcount+1 
+
+        #check if the breakpoint should be ignored.
+        #(used to trigger after n hits)
+        ignore_count = bpdata['ignore_count']
+        if (ignore_count is not None) and (hcount < ignore_count):   
+            #ignoring...
+            return False
+
+        #check if this breakpoint has been triggered enough times
+        #(used for temporay breakpoints - only triggered n times)
+        trigger_count = bpdata['trigger_count']
+        tcount = self._bp_tcount.get(bpid, 0)
+        if (trigger_count is not None) and (tcount >= trigger_count):
+            #ignoring as already triggered enougth times
+            return False
+
+        #checkif there is an expression to evaluate
+        condition = bpdata['condition']
+        if condition is None:
+            #no condition triggering... increment tcount
+            self._bp_tcount[bpid] = tcount+1
+            trigger = True
+        else:
+            #evaluate it
+            try:
+                trigger = eval(condition, frame.f_globals, frame.f_locals)
+            except:
+                #fail safe - so trigger anyway.
+                self.write_debug('Triger condition expression error - triggering breakpoint')
+                bpdata['tcount'] = tcount+1
+                trigger =  True
+
+        #increament trigger count and pause
+        if trigger is True:
+            #triggering... increament tcount
+            self._bp_tcount[bpid] = tcount+1
+            #self.write_debug('Breakpoint triggered')
+            self._paused = True
+            self._paused_active_scope = self._active_scope
+
+        return trigger
+
+    def _update_scopes(self, frame):
+        scopes = []
+        frames = []
+        #loop backwards through frames until the bottom frame and generate lists
+        #of scope names and frames. 
+        while frame is not None:
+            name = frame.f_code.co_name
+            if name=='<module>':
+                filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+                if filename=='<input>':
+                    name = 'Main'
+            scopes.append(name)
+            frames.append(frame)
+
+            #check the next frame back
+            if frame == self._bottom_frame:
+                frame = None
+            else:
+                frame = frame.f_back
+
+        #store to internals
+        scopes.reverse()
+        frames.reverse()
+        self._scopes = scopes 
+        self._frames = frames
+
+        #set current scope
+        level = len(self._scopes)-1
+        if self._active_scope!=level:
+            self.set_scope(level)
+        else:
+            wx.py.dispatcher.send(signal='debugger.updatescopes', frames = frames, level = level)
+    def _update_frame_locals(self, frame):
+        """
+        Ensures changes to a frames locals are stored so they are not lost.
+        """
+        # For explanation see get_scope and the following pages:
+        # http://bugs.python.org/issue1654367#
+        # http://www.gossamer-threads.com/lists/python/dev/546183
+        #use PyFrame_LocalsToFast(f, 1) to save changes back into c array.
+        func = ctypes.pythonapi.PyFrame_LocalsToFast
+        func.restype=None
+        func(ctypes.py_object(frame), 1)
+
+    def _abs_filename(self, filename):
+        """
+        Internal method to return the absolute filepath form.
+        """
+        #change filename provided to absolute form
+        #This is done using code from the bdb.BdB.canonic() method
+        if filename == "<" + filename[1:-1] + ">":
+            #file name is a special case - do not modify
+            fname = filename
+        else:
+            #check in cache of filenames already done.
+            fname = self._fncache.get(filename,None)
+            if not fname:
+                #not in cache, get the absolute path
+                fname = os.path.abspath(filename)
+                fname = os.path.normcase(fname)
+                self._fncache[filename] = fname
+        return fname
+
+    def _check_files(self, filename, filelist):
+        """
+        Internal method to check if the file is included in the list (or included
+        by a wildcard *).Returns True/False.
+        """
+        #get absolute filepath form
+        fname = self._abs_filename(filename)
+
+        #loop over filelist entries checking each one - return on first positive.
+        for f in filelist:
+            #a wildcard - check if fname startswith the path upto the *
+            if f.endswith('*'):
+                if fname.startswith(f[:-1]):
+                    return True
+            #a normal path - check if fname is this path.
+            elif fname==f:
+                return True
+        return False
+
+    def _process_dbg_command(self, line):
+        """
+        Check for, and perform user debugger commands.
+        Returns handled=True/False
+        """
+        ##Check for debugger comment commands:
+        #
+        #STEP #S
+        #STEPIN #SI
+        #STEPOUT #SO
+        #SETSCOPE n #SS n
+        #RESUME #R
+        #HELP #H
+        if line.startswith('#') is False:
+            return False
+
+        cmd = line.rstrip('\n') #remove the trailing newline for this check
+        parts = cmd.split(' ') #split into command and arguments
+        cmd = parts[0]
+        args = parts[1:]
+        cmd = cmd.lower() #conver to all lower case:
+
+        #step
+        if cmd in ['#step','#s']:
+            res = self.step()
+            if res is False:
+                self.write_debug('Cannot step here')
+            else:
+                #no need to prompt as stepping
+                return True
+        #step in
+        elif cmd in ['#stepin','#si']:
+            res = self.step_in()
+            if res is False:
+                self.write_debug('Cannot step in here')
+            else:
+                #no need to prompt as stepping
+                return True
+        #stepout
+        elif cmd in ['#stepout','#so']:
+            res = self.step_out()
+            if res is False:
+                self.write_debug('Cannot step out here')
+            else:
+                #no need to prompt as stepping
+                return True    
+
+        #set scope
+        elif cmd in ['#setscope','#ss']:
+            if len(args)!=1:
+                level = 0
+            try:
+                level = int(args[0])
+            except:
+                level = args[0]
+            res = self.set_scope(level)
+            if res is False:
+                msg = ('Usage: #setscope level\n'+
+                'Where level should be an integer, in the range 0 (main user namespace) to '+
+                str(len(self._scopes)-1)+' (scope currently being executed)')
+                self.write_debug(msg)
+        #resume
+        elif cmd in ['#resume', '#r']:
+            res = self.resume()
+            if res is False:
+                self.write_debug('Cannot resume here')
+            else:
+                #no need to prompt as resuming
+                return True
+            return True
+        #end debugging
+        elif cmd in ['#end', '#e']:
+            self.end()
+            return True
+        #help
+        elif cmd in ['#help', '#h']:
+            self.write_debug(help_msg)
+
+        #print line
+        elif cmd in ['#line','#l']:
+            frame = self._frames[ self._active_scope ]
+            tb = inspect.getframeinfo(frame)
+            if tb.code_context is None:
+                self.write_debug('Source line unavailable')
+            else:
+                self.write_debug(tb.code_context[tb.index])
+        
+        #not a debugger command
+        else:
+            return False
+
+        #Prompt for a new command and return
+        wx.py.dispatcher.send(signal='debugger.prompt')
+        return True
+
+    def _process_dbg_source(self,line):
+        """
+        Process a line of user input as python source to execute in the active 
+        scope
+        """
+        ##line is user python command compile it
+        ismore,code,err = self.compiler.compile(line)
+
+        #need more 
+        #   - tell the console to prompt for more 
+        if ismore:
+            wx.py.dispatcher.send(signal='debugger.prompt',ismore = True)
+            return
+
+        #syntax error
+        #   - compiler will output the error
+        #   - tell the console to prompt for new command 
+        if err:
+            wx.py.dispatcher.send(signal='debugger.prompt',iserr = True)
+            return
+
+        #no code object - could be a blank line
+        if code is None:
+            wx.py.dispatcher.send(signal='debugger.prompt')
+            return
+
+        ##run the code in the active scope
+        name, frame, globals, locals = self.get_scope(self._active_scope)
+        try:
+            exec code in globals,locals
+        except SystemExit:
+            self.write_debug('Blocking system exit')
+        except KeyboardInterrupt:
+            self._paused = False
+            raise KeyboardInterrupt
+        except:
+            #engine is exiting   -  probably some error caused by engine exiting
+            #if self.eng._stop_quiet:
+            #    raise KeyboardInterrupt
+
+            #engine wanted to stop anyway - probably wxPython keyboard interrupt error
+            if self._stop is True:
+                self._paused = False
+                raise KeyboardInterrupt
+
+            #error in user code.
+            self.compiler.show_traceback()
+
+        #update the locals
+        self._update_frame_locals(frame)
+
+        ##Finsihed running the code - prompt for a new command
+        # add the command to history
+        wx.py.dispatcher.send(signal='debugger.executecommand',command=line)
+        wx.py.dispatcher.send(signal='debugger.prompt')
+
+    def write_debug(self, string):
+        """
+        Write a debugger message to the controlling console
+        """
+        self.shell.writeOut(string)
+
+    #---------------------------------------------------------------------------
+    # Message handlers
+    #---------------------------------------------------------------------------
+    def debug_pause(self):
+        es=self.pause()
+        return res
+
+    def debug_resume(self):
+        res=self.resume()
+        return res
+
+    def debug_stop(self):
+        self.stop_code()
+
+    def debug_end(self):
+        res=self.end()
+        return res
+
+    def debug_step(self):
+        self.step()
+
+    def debug_stepinto(self):
+        self.step_in()
+
+    def debug_stepout(self):
+        self.step_out()
+
+    def debug_setscope(self, level):
+        #level = msg.data[0]
+        self.set_scope(level)
+
+    def dbg_setbp(self, bpdata):
+        #bpdata= {id,filename, lineno, condition, ignore_count, trigger_count}
+        #bpdata, = msg.get_data()
+        res = self.set_breakpoint(bpdata)
+        return res
+    def dbg_getbp(self, filename,lineno):
+        #bpdata= {id,filename, lineno, condition, ignore_count, trigger_count}
+        #bpdata, = msg.get_data()
+        res = self.get_breakpoint(filename,lineno)
+        return res
+    def dbg_clearbp(self, ids):
+        for id in ids:
+            res = self.clear_breakpoint(id)
+        return res
+
+    def dbg_editbp(self, id, **kwargs):
+        #id,kwargs = msg.get_data()
+        res = self.edit_breakpoint(id,**kwargs)
+        return res
+
+
+"""
+Engine misc.
+
+Various engine utility functions/classes
+"""
+#-------------------------------------------------------------------------------
+# A general purpose list type object used for storing dictionaries these can 
+# then be filtered by key.
+# Used to store breakpoints in both the engine debugger (engine process) and
+# engine manager(gui process) where breakpoints are stored as dictionaries
+class DictList():
+    def __init__(self, dicts=(), default={}):
+        """
+        Create a list like container object for dictionaries with the ability to
+        look up dicts by key value or by index.
+
+        dicts - is a sequence of dictionaries to populate the DictList with.
+        default - a defualt dictionary to use to create a new dictionary in the 
+        list.
+
+        Example.
+
+        >>> person1 = {'Name':'John', 'Age':53}
+        >>> person2 = {'Name':'Bob', 'Age':53}
+        >>> person3 = {'Name':'Sally', 'Age':31}
+        >>> default = {'Name':'', 'Age':0}
+        >>> dlist = DictList( (person1,person2,person3),default)
+
+        >>> #Filter by age
+        >>> dlist.filter(keys=('Age',),values=(53,))
+        [{'Age': 53, 'Name': 'John'}, {'Age': 53, 'Name': 'Bob'}]
+
+        >>> #Filter by age and name
+        >>> dlist.filter(keys=('Age','Name'),values=(53,'John'))
+        [{'Age': 53, 'Name': 'John'}]
+
+        >>> #Add a new dictionary
+        >>> dlist.new()
+        {'Age': 0, 'Name': ''}
+        """
+        self._dicts = []
+        for d in dicts:
+            self._dicts.append(d)
+        self._default = default
+
+    def clear(self):
+        """Remove all items"""
+        self._dicts = []
+
+    def index(self, d):
+        """Find the index of a dictionary in the list"""
+        return self._dicts.index(d)
+
+    def pop(self, index):
+        """Remove the dictionary at the index given"""
+        return self._dicts.pop(index)
+
+    def items(self, key=None):
+        """
+        Return a list of all dictionaries in the list. If the optional key is 
+        given it will returns a list of the values of all dicts which have that 
+        key. 
+        """
+        if key is None:
+            return self._dicts
+
+        #get the key values
+        dicts = []
+        for d in self._dicts:
+            if d.has_key(key):
+                dicts.append( d[key] )
+        return dicts
+
+    def filter(self, keys=(), values=()):
+        """
+        Filter the dictionaries in the list to return only those
+        with all matching key value pairs. 
+        """
+        dicts = self._dicts
+        #filter for each key,value in
+        for key, value in zip(keys,values):
+            self._fkey = key
+            self._fvalue = value
+            dicts = filter(self._filter, dicts)
+            self._fkey = None
+            self._fvalue = None
+        return dicts
+
+    def values(self, key):
+        """
+        Return a list of all values a given key has in the dictionarys.
+        """
+        values=[]
+        for i in self.items():
+            value = i[key]
+            if value not in values:
+                values.append(value)
+        return values
+
+    def append(self, d):
+        """
+        Append a dictionary to the list.
+        """
+        #check item
+        if isinstance(d, dict) is False:
+            raise ValueError('Expected a dictionary')
+        self._dicts.append(d)
+
+    def new(self):
+        """
+        Create and append a new dictionary to the list. If a default dictionary 
+        has been set a shallow copy will made. The new dictionary is returned.
+        """
+        d = self._default.copy()
+        self.append(d)
+        return d
+
+    def remove(self, d):
+        """
+        Remove the dictionary from the list and return it.
+        """
+        n= self.index(d)
+        return self.pop(n)
+
+    def set_default(self, d):
+        if isinstance(d, dict) is False:
+            raise ValueError('Default should be a dictionary')
+
+    def _filter(self, d):
+        """internal method to find matching items"""
+        #d is the dictionary to check for a match
+        #self._fkey, self._fvalue are stored before calling this function and
+        #are the key:value to match
+        if d.has_key(self._fkey):
+            return d[self._fkey] == self._fvalue
+        else:
+            return False
+
+    def __len__(self):
+        return len(self._items)
+
+    def __iter__(self):
+        return self._dicts.__iter__()
+
+    def __getitem__(self, index):
+        return self._dicts[n]
+
+    def __setitem__(self, index, d):
+        #index store new item
+        if isinstance(d, dict) is False:
+            raise ValueError('Expected a dictionary')
+        self._dicts[index] = d
+
+    def __repr__(self):
+        s = 'DictList('+self._dicts.__repr__()+')'
+        return s
+
+"""
+Engine Compiler
+---------------
+
+Handles the compilation of source and formating exceptions and tracebacks for 
+the engine.
+"""
+
+import wx.py
+from codeop import _maybe_compile, Compile
+import sys
+import traceback                        #for formatting errors
+
+class EngineCompiler(Compile):
+    def __init__(self):
+        Compile.__init__(self)
+
+        #the number of lines to remove from the traceback line count, 
+        #for multi line hack in compilation stage
+        self._lineadjust = 0  
+
+        #source buffer to get print line of source in exception
+        self._buffer = '' 
+        
+        #register message handlers
+        wx.py.dispatcher.connect(self.future_flag,   'debugger.futureflag' )
+
+    #---------------------------------------------------------------------------
+    # Interface methods
+    #---------------------------------------------------------------------------
+    def set_compiler_flag(self,flag,set=True):
+        """
+        Set or unset a __future__ compiler flag
+        """
+        if set is True:
+            self.flags |= flag
+        else:
+            self.flags &= ~flag
+
+    def compile(self,source):
+        """
+        Compile source. 
+        Returns (more,code,err) where:
+            
+        more        -   Bool indicating whether more is expected
+        code        -   the compiled code object if any
+        err         -   True if syntax error, false otherwise
+        """
+        ##to enable more lines when the current code is ok but not finished we 
+        ##remove the final \n, this means the line must have \n\n to be complete.
+        #if source[-1]=='\n':
+        #    source = source[:-1]
+        # Check for source consisting of only blank lines and comments
+        for line in source.split("\n"):
+            line = line.strip()
+            if line and line[0] != '#':
+                break               # Leave it alone
+        else:
+            source = "" 
+        ##check that the line is not empty
+        if source.lstrip()=='':
+            return False,None,False
+
+        ##to enable multiple lines to be compiled at once we use a cheat...
+        ##everything is enclosed in if True: block so that it will compile as a 
+        ##single line, but need to check that there is no indentation error...
+        if source[0]!=' ': #check for first line indentation error
+            self._lineadjust=-1
+            lastline = source.split('\n')[-1]
+            source ="if True:\n "+source.replace('\n','\n ')
+            #the old source ended with a '\n' no more to come so add '\n' 
+            #so that it compiles
+            if source.endswith('\n '):
+                source = source+'\n'
+            #also if the last line is zero indent add a \n as the block is also
+            #complete
+            if (len(lastline)-len(lastline.lstrip()))==0:
+                source = source+'\n'
+        else:
+            self._lineadjust=0
+
+        #store source in buffer
+        self._buffer = source        
+
+        ##now compile as usual.
+        filename="<Engine input>"
+        symbol="single"
+        try:
+            code = _maybe_compile(self, source, filename, symbol)
+        except (OverflowError, SyntaxError, ValueError):
+            # Case 1 - syntax error
+            self.show_syntaxerror()
+            return False,None,True
+
+        if code is None:
+            # Case 2 - more needed
+            return True,None,False
+
+        # Case 3 - compile to code
+        return False,code,False
+
+    def show_syntaxerror(self):
+        """
+        Display the syntax error that just occurred.
+        This doesn't display a stack trace because there isn't one.
+
+        If a filename is given, it is stuffed in the exception instead
+        of what was there before (because Python's parser always uses
+        "<string>" when reading from a string).
+
+        taken from: code.InteractiveInterpreter
+        """
+        filename="<Engine input>"
+        
+        errtype, value, sys.last_traceback = sys.exc_info()
+        sys.last_type = errtype
+        sys.last_value = value
+            
+        try:
+            msg, (dummy_filename, lineno, offset, line) = value
+        except:
+            # Not the format we expect; leave it alone
+            pass
+        else:
+            if dummy_filename==filename:
+                #(lineno-1 due to multiline hack in compile source)
+                value = errtype(msg, (filename, lineno+self._lineadjust, offset, line))
+            else:
+                value = errtype(msg, (dummy_filename, lineno, offset, line))
+            sys.last_value = value
+        list = traceback.format_exception_only(errtype, value)
+        map(sys.stderr.write, list)
+
+    def show_traceback(self):
+        """
+        Display the exception that just occurred.
+        We remove the first stack item because it is our own code and adjust the
+        line numbers for any engine inputs.
+        modified from: code.InteractiveInterpreter
+        """
+        try:
+            type, value, sys.last_traceback = sys.exc_info()
+            sys.last_type = type
+            sys.last_value = value
+            tblist = traceback.extract_tb(sys.last_traceback)
+            del tblist[:1] #in our code so remove
+
+            for  n in  range(0,len(tblist)):
+                filename, lineno, offset, line = tblist[n]
+                if filename =="<Engine input>":
+                    #alter line number
+                    tblist[n] = (filename, lineno+self._lineadjust, offset, line)
+                list = traceback.format_list(tblist)
+                if list:
+                    list.insert(0, "Traceback (most recent call last):\n")
+                list[len(list):] = traceback.format_exception_only(type, value)
+            map(sys.stderr.write, list)
+        except:
+            pass
+    #---------------------------------------------------------------------------
+    # Message handlers
+    #---------------------------------------------------------------------------
+    def future_flag(self, msg):
+        """enable or disable a __future__ feature using flags"""
+        flag,set = msg.get_data()
+        self.set_compiler_flag(flag,set)
+   
