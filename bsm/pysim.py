@@ -224,7 +224,7 @@ def write(objects, block = True):
         if not mgr: continue
         mgr.write(obj, block)
 
-def trace_file(name, trace_type, block = True):
+def trace_file(name, trace_type, valid=None, trigger=BSM_BOTHEDGE, block = True):
     """
     dump the values to a file
      
@@ -236,12 +236,12 @@ def trace_file(name, trace_type, block = True):
     
     if not mgr: return
 
-    return mgr.trace_file(obj, trace_type, block)
+    return mgr.trace_file(obj, trace_type, valid, trigger, block)
 
-def trace_buf(obj, size, block = False):
+def trace_buf(obj, size, valid = None, trigger = BSM_BOTHEDGE, block = False):
     sim = gcs()
     if not sim: return
-    return sim.trace_buf(obj, size, block)
+    return sim.trace_buf(obj, size, valid, trigger, block)
 
 def read_buf(obj, block = False):
     sim = gcs()

@@ -172,6 +172,9 @@ class processCommand():
         if self.simengine:
             self.simengine.ctx_stop()
 
+    def IsValidObj(self, name):
+        return name in self.simengine.sim_objects
+
     def Response(self, res):
         self.qResp.put(res)
 
@@ -193,6 +196,7 @@ class processCommand():
         else:
             resp = [{'cmd': 'ack', 'value': False}]
         return resp
+
     def check_bp(self, n):
         bps = self.breakpoint.get_bp()
         if len(bps)<=0: return 0
@@ -207,6 +211,7 @@ class processCommand():
                 return 1
         self.bp_values_prev.update(values)
         return 0
+
     def step(self, running):
         simStep = self.simStep
         simUnit = self.simUnitStep
@@ -234,6 +239,7 @@ class processCommand():
                 bufs[name] = buf['data']
             resp.append({'cmd':'readbuf', 'bufs':bufs})
         return resp
+
     def set_parameter(self, param):
         self.simUnitStep = param.get('unitStep', self.simUnitStep)
         self.simStep = param.get('step', self.simStep)
@@ -249,14 +255,16 @@ class processCommand():
     def read(self, objects):
         objs = {}
         for obj in objects:
-            if obj not in self.simengine.sim_objects: continue
+            if not self.IsValidObj(obj): continue
             objs[obj] = unicode(self.simengine.ctx_read(self.simengine.sim_objects[obj]), errors='replace')
         return objs
+
     def write(self, objects):
         for name, value in objects.iteritems():
-            if name not in self.simengine.sim_objects.keys(): continue
+            if not self.IsValidObj(name): continue
             self.simengine.ctx_write(self.simengine.sim_objects[name], value)
         return [{'cmd': 'ack', 'value': True}]
+
     def time_stamp(self, second):
         if self.simengine is None:
             self.Response([{'cmd': 'ack', 'value': False}])
@@ -264,15 +272,34 @@ class processCommand():
             return self.simengine.ctx_time()
         else:
             return self.simengine.ctx_time_str()
-    def trace_file(self, cmd):
+
+    def trace_file(self, name, ntype, valid, trigger):
+        if not self.IsValidObj(name):
+            return [{'cmd': 'ack', 'value': False}]
+        if valid and not self.IsValidObj(valid):
+            return [{'cmd': 'ack', 'value': False}]
+        if valid:
+            valid = self.simengine.sim_objects[name]
+
         trace = simTraceFile()
-        trace.name = cmd['name']
-        trace.type = cmd['type']
+        trace.name = name
+        trace.type = ntype
         if self.simengine.ctx_add_trace_file(trace):
-            self.simengine.ctx_trace_file(trace, self.simengine.sim_objects[cmd['name']])
-            self.traceFile[cmd['name']] = trace
-        return [{'cmd': 'ack', 'value': True}]
-    def trace_buf(self, name, size):
+            self.simengine.ctx_trace_file(trace, self.simengine.sim_objects[name], valid, trigger)
+            self.traceFile[name] = trace
+            return [{'cmd': 'ack', 'value': True}]
+
+        return [{'cmd': 'ack', 'value': False}]
+
+    def trace_buf(self, name, size, valid=None, trigger=BSM_BOTHEDGE):
+        if not self.IsValidObj(name):
+            return [{'cmd': 'ack', 'value': False}]
+        
+        if valid and not self.IsValidObj(valid):
+            return [{'cmd': 'ack', 'value': False}]
+        if valid:
+            valid = self.simengine.sim_objects[valid]
+
         if name in self.traceBuf.keys():
             trace = self.traceBuf[name]['trace']
             if trace.size != size:
@@ -288,9 +315,11 @@ class processCommand():
             data = np.zeros((size))
             trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
             if self.simengine.ctx_add_trace_buf(trace):
-                self.simengine.ctx_trace_buf(trace, self.simengine.sim_objects[name])
+                self.simengine.ctx_trace_buf(trace, self.simengine.sim_objects[name], 
+                        valid, trigger)
                 self.traceBuf[name] = {'trace':trace, 'data':data}
         return [{'cmd': 'ack', 'value': True}]
+
     def read_buf(self, objects):
         resp = {}
         for obj in objects:
@@ -300,6 +329,7 @@ class processCommand():
                 self.simengine.ctx_read_trace_buf(self.traceBuf[obj]['trace'])
                 resp[obj] = self.traceBuf[obj]['data']
         return resp
+
     def process(self):
         # if in running mode, send the step command automatically
         if self.running and self.qCmd.empty():
@@ -348,10 +378,9 @@ class processCommand():
                         t = self.time_stamp(cmd.get('format', '') == 'second')
                         resp = [{'cmd':'timestamp', 'time': t}]
                     elif cmd['cmd'] == 'tracefile':
-                        resp = self.trace_file(cmd)
+                        resp = self.trace_file(cmd['name'], cmd['type'], cmd['valid'], cmd['trigger'])
                     elif cmd['cmd'] == 'tracebuf':
-                        self.trace_buf(cmd['name'], cmd['size'])
-                        resp = [{'cmd': 'ack', 'value': True}]
+                        resp = self.trace_buf(cmd['name'], cmd['size'], cmd['valid'], cmd['trigger'])
                     elif cmd['cmd'] == 'readbuf':
                         bufs = self.read_buf(cmd['objects'])
                         resp = [{'cmd': 'readbuf', 'bufs': bufs}]

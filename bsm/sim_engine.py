@@ -1,4 +1,5 @@
 import ctypes as ct
+import traceback
 
 SC_OBJ_UNKNOWN        = 0
 SC_OBJ_SIGNAL         = 1
@@ -17,6 +18,14 @@ BSM_NS  = 2
 BSM_US  = 3
 BSM_MS  = 4
 BSM_SEC = 5
+
+BSM_POSEDGE  = 0
+BSM_NEGEDGE  = 1
+BSM_BOTHEDGE = 2
+BSM_NONEEDGE = 3
+
+BSM_TRACE_VCD    = 0
+BSM_TRACE_SIMPLE = 1
 
 class simObj(ct.Structure):
     _fields_ = [('name', ct.c_char*255),
@@ -101,16 +110,17 @@ class sim_engine:
      
             self.ctx_add_trace_file = self.interface("ctx_add_trace_file", (ct.POINTER(simTraceFile),), ct.c_bool)
             self.ctx_remove_trace_file = self.interface("ctx_remove_trace_file", (ct.POINTER(simTraceFile),), ct.c_bool)
-            self.ctx_trace_file = self.interface("ctx_trace_file", (ct.POINTER(simTraceFile),ct.POINTER(simObj)), ct.c_bool)
+            self.ctx_trace_file = self.interface("ctx_trace_file", (ct.POINTER(simTraceFile),ct.POINTER(simObj), ct.POINTER(simObj), ct.c_int), ct.c_bool)
             
             self.ctx_add_trace_buf = self.interface("ctx_add_trace_buf", (ct.POINTER(simTraceBuf),), ct.c_bool)
             self.ctx_remove_trace_buf = self.interface("ctx_remove_trace_buf", (ct.POINTER(simTraceBuf),), ct.c_bool)
-            self.ctx_trace_buf = self.interface("ctx_trace_buf", (ct.POINTER(simTraceBuf),ct.POINTER(simObj)), ct.c_bool)
+            self.ctx_trace_buf = self.interface("ctx_trace_buf", (ct.POINTER(simTraceBuf),ct.POINTER(simObj),ct.POINTER(simObj), ct.c_int), ct.c_bool)
             self.ctx_read_trace_buf = self.interface("ctx_read_trace_buf", (ct.POINTER(simTraceBuf),), ct.c_bool)
             self.ctx_resize_trace_buf = self.interface("ctx_resize_trace_buf", (ct.POINTER(simTraceBuf),), ct.c_bool)
         except:
-           return False
-           
+            traceback.print_exc(file=sys.stdout)
+            return False
+
         return True
 
 

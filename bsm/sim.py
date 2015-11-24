@@ -214,6 +214,7 @@ class ModulePanel(wx.Panel):
         self.ui_timestamp = None
         self.ui_objs = None
         self.ui_buffers = None
+        self.ui_update = 0
         self.tb = wx.ToolBar(self, wx.ID_ANY, wx.DefaultPosition,
                              wx.DefaultSize, wx.TB_FLAT
                              | wx.TB_HORIZONTAL | wx.TB_NODIVIDER)
@@ -382,11 +383,11 @@ class ModulePanel(wx.Panel):
     def write(self, objects, block = False):
         return self.sendCommand([{'cmd':'write', 'objects': objects}], block)
     
-    def trace_file(self, obj, trace_type, block = False):
-        return self.sendCommand([{'cmd':'tracefile', 'name': obj, 'type': trace_type}], block)
+    def trace_file(self, obj, trace_type = BSM_TRACE_SIMPLE, valid = None, trigger = BSM_BOTHEDGE, block = False):
+        return self.sendCommand([{'cmd':'tracefile', 'name': obj, 'type': trace_type, 'valid':valid, 'trigger':trigger}], block)
 
-    def trace_buf(self, obj, size, block = False):
-        return self.sendCommand([{'cmd':'tracebuf', 'name': obj, 'size': size}], block)
+    def trace_buf(self, obj, size, valid = None, trigger = BSM_BOTHEDGE, block = False):
+        return self.sendCommand([{'cmd':'tracebuf', 'name': obj, 'size': size, 'valid':valid, 'trigger':trigger}], block)
 
     def read_buf(self, objects, block = False):
         if isinstance(objects, str):
@@ -594,17 +595,18 @@ class ModulePanel(wx.Panel):
         
         self._resume_event.set()    
     def OnIdle(self, event):
-        if self.ui_timestamp:
+        if self.ui_timestamp and self.ui_update == 0:
             wx.py.dispatcher.send(signal="frame.setstatustext", text = self.ui_timestamp)
             self.ui_timestamp = None
-        elif self.ui_objs:
+        elif self.ui_objs and self.ui_update == 1:
             wx.py.dispatcher.send(signal="grid.updateprop", objs = self.ui_objs)
             self.ui_objs = None
-        elif self.ui_buffers:
+        elif self.ui_buffers and self.ui_update == 2:
             # update the plot, it is time-consuming
            wx.py.dispatcher.send(signal="sim.buffer_changed", bufs = self.ui_buffers)
            self.ui_buffers = None
-            
+        self.ui_update += 1 
+        self.ui_update %= 3 
     def OnStep(self, e):
         self.SetParameter()
         self.step()
