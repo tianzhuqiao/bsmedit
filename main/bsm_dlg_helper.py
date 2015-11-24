@@ -37,29 +37,29 @@ class mainFrame ( framePlus ):
 		
 		self.menuFile.AppendSeparator()
 		
-		self.menuLoadPrj = wx.MenuItem( self.menuFile, wx.ID_ANY, u"&Open project"+ u"\t" + u"Ctrl-L", wx.EmptyString, wx.ITEM_NORMAL )
-		self.menuFile.AppendItem( self.menuLoadPrj )
+		#self.menuLoadPrj = wx.MenuItem( self.menuFile, wx.ID_ANY, u"&Open project"+ u"\t" + u"Ctrl-L", wx.EmptyString, wx.ITEM_NORMAL )
+		#self.menuFile.AppendItem( self.menuLoadPrj )
 		
-		self.menuFile.AppendSeparator()
+		#self.menuFile.AppendSeparator()
 		
-		self.menuCloseSim = wx.MenuItem( self.menuFile, wx.ID_ANY, u"&Close Project", wx.EmptyString, wx.ITEM_NORMAL )
-		self.menuFile.AppendItem( self.menuCloseSim )
+		#self.menuCloseSim = wx.MenuItem( self.menuFile, wx.ID_ANY, u"&Close Project", wx.EmptyString, wx.ITEM_NORMAL )
+		#self.menuFile.AppendItem( self.menuCloseSim )
 		
-		self.menuFile.AppendSeparator()
+		#self.menuFile.AppendSeparator()
 		
-		self.menuSave = wx.MenuItem( self.menuFile, wx.ID_ANY, u"&Save Project", wx.EmptyString, wx.ITEM_NORMAL )
-		self.menuFile.AppendItem( self.menuSave )
+		#self.menuSave = wx.MenuItem( self.menuFile, wx.ID_ANY, u"&Save Project", wx.EmptyString, wx.ITEM_NORMAL )
+		#self.menuFile.AppendItem( self.menuSave )
 		
-		self.menuSaveAs = wx.MenuItem( self.menuFile, wx.ID_ANY, u"Save Project &As", wx.EmptyString, wx.ITEM_NORMAL )
-		self.menuFile.AppendItem( self.menuSaveAs )
+		#self.menuSaveAs = wx.MenuItem( self.menuFile, wx.ID_ANY, u"Save Project &As", wx.EmptyString, wx.ITEM_NORMAL )
+		#self.menuFile.AppendItem( self.menuSaveAs )
 		
-		self.menuFile.AppendSeparator()
+		#self.menuFile.AppendSeparator()
 		
 		self.menuRecentFiles = wx.Menu()
 		self.menuFile.AppendSubMenu( self.menuRecentFiles, u"Recent Files" )
 		
-		self.menuRecentPrj = wx.Menu()
-		self.menuFile.AppendSubMenu( self.menuRecentPrj, u"&Recent Projects" )
+		#self.menuRecentPrj = wx.Menu()
+		#self.menuFile.AppendSubMenu( self.menuRecentPrj, u"&Recent Projects" )
 		
 		self.menuFile.AppendSeparator()
 		
@@ -69,22 +69,22 @@ class mainFrame ( framePlus ):
 		self.menubar.Append( self.menuFile, u"&File" ) 
 		
 		self.menuView = wx.Menu()
-		self.menuLayout = wx.Menu()
+		#self.menuLayout = wx.Menu()
+		#
+		#self.menuSaveCurLayout = wx.MenuItem( self.menuLayout, wx.ID_ANY, u"&Save current ", wx.EmptyString, wx.ITEM_NORMAL )
+		#self.menuLayout.AppendItem( self.menuSaveCurLayout )
+		#
+		#self.menuDelLayout = wx.MenuItem( self.menuLayout, wx.ID_ANY, u"&Delete layout", wx.EmptyString, wx.ITEM_NORMAL )
+		#self.menuLayout.AppendItem( self.menuDelLayout )
+		#self.menuLayout.AppendSeparator()
 		
-		self.menuSaveCurLayout = wx.MenuItem( self.menuLayout, wx.ID_ANY, u"&Save current ", wx.EmptyString, wx.ITEM_NORMAL )
-		self.menuLayout.AppendItem( self.menuSaveCurLayout )
-		
-		self.menuDelLayout = wx.MenuItem( self.menuLayout, wx.ID_ANY, u"&Delete layout", wx.EmptyString, wx.ITEM_NORMAL )
-		self.menuLayout.AppendItem( self.menuDelLayout )
-		self.menuLayout.AppendSeparator()
-		
-		self.menuView.AppendSubMenu( self.menuLayout, u"&Layout" )
+		#self.menuView.AppendSubMenu( self.menuLayout, u"&Layout" )
 		
 		self.menuToolbar = wx.Menu()
-		self.menuToolbarStd = wx.MenuItem( self.menuToolbar, wx.ID_ANY, u"&Standard toolbar", wx.EmptyString, wx.ITEM_CHECK )
-		self.menuToolbar.AppendItem( self.menuToolbarStd )
+		#self.menuToolbarStd = wx.MenuItem( self.menuToolbar, wx.ID_ANY, u"&Standard toolbar", wx.EmptyString, wx.ITEM_CHECK )
+		#self.menuToolbar.AppendItem( self.menuToolbarStd )
 		
-		self.menuToolbar.AppendSeparator()
+		#self.menuToolbar.AppendSeparator()
 		
 		self.menuView.AppendSubMenu( self.menuToolbar, u"&Toolbars" )
 		
@@ -96,18 +96,18 @@ class mainFrame ( framePlus ):
 		self.menubar.Append( self.menuView, u"&View" ) 
 		
 		self.menuTool = wx.Menu()
-		self.menuProperties = wx.MenuItem( self.menuTool, wx.ID_ANY, u"&Properties", u"Show/hide the project panel", wx.ITEM_NORMAL )
-		self.menuTool.AppendItem( self.menuProperties )
+		#self.menuProperties = wx.MenuItem( self.menuTool, wx.ID_ANY, u"&Properties", u"Show/hide the project panel", wx.ITEM_NORMAL )
+		#self.menuTool.AppendItem( self.menuProperties )
 		
 		self.menubar.Append( self.menuTool, u"&Tools" ) 
 		
-		self.menuPLugins = wx.Menu()
-		self.menuMagPlugins = wx.MenuItem( self.menuPLugins, wx.ID_ANY, u"&Manage plugins", wx.EmptyString, wx.ITEM_NORMAL )
-		self.menuPLugins.AppendItem( self.menuMagPlugins )
+		#self.menuPLugins = wx.Menu()
+		#self.menuMagPlugins = wx.MenuItem( self.menuPLugins, wx.ID_ANY, u"&Manage plugins", wx.EmptyString, wx.ITEM_NORMAL )
+		#self.menuPLugins.AppendItem( self.menuMagPlugins )
 		
-		self.menuPLugins.AppendSeparator()
+		#self.menuPLugins.AppendSeparator()
 		
-		self.menubar.Append( self.menuPLugins, u"&Plugins" ) 
+		#self.menubar.Append( self.menuPLugins, u"&Plugins" ) 
 		
 		self.menuHelp = wx.Menu()
 		self.menuHome = wx.MenuItem( self.menuHelp, wx.ID_ANY, u"&Home", wx.EmptyString, wx.ITEM_NORMAL )
@@ -130,17 +130,17 @@ class mainFrame ( framePlus ):
 		self.Bind( wx.EVT_CLOSE, self.OnClose )
 		#self.Bind( wx.EVT_MENU, self.OnNewPythonScript, id = self.menuNewPythonScript.GetId() )
 		#self.Bind( wx.EVT_MENU, self.OnOpenPythonScript, id = self.menuOpenPythonScript.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnFileLoadProject, id = self.menuLoadPrj.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnFileCloseProject, id = self.menuCloseSim.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnFileSaveProject, id = self.menuSave.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnFileSaveProjectAs, id = self.menuSaveAs.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnFileLoadProject, id = self.menuLoadPrj.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnFileCloseProject, id = self.menuCloseSim.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnFileSaveProject, id = self.menuSave.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnFileSaveProjectAs, id = self.menuSaveAs.GetId() )
 		self.Bind( wx.EVT_MENU, self.OnFileQuit, id = self.menuQuit.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnViewSaveLayout, id = self.menuSaveCurLayout.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnViewDeleteLayout, id = self.menuDelLayout.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnViewToggleBar, id = self.menuToolbarStd.GetId() )
-		self.Bind( wx.EVT_UPDATE_UI, self.OnUpdateViewToggleBar, id = self.menuToolbarStd.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnToolsProperties, id = self.menuProperties.GetId() )
-		self.Bind( wx.EVT_MENU, self.OnPluginsManage, id = self.menuMagPlugins.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnViewSaveLayout, id = self.menuSaveCurLayout.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnViewDeleteLayout, id = self.menuDelLayout.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnViewToggleBar, id = self.menuToolbarStd.GetId() )
+		#self.Bind( wx.EVT_UPDATE_UI, self.OnUpdateViewToggleBar, id = self.menuToolbarStd.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnToolsProperties, id = self.menuProperties.GetId() )
+		#self.Bind( wx.EVT_MENU, self.OnPluginsManage, id = self.menuMagPlugins.GetId() )
 		self.Bind( wx.EVT_MENU, self.OnHelpHome, id = self.menuHome.GetId() )
 		self.Bind( wx.EVT_MENU, self.OnHelpContact, id = self.menuContact.GetId() )
 		self.Bind( wx.EVT_MENU, self.OnHelpAbout, id = self.menuAbout.GetId() )

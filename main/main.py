@@ -13,6 +13,7 @@ import DirTreeCtrl
 from debuggerxpm import *
 from dirpanelxpm import *
 from mainframexpm import *
+from version import *
 
 # Implementing mainFrame
 intro = 'Welcome To BSMEdit 3\n' \
@@ -34,9 +35,9 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
     ID_VM_RENAME = wx.NewId()
     def __init__(self, parent):
         bsm_dlg_helper.mainFrame.__init__(self, parent)
-        self.menuSave.SetBitmap(wx.BitmapFromXPMData(save_sim_xpm))
-        self.menuProperties.SetBitmap(wx.BitmapFromXPMData(setting_xpm))
-        self.menuMagPlugins.SetBitmap(wx.BitmapFromXPMData( plugin_xpm))
+        #self.menuSave.SetBitmap(wx.BitmapFromXPMData(save_sim_xpm))
+        #self.menuProperties.SetBitmap(wx.BitmapFromXPMData(setting_xpm))
+        #self.menuMagPlugins.SetBitmap(wx.BitmapFromXPMData( plugin_xpm))
         self.menuAbout.SetBitmap(wx.BitmapFromXPMData(about_xpm))
         
         self.SetMinSize((640, 480))
@@ -153,7 +154,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         wx.py.dispatcher.send(signal='frame.loadconfig', config = self.config)
 
         self.perspective = {}
-        self.LoadPerspective()
+        #self.LoadPerspective()
         self.panelShell.SetFocus()
 
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_UP, self.OnNoteBookTabRightUp)
@@ -470,10 +471,9 @@ class bsmAboutDialog(bsm_dlg_helper.dlgAbout):
     def __init__(self, parent):
         bsm_dlg_helper.dlgAbout.__init__(self, parent)
         self.m_bitmap.SetBitmap(wx.BitmapFromXPMData(header_xpm))
-        self.m_stTitle.SetLabel('BSMEdit 3')
+        self.m_stTitle.SetLabel('BSMEdit %s.%s'%(BSM_VERSION_MAJOR, BSM_VERSION_MIDDLE))
         today = date.today()
-        self.m_stVersion.SetLabel(' Build %02i%02i' % (today.month,
-                                  today.day))
+        self.m_stVersion.SetLabel(' Build %s' % (BSM_VERSION_MINOR))
         self.m_stCopyright.SetLabel('(c) 2008-%i %s' % (today.year,
                                     'Tianzhu Qiao. All rights reserved.'
                                     ))
@@ -537,6 +537,7 @@ class DirPanel(wx.Panel):
     def OnItemActivated(self, event):
         currentItem = event.GetItem()
         if self.dirtree.ItemHasChildren(currentItem):
+            self.dirtree.Expand(currentItem)
             return
         filename = self.dirtree.GetItemText(currentItem)
         (path, fileExtension) = os.path.splitext(filename)
@@ -546,7 +547,7 @@ class DirPanel(wx.Panel):
                 == type(DirTreeCtrl.Directory()):
                 d = self.dirtree.GetPyData(parentItem)
                 filepath = os.path.join(d.directory, filename)
-                wx.py.dispatcher.send(signal='frame.openfile',
+                wx.py.dispatcher.send(signal='bsm.editor.openfile',
                         filename=filepath)
 
     def OnGotoHome(self, event):

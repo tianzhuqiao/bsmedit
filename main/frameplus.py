@@ -116,6 +116,56 @@ class AuiManagerPlus(aui.AuiManager):
         if bUpdate:
             self.Update()
 
+    def OnMotion_Resize(self, event):
+        """
+        Sub-handler for the :meth:`OnMotion` event.
+
+        :param `event`: a :class:`MouseEvent` to be processed.
+        """
+
+        if aui.AuiManager_HasLiveResize(self):
+            if self._currentDragItem != -1:
+                self._action_part = self._uiparts[self._currentDragItem]
+            else:
+                self._currentDragItem = self._uiparts.index(self._action_part)
+
+            if self._frame.HasCapture():
+                self._frame.ReleaseMouse()
+
+            self.DoEndResizeAction(event)
+            self._frame.CaptureMouse()
+            return
+
+        if not self._action_part or not self._action_part.dock or not self._action_part.orientation:
+            return
+
+        clientPt = event.GetPosition()
+        screenPt = self._frame.ClientToScreen(clientPt)
+
+        dock = self._action_part.dock
+        pos = self._action_part.rect.GetPosition()
+
+        if self._action_part.type == aui.AuiDockUIPart.typeDockSizer:
+            minPix, maxPix = self.CalculateDockSizerLimits(dock)
+        else:
+            if not self._action_part.pane:
+                return
+
+            pane = self._action_part.pane
+            minPix, maxPix = self.CalculatePaneSizerLimits(dock, pane)
+
+        if self._action_part.orientation == wx.HORIZONTAL:
+            pos.y = aui.Clip(clientPt.y - self._action_offset.y, minPix, maxPix)
+        else:
+            pos.x = aui.Clip(clientPt.x - self._action_offset.x, minPix, maxPix)
+        hintrect = wx.RectPS(pos, self._action_part.rect.GetSize())
+
+        if hintrect != self._action_rect:
+
+            dc = wx.ClientDC(self._frame)
+            aui.DrawResizeHint(dc, self._action_rect)
+            aui.DrawResizeHint(dc, hintrect)
+            self._action_rect = wx.Rect(*hintrect)
 
 class framePlus(wx.Frame):
     PANE_NUM = 0
