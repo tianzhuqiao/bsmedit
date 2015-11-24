@@ -9,11 +9,11 @@
 ;--------------------------------
 ;General
 
-  !define VERSION "3.0_beta1"
-  !define MAINAPP "BSMEdit"
+  !define VERSION "3.0.1"
+  !define MAINAPP "bsmedit"
   ;Name and file
   Name "SystemC Simulation Module Edit ${VERSION}"
-  OutFile "${MAINAPP}_install_${VERSION}.exe"
+  OutFile "release\${MAINAPP}_install_${VERSION}.exe"
 
   ;Default installation folder
   InstallDir "$PROGRAMFILES\${MAINAPP}"
@@ -82,6 +82,10 @@ SectionIn 1 2 RO
   File .\${MAINAPP}.py
   File /r .\bsm
   File /r .\main
+  File /r .\examples
+  File /r .\systemc-2.1
+  File /r .\xsc
+  File /r .\libs
   File .\License
   File .\readme.txt
   ;FILE /r .\xsc

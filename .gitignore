@@ -3,6 +3,8 @@ res/
 systemc-2.1/
 temp/
 test/
+release/
+libs/
 *.pyc
 *.pyo
 *.dll
