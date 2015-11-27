@@ -2,6 +2,7 @@ import Queue
 from sim_engine import *
 import numpy as np
 import ctypes
+import sys
 
 # the class to handle the breakpoint condition
 # one breakpoint may trigger on multiple conditions,
@@ -397,7 +398,19 @@ class processCommand():
         if self.simengine:
             self.simengine.ctx_stop()
 
+class simLogger(object):
+    def __init__(self, qResp):
+        self.qResp = qResp
+    def write(self, buf):
+        self.qResp.put([{'cmd':'writeOut', 'text':buf}])
+
+    def flush(self):
+        pass
+
 def sim_process(qResp, qCmd):
+    log = simLogger(qResp)
+    sys.stdout = log
+    sys.stderr = log
     proc = processCommand(qCmd, qResp)
     while proc.process():
         pass

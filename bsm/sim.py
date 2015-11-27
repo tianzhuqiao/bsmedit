@@ -387,7 +387,7 @@ class ModulePanel(wx.Panel):
         return self.sendCommand([{'cmd':'tracefile', 'name': obj, 'type': trace_type, 'valid':valid, 'trigger':trigger}], block)
 
     def trace_buf(self, obj, size, valid = None, trigger = BSM_BOTHEDGE, block = False):
-        return self.sendCommand([{'cmd':'tracebuf', 'name': obj, 'size': size, 'valid':valid, 'trigger':trigger}], block)
+        return self.sendCommand([{'cmd':'tracebuf', 'name': obj, 'size': size, 'valid': valid, 'trigger': trigger}], block)
 
     def read_buf(self, objects, block = False):
         if isinstance(objects, str):
@@ -592,6 +592,8 @@ class ModulePanel(wx.Panel):
                         break
             elif cmd['cmd'] == 'ack':
                 self.response = cmd['value']
+            elif cmd['cmd'] == 'writeOut':
+                wx.py.dispatcher.send(signal = 'debugger.writeout', text = cmd['text'])
         
         self._resume_event.set()    
     def OnIdle(self, event):

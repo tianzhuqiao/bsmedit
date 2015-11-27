@@ -12,6 +12,10 @@ import re
 from debugger import EngineDebugger
 import wx.lib.mixins.listctrl as listmix
 import traceback
+import subprocess
+
+def sx(str, *args, **kwds):
+    command1 = subprocess.call(str.split(' '))
 
 class bsmShell(wx.py.shell.Shell):
 
@@ -27,7 +31,11 @@ class bsmShell(wx.py.shell.Shell):
                                    introText, locals, InterpClass,
                                    startupScript, execStartupScript,
                                    *args, **kwds)
-       
+        self.redirectStdout()
+        self.redirectStderr()
+        self.redirectStdin()
+        import __builtin__
+        __builtin__.sx = sx
         self.searchHistory = True
         self.silent = False
         self.autoIndent = True
