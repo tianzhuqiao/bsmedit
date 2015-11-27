@@ -422,10 +422,9 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # break point
         self.MarkerDefine(0, stc.STC_MARK_CIRCLE, 'BLACK', 'RED')
         # paused at marker
-        self.MarkerDefine(1, stc.STC_MARK_SHORTARROW, 'BLACK',
-                          'GREEN')
-        self.MarkerDefine(2, stc.STC_MARK_SHORTARROW, 'BLACK',
-                          'WHITE')
+        self.MarkerDefine(1, stc.STC_MARK_SHORTARROW, 'BLACK', 'GREEN')
+        self.MarkerDefine(2, stc.STC_MARK_SHORTARROW, 'BLACK', 'WHITE')
+
         # Setup a margin to hold fold markers
         self.SetMarginType(2, stc.STC_MARGIN_SYMBOL)
         self.SetMarginMask(2, stc.STC_MASK_FOLDERS)
@@ -875,7 +874,7 @@ class PyEditorPanel(wx.Panel):
     def debug_paused(self, bpdata):
         # data =( (name,filename,lineno),
         #         self._scopes, self._active_scope,
-        #         (self._can_stepin,self._can_stepout)    )
+        #         (self._can_stepin,self._can_stepout), frames)
         # delete the current line marker
         if self.debug_curline:
             self.editor.MarkerDeleteHandle(self.debug_curline)
@@ -884,7 +883,7 @@ class PyEditorPanel(wx.Panel):
             return False
         info = bpdata[0]
         filename = info[1]
-        # print filename,self.editor.filename
+        
         lineno = -1
         marker = -1
         active = False
@@ -896,8 +895,7 @@ class PyEditorPanel(wx.Panel):
             frames=bpdata[4]
             if frames is not None:
                 for frame in frames:
-                    filename = inspect.getsourcefile(frame) \
-                     or inspect.getfile(frame)
+                    filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
                     if filename == self.fileName:
                         lineno = frame.f_lineno
                         marker = 2
@@ -1301,21 +1299,31 @@ class PyEditorPanel(wx.Panel):
         wx.py.dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
         wx.py.dispatcher.connect(receiver=cls.open_script, signal='bsm.editor.openfile')
         wx.py.dispatcher.connect(receiver=cls.debugPaused, signal='debugger.paused')
+        wx.py.dispatcher.connect(receiver=cls.debugUpdateScope, signal='debugger.updatescopes')
+    
     @classmethod
-    def debugPaused(cls, bpdata):
-        if bpdata is None:
+    def debugPaused(cls, data):
+        if data is None:
             return
-        filename = bpdata[0][1]
+        filename = data[0][1]
         editor = cls.open_script(filename)
         if editor:
-            editor.debug_paused(bpdata)
+            editor.debug_paused(data)
         for editor2 in PyEditorPanel.get_instances():
             if editor != editor2:
-                editor2.debug_paused(bpdata)
+                editor2.debug_paused(data)
+
+    @classmethod
+    def debugUpdateScope(cls, data):
+        if data is None:
+            return
+        for editor2 in PyEditorPanel.get_instances():
+            editor2.debug_paused(data)
 
     @classmethod
     def Uninitialize(cls):
         pass
+
     @classmethod
     def ProcessCommand(cls, command):
         #print command
@@ -1330,6 +1338,7 @@ class PyEditorPanel(wx.Panel):
                 path = dlg.GetPaths()[0]
                 cls.open_script(path)
             dlg.Destroy()
+
     @classmethod
     def add_editor(cls, title='Untitle', activated=True):
         panelEditor = PyEditorPanel(cls.frame)
@@ -1351,8 +1360,8 @@ class PyEditorPanel(wx.Panel):
                     wx.py.dispatcher.send(signal = 'frame.filehistory', filename = filename)
 
                 if editor and activated and editor.IsShown() == False:
-                    wx.py.dispatcher.senf(signal = 'frame.showpanel', panel = editor, focus = True)
-                if lineno>0:
+                    wx.py.dispatcher.send(signal = 'frame.showpanel', panel = editor, focus = True)
+                if lineno > 0:
                     editor.JumpToLine(lineno-1, True)
                 return editor
 

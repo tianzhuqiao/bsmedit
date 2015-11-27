@@ -262,8 +262,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
     def run_command(self, command, prompt=True, verbose=True, debug=False):
         if debug and not self.tbDebug.IsShown(): 
             self.showPanel(self.tbDebug)
-        self.panelShell.setDebug(debug)
-        self.panelShell.runCommand(command, prompt, verbose)
+        self.panelShell.runCommand(command, prompt, verbose, debug)
 
     def OnPaneActivated(self, event):
         pane = event.GetPane()
@@ -350,7 +349,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
     def OnHelpHome(self, event):
         wx.BeginBusyCursor()
         import webbrowser
-        webbrowser.open("bsmedit.feiyilin.com")
+        webbrowser.open("http://bsmedit.feiyilin.com")
         wx.EndBusyCursor() 
 
     def OnHelpContact(self, event):
@@ -431,10 +430,10 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         wx.py.dispatcher.connect(self.debug_ended, 'debugger.ended')
         self.SetExtraStyle(wx.WS_EX_PROCESS_UI_UPDATES)
 
-    def debug_paused(self, bpdata):
-        if bpdata is None:
+    def debug_paused(self, data):
+        if data is None:
             return
-        status = bpdata[3]
+        status = data[3]
         self.tbDebug.EnableTool(self.ID_DBG_RUN, True)
         self.tbDebug.EnableTool(self.ID_DBG_STOP, True)
         self.tbDebug.EnableTool(self.ID_DBG_STEP, True)
@@ -536,19 +535,23 @@ class DirPanel(wx.Panel):
 
     def OnItemActivated(self, event):
         currentItem = event.GetItem()
-        if self.dirtree.ItemHasChildren(currentItem):
-            self.dirtree.Expand(currentItem)
-            return
         filename = self.dirtree.GetItemText(currentItem)
+        parentItem = self.dirtree.GetItemParent(currentItem)
+        if type(self.dirtree.GetPyData(parentItem)) \
+            == type(DirTreeCtrl.Directory()):
+            d = self.dirtree.GetPyData(parentItem)
+            filepath = os.path.join(d.directory, filename)
+        else:
+            return
+        if self.dirtree.ItemHasChildren(currentItem):
+            self.dirtree.SetRootDir(filepath)
+            return
         (path, fileExtension) = os.path.splitext(filename)
         if fileExtension == '.py':
-            parentItem = self.dirtree.GetItemParent(currentItem)
-            if type(self.dirtree.GetPyData(parentItem)) \
-                == type(DirTreeCtrl.Directory()):
-                d = self.dirtree.GetPyData(parentItem)
-                filepath = os.path.join(d.directory, filename)
-                wx.py.dispatcher.send(signal='bsm.editor.openfile',
-                        filename=filepath)
+            wx.py.dispatcher.send(signal='bsm.editor.openfile', 
+                    filename=filepath)
+        else:
+            os.system("start "+ filepath)
 
     def OnGotoHome(self, event):
         root = self.dirtree.GetRootItem()

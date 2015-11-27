@@ -1,6 +1,5 @@
 """
 Engine debugger
----------------
 - Handles all the debugger functions for the engine.
 - Can set block files where tracing stops to prevent locks in communications thread
 - Can set breakpoints to pause code.
@@ -35,7 +34,6 @@ help_msg = """
     - quit the debugger.
 \"\"\"
 """
-#-------------------------------------------------------------------------------
 class PseudoEvent():
     """
     An object with the same interface as a threading.Event for the internal 
@@ -62,8 +60,7 @@ class PseudoEvent():
 
 class EngineDebugger():
     bpnum = 0
-    def __init__(self, shell):
-        self.shell = shell                  #parent engine
+    def __init__(self):
         self.compiler = EngineCompiler()
         #debugger state
         self._paused     = False #is paused.
@@ -122,9 +119,7 @@ class EngineDebugger():
         wx.py.dispatcher.connect(self.dbg_clearbp,    'debugger.clearbreakpoint')
         wx.py.dispatcher.connect(self.dbg_editbp,     'debugger.editbreakpoint')
         wx.py.dispatcher.connect(self.dbg_getbp,      'debugger.getbreakpoint')
-    #---------------------------------------------------------------------------
     # Interface methods
-    #---------------------------------------------------------------------------
     def reset(self):
         """Reset the debugger internal state"""
         self._paused     = False 
@@ -159,7 +154,7 @@ class EngineDebugger():
         if self._paused is True:
              #turn console debug mode off -Note: None to turn off, True/False
              #is line continuation
-             wx.py.dispatcher.send(signal='debugger.prompt')
+             self.prompt()
     
         self._resume_event.set()
         
@@ -383,10 +378,15 @@ class EngineDebugger():
             return True
         self._active_scope = level
 
-        #print console message
         #send scope change message
-        #data = (self._scopes, self._active_scope)
-        wx.py.dispatcher.send(signal='debugger.updatescopes', frames = self._frames, level = level)
+        frame = self._frames[level]
+        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        lineno = frame.f_lineno
+        name = frame.f_code.co_name
+        data =( (name,self._abs_filename( filename ),lineno), 
+                self._scopes, self._active_scope, 
+                (self._can_stepin,self._can_stepout),self._frames)
+        wx.py.dispatcher.send(signal='debugger.updatescopes', data = data)
         return True
 
     def push_line(self,line):
@@ -500,9 +500,7 @@ class EngineDebugger():
 
         return result
 
-    #---------------------------------------------------------------------------
     # trace methods
-    #---------------------------------------------------------------------------
     #Trace every line - why? 
     #1) It allows step out to work from a breakpoint in a nested scope
     #2) It makes the code easier to follow
@@ -523,7 +521,7 @@ class EngineDebugger():
 
     def _trace_global(self, frame, event, arg):
         """The main trace function called on call events """
-        ##---Prepause-----------------------------------------------------------
+        #Prepause
         #check if the engine wants to stop running code
         if self._stop is True:
             raise KeyboardInterrupt
@@ -561,17 +559,16 @@ class EngineDebugger():
             paused = self._hit_bp( bpdata, frame)
             if paused is True:
                 break
-        ##---Pause--------------------------------------------------------------
+        #Pause
         ##pause at this line?
         if self._paused is True:
             #This pauses until stepped/resumed
             self._trace_pause(frame, event, arg)
             
-        ##---After pause--------------------------------------------------------
+        #After pause
         #if paused and stepping in print a message
         if self._paused:
             if self._stepin is True:
-                #self.write_debug('Tracing in new scope: '+name)
                 local_trace = self._trace_local
             else:
                 #not stepping in so use the stepout function
@@ -596,10 +593,8 @@ class EngineDebugger():
         if self._stop is True:
             raise KeyboardInterrupt
 
-        #print 'local:',event
         #check if the debugger want to end debugging.   
         if self._end is True:
-            #self.write_debug('Ending debugging')
             wx.py.dispatcher.send('debugger.ended') 
             sys.settrace(None)
             #use a blank trace function as returning None doesn't work
@@ -619,12 +614,10 @@ class EngineDebugger():
             if paused is True:
                 break
         
-        #-----------------------------------------------------------------------
         #Need to pause/already paused here
         if self._paused is True:
             #This pauses until stepped/resumed
             self._trace_pause(frame, event, arg)
-        #-----------------------------------------------------------------------
 
         #check for step out
         if self._stepout is True:
@@ -647,7 +640,6 @@ class EngineDebugger():
         #check if the engine wants to stop running code
         if self._stop is True:
             raise KeyboardInterrupt
-        #print 'stepout:',event
         #check if the debugger want to end debugging.   
         if self._end is True:
             #self.write_debug('Ending debugging')
@@ -676,7 +668,6 @@ class EngineDebugger():
         """
         A function called from within the local trace function to handle a pauses at this event
         """
-        #print the event message to the console     
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
         name = frame.f_code.co_name
         lineno = frame.f_lineno
@@ -703,12 +694,12 @@ class EngineDebugger():
                 self._scopes, self._active_scope, 
                 (self._can_stepin,self._can_stepout),self._frames)
 
-        wx.py.dispatcher.send(signal='debugger.paused', bpdata = data)
+        wx.py.dispatcher.send(signal='debugger.paused', data = data)
         #The user can then select whether to resume, step, step-in, step-out 
         #cancel the code or stop debugging.
 
         #Make the console prompt for debugger commands at this pause.
-        wx.py.dispatcher.send(signal='debugger.prompt')
+        self.prompt()
         ##Paused loop - waiting for user instructions
         loop = True
         while loop:
@@ -724,7 +715,7 @@ class EngineDebugger():
                 #turn console debug mode off -Note: None to turn off, True/False
                 #is line continuation
                 #need to step or resume so exit this while block
-                wx.py.dispatcher.send(signal='debugger.prompt')
+                self.prompt()
                 loop = False
 
             #user command to process.
@@ -746,10 +737,6 @@ class EngineDebugger():
             self._paused = False
             self._resume = False
             self._active_scope = 0
-            #Publish a resumed message
-            #self.eng.publish_msg(   eng_messages.ENGINE_DEBUG_RESUMED+'.'+
-            #                        self.eng.name, (None,) )
-        #else still paused (will pause at next line)
 
     def _trace_off(self, frame, event, arg):
         """
@@ -758,9 +745,7 @@ class EngineDebugger():
         """
         return None
 
-    #---------------------------------------------------------------------------
     # Internal methods
-    #---------------------------------------------------------------------------
     def _check_bp(self, bpdata, frame):
         """
         Decide whether to break at the bpdata given. 
@@ -884,7 +869,15 @@ class EngineDebugger():
         if self._active_scope!=level:
             self.set_scope(level)
         else:
-            wx.py.dispatcher.send(signal='debugger.updatescopes', frames = frames, level = level)
+            frame = self._frames[level]
+            filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+            lineno = frame.f_lineno
+            name = frame.f_code.co_name
+            data =( (name,self._abs_filename( filename ),lineno), 
+                    self._scopes, self._active_scope, 
+                    (self._can_stepin,self._can_stepout),self._frames)
+            wx.py.dispatcher.send(signal='debugger.updatescopes', data = data)
+    
     def _update_frame_locals(self, frame):
         """
         Ensures changes to a frames locals are stored so they are not lost.
@@ -1013,7 +1006,6 @@ class EngineDebugger():
         elif cmd in ['#help', '#h']:
             self.write_debug(help_msg)
 
-        #print line
         elif cmd in ['#line','#l']:
             frame = self._frames[ self._active_scope ]
             tb = inspect.getframeinfo(frame)
@@ -1027,7 +1019,7 @@ class EngineDebugger():
             return False
 
         #Prompt for a new command and return
-        wx.py.dispatcher.send(signal='debugger.prompt')
+        self.prompt()
         return True
 
     def _process_dbg_source(self,line):
@@ -1041,19 +1033,19 @@ class EngineDebugger():
         #need more 
         #   - tell the console to prompt for more 
         if ismore:
-            wx.py.dispatcher.send(signal='debugger.prompt',ismore = True)
+            self.prompt(ismore=True)
             return
 
         #syntax error
         #   - compiler will output the error
         #   - tell the console to prompt for new command 
         if err:
-            wx.py.dispatcher.send(signal='debugger.prompt',iserr = True)
+            self.prompt(iserr = True)
             return
 
         #no code object - could be a blank line
         if code is None:
-            wx.py.dispatcher.send(signal='debugger.prompt')
+            self.prompt()
             return
 
         ##run the code in the active scope
@@ -1084,17 +1076,18 @@ class EngineDebugger():
         ##Finsihed running the code - prompt for a new command
         # add the command to history
         wx.py.dispatcher.send(signal='debugger.executecommand',command=line)
-        wx.py.dispatcher.send(signal='debugger.prompt')
+        self.prompt()
 
     def write_debug(self, string):
         """
         Write a debugger message to the controlling console
         """
-        self.shell.writeOut(string)
+        wx.py.dispatcher.send(signal='debugger.writeout', text = string)
 
-    #---------------------------------------------------------------------------
+    def prompt(self, ismore = False, iserr = False):
+        wx.py.dispatcher.send(signal='debugger.prompt', ismore = ismore, 
+                                                                 iserr = iserr)
     # Message handlers
-    #---------------------------------------------------------------------------
     def debug_pause(self):
         es=self.pause()
         return res
@@ -1149,7 +1142,6 @@ Engine misc.
 
 Various engine utility functions/classes
 """
-#-------------------------------------------------------------------------------
 # A general purpose list type object used for storing dictionaries these can 
 # then be filtered by key.
 # Used to store breakpoints in both the engine debugger (engine process) and
@@ -1303,7 +1295,6 @@ class DictList():
 
 """
 Engine Compiler
----------------
 
 Handles the compilation of source and formating exceptions and tracebacks for 
 the engine.
@@ -1328,9 +1319,7 @@ class EngineCompiler(Compile):
         #register message handlers
         wx.py.dispatcher.connect(self.future_flag,   'debugger.futureflag' )
 
-    #---------------------------------------------------------------------------
     # Interface methods
-    #---------------------------------------------------------------------------
     def set_compiler_flag(self,flag,set=True):
         """
         Set or unset a __future__ compiler flag
@@ -1460,11 +1449,8 @@ class EngineCompiler(Compile):
             map(sys.stderr.write, list)
         except:
             pass
-    #---------------------------------------------------------------------------
     # Message handlers
-    #---------------------------------------------------------------------------
     def future_flag(self, msg):
         """enable or disable a __future__ feature using flags"""
         flag,set = msg.get_data()
         self.set_compiler_flag(flag,set)
-   

@@ -345,7 +345,7 @@ class framePlus(wx.Frame):
             return wx.NOT_FOUND
         self._mgr.ShowPane(panel, show)
         if focus:
-            pane.SetFocus()
+            panel.SetFocus()
         wx.py.dispatcher.send(signal='bsm.activatepane', pane=panel)
         return wx.OK
 

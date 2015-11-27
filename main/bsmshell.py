@@ -11,6 +11,7 @@ import inspect
 import re
 from debugger import EngineDebugger
 import wx.lib.mixins.listctrl as listmix
+import traceback
 
 class bsmShell(wx.py.shell.Shell):
 
@@ -19,21 +20,25 @@ class bsmShell(wx.py.shell.Shell):
                  introText='', locals=None, InterpClass=None,
                  startupScript=None, execStartupScript=True,
                  *args, **kwds):
-        self.saveHistory = True
+
         self.enable_debugger = False
+        self.saveHistory = True
         wx.py.shell.Shell.__init__(self, parent, id, pos, size, style,
                                    introText, locals, InterpClass,
                                    startupScript, execStartupScript,
                                    *args, **kwds)
+       
         self.searchHistory = True
         self.silent = False
         self.autoIndent = True
         self.running = False;
-        self.debugger = EngineDebugger(self)
+        self.debugger = EngineDebugger()
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
         # Add 'pp' (pretty print) to the interpreter's locals.
         self.interp.locals['pp'] = self.ppDisplay
+        wx.py.dispatcher.connect(receiver=self.writeOut,
+                                 signal='debugger.writeout')
         wx.py.dispatcher.connect(receiver=self.debugPrompt,
                                  signal='debugger.prompt')
         wx.py.dispatcher.connect(receiver=self.debugExecuteCommand,
@@ -95,9 +100,9 @@ class bsmShell(wx.py.shell.Shell):
 
     def getAutoCallTip(self, command, signal='', sender='', *args, **kwds):
         return self.interp.getCallTip(command, *args, **kwds)
+   
     def autoCompleteShow(self, command, offset = 0):
         try:
-            #cmd = re.search('([\w\.]+)$', command).group()
             cmd = wx.py.introspect.getRoot(command, '.')
             self.evaluate(cmd)
         except:
@@ -105,7 +110,7 @@ class bsmShell(wx.py.shell.Shell):
         super(bsmShell, self).autoCompleteShow(command, offset)
 
     def IsDebuggerOn(self):
-        return self.enable_debugger
+        return self.debugger and self.debugger._paused#self.enable_debugger
 
     def SetSelection(self, start, end):
         self.SetSelectionStart(start)
@@ -142,22 +147,20 @@ class bsmShell(wx.py.shell.Shell):
         if self.AutoCompActive():
             event.Skip()
             return
-        # Prevent modification of previously submitted
-        # commands/responses.
+        
         shiftDown = event.ShiftDown()
         controlDown = event.ControlDown()
         rawControlDown = event.RawControlDown()
         altDown = event.AltDown()
         shiftDown = event.ShiftDown()
-        # Replace with the previous command from the history buffer.
-        if not shiftDown and key == wx.WXK_UP:
-            self.OnHistorySearch2(True)
-        elif not shiftDown and key == wx.WXK_DOWN:
-        # Replace with the next command from the history buffer.
-            self.OnHistorySearch2(False)
-        #elif self.running and (rawControlDown or controlDown) and not shiftDown \
-        #         and key in (ord('C'), ord('c'), wx.WXK_INSERT):
-        #    raise KeyboardInterrupt
+        canEdit = self.CanEdit()
+
+        if canEdit and (not shiftDown) and key == wx.WXK_UP:
+            # Replace with the previous command from the history buffer.
+            self.GoToHistory(True)
+        elif canEdit and (not shiftDown) and key == wx.WXK_DOWN:
+            # Replace with the next command from the history buffer.
+            self.GoToHistory(False)
         else:
             self.searchHistory = True
             super(bsmShell, self).OnKeyDown(event)
@@ -177,7 +180,7 @@ class bsmShell(wx.py.shell.Shell):
                                   filename=path, activated = True, lineno=linenum)
         event.Skip()
 
-    def OnHistorySearch2(self, bUp=True):
+    def GoToHistory(self, up=True):
         """Search up the history buffer for the text in front of the cursor."""
         if not self.CanEdit():
             return
@@ -188,14 +191,13 @@ class bsmShell(wx.py.shell.Shell):
         if numCharsAfterCursor > 0:
             searchText = searchText[:-numCharsAfterCursor]
         if not searchText or self.searchHistory == False:
-            self.OnHistoryReplace(step=bUp * 2 - 1)
+            self.OnHistoryReplace(step = up * 2 - 1)
             self.searchHistory = False
             return
         # Search upwards from the current history position and loop
         # back to the beginning if we don't find anything.
-        if bUp:
-            searchOrder = range(self.historyIndex + 1,
-                                len(self.history))
+        if up:
+            searchOrder = range(self.historyIndex + 1, len(self.history))
         else:
             searchOrder = range(self.historyIndex - 1, -1, -1)
         for i in searchOrder:
@@ -233,10 +235,9 @@ class bsmShell(wx.py.shell.Shell):
                 == self.LineFromPosition(self.promptPosEnd):
                 self.write(os.linesep)
             self.write(text)
-    def setDebug(self, debug=True):
-        self.enable_debugger = debug
 
-    def runCommand(self, command, prompt=True, verbose=True):
+    def runCommand(self, command, prompt=True, verbose=True, debug = False):
+        self.enable_debugger = debug
         self.autoIndent = False
         savehistory = self.saveHistory
         self.historyOn(verbose)
@@ -250,7 +251,7 @@ class bsmShell(wx.py.shell.Shell):
             self.clearCommand()
         
         command = command.rstrip()
-        #if prompt: self.prompt()
+
         if verbose: self.write(command)
         self.push(command, not prompt)
         self.historyOn(savehistory)
@@ -272,26 +273,21 @@ class bsmShell(wx.py.shell.Shell):
             command = magic(command)
         if len(command) > 1 and command[-1] == ';':
             self.silent = True
-        busy = None
-        # debugger is on, do not show the waiting cursor
-        #if self.enable_debugger == False:
-        #    busy = wx.BusyCursor()
         self.waiting = True
         self.lastUpdate = None
         try:
             if self.enable_debugger:
                 self.debugger.reset()
                 sys.settrace(self.debugger)
-                sys.enable_debugger = False
+                self.enable_debugger = False
             self.more = self.interp.push(command)
         except:
-            sys.settrace(None)  # pass
+            sys.settrace(None)
             wx.py.dispatcher.send('debugger.ended')
+            traceback.print_exc(file=sys.stdout)
         sys.settrace(None)
         self.lastUpdate = None
         self.waiting = False
-        #if busy is not None:
-        #    del busy
         self.silent = False
         if not self.more and self.saveHistory:
             self.addHistory(command)
@@ -322,7 +318,7 @@ class bsmShell(wx.py.shell.Shell):
             prompt = str(sys.ps3)
         elif self.more:
             prompt = str(sys.ps2)
-        elif self.waiting and self.debugger and self.debugger._paused:
+        elif self.waiting and self.IsDebuggerOn():
             prompt = 'K>> '
         else:
             prompt = str(sys.ps1)
@@ -360,17 +356,8 @@ class bsmShell(wx.py.shell.Shell):
             else:
                 indent = previousLine[:len(previousLine) - len(lstrip)]
                 if pstrip[-1] == ':' and first_word in [
-                    'if',
-                    'else',
-                    'elif',
-                    'for',
-                    'while',
-                    'def',
-                    'class',
-                    'try',
-                    'except',
-                    'finally',
-                    ]:
+                    'if', 'else', 'elif', 'for', 'while', 'def', 'class',
+                    'try', 'except', 'finally']:
                     indent += ' ' * 4
             if self.autoIndent:
                 self.write(indent)
@@ -378,12 +365,7 @@ class bsmShell(wx.py.shell.Shell):
         self.EnsureCaretVisible()
         self.ScrollToColumn(0)
 
-    def autoCallTipShow(
-        self,
-        command,
-        insertcalltip=True,
-        forceCallTip=False,
-        ):
+    def autoCallTipShow(self, command, insertcalltip=True, forceCallTip=False):
         """Display argument spec and docstring in a popup window."""
         if self.CallTipActive():
             self.CallTipCancel()
@@ -399,10 +381,6 @@ class bsmShell(wx.py.shell.Shell):
             endpos = self.GetCurrentPos()
             self.SetSelection(startpos, endpos)
 
-    def setStatusText(self, text):
-        """Display status information."""
-        wx.py.dispatcher.send(signal='frame.setstatustext', text=text)
-
     def debugPrompt(self, ismore=False, iserr=False):
         if not self.IsModified():
             return
@@ -416,8 +394,10 @@ class bsmShell(wx.py.shell.Shell):
     def debugExecuteCommand(self, command):
         if command:
             self.addHistory(command)
+
     def debug_ended(self):
-        self.prompt()
+        pass
+        #self.prompt()
 
 class HistoryPanel(wx.Panel):
 
@@ -442,14 +422,14 @@ class HistoryPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_COPY)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CUT)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_EXECUTE)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_SELECTALL)
+        #self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_SELECTALL)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_DELETE)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CLEAR)
         
         self.accel = wx.AcceleratorTable(
                 [(wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
                  (wx.ACCEL_CTRL, ord('X'), wx.ID_CUT),
-                 (wx.ACCEL_CTRL, ord('A'), wx.ID_SELECTALL),
+                 #(wx.ACCEL_CTRL, ord('A'), wx.ID_SELECTALL),
                  (wx.ACCEL_NORMAL, wx.WXK_DELETE, wx.ID_DELETE),
                 ])
         self.SetAcceleratorTable(self.accel)
@@ -517,7 +497,7 @@ class HistoryPanel(wx.Panel):
         item2 = menu.Append(wx.ID_CUT, "Cut")
         item2 = menu.Append(wx.ID_EXECUTE, "Evaluate")
         menu.AppendSeparator()
-        menu.Append(wx.ID_SELECTALL, "Select all")
+        #menu.Append(wx.ID_SELECTALL, "Select all")
         menu.AppendSeparator()
         menu.Append(wx.ID_DELETE, "Delete")
         menu.Append(wx.ID_CLEAR, "Clear history")
@@ -544,12 +524,12 @@ class HistoryPanel(wx.Panel):
         elif evtId == wx.ID_EXECUTE:
             for c in cmd:
                 wx.py.dispatcher.send(signal='frame.run', command=c)
-        elif evtId == wx.ID_SELECTALL:
-            (item, cookie) = self.tree.GetFirstChild(self.root)
-            while item.IsOk():
-                self.tree.SelectChildren(item)
-                self.tree.SelectItem(item)
-                (item, cookie) = self.tree.GetNextChild(self.root, cookie)
+        #elif evtId == wx.ID_SELECTALL:
+        #    (item, cookie) = self.tree.GetFirstChild(self.root)
+        #    while item.IsOk():
+        #        self.tree.SelectChildren(item)
+        #        self.tree.SelectItem(item)
+        #        (item, cookie) = self.tree.GetNextChild(self.root, cookie)
         elif evtId == wx.ID_DELETE:
             for item in items:
                 if self.tree.ItemHasChildren(item):
@@ -633,14 +613,18 @@ class StackPanel(wx.Panel):
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated, 
                   self.listctrl)
         wx.py.dispatcher.connect(self.debug_ended, 'debugger.ended')
-        wx.py.dispatcher.connect(self.debug_update_scopes, 
-                                 'debugger.updatescopes')
+        wx.py.dispatcher.connect(self.debug_update_scopes, 'debugger.updatescopes')
 
     def debug_ended(self):
         self.listctrl.DeleteAllItems()
 
-    def debug_update_scopes(self, frames=None, level=None):
+    def debug_update_scopes(self, data):
+        #data =( (name,self._abs_filename( filename ),lineno), 
+        #        self._scopes, self._active_scope, 
+        #        (self._can_stepin,self._can_stepout),self._frames)
         self.listctrl.DeleteAllItems()
+        frames = data[4]
+        level = data[2]
         if frames is not None:
             for frame in frames:
                 name = frame.f_code.co_name
@@ -649,15 +633,16 @@ class StackPanel(wx.Panel):
                 index = self.listctrl.InsertStringItem(sys.maxint, name)
                 self.listctrl.SetStringItem(index, 2, filename)
                 self.listctrl.SetStringItem(index, 1, '%d' % lineno)
-        if level and level < self.listctrl.GetItemCount():
+        if level >= 0 and level < self.listctrl.GetItemCount():
             self.listctrl.SetItemTextColour(level, 'blue')
         self.listctrl.RefreshRows()
 
     def OnItemActivated(self, event):
         currentItem = event.m_itemIndex
-        wx.py.dispatcher.send(signal='debugger.setscope', level=currentItem)
-
         filename = self.listctrl.GetItem(currentItem, 2).GetText()
         lineno = self.listctrl.GetItem(currentItem, 1).GetText()
-        wx.py.dispatcher.send(signal='frame.showeditor', filename=filename, 
+        # open the script first
+        wx.py.dispatcher.send(signal='bsm.editor.openfile', filename=filename, 
                               lineno=int(lineno))
+        # ask the debugger to trigger the update scope event to set mark
+        wx.py.dispatcher.send(signal='debugger.setscope', level=currentItem)
