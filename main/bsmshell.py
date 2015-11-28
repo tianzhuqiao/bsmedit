@@ -12,10 +12,38 @@ import re
 from debugger import EngineDebugger
 import wx.lib.mixins.listctrl as listmix
 import traceback
-import subprocess
+import subprocess as sp
 
 def sx(str, *args, **kwds):
-    command1 = subprocess.call(str.split(' '))
+    wait = False
+    # append '@' to capture the output
+    if str[-1] == '@':
+        wait = True
+        str = str[0:-1]
+    startupinfo = sp.STARTUPINFO()
+    startupinfo.dwFlags |= sp.STARTF_USESHOWWINDOW
+    # try the standalone command first
+    try:
+        if wait:
+            p =sp.Popen(str.split(' '), startupinfo = startupinfo, 
+                                            stdout = sp.PIPE, stderr = sp.PIPE)
+            wx.py.dispatcher.send(signal = 'debugger.writeout', text = p.stdout.read())
+        else:
+            p = sp.Popen(str.split(' '), startupinfo = startupinfo)
+        return
+    except:
+        pass
+    # try the shell command
+    try:
+        if wait:
+            p = sp.Popen(str.split(' '),startupinfo = startupinfo, shell = True,
+                                              stdout = sp.PIPE, stderr = sp.PIPE)
+            wx.py.dispatcher.send(signal = 'debugger.writeout', text = p.stdout.read())
+        else:
+            p = sp.Popen(str.split(' '), startupinfo = startupinfo)
+        return
+    except:
+        pass
 
 class bsmShell(wx.py.shell.Shell):
 
@@ -34,6 +62,8 @@ class bsmShell(wx.py.shell.Shell):
         self.redirectStdout()
         self.redirectStderr()
         self.redirectStdin()
+        # the default sx function (!cmd to run external command) does not work
+        # on windows
         import __builtin__
         __builtin__.sx = sx
         self.searchHistory = True
