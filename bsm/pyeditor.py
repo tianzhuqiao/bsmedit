@@ -12,9 +12,118 @@ try:
 except:
     pass
 
+class BreakpointSettingsDlg(wx.Dialog):
+    def __init__(self, parent, condition = '', hitcount = '', curhitcount = 0):
+        wx.Dialog.__init__ (self, parent, id = wx.ID_ANY, 
+                title = u"Breakpoint Condition", size = wx.Size(431,290), 
+                style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
+        
+        self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
+        szAll = wx.BoxSizer(wx.VERTICAL)
+        self.stInfo = wx.StaticText(self, wx.ID_ANY, 'When the breakkpoint'
+                'location is reached, the expression is evaluated and the'
+                'breakpoint is hit only if the expression is true.')
+        self.stInfo.Wrap(-1)
+        szAll.Add(self.stInfo, 1, wx.ALL, 15)
+        szCnd = wx.BoxSizer(wx.HORIZONTAL)
+        
+        szCnd.AddSpacer((20, 0), 0, wx.EXPAND, 5)
+        
+        szCond = wx.BoxSizer(wx.VERTICAL)
+        
+        
+        self.cbCond = wx.CheckBox(self, wx.ID_ANY, u"Is true")
+        szCond.Add(self.cbCond, 0, wx.ALL|wx.EXPAND, 5)
+        
+        self.tcCond = wx.TextCtrl(self, wx.ID_ANY)
+        szCond.Add(self.tcCond, 0, wx.ALL|wx.EXPAND, 5)
+        
+        self.cbHitCount = wx.CheckBox(self, wx.ID_ANY, u"Hit count (hit count: #; for example, #>10")
+        szCond.Add(self.cbHitCount, 0, wx.ALL, 5)
+        
+        self.tcHitCount = wx.TextCtrl(self, wx.ID_ANY)
+        szCond.Add(self.tcHitCount, 0, wx.ALL|wx.EXPAND, 5)
+       
+        self.stHtCount = wx.StaticText(self, wx.ID_ANY, u"Current hit count: %d"%curhitcount)
+        szCond.Add(self.stHtCount, 0, wx.ALL|wx.EXPAND, 5)
+
+        szCnd.Add(szCond, 1, wx.EXPAND, 5)
+        
+        szAll.Add(szCnd, 1, wx.EXPAND, 5)
+        
+        self.stLine = wx.StaticLine(self, style = wx.LI_HORIZONTAL)
+        szAll.Add(self.stLine, 0, wx.EXPAND |wx.ALL, 5)
+        
+        szConfirm = wx.BoxSizer(wx.HORIZONTAL)
+        
+        self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
+        szConfirm.Add(self.btnOK, 0, wx.ALL, 5)
+        
+        self.btnCancel = wx.Button(self, wx.ID_CANCEL, u"Cancel")
+        szConfirm.Add(self.btnCancel, 0, wx.ALL, 5)
+        
+        szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
+        
+        self.SetSizer(szAll)
+        self.Layout()
+        
+        # initialize the controls
+        self.condition = condition
+        self.hitcount = hitcount
+        self.SetSizer(szAll)
+        self.Layout()
+        if self.condition == '':
+            self.cbCond.SetValue(False)
+            self.tcCond.Disable()
+        else:
+            self.cbCond.SetValue(True)
+        self.tcCond.SetValue(self.condition)
+        if self.hitcount == '':
+            self.cbHitCount.SetValue(False)
+            self.tcHitCount.Disable()
+        else:
+            self.cbHitCount.SetValue(True)
+        self.tcHitCount.SetValue(self.hitcount) 
+        # Connect Events
+        #self.rbChanged.Bind(wx.EVT_RADIOBUTTON, self.OnRadioButton)
+        self.cbCond.Bind(wx.EVT_CHECKBOX, self.OnRadioButton)
+        self.cbHitCount.Bind(wx.EVT_CHECKBOX, self.OnRadioButton)
+        self.btnOK.Bind(wx.EVT_BUTTON, self.OnBtnOK)
+    
+    def __del__(self):
+        pass
+    
+    # Virtual event handlers, overide them in your derived class
+    def OnRadioButton(self, event):
+        self.tcCond.Enable(self.cbCond.GetValue())
+        self.tcHitCount.Enable(self.cbHitCount.GetValue())
+        
+        event.Skip()
+   
+    def OnBtnOK(self, event):
+        # set condition to empty string to indicate the breakpoint will be
+        # trigged when the value is changed
+        if self.cbCond.GetValue():
+            self.condition = self.tcCond.GetValue()
+        else:
+            self.condition = ''
+        try:
+            if self.cbHitCount.GetValue():
+                self.hitcount = self.tcHitCount.GetValue()
+            else:
+                self.hitcount = ""
+        except:
+            self.hitcount = ""
+        event.Skip()
+
+    def GetCondition(self):
+        return (self.condition, self.hitcount)
+
 class PyEditor(wx.py.editwindow.EditWindow):
     ID_COMMENT = wx.NewId()
     ID_UNCOMMENT = wx.NewId()
+    ID_EDIT_BREAKPOINT = wx.NewId()
+    ID_DELETE_BREAKPOINT = wx.NewId()
     def __init__(self, parent, id=wx.ID_ANY, pos=wx.DefaultPosition,
                  size=wx.DefaultSize, style=wx.CLIP_CHILDREN | wx.BORDER_NONE):
         wx.py.editwindow.EditWindow.__init__(self, parent, id=id, pos=pos,
@@ -23,7 +132,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.callTipInsert = True
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
-        self.filename = """"""
+        self.filename = ""
         # Assign handlers for keyboard events.
         self.Bind(wx.EVT_CHAR, self.OnChar)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
@@ -31,7 +140,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         rsp = wx.py.dispatcher.send(signal = 'shell.auto_complete_keys')
         if rsp: self.autoCompleteKeys = rsp[0][1]
         self.breakpointlist = {}
-        self.highlight_str = """"""
+        self.highlightStr = ""
         stc.EVT_STC_MARGINCLICK(self, id, self.OnMarginClick)
         stc.EVT_STC_DOUBLECLICK(self, id, self.OnDoubleClick)
         # Assign handler for the context menu
@@ -46,6 +155,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_SELECTALL)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_COMMENT)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_UNCOMMENT)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_EDIT_BREAKPOINT)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_DELETE_BREAKPOINT)
 
     def clear_breakpoint(self):
         for key in self.breakpointlist.keys():
@@ -212,19 +323,22 @@ class PyEditor(wx.py.editwindow.EditWindow):
                         self.ToggleFold(lineClicked)
 
     def OnDoubleClick(self, event):
-        str = self.GetSelectedText()
-        self.highlight_str = str
-        if self.highlight_str != """""":
-            self.highlight_word(str)
+        # highlight all the instances of the selected text
+        s = self.GetSelectedText()
+        if s != "":
+            self.highlightText(s)
 
-    def OnLeftUp(self, event):
-        str = self.GetSelectedText()
-        if self.highlight_str != """""" and str != self.highlight_str:
-            self.highlight_word(self.highlight_str, False)
-            self.highlight_str = """"""
         event.Skip()
 
-    def highlight_word(self, strWord, highlight=True):
+    def OnLeftUp(self, event):
+        # remove the highlighting when click somewhere else
+        s = self.GetSelectedText()
+        if self.highlightStr != "" and s != self.highlightStr:
+            self.highlightText(self.highlightStr, False)
+
+        event.Skip()
+
+    def highlightText(self, strWord, highlight=True):
         current = 0
         position = -1
         flag = stc.STC_FIND_WHOLEWORD | stc.STC_FIND_MATCHCASE
@@ -243,6 +357,10 @@ class PyEditor(wx.py.editwindow.EditWindow):
                 break
             self.StartStyling(position, stc.STC_INDICS_MASK)
             self.SetStyling(len(strWord), style)
+        if highlight:
+            self.highlightStr = strWord
+        else:
+            self.highlightStr = ""
 
     def needsIndent(self, firstWord, lastChar):
         '''Tests if a line needs extra indenting, ie if, while, def, etc '''
@@ -251,18 +369,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
             if firstWord[-1] == ':':
                 firstWord = firstWord[:-1]
         # control flow keywords
-        if firstWord in [
-            'for',
-            'if',
-            'else',
-            'def',
-            'class',
-            'elif',
-            'try',
-            'except',
-            'finally',
-            'while',
-            ] and lastChar == ':':
+        if firstWord in ['for', 'if', 'else', 'def', 'class', 'elif', 'try',
+                'except', 'finally', 'while', 'with'] and lastChar == ':':
             return True
         else:
             return False
@@ -270,8 +378,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
     def needsDedent(self, firstWord):
         '''Tests if a line needs extra dedenting, ie break, return, etc '''
         # control flow keywords
-        if firstWord in ['break', 'return', 'continue', 'yield', 'raise'
-                         ]:
+        if firstWord in ['break', 'return', 'continue', 'yield', 'raise']:
             return True
         else:
             return False
@@ -398,15 +505,16 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # Reasonable value for, say, 4-5 digits using a mono font (40 pix)
         self.SetMarginWidth(0, 40)
         # Indentation and tab stuff
-        self.SetIndent(4)  # Proscribed indent size for wx
-        self.SetIndentationGuides(True)  # Show indent guides
-        self.SetBackSpaceUnIndents(True)  # Backspace unindents rather than delete 1 space
-        self.SetTabIndents(True)  # Tab key indents
-        self.SetTabWidth(4)  # Proscribed tab size for wx
-        self.SetUseTabs(False)  # Use spaces rather than tabs, or
-                                        # TabTimmy will complain!
-        # White space
-        self.SetViewWhiteSpace(False)  # Don't view white space
+        self.SetIndent(4) 
+        self.SetIndentationGuides(True)
+        # Backspace unindents rather than delete 1 space
+        self.SetBackSpaceUnIndents(True)
+        self.SetTabIndents(True)
+        
+        # Use spaces rather than tabs, or TabTimmy will complain!
+        self.SetUseTabs(False)  
+        # Don't view white space
+        self.SetViewWhiteSpace(False)
         # EOL: Since we are loading/saving ourselves, and the
         # strings will always have \n's in them, set the STC to
         # edit them that way.
@@ -416,7 +524,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetEdgeMode(stc.STC_EDGE_NONE)
         # Margin #1 - breakpoint symbols
         self.SetMarginType(1, stc.STC_MARGIN_SYMBOL)
-        self.SetMarginMask(1, ~stc.STC_MASK_FOLDERS)  # do not show fold symbols
+        # do not show fold symbols
+        self.SetMarginMask(1, ~stc.STC_MASK_FOLDERS)
         self.SetMarginSensitive(1, True)
         self.SetMarginWidth(1, 12)
         # break point
@@ -432,11 +541,9 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetMarginWidth(2, 12)
         # and now set up the fold markers
         self.MarkerDefine(stc.STC_MARKNUM_FOLDEREND,
-                          stc.STC_MARK_BOXPLUSCONNECTED, 'white',
-                          'black')
+                          stc.STC_MARK_BOXPLUSCONNECTED, 'white', 'black')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDEROPENMID,
-                          stc.STC_MARK_BOXMINUSCONNECTED, 'white',
-                          'black')
+                          stc.STC_MARK_BOXMINUSCONNECTED, 'white', 'black')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDERMIDTAIL,
                           stc.STC_MARK_TCORNER, 'white', 'black')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDERTAIL,
@@ -451,7 +558,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         if wx.Platform == '__WXMSW__':
             self.StyleSetSpec(stc.STC_STYLE_DEFAULT,
                               'fore:#000000,back:#FFFFFF,face:Courier New'
-                              )
+                             )
         elif wx.Platform == '__WXMAC__':
             # TODO: if this looks fine on Linux too, remove the Mac-specific case
             # and use this whenever OS != MSW.
@@ -654,9 +761,24 @@ class PyEditor(wx.py.editwindow.EditWindow):
     def OnContextMenu(self, evt):
         p = self.ScreenToClient(evt.GetPosition())
         m = self.GetMarginWidth(0) + self.GetMarginWidth(1)
-        print p.x, m
-        menu = self.GetContextMenu()
-        self.PopupMenu(menu)
+        if p.x > m:
+            # show edit menu when the mouse is in editable area
+            menu = self.GetContextMenu()
+            self.PopupMenu(menu)
+        elif p.x > self.GetMarginWidth(0):
+            # in breakpoint area
+            for key in self.breakpointlist:
+                line = self.MarkerLineFromHandle(key)
+                if line == p.y/self.TextHeight(0):
+                    self.GotoLine(line)
+                    break
+            else:
+                return
+            menu = wx.Menu()
+            menu.Append(self.ID_DELETE_BREAKPOINT, 'Delete Breakpoint')
+            menu.AppendSeparator()
+            menu.Append(self.ID_EDIT_BREAKPOINT, 'Condition...')
+            self.PopupMenu(menu)
 
     def OnUpdateCommandUI(self, evt):
         id = evt.Id
@@ -695,6 +817,31 @@ class PyEditor(wx.py.editwindow.EditWindow):
             self.comment()
         elif id == self.ID_UNCOMMENT:
             self.uncomment()
+        elif id == self.ID_DELETE_BREAKPOINT:
+            bp = None
+            for key in self.breakpointlist:
+                line = self.MarkerLineFromHandle(key)
+                if line == self.GetCurrentLine():
+                    bp = self.breakpointlist[key]
+                    break
+            else:
+                return
+            wx.py.dispatcher.send('debugger.clearbreakpoint', ids=[bp['id']])
+        elif id == self.ID_EDIT_BREAKPOINT:
+            bp = None
+            for key in self.breakpointlist:
+                line = self.MarkerLineFromHandle(key)
+                if line == self.GetCurrentLine():
+                    bp = self.breakpointlist[key]
+                    break
+            else:
+                return
+            dlg = BreakpointSettingsDlg(self, bp['condition'], bp['hitcount'],  bp.get('tcount', 0))
+            if dlg.ShowModal() == wx.ID_OK:
+                cond = dlg.GetCondition()
+                ids = self.breakpointlist[key]['id']
+                wx.py.dispatcher.send('debugger.editbreakpoint', id=ids, 
+                                condition=cond[0], hitcount = cond[1])
 
 class PyEditorPanel(wx.Panel):
     Gce = []
@@ -748,9 +895,7 @@ class PyEditorPanel(wx.Panel):
                 (self.ID_SPLIT_VERT, 'Split Vert', application_tile_vertical_xpm, 'Split the window vertically'),
                 (self.ID_SPLIT_HORZ, 'Split Horz', application_tile_horizontal_xpm, 'Split the window horizontally'),
                 )
-        self.tb = wx.ToolBar(self, wx.ID_ANY, wx.DefaultPosition,
-                wx.DefaultSize, wx.TB_FLAT
-                | wx.TB_HORIZONTAL)
+        self.tb = wx.ToolBar(self, style = wx.TB_FLAT | wx.TB_HORIZONTAL)
         for (id, label, img_xpm, tooltip) in tbitems:
             if id == None:
                 self.tb.AddSeparator()
@@ -760,14 +905,7 @@ class PyEditorPanel(wx.Panel):
             else:
                 self.tb.AddLabelTool(id, label, wx.BitmapFromXPMData(img_xpm), shortHelp = tooltip)
         self.tb.AddSeparator()
-        self.m_cbWrapMode = wx.CheckBox(
-            self.tb,
-            wx.ID_ANY,
-            u'Word Wrap',
-            wx.DefaultPosition,
-            wx.DefaultSize,
-            0,
-            )
+        self.m_cbWrapMode = wx.CheckBox(self.tb, wx.ID_ANY, u'Word Wrap')
         self.m_cbWrapMode.SetValue(True)
         self.tb.AddControl(self.m_cbWrapMode)
         if magic_format:
@@ -842,9 +980,9 @@ class PyEditorPanel(wx.Panel):
                 wx.py.dispatcher.send('debugger.editbreakpoint', id=ids, lineno=line)
 
     def debug_bpadded(self, bpdata):
-        # data =( (name,filename,lineno),
+        # data =((name,filename,lineno),
         #         self._scopes, self._active_scope,
-        #         (self._can_stepin,self._can_stepout)    )
+        #         (self._can_stepin,self._can_stepout))
         if bpdata is None:
             return
         info = bpdata
@@ -855,9 +993,9 @@ class PyEditorPanel(wx.Panel):
             self.editor.breakpointlist[handler] = bpdata
 
     def debug_bpcleared(self, bpdata):
-        # data =( (name,filename,lineno),
+        # data =((name,filename,lineno),
         #         self._scopes, self._active_scope,
-        #         (self._can_stepin,self._can_stepout)    )
+        #         (self._can_stepin,self._can_stepout))
         # delete the current line marker
         if bpdata is None:
             return
@@ -872,7 +1010,7 @@ class PyEditorPanel(wx.Panel):
                     break
 
     def debug_paused(self, bpdata):
-        # data =( (name,filename,lineno),
+        # data =((name,filename,lineno),
         #         self._scopes, self._active_scope,
         #         (self._can_stepin,self._can_stepout), frames)
         # delete the current line marker
@@ -1115,8 +1253,8 @@ class PyEditorPanel(wx.Panel):
         wx.py.dispatcher.send(signal='frame.setstatustext', text=text)
 
     def __findReplaceEvents__(self):
-        self.findStr = """"""
-        self.replaceStr = """"""
+        self.findStr = ""
+        self.replaceStr = ""
         self.findFlags = 1
         self.stcFindFlags = 0
         # This can't be done with the eventManager unfortunately ;-(

@@ -37,7 +37,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         bsm_dlg_helper.mainFrame.__init__(self, parent)
         #self.menuSave.SetBitmap(wx.BitmapFromXPMData(save_sim_xpm))
         #self.menuProperties.SetBitmap(wx.BitmapFromXPMData(setting_xpm))
-        #self.menuMagPlugins.SetBitmap(wx.BitmapFromXPMData( plugin_xpm))
+        #self.menuMagPlugins.SetBitmap(wx.BitmapFromXPMData(plugin_xpm))
         self.menuAbout.SetBitmap(wx.BitmapFromXPMData(about_xpm))
         
         self.SetMinSize((640, 480))
@@ -80,36 +80,20 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         # history panel
         self.panelHistory = HistoryPanel(self)
         self.addPanel(self.panelHistory, title="History",
-                      #paneInfo=aui.AuiPaneInfo().Name('history')
-                      #.Caption('History').BestSize((300, 300)).Right()
-                      #.CloseButton(True).Layer(1).Position(1)
-                      #.MinimizeButton(True).MaximizeButton(True).DestroyOnClose(False),
                       showhidemenu='View:Panels:Command History')
         # help panel
         self.panelHelp = HelpPanel(self, self.panelShell.interp.locals)
         self.addPanel(self.panelHelp, title="Help",
-                      #paneInfo=aui.AuiPaneInfo().Name('help')
-                      #.Caption('Help').BestSize((300, 300)).Right()
-                      #.CloseButton(True).Layer(1).Position(1)
-                      #.MinimizeButton(True).MaximizeButton(True).DestroyOnClose(False),
                       target=self.panelHistory,
                       showhidemenu='View:Panels:Command Help')
         # debug stack panel
         self.panelStack = StackPanel(self)
         self.addPanel(self.panelStack, title = "Call Stack",
-                      #paneInfo=aui.AuiPaneInfo().Name('callstack')
-                      #.Caption('Call Stack').BestSize((300, 300)).Right()
-                      #.CloseButton(True).Layer(1).Position(1)
-                      #.MinimizeButton(True).MaximizeButton(True).DestroyOnClose(False),
                       target=self.panelHistory,
                       showhidemenu='View:Panels:Call Stack')
         # directory panel
         self.panelDir = DirPanel(self)
         self.addPanel(self.panelDir, title = "Browsing",
-                      #paneInfo=aui.AuiPaneInfo().Name('browsing')
-                      #.Caption('Browsing').BestSize((300, 300)).Right()
-                      #.CloseButton(True).Layer(1).Position(1)
-                      #.MinimizeButton(True).MaximizeButton(True).DestroyOnClose(False),
                       target=self.panelHistory,
                       showhidemenu='View:Panels:Browsing')
 
@@ -401,25 +385,19 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
                          rxsignal='debugger.stepout',
                          updatesignal='frame.updateui')
 
-        self.tbDebug = aui.AuiToolBar(self, wx.ID_ANY,
-                wx.DefaultPosition, wx.DefaultSize, wx.TB_FLAT
-                | wx.TB_HORIZONTAL)
-        self.tbDebug.AddSimpleTool(self.ID_DBG_RUN, u'Run\tF5',
-                wx.BitmapFromXPMData(arrow_xpm), u'Debug the script')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STOP,
-                u'Stop\tShift-F5',
-                wx.BitmapFromXPMData(control_stop_square_xpm),
-                u'Stop the debugger')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP,
-                u'Step\tF10',
-                wx.BitmapFromXPMData(arrow_step_over_xpm), u'Step')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_INTO,
-                u'Step Into\tF11',
-                wx.BitmapFromXPMData(arrow_step_xpm), u'Step Into')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_OUT,
-                u'Step Out\tShift-F11',
-                wx.BitmapFromXPMData(arrow_step_out_xpm), u'Step Out')
+        self.tbDebug = aui.AuiToolBar(self, style = wx.TB_FLAT | wx.TB_HORIZONTAL)
+        self.tbDebug.AddSimpleTool(self.ID_DBG_RUN, u'Run (F5)',
+                wx.BitmapFromXPMData(arrow_xpm), u'Run (F5)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STOP, u'Stop (Shift-F5)',
+                wx.BitmapFromXPMData(control_stop_square_xpm), u'Stop (Shift-F5)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP, u'Step (F10)',
+                wx.BitmapFromXPMData(arrow_step_over_xpm), u'Step (F10)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_INTO, u'Step Into (F11)',
+                wx.BitmapFromXPMData(arrow_step_xpm), u'Step Into (F11)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_OUT, u'Step Out (Shift-F11)',
+                wx.BitmapFromXPMData(arrow_step_out_xpm), u'Step Out (Shift-F11)')
         self.tbDebug.Realize()
+
         self.addPanel(self.tbDebug, 'Debugger', active = False,
                       paneInfo=aui.AuiPaneInfo().Name('debugger'
                       ).Caption('Debugger').ToolbarPane().Top(),
@@ -492,9 +470,7 @@ class DirPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        self.tb = wx.ToolBar(self, wx.ID_ANY, wx.DefaultPosition,
-                             wx.DefaultSize, wx.TB_FLAT
-                             | wx.TB_HORIZONTAL)
+        self.tb = wx.ToolBar(self, style = wx.TB_FLAT | wx.TB_HORIZONTAL)
         self.tb.AddLabelTool(
             self.ID_GOTO_PARENT,
             u'Parent',

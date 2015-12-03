@@ -15,10 +15,10 @@ import traceback
 import subprocess as sp
 
 def sx(str, *args, **kwds):
-    wait = False
-    # append '@' to capture the output
-    if str[-1] == '@':
-        wait = True
+    wait = True
+    # append '&' to capture the output
+    if str[-1] == '&':
+        wait = False
         str = str[0:-1]
     startupinfo = sp.STARTUPINFO()
     startupinfo.dwFlags |= sp.STARTF_USESHOWWINDOW
@@ -27,7 +27,7 @@ def sx(str, *args, **kwds):
         if wait:
             p =sp.Popen(str.split(' '), startupinfo = startupinfo, 
                                             stdout = sp.PIPE, stderr = sp.PIPE)
-            wx.py.dispatcher.send(signal = 'debugger.writeout', text = p.stdout.read())
+            wx.py.dispatcher.send(signal = 'shell.writeout', text = p.stdout.read())
         else:
             p = sp.Popen(str.split(' '), startupinfo = startupinfo)
         return
@@ -38,7 +38,7 @@ def sx(str, *args, **kwds):
         if wait:
             p = sp.Popen(str.split(' '),startupinfo = startupinfo, shell = True,
                                               stdout = sp.PIPE, stderr = sp.PIPE)
-            wx.py.dispatcher.send(signal = 'debugger.writeout', text = p.stdout.read())
+            wx.py.dispatcher.send(signal = 'shell.writeout', text = p.stdout.read())
         else:
             p = sp.Popen(str.split(' '), startupinfo = startupinfo)
         return
@@ -52,7 +52,8 @@ class bsmShell(wx.py.shell.Shell):
                  introText='', locals=None, InterpClass=None,
                  startupScript=None, execStartupScript=True,
                  *args, **kwds):
-
+        # variables used in push, which may be called by
+        # wx.py.shell.Shell.__init__ when execStartupScript is True
         self.enable_debugger = False
         self.saveHistory = True
         wx.py.shell.Shell.__init__(self, parent, id, pos, size, style,
@@ -69,21 +70,19 @@ class bsmShell(wx.py.shell.Shell):
         self.searchHistory = True
         self.silent = False
         self.autoIndent = True
-        self.running = False;
+        self.running = False
         self.debugger = EngineDebugger()
+        self.redirectStdout()
+        self.redirectStderr()
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
         # Add 'pp' (pretty print) to the interpreter's locals.
         self.interp.locals['pp'] = self.ppDisplay
-        wx.py.dispatcher.connect(receiver=self.writeOut,
-                                 signal='debugger.writeout')
-        wx.py.dispatcher.connect(receiver=self.debugPrompt,
-                                 signal='debugger.prompt')
-        wx.py.dispatcher.connect(receiver=self.debugExecuteCommand,
-                                 signal='debugger.executecommand')
-        wx.py.dispatcher.connect(self.debug_ended, 'debugger.ended')
-        wx.py.dispatcher.connect(receiver=self.LoadHistory,
-                                 signal='frame.loadconfig')
+        self.interp.locals['clear'] = self.clear
+        wx.py.dispatcher.connect(receiver=self.writeOut, signal='shell.writeout')
+        wx.py.dispatcher.connect(receiver=self.debugPrompt, signal='shell.prompt')
+        wx.py.dispatcher.connect(receiver=self.addHistory, signal='shell.addToHistory')
+        wx.py.dispatcher.connect(receiver=self.LoadHistory, signal='frame.loadconfig')
 
         wx.py.dispatcher.connect(receiver=self.IsDebuggerOn,
                                  signal='debugger.debugging')
@@ -138,7 +137,7 @@ class bsmShell(wx.py.shell.Shell):
 
     def getAutoCallTip(self, command, signal='', sender='', *args, **kwds):
         return self.interp.getCallTip(command, *args, **kwds)
-   
+ 
     def autoCompleteShow(self, command, offset = 0):
         try:
             cmd = wx.py.introspect.getRoot(command, '.')
@@ -148,7 +147,7 @@ class bsmShell(wx.py.shell.Shell):
         super(bsmShell, self).autoCompleteShow(command, offset)
 
     def IsDebuggerOn(self):
-        return self.debugger and self.debugger._paused#self.enable_debugger
+        return self.debugger and self.debugger._paused
 
     def SetSelection(self, start, end):
         self.SetSelectionStart(start)
@@ -168,7 +167,7 @@ class bsmShell(wx.py.shell.Shell):
         config.SetPath('/CommandHistory')
         for i in range(0, config.GetNumberOfEntries()):    
             value = config.Read("item%d"%i)
-            if value.find("#==bsm==")== -1:
+            if value.find("#==bsm==") == -1:
                 self.history.insert(0, value)
 
     def OnKillFocus(self, event):
@@ -246,8 +245,7 @@ class bsmShell(wx.py.shell.Shell):
                 self.SetSelection(startpos, endpos)
                 self.ReplaceSelection(command[len(searchText):])
                 endpos = self.GetCurrentPos()
-                self.SetSelection(endpos, startpos)  # , startpos)
-                #print endpos, startpos
+                self.SetSelection(endpos, startpos)
                 # We've now warped into middle of the history.
                 self.historyIndex = i
                 break
@@ -255,26 +253,29 @@ class bsmShell(wx.py.shell.Shell):
 
     def writeOut(self, text):
         """Replacement for stdout."""
+        # only output the text when it is not silent
         if self.silent == False:
+            # move the cursor to the end to protect the readonly section
+            endpos = self.GetTextLength()
             if not self.CanEdit():
-                endpos = self.GetTextLength()
                 self.SetCurrentPos(endpos)
-            if self.GetCurrentLine() \
-                 == self.LineFromPosition(self.promptPosEnd):
-                self.write(os.linesep)
-            self.write(text)
-    def writeErr(self, text):
-        """Replacement for stdout."""
-        if self.silent == False:
-            if not self.CanEdit():
-                endpos = self.GetTextLength()
-                self.SetCurrentPos(endpos)
-            if self.GetCurrentLine() \
-                == self.LineFromPosition(self.promptPosEnd):
-                self.write(os.linesep)
-            self.write(text)
+            if not self.waiting:
+                # if the shell is in idle status, output the text right before the prompt
+                self.SetCurrentPos(self.promptPosStart)
+                self.write(text)
+                self.promptPosStart += self.GetTextLength() - endpos
+                self.promptPosEnd += self.GetTextLength() - endpos
+            else:
+                if self.GetCurrentLine() \
+                                == self.LineFromPosition(self.promptPosEnd):
+                    self.write(os.linesep)
+                self.write(text)
+            self.EmptyUndoBuffer()
 
-    def runCommand(self, command, prompt=True, verbose=True, debug = False):
+    def writeErr(self, text):
+        self.writeOut(text)
+
+    def runCommand(self, command, prompt=True, verbose=True, debug=False):
         self.enable_debugger = debug
         self.autoIndent = False
         savehistory = self.saveHistory
@@ -303,32 +304,38 @@ class bsmShell(wx.py.shell.Shell):
         if not silent:
             self.write(os.linesep)
         # push to the debugger
-        if self.waiting and self.debugger and self.debugger._paused:
+        if self.waiting and self.IsDebuggerOn():
             self.debugger.push_line(command)
             return
         # DNM
+        cmd_raw = command
         if USE_MAGIC:
             command = magic(command)
+
         if len(command) > 1 and command[-1] == ';':
             self.silent = True
+        
         self.waiting = True
         self.lastUpdate = None
         try:
             if self.enable_debugger:
                 self.debugger.reset()
                 sys.settrace(self.debugger)
-                self.enable_debugger = False
             self.more = self.interp.push(command)
         except:
-            sys.settrace(None)
-            wx.py.dispatcher.send('debugger.ended')
             traceback.print_exc(file=sys.stdout)
+        finally:
+            # make sure debugger.ended is always sent; more does not hurt
+            if self.enable_debugger: 
+                wx.py.dispatcher.send('debugger.ended')
+            self.enable_debugger = False
+            
         sys.settrace(None)
         self.lastUpdate = None
         self.waiting = False
         self.silent = False
         if not self.more and self.saveHistory:
-            self.addHistory(command)
+            self.addHistory(cmd_raw)
         if not silent:
             self.prompt()
         self.running = False;

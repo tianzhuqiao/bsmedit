@@ -32,6 +32,8 @@ help_msg = """
     - print the current line of source (if available).
 #end | #e: 
     - quit the debugger.
+#stop:
+    - interrupt the execution
 \"\"\"
 """
 class PseudoEvent():
@@ -97,11 +99,10 @@ class EngineDebugger():
         #prevent trace in all engine module files to avoid locks blocking comms threads.
         self.set_block_file(os.path.dirname(__file__)+os.sep+'*.*')
 
-        #break points - info on breakpoints is stored in an MKeyDict instance
+        # break points - info on breakpoints is stored in an DictList instance
         # which allows items (the breakpoint data dict) to be retrieved by 
-        # filename or id. The keys hcount, icount and tcount are breakpoint 
-        # counters for hits, ignores and trigger counts and are reset before 
-        # each user command.
+        #filename or id. The key tcount is the breakpoint counters for hits,
+        # and is reset before each user command.
         self.bpoints = DictList()
         self._bp_hcount = {} # hit counter {id: hcount}
         self._bp_tcount = {} # trigger counter {id: tcount}
@@ -141,9 +142,8 @@ class EngineDebugger():
         self._bottom_frame = None
 
         #resest breakpoint counters
-        self._bp_hcount = {} # hit counter {id: hcount}
-        self._bp_icount = {} # ignore counter {id: icount}
-        self._bp_tcount = {} # trigger counter {id: tcount}
+        for d in self.bpoints.items():
+            d['tcount'] = 0
 
     def stop_code(self):
         """
@@ -165,6 +165,9 @@ class EngineDebugger():
             thread.interrupt_main()
         except:
             pass
+
+        # send the notification, the debugger may stop after the notification
+        wx.py.dispatcher.send(signal = 'debugger.ended') 
     def end(self):
         """ End the debugging and finsish running the code """
         #set the end flag and wake the traceback function
@@ -172,6 +175,9 @@ class EngineDebugger():
         self._end=True  
         self._resume=True
         self._resume_event.set()
+        
+        # send the notification, the debugger may stop after the notification
+        wx.py.dispatcher.send(signal = 'debugger.ended') 
         return True
 
     def pause(self, flag=True):
@@ -253,7 +259,7 @@ class EngineDebugger():
         where id should be a unique identifier for this breakpoint
         """
         #check if the id to use already exists.
-        if len(self.bpoints.filter( ('id',),(id,)))!=0:
+        if len(self.bpoints.filter(('id',),(id,)))!=0:
             return False
             
         #check bpdata
@@ -266,11 +272,11 @@ class EngineDebugger():
         elif 'lineno' not in keys:
             return False
         if 'condition' not in keys:
-            bpdata['condition'] = None
-        if 'ignore_count' not in keys:
-            bpdata['ignore_count'] = None
-        if 'trigger_count' not in keys:
-            bpdata['trigger_count'] = None
+            bpdata['condition'] = ""
+        if 'hitcount' not in keys:
+            bpdata['hitcount'] = ""
+        
+        bpdata['tcount'] = 0
 
         #create new breakpoint
         bpdata['filename'] = self._abs_filename(bpdata['filename'])
@@ -283,7 +289,7 @@ class EngineDebugger():
         Return the break point according to the (filename, lineno),
         if not found, return None
         """
-        bps = self.bpoints.filter( ('filename','lineno'), (self._abs_filename(filename),lineno) )
+        bps = self.bpoints.filter(('filename','lineno'), (self._abs_filename(filename),lineno))
         if bps:
             return bps[0]
         return None
@@ -298,13 +304,13 @@ class EngineDebugger():
             return True
 
         #check if the id to clear exists.
-        bps = self.bpoints.filter( ('id',),(id,))
+        bps = self.bpoints.filter(('id',),(id,))
         if len(bps)==0:
             return False
 
         #remove the breakpoint
         bp = bps[0]
-        self.bpoints.remove( bp )
+        self.bpoints.remove(bp)
         wx.py.dispatcher.send(signal='debugger.breakpoint_cleared', bpdata=bp)
         return True
 
@@ -315,17 +321,17 @@ class EngineDebugger():
         Only modify the keywords given (from filename, lineno, condition,
         trigger_count and ignore_count).
 
-        e.g. edit_breakpoint( id=1, filename='test.py', lineno=23) will modify
+        e.g. edit_breakpoint(id=1, filename='test.py', lineno=23) will modify
         the breakpoint filename and lineno.
         """
         #check if the id to clear exists.
-        bps = self.bpoints.filter( ('id',),(id,))
+        bps = self.bpoints.filter(('id',),(id,))
         if len(bps)==0:
             return False
 
         bpdata= bps[0]
         if kwargs.has_key('filename'):
-            kwargs['filename'] = self._abs_filename( kwargs['filename'] )
+            kwargs['filename'] = self._abs_filename(kwargs['filename'])
         bpdata.update(kwargs)
         return True
 
@@ -383,7 +389,7 @@ class EngineDebugger():
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
         lineno = frame.f_lineno
         name = frame.f_code.co_name
-        data =( (name,self._abs_filename( filename ),lineno), 
+        data =((name,self._abs_filename(filename),lineno), 
                 self._scopes, self._active_scope, 
                 (self._can_stepin,self._can_stepout),self._frames)
         wx.py.dispatcher.send(signal='debugger.updatescopes', data = data)
@@ -553,10 +559,10 @@ class EngineDebugger():
             return self._trace_stepout
 
         #check for breakpoints
-        filename = self._abs_filename( filename )
-        bps = self.bpoints.filter( ('filename','lineno'), (filename,lineno) )
+        filename = self._abs_filename(filename)
+        bps = self.bpoints.filter(('filename','lineno'), (filename,lineno))
         for bpdata in bps:
-            paused = self._hit_bp( bpdata, frame)
+            paused = self._hit_bp(bpdata, frame)
             if paused is True:
                 break
         #Pause
@@ -607,10 +613,10 @@ class EngineDebugger():
         lineno =  frame.f_lineno
 
         #check for breakpoints
-        filename = self._abs_filename( filename )
-        bps = self.bpoints.filter( ('filename','lineno'), (filename,lineno) )
+        filename = self._abs_filename(filename)
+        bps = self.bpoints.filter(('filename','lineno'), (filename,lineno))
         for bpdata in bps:
-            paused = self._hit_bp( bpdata, frame)
+            paused = self._hit_bp(bpdata, frame)
             if paused is True:
                 break
         
@@ -654,10 +660,10 @@ class EngineDebugger():
         lineno =  frame.f_lineno
 
         #check for breakpoints
-        filename = self._abs_filename( filename )
-        bps = self.bpoints.filter( ('filename','lineno'), (filename,lineno) )
+        filename = self._abs_filename(filename)
+        bps = self.bpoints.filter(('filename','lineno'), (filename,lineno))
         for bpdata in bps:
-            will_break = self._check_bp( bpdata, frame)
+            will_break = self._check_bp(bpdata, frame)
             if will_break is True:
                 #do not bother to continue checking
                 #pass to the full trace function.
@@ -690,7 +696,7 @@ class EngineDebugger():
         #send a paused message to the console 
         #(it will publish an ENGINE_DEBUG_PAUSED message after updating internal
         #state)
-        data =( (name,self._abs_filename( filename ),lineno), 
+        data =((name,self._abs_filename(filename),lineno), 
                 self._scopes, self._active_scope, 
                 (self._can_stepin,self._can_stepout),self._frames)
 
@@ -727,6 +733,8 @@ class EngineDebugger():
                 if handled is False:
                     #not a command so execute as python source
                     self._process_dbg_source(line)
+                else:
+                    wx.py.dispatcher.send(signal='debugger.executecommand',command=line)
 
         #reset stepin flag
         self._can_stepin = False
@@ -752,35 +760,33 @@ class EngineDebugger():
         The frame is used to evaluate any conditons.
         """
         bpid = bpdata['id']
-
-        #check if the breakpoint should be ignored.
-        #(used to trigger after n hits)
-        ignore_count = bpdata['ignore_count']
-        icount = self._bp_hcount.get(bpid, 0)
-        if (ignore_count is not None) and (icount < ignore_count):   
-            #ignoring... 
-            return False
-
-        #check if this breakpoint has been triggered enough times
-        #(used for temporay breakpoints - only triggered n times)
-        trigger_count = bpdata['trigger_count']
-        tcount = self._bp_tcount.get(bpid, 0)
-        if (trigger_count is not None) and (tcount >= trigger_count):
-            #ignoring as already triggered enougth times
-            return False
-
-        #checkif there is an expression to evaluate
+        trigger = False
+        #check if there is an expression to evaluate
         condition = bpdata['condition']
-        if condition is None:
-            #no condition triggering... 
-            return True
+        if condition == "":
+            hit = True
+        else:
+            try:
+                hit = eval(condition, frame.f_globals, frame.f_locals)
+            except:
+                #fail safe - so trigger anyway.
+                traceback.print_exc(file=sys.stdout)
+                hit =  True
+                trigger = True
 
-        #evaluate it
-        try:
-            trigger = eval(condition, frame.f_globals, frame.f_locals)
-        except:
-            #fail safe - so trigger anyway.
-            return True
+        if not trigger and hit:
+            ht = bpdata['hitcount']
+            if ht == "":
+               trigger = True
+            else:
+               ht = ht.replace('#', str(bpdata['tcount']))
+               try:
+                   trigger = eval(ht, frame.f_globals, frame.f_locals)
+               except:
+                   #fail safe - so trigger anyway.
+                   traceback.print_exc(file=sys.stdout)
+                   trigger = True
+        
         return trigger
 
     def _hit_bp(self, bpdata, frame):
@@ -792,47 +798,38 @@ class EngineDebugger():
         _check_bp will only check - not pause or update counters.
         """
         bpid = bpdata['id']
-
-        #increament the hit counter
-        hcount = self._bp_hcount.get(bpid, 0)
-        self._bp_hcount[bpid] = hcount+1 
-
-        #check if the breakpoint should be ignored.
-        #(used to trigger after n hits)
-        ignore_count = bpdata['ignore_count']
-        if (ignore_count is not None) and (hcount < ignore_count):   
-            #ignoring...
-            return False
-
-        #check if this breakpoint has been triggered enough times
-        #(used for temporay breakpoints - only triggered n times)
-        trigger_count = bpdata['trigger_count']
-        tcount = self._bp_tcount.get(bpid, 0)
-        if (trigger_count is not None) and (tcount >= trigger_count):
-            #ignoring as already triggered enougth times
-            return False
-
+        trigger = False
         #checkif there is an expression to evaluate
         condition = bpdata['condition']
-        if condition is None:
+        if condition == "":
             #no condition triggering... increment tcount
-            self._bp_tcount[bpid] = tcount+1
-            trigger = True
+            hit = True
         else:
             #evaluate it
             try:
-                trigger = eval(condition, frame.f_globals, frame.f_locals)
+                hit = eval(condition, frame.f_globals, frame.f_locals)
             except:
                 #fail safe - so trigger anyway.
-                self.write_debug('Triger condition expression error - triggering breakpoint')
-                bpdata['tcount'] = tcount+1
-                trigger =  True
+                traceback.print_exc(file=sys.stdout)
+                hit =  True
+                trigger = True
 
-        #increament trigger count and pause
+        if not trigger and hit:
+            bpdata['tcount'] += 1
+            ht = bpdata['hitcount']
+            if ht == "":
+               trigger = True
+            else:
+               ht = ht.replace('#', str(bpdata['tcount']))
+               try:
+                   trigger = eval(ht, frame.f_globals, frame.f_locals)
+               except:
+                   #fail safe - so trigger anyway.
+                   traceback.print_exc(file=sys.stdout)
+                   trigger = True
+        
+        # pause if triggered
         if trigger is True:
-            #triggering... increament tcount
-            self._bp_tcount[bpid] = tcount+1
-            #self.write_debug('Breakpoint triggered')
             self._paused = True
             self._paused_active_scope = self._active_scope
 
@@ -873,7 +870,7 @@ class EngineDebugger():
             filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
             lineno = frame.f_lineno
             name = frame.f_code.co_name
-            data =( (name,self._abs_filename( filename ),lineno), 
+            data =((name,self._abs_filename(filename),lineno), 
                     self._scopes, self._active_scope, 
                     (self._can_stepin,self._can_stepout),self._frames)
             wx.py.dispatcher.send(signal='debugger.updatescopes', data = data)
@@ -934,13 +931,6 @@ class EngineDebugger():
         Returns handled=True/False
         """
         ##Check for debugger comment commands:
-        #
-        #STEP #S
-        #STEPIN #SI
-        #STEPOUT #SO
-        #SETSCOPE n #SS n
-        #RESUME #R
-        #HELP #H
         if line.startswith('#') is False:
             return False
 
@@ -948,7 +938,7 @@ class EngineDebugger():
         parts = cmd.split(' ') #split into command and arguments
         cmd = parts[0]
         args = parts[1:]
-        cmd = cmd.lower() #conver to all lower case:
+        cmd = cmd.lower() #convert to all lower case:
 
         #step
         if cmd in ['#step','#s']:
@@ -1013,8 +1003,9 @@ class EngineDebugger():
                 self.write_debug('Source line unavailable')
             else:
                 self.write_debug(tb.code_context[tb.index])
-        
-        #not a debugger command
+        elif cmd in ['#stop']:
+            self.stop_code()
+            return True
         else:
             return False
 
@@ -1058,10 +1049,6 @@ class EngineDebugger():
             self._paused = False
             raise KeyboardInterrupt
         except:
-            #engine is exiting   -  probably some error caused by engine exiting
-            #if self.eng._stop_quiet:
-            #    raise KeyboardInterrupt
-
             #engine wanted to stop anyway - probably wxPython keyboard interrupt error
             if self._stop is True:
                 self._paused = False
@@ -1075,17 +1062,17 @@ class EngineDebugger():
 
         ##Finsihed running the code - prompt for a new command
         # add the command to history
-        wx.py.dispatcher.send(signal='debugger.executecommand',command=line)
+        wx.py.dispatcher.send(signal='shell.addToHistory',command=line)
         self.prompt()
 
     def write_debug(self, string):
         """
         Write a debugger message to the controlling console
         """
-        wx.py.dispatcher.send(signal='debugger.writeout', text = string)
+        print string
 
     def prompt(self, ismore = False, iserr = False):
-        wx.py.dispatcher.send(signal='debugger.prompt', ismore = ismore, 
+        wx.py.dispatcher.send(signal='shell.prompt', ismore = ismore, 
                                                                  iserr = iserr)
     # Message handlers
     def debug_pause(self):
@@ -1118,12 +1105,10 @@ class EngineDebugger():
 
     def dbg_setbp(self, bpdata):
         #bpdata= {id,filename, lineno, condition, ignore_count, trigger_count}
-        #bpdata, = msg.get_data()
         res = self.set_breakpoint(bpdata)
         return res
     def dbg_getbp(self, filename,lineno):
         #bpdata= {id,filename, lineno, condition, ignore_count, trigger_count}
-        #bpdata, = msg.get_data()
         res = self.get_breakpoint(filename,lineno)
         return res
     def dbg_clearbp(self, ids):
@@ -1162,7 +1147,7 @@ class DictList():
         >>> person2 = {'Name':'Bob', 'Age':53}
         >>> person3 = {'Name':'Sally', 'Age':31}
         >>> default = {'Name':'', 'Age':0}
-        >>> dlist = DictList( (person1,person2,person3),default)
+        >>> dlist = DictList((person1,person2,person3),default)
 
         >>> #Filter by age
         >>> dlist.filter(keys=('Age',),values=(53,))
@@ -1206,7 +1191,7 @@ class DictList():
         dicts = []
         for d in self._dicts:
             if d.has_key(key):
-                dicts.append( d[key] )
+                dicts.append(d[key])
         return dicts
 
     def filter(self, keys=(), values=()):
@@ -1317,7 +1302,7 @@ class EngineCompiler(Compile):
         self._buffer = '' 
         
         #register message handlers
-        wx.py.dispatcher.connect(self.future_flag,   'debugger.futureflag' )
+        wx.py.dispatcher.connect(self.future_flag,   'debugger.futureflag')
 
     # Interface methods
     def set_compiler_flag(self,flag,set=True):
