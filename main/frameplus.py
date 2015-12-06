@@ -309,6 +309,7 @@ class framePlus(wx.Frame):
                    .Dockable().Layer(1).Position(1)\
                    .MinimizeButton(True).MaximizeButton(True)\
                    .Name(name)
+        auipaneinfo.bsm_destroyonclose = not showhidemenu
         npage = self._mgr.AddPane(panel, auipaneinfo, target=targetpane)
         if active:
             self.showPanel(panel)

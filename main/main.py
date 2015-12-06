@@ -153,7 +153,12 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         self.config.Flush()
 
     def OnPaneClose(self, evt):
-        if not evt.pane.IsDestroyOnClose():
+        # check if the window should be destroyed
+        # auiPaneInfo.IsDestroyOnClose() can not be used since if the pane is
+        # added to a notebook, IsDestroyOnClose() always return False
+        if not hasattr(evt.pane, 'bsm_destroyonclose'):
+            return
+        if not evt.pane.bsm_destroyonclose:
             evt.Veto()
             if evt.pane.IsNotebookPage():
                 notebook = self._mgr._notebooks[evt.pane.notebook_id]
