@@ -1,7 +1,7 @@
 import wx
 import wx.py
 import os
-from wx.py.magic import magic
+#from wx.py.magic import magic, magicSingle
 from wx.py.shell import USE_MAGIC
 import sys
 import time
@@ -13,6 +13,84 @@ from debugger import EngineDebugger
 import wx.lib.mixins.listctrl as listmix
 import traceback
 import subprocess as sp
+import keyword
+aliasDict = {}
+def magicSingle(command):
+    if command=='': # Pass if command is blank
+        return command
+    
+    first_space=command.find(' ')
+    
+    if command[0]==' ': # Pass if command begins with a space
+        pass
+    elif command[0]=='?': # Do help if starts with ?
+        command='help('+command[1:]+')'
+    elif command[0]=='!': # Use os.system if starts with !
+        command='sx("'+command[1:]+'")'
+    elif command in ('ls','pwd'): # automatically use ls and pwd with no arguments
+        command=command+'()'
+    elif command[:3] in ('ls ','cd '): # when using the 'ls ' or 'cd ' constructs, fill in both parentheses and quotes
+        command=command[:2]+'("'+command[3:]+'")'
+    elif command[:6] in ('clear '):
+        command=command[:5]+'()'
+        print command
+    elif command[:6] == 'alias ':
+        c = command[6:].lstrip().split(' ')
+        if len(c)<2:
+            #print 'Not enough arguments for alias!'
+            command = ''
+        else:
+            n,v = c[0],' '.join(c[1:])
+            aliasDict[n]=v
+            command = ''
+    elif command.split(' ')[0] in aliasDict.keys():
+        c = command.split(' ')
+        if len(c)<2:
+            command = 'sx("'+aliasDict[c[0]]+'")'
+        else:
+            command = 'sx("'+aliasDict[c[0]]+' '+' '.join(c[1:])+'")'
+    elif first_space!=-1:       # if there is at least one space, add parentheses at beginning and end
+        cmds=command.split(' ')
+        if len(cmds)>1:
+            wd1=cmds[0]
+            wd2=cmds[1]
+            i=1
+            while wd2=='':
+                i+=1
+                if len(cmds)==i:
+                    break
+                wd2=cmds[i]
+            if wd2=='':
+                return command
+            if (wd1[0].isalpha() or wd1[0]=='_') and (wd2[0].isalnum() or (wd2[0] in """."'_""")) and not keyword.iskeyword(wd1) and not keyword.iskeyword(wd2):
+                if wd1.replace('.','').replace('_','').isalnum():
+                    command=wd1+'('+command[(first_space+1):]+')' # add parentheses where the first space was and at the end... hooray!
+    return command
+
+def magic(command):
+    continuations = wx.py.parse.testForContinuations(command) 
+    if len(continuations)==2: # Error case...
+        return command
+    elif len(continuations)==4:
+        stringContinuationList,indentationBlockList, \
+        lineContinuationList,parentheticalContinuationList = continuations
+    
+    commandList=[]
+    firstLine = True
+    for i in command.split('\n'):
+        if firstLine:
+            commandList.append(magicSingle(i))
+        elif stringContinuationList.pop(0)==False and \
+              indentationBlockList.pop(0)==False and \
+              lineContinuationList.pop(0)==False and \
+              parentheticalContinuationList.pop(0)==False:
+            commandList.append(magicSingle(i)) # unless this is in a larger expression, use magic
+        else:
+            commandList.append(i)
+        
+        firstLine=False
+    
+    return '\n'.join(commandList)
 
 def sx(str, *args, **kwds):
     wait = True
@@ -184,6 +262,16 @@ class bsmShell(wx.py.shell.Shell):
         if self.AutoCompActive():
             event.Skip()
             return
+        # If it is a letter or digit and the cursor is in readonly section,
+        # move the cursor to the end of file
+        if not self.CanEdit() and ((key >= ord('A') and key <= ord('Z')) or\
+               (key >= ord('a') and key <= ord('z')) or\
+               (key >= ord('0') and key <= ord('9')) or\
+               (key == wx.WXK_SPACE)):
+            endpos = self.GetTextLength()
+            self.GotoPos(endpos)
+            event.Skip()
+            return
         
         shiftDown = event.ShiftDown()
         controlDown = event.ControlDown()
@@ -198,6 +286,28 @@ class bsmShell(wx.py.shell.Shell):
         elif canEdit and (not shiftDown) and key == wx.WXK_DOWN:
             # Replace with the next command from the history buffer.
             self.GoToHistory(False)
+        elif canEdit and (not shiftDown) and key == wx.WXK_TAB:
+            # show auto-complete list with TAB
+            # first try to get the autocompletelist from the package 
+            cmd = self.getCommand()
+            k = self.getAutoCompleteList(cmd)
+            cmd = cmd[cmd.rfind('.')+1:]
+            # if failed, search the locals()
+            if not k:
+                k = self.interp.locals.keys()
+                for i in range(len(cmd)-1,-1,-1):
+                    if cmd[i].isalnum() or cmd[i] == '_':
+                        continue
+                    cmd = cmd[i+1:]
+                    break
+                k = [s for s in k if s.startswith(cmd)]
+                k.sort()
+            if k:
+                self.AutoCompSetAutoHide(self.autoCompleteAutoHide)
+                self.AutoCompSetIgnoreCase(self.autoCompleteCaseInsensitive)
+                options = ' '.join(k)
+                self.AutoCompShow(len(cmd), options)
+            return
         else:
             self.searchHistory = True
             super(bsmShell, self).OnKeyDown(event)
@@ -311,7 +421,6 @@ class bsmShell(wx.py.shell.Shell):
         cmd_raw = command
         if USE_MAGIC:
             command = magic(command)
-
         if len(command) > 1 and command[-1] == ';':
             self.silent = True
         
