@@ -138,9 +138,9 @@ class bsmShell(wx.py.shell.Shell):
                                    introText, locals, InterpClass,
                                    startupScript, execStartupScript,
                                    *args, **kwds)
-        self.redirectStdout()
-        self.redirectStderr()
-        self.redirectStdin()
+        #self.redirectStdout()
+        #self.redirectStderr()
+        #self.redirectStdin()
         # the default sx function (!cmd to run external command) does not work
         # on windows
         import __builtin__
@@ -150,8 +150,6 @@ class bsmShell(wx.py.shell.Shell):
         self.autoIndent = True
         self.running = False
         self.debugger = EngineDebugger()
-        self.redirectStdout()
-        self.redirectStderr()
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
         # Add 'pp' (pretty print) to the interpreter's locals.
@@ -197,6 +195,7 @@ class bsmShell(wx.py.shell.Shell):
                     return mod
                 except:
                     return None
+
     def getAutoCompleteKeys(self):
         return self.interp.getAutoCompleteKeys()
 
@@ -255,6 +254,17 @@ class bsmShell(wx.py.shell.Shell):
             self.AutoCompCancel()
         event.Skip()
 
+    def OnUpdateUI(self, event):
+        super(bsmShell, self).OnUpdateUI(event)
+        wx.CallAfter(self.UpdateCaretPos)
+
+    def UpdateCaretPos(self):
+        # when editing the command, do not allow moving the caret to 
+        # readonly area
+        if not self.CanEdit() and \
+            (self.GetCurrentLine() == self.LineFromPosition(self.promptPosEnd)):
+                self.GotoPos(self.promptPosEnd)
+
     def OnKeyDown(self, event):
         """Key down event handler."""
         key = event.GetKeyCode()
@@ -262,9 +272,17 @@ class bsmShell(wx.py.shell.Shell):
         if self.AutoCompActive():
             event.Skip()
             return
+
+        shiftDown = event.ShiftDown()
+        controlDown = event.ControlDown()
+        rawControlDown = event.RawControlDown()
+        altDown = event.AltDown()
+        canEdit = self.CanEdit()
+
         # If it is a letter or digit and the cursor is in readonly section,
         # move the cursor to the end of file
-        if not self.CanEdit() and ((key >= ord('A') and key <= ord('Z')) or\
+        if not canEdit and (not shiftDown) and (not controlDown) and (not altDown)\
+            and (not rawControlDown) and ((key >= ord('A') and key <= ord('Z')) or\
                (key >= ord('a') and key <= ord('z')) or\
                (key >= ord('0') and key <= ord('9')) or\
                (key == wx.WXK_SPACE)):
@@ -272,13 +290,6 @@ class bsmShell(wx.py.shell.Shell):
             self.GotoPos(endpos)
             event.Skip()
             return
-        
-        shiftDown = event.ShiftDown()
-        controlDown = event.ControlDown()
-        rawControlDown = event.RawControlDown()
-        altDown = event.AltDown()
-        shiftDown = event.ShiftDown()
-        canEdit = self.CanEdit()
 
         if canEdit and (not shiftDown) and key == wx.WXK_UP:
             # Replace with the previous command from the history buffer.
@@ -380,7 +391,10 @@ class bsmShell(wx.py.shell.Shell):
                                 == self.LineFromPosition(self.promptPosEnd):
                     self.write(os.linesep)
                 self.write(text)
+            # disable undo
             self.EmptyUndoBuffer()
+            # move the caret to the end
+            self.GotoPos(self.GetTextLength())
 
     def writeErr(self, text):
         self.writeOut(text)
@@ -485,6 +499,8 @@ class bsmShell(wx.py.shell.Shell):
         if not self.more:
             self.promptPosStart = self.GetCurrentPos()
         if not skip:
+            endpos = self.GetTextLength()
+            self.GotoPos(endpos)
             self.write(prompt)
         if not self.more:
             self.promptPosEnd = self.GetCurrentPos()
