@@ -20,8 +20,8 @@ try:
 
         def __init__(self, ax):
             self.ax = ax
-            self.annotation = ax.annotate(self.text_template, 
-                    xy=(self.x, self.y), xytext=(self.xoffset, self.yoffset), 
+            self.annotation = ax.annotate(self.text_template,
+                    xy=(self.x, self.y), xytext=(self.xoffset, self.yoffset),
                     textcoords='offset points', ha='right', va='bottom',
                     bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
                     arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0')
@@ -47,9 +47,9 @@ try:
     # we override the matplotlib toolbar class to remove the subplots function,
     #  which we do not use
     #
-    
+
     class Toolbar(NavigationToolbar):
-    
+
         def __init__(self, canvas, figure):
             NavigationToolbar.__init__(self, canvas)
             self.SetWindowStyle(wx.TB_HORIZONTAL | wx.TB_FLAT)
@@ -74,9 +74,9 @@ try:
                 (None, None, None, None),
                 ('Print', 'Print the figure', printer_xpm, 'print_figure'),
                 )
-    
+
             self._parent = self.canvas.GetParent()
-    
+
             self.wx_ids = {}
             for (text, tooltip_text, image_file, callback) in toolitems:
                 if text is None:
@@ -93,25 +93,25 @@ try:
                                        text, tooltip_text)
                 self.Bind(wx.EVT_TOOL, getattr(self, callback),
                           id=self.wx_ids[text])
-    
+
             self.Realize()
-    
+
         def copy_figure(self, evt):
             self.canvas.Copy_to_Clipboard(event=evt)  # bmp image
-    
+
         def print_figure(self, evt):
             self.canvas.Printer_Print(event=evt)  # bmp image
         def datatip(self,evt):
             self.datacursor.set_enable(evt.GetInt())
-   
+
     class MatplotPanel(wx.Panel):
-    
+
         clsFrame = None
         clsID_new_figure = wx.NOT_FOUND
-    
+
         def __init__(self, parent, title=None, num=-1, thisFig = None):
             wx.Panel.__init__(self, parent)
-            
+
             # initialize matplotlib stuff
             self.figure = thisFig
             if not self.figure:
@@ -125,53 +125,63 @@ try:
             self.isdestory = False
             self.sizer = wx.BoxSizer(wx.VERTICAL)
             self.SetSizer(self.sizer)
-    
+
             self.figure.set_label(title)
             self.subplot = self.figure.add_subplot(111)
-    
+
             self.toolbar = Toolbar(self.canvas,self.figure)
-    
+
             self.sizer.Add(self.toolbar, 0, wx.EXPAND)
             self.sizer.Add(self.canvas, 1, wx.LEFT | wx.TOP | wx.GROW)
             self.Bind(wx.EVT_CLOSE, self._onClose)
             connection_id = self.canvas.mpl_connect('button_press_event',
                     self._onClick)
+            wx.py.dispatcher.connect(self.simLoad, signal='sim.load')
+
+        def simLoad(self, num):
+            for l in self.figure.gca().lines:
+                if hasattr(l, 'trace'):
+                    sz = len(l.get_ydata())
+                    for s in l.trace:
+                        if (not s)  or (not s.startswith(str(num)+'.')): continue
+                        wx.py.dispatcher.send('sim.trace_buf', s, sz)
+
         def _onClick(self, event):
             if event.dblclick:
                 self.toolbar.home()
             # event.Skip()
-    
+
         def _onClose(self, evt):
             self.canvas.close_event()
             self.canvas.stop_event_loop()
             Gcf.destroy(self.num)
-    
+
         def destroy(self, *args):
             if self.isdestory == False:
                 wx.py.dispatcher.send(signal='frame.closepanel', panel=self)
                 wx.WakeUpIdle()
-    
+
         def Destroy(self):
             self.isdestory = True
             self.canvas.close_event()
             self.canvas.stop_event_loop()
             Gcf.destroy(self.num)
             return super(MatplotPanel, self).Destroy()
-    
+
         @classmethod
         def setactive(cls, pane, force=False, notify=False):
             if force or pane and isinstance(pane, MatplotPanel):
                 Gcf.set_active(pane)
-    
+
         def GetTitle(self):
             return self.title
-    
+
         def set_window_title(self, title):
             if title == self.title: return
             self.title = title
             wx.py.dispatcher.send(signal='frame.updatepanetitle',
                                   pane=self, title=self.title)
-    
+
         def show(self):
             if self.IsShown() == False:
                 self.canvas.draw()
@@ -224,7 +234,7 @@ try:
                 l.trace = [x.keys()[0], y.keys()[0]]
             l.autorelim = autorelim
             self.canvas.draw()
-            
+
         @classmethod
         def addFigure(cls, title=None, num=None, thisFig = None):
             panelFigure = cls(cls.clsFrame, title=title, num=num, thisFig = thisFig)
@@ -233,7 +243,7 @@ try:
                                   title=panelFigure.GetTitle(),
                                   target=Gcf.get_active())
             return panelFigure
-    
+
         @classmethod
         def Initialize(cls, frame):
             cls.clsFrame = frame
@@ -257,13 +267,13 @@ try:
         @classmethod
         def Uninitialize(cls):
             Gcf.destroy_all()
-    
+
         @classmethod
         def ProcessCommand(cls, command):
             if command == cls.clsID_new_figure:
                 plt.figure()
-    
-    
+
+
     def bsm_Initialize(frame):
         MatplotPanel.Initialize(frame)
         wx.py.dispatcher.send(signal='frame.run',
