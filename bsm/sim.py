@@ -47,10 +47,10 @@ class ModuleTree(wx.TreeCtrl):
         self.sortfun = self.sortByTitle
         self.Bind( wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
         self.Bind( wx.EVT_TREE_ITEM_ACTIVATED, self.OnTreeItemActivated)
-        
+
     def OnTreeItemActivated(self, event):
         pass
-    
+
     def OnTreeItemExpanding(self, event):
         hParent = event.GetItem()
         if not hParent.IsOk():
@@ -65,7 +65,7 @@ class ModuleTree(wx.TreeCtrl):
             return self.sortfun(pItemData1,pItemData2)
         else:#if rtn>1 and rtn<-1:
             return super(ModuleTree, self).OnCompareItems(item1, item2)
-   
+
         return rtn
     def sortByTitle(self, item1, item2):
         (obj1, nType1) = item1.GetData()
@@ -102,28 +102,28 @@ class ModuleTree(wx.TreeCtrl):
         #clear the tree control
         self.DeleteAllItems()
         assert (self.GetCount() == 0)
-    
+
         if self.objects == None:
             return False
-    
+
         # add the root item
         hRoot = self.AddRoot("BSMEdit")
 
-        hParent = hRoot 
-    
+        hParent = hRoot
+
         # go through all the objects, and only add the top level item
         for key, obj in self.objects.iteritems():
             if obj['nkind'] != SC_OBJ_UNKNOWN and obj['parent'] == "":
                 self.InsertScObj(hParent,obj)
-    
+
         #any item? expand it
         (item, cookie) = self.GetFirstChild(hRoot)
         if item.IsOk():
             self.Expand(item)
-    
+
         self.SortChildren(hParent)
         return True
-    
+
     def InsertScObj(self, hParent, obj):
         nKind = obj['nkind']
         img  = -1
@@ -131,7 +131,7 @@ class ModuleTree(wx.TreeCtrl):
         if nKind == SC_OBJ_MODULE:
             img  = 0
             img2 = 0
-        elif nKind in [SC_OBJ_SIGNAL, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP, 
+        elif nKind in [SC_OBJ_SIGNAL, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,
                        SC_OBJ_XSC_ARRAY, SC_OBJ_XSC_ARRAY_ITEM]:
             img  = 1
             img2 = 1
@@ -149,14 +149,14 @@ class ModuleTree(wx.TreeCtrl):
         if nKind == SC_OBJ_MODULE or nKind == SC_OBJ_XSC_ARRAY:
             self.AppendItem(id, ("..."),img,img2, None)
         return id
-    
+
     def GetExtendObj(self, hItem):
         ext = self.GetItemData(hItem)
         if ext:
-            (obj, img) = ext.GetData() 
+            (obj, img) = ext.GetData()
             return obj
         return None
-    
+
     def finditem(self, hParent, strName):
         (hChild, cookie) = self.GetFirstChild(hParent)
         while(hChild):
@@ -238,7 +238,7 @@ class ModulePanel(wx.Panel):
         fDuration = -1.0
         nUnit = BSM_NS
         self.tb.AddSeparator()
-        
+
         self.tcStep = NumCtrl(self.tb, wx.ID_ANY, ("%g"%fStep), allowNegative=False, fractionWidth = 0)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Step "))
         self.tb.AddControl(self.tcStep)
@@ -277,7 +277,7 @@ class ModulePanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnStep, id=self.ID_SIM_STEP)
         self.Bind(wx.EVT_TOOL, self.OnRun, id=self.ID_SIM_RUN)
         self.Bind(wx.EVT_TOOL, self.OnPause, id=self.ID_SIM_PAUSE)
-        self.tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnTreeSelChanged) 
+        self.tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnTreeSelChanged)
         self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
         self.tree.Bind( wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id = self.ID_MP_ADD_TO_NEW_VIEWER)
@@ -309,7 +309,7 @@ class ModulePanel(wx.Panel):
     def sendCommand(self, cmd, args, block = False):
         try:
             # return, if the previous call has not finished
-            # it may happen when the previous command is waiting for response, 
+            # it may happen when the previous command is waiting for response,
             # and another command is sent (by clicking a button)
             if self._resume_event.isWaiting():
                 block = False
@@ -321,7 +321,7 @@ class ModulePanel(wx.Panel):
             if not isinstance(args, dict):
                 return False
             self.qCmd.put([{'cmd':cmd, 'arguments':args}])
-            if block: 
+            if block:
                 self._resume_event.wait()
                 return self.response
             return True
@@ -352,7 +352,7 @@ class ModulePanel(wx.Panel):
 
     def load(self, filename, block = True):
         self.sendCommand('load', {'filename':filename}, block)
-    
+
     def load_interactive(self):
         dlg = wx.FileDialog(self, "Choose a file", "", "", "*.*", wx.OPEN)
         if dlg.ShowModal() == wx.ID_OK:
@@ -404,11 +404,11 @@ class ModulePanel(wx.Panel):
 
     def write(self, objects, block = False):
         return self.sendCommand('write', {'objects':objects}, block)
-    
+
     def trace_file(self, obj, trace_type = BSM_TRACE_SIMPLE, valid = None, trigger = BSM_BOTHEDGE, block = False):
         return self.sendCommand('tracefile', {'name': obj, 'type': trace_type, 'valid':valid, 'trigger':trigger}, block)
 
-    def trace_buf(self, obj, size, valid = None, trigger = BSM_BOTHEDGE, block = False):
+    def trace_buf(self, obj, size = 256, valid = None, trigger = BSM_BOTHEDGE, block = False):
         return self.sendCommand('tracebuf', {'name': obj, 'size': size, 'valid': valid, 'trigger': trigger}, block)
 
     def read_buf(self, objects, block = False):
@@ -471,7 +471,7 @@ class ModulePanel(wx.Panel):
             self.viewer.append(v)
             submenu.Append(id, v.GetLabel())
             id = id + 1
-        
+
         menu.AppendSubMenu(submenu, "Add to...")
         self.PopupMenu(menu)
         menu.Destroy()
@@ -564,15 +564,15 @@ class ModulePanel(wx.Panel):
         if isinstance(objs, str):
             objs = [objs]
         return self.sendCommand('monitor_add', {'objects':objs}, block)
-    
+
     def monitor_del(self, objs, block=True):
         if isinstance(objs, str):
             objs = [objs]
         return self.sendCommand('monitor_del', {'objects':objs}, block)
-   
+
     def bp_add(self, objs, block=False):
         return self.sendCommand('breakpoint_add', {'objects':objs}, block)
-    
+
     def bp_del(self, objs, block=False):
         return self.sendCommand('breakpoint_del', {'objects':objs}, block)
 
@@ -639,8 +639,8 @@ class ModulePanel(wx.Panel):
             # update the plot, it is time-consuming
            wx.py.dispatcher.send(signal="sim.buffer_changed", bufs = self.ui_buffers)
            self.ui_buffers = None
-        self.ui_update += 1 
-        self.ui_update %= 3 
+        self.ui_update += 1
+        self.ui_update %= 3
 
     def OnStep(self, e):
         self.SetParameter()
@@ -692,7 +692,7 @@ class simThread(threading.Thread):
 class sim:
     frame = None
     ID_SIM_NEW = wx.NOT_FOUND
-    def __init__(self):     
+    def __init__(self):
       pass
     @classmethod
     def Initialize(cls, frame):
@@ -702,11 +702,11 @@ class sim:
                             path='File:New:Simulation', rxsignal='bsm.simulation')
         if response:
             cls.ID_SIM_NEW = response[0][1]
-        
+
         wx.py.dispatcher.connect(cls.ProcessCommand, signal='bsm.simulation')
         wx.py.dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
         wx.py.dispatcher.connect(receiver=cls.set_active, signal='frame.activatepane')
-        
+
         wx.py.dispatcher.connect(receiver = cls.OnAddProp, signal='prop.insert')
         wx.py.dispatcher.connect(receiver = cls.OnDelProp, signal='prop.delete')
         wx.py.dispatcher.connect(receiver = cls.OnDropProp, signal='prop.drop')
@@ -783,7 +783,7 @@ class sim:
         mgr = Gcs.get_manager(num)
         if mgr:
             mgr.monitor_del(name)
-    @classmethod 
+    @classmethod
     def OnDropProp(cls, index, prop, grid):
         objs = json.loads(prop)
         for obj in objs:
@@ -816,8 +816,8 @@ class sim:
     @classmethod
     def ProcessCommand(cls, command):
         if command == cls.ID_SIM_NEW:
-              simulation() 
-    @classmethod 
+              simulation()
+    @classmethod
     def propgrid(cls, num = None, create = True, activate = False):
         """
         get the propgrid manager by its number
@@ -828,7 +828,7 @@ class sim:
         if not manager and create:
             manager = bsmPropGrid(cls.frame)
             manager.SetLabel("Propgrid-%d"%manager.num)
-            wx.py.dispatcher.send(signal="frame.addpanel", panel=manager, 
+            wx.py.dispatcher.send(signal="frame.addpanel", panel=manager,
                                                           title=manager.GetLabel())
         elif manager and activate:
             # activate the manager
