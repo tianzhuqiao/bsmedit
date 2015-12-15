@@ -1,5 +1,6 @@
 import ctypes as ct
 import traceback
+import sys
 
 SC_OBJ_UNKNOWN        = 0
 SC_OBJ_SIGNAL         = 1
