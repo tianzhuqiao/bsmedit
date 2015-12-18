@@ -14,6 +14,8 @@ import matplotlib.pyplot as plt
 import re
 from wx.lib.masked import NumCtrl
 import json
+from autocomplete import AutocompleteTextCtrl
+
 class ModuleTreeItemData(wx.TreeItemData):
     def __init__(self, obj, nType):
         wx.TreeItemData.__init__(self, None)
@@ -45,8 +47,8 @@ class ModuleTree(wx.TreeCtrl):
         self.AssignImageList(imglist)
         self.objects = None
         self.sortfun = self.sortByTitle
-        self.Bind( wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
-        self.Bind( wx.EVT_TREE_ITEM_ACTIVATED, self.OnTreeItemActivated)
+        self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
+        self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnTreeItemActivated)
 
     def OnTreeItemActivated(self, event):
         pass
@@ -180,6 +182,108 @@ class ModuleTree(wx.TreeCtrl):
             self.SelectItem(hChild)
 
 Gcs = Gcm()
+
+class DumpDlg(wx.Dialog):
+    def __init__(self, parent, objects, active, tracefile = True):
+        wx.Dialog.__init__ (self, parent, id = wx.ID_ANY, title = u"Dump...")
+
+        self.objects = objects
+        self.traceFile = tracefile
+
+        self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
+        szAll = wx.BoxSizer(wx.VERTICAL)
+
+        if self.traceFile:
+            sbox = wx.StaticBox(self, label = u"&File name")
+            szFile = wx.StaticBoxSizer(sbox, wx.HORIZONTAL)
+            self.tcFile = wx.TextCtrl(sbox, value = active)
+            self.tcFile.SetMaxLength(0)
+            szFile.Add(self.tcFile, 1, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+            self.btnSelectFile = wx.Button(sbox, label = u"...", size = (25,-1))
+            szFile.Add(self.btnSelectFile, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+            szAll.Add(szFile, 0, wx.ALL|wx.EXPAND, 5)
+
+        sbox = wx.StaticBox(self, wx.ID_ANY, u"&Signal")
+        szSignal = wx.StaticBoxSizer(sbox, wx.VERTICAL)
+        self.tcSignal = AutocompleteTextCtrl(sbox, value = active, completer = self.completer)
+        szSignal.Add(self.tcSignal, 0, wx.ALL|wx.EXPAND, 5)
+        self.cbTrigger = wx.CheckBox(sbox, label = u"Use Trigger Signal")
+        szSignal.Add(self.cbTrigger, 0, wx.ALL, 5)
+        self.tcValid = AutocompleteTextCtrl(sbox, completer = self.completer)
+        szSignal.Add(self.tcValid, 0, wx.ALL|wx.EXPAND, 5)
+        rbTriggerChoices = [u"&Pos Edge", u"&Neg Edge", u"Both Edge"]
+        self.rbTrigger = wx.RadioBox(sbox, label = u"Trigger", choices = rbTriggerChoices)
+        self.rbTrigger.SetSelection(2)
+        szSignal.Add(self.rbTrigger, 0, wx.ALL|wx.EXPAND, 5)
+        szAll.Add(szSignal, 1, wx.ALL|wx.EXPAND, 5)
+
+        if self.traceFile:
+            rbFormatChoices = [ u"&VCD", u"&BSM" ]
+            self.rbFormat = wx.RadioBox(self, label = u"&Format", choices = rbFormatChoices)
+            self.rbFormat.SetSelection(1)
+            szAll.Add(self.rbFormat, 0, wx.ALL|wx.EXPAND, 5)
+        else:
+            szSize = wx.BoxSizer(wx.HORIZONTAL)
+            szSize.Add(wx.StaticText(self, wx.ID_ANY, "Size"), 0, wx.ALL,5)
+            self.spinSize = wx.SpinCtrl(self, style = wx.SP_ARROW_KEYS, min = 1, max = 2**31-1, initial = 256)
+            szSize.Add(self.spinSize, 1, wx.EXPAND | wx.ALL, 5)
+            szAll.Add(szSize, 0, wx.ALL|wx.EXPAND, 5)
+
+        self.m_staticline1 = wx.StaticLine(self, style = wx.LI_HORIZONTAL)
+        szAll.Add(self.m_staticline1, 0, wx.EXPAND |wx.ALL, 5)
+
+        szConfirm = wx.BoxSizer(wx.HORIZONTAL)
+        self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
+        szConfirm.Add(self.btnOK, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
+        self.btnCancel = wx.Button(self, wx.ID_CANCEL, u"Cancel")
+        szConfirm.Add(self.btnCancel, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
+        szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
+
+        self.SetSizer(szAll)
+        self.Layout()
+        szAll.Fit(self)
+
+        self.tcValid.Enable(self.cbTrigger.GetValue())
+        # Connect Events
+        if self.traceFile:
+            self.btnSelectFile.Bind(wx.EVT_BUTTON, self.OnBtnSelectFile)
+        self.cbTrigger.Bind(wx.EVT_CHECKBOX, self.OnCheckVal)
+        self.btnOK.Bind(wx.EVT_BUTTON, self.OnBtnOK)
+
+        self.trace = {}
+
+    def completer(self, query):
+        objs = [n for n in self.objects if query in n]
+        return objs, objs
+
+    # Virtual event handlers, override them in your derived class
+    def OnBtnSelectFile(self, event):
+        strWild = "BSM Files (*.bsm)|*.bsm|All Files (*.*)|*.*"
+        dlg = wx.FileDialog(self, "Select BSM dump file", wx.EmptyString,wx.EmptyString,strWild, style = wx.FD_OPEN)
+        if dlg.ShowModal()==wx.ID_OK:
+           self.tcFile.SetValue(dlg.GetPath())
+
+    def OnCheckVal(self, event):
+        self.tcValid.Enable(self.cbTrigger.GetValue())
+
+    def OnBtnOK(self, event):
+        self.trace = {}
+        if self.traceFile:
+            self.trace['filename'] = self.tcFile.GetValue()
+            self.trace['format'] = self.rbFormat.GetSelection()
+        else:
+            self.trace['size'] = self.spinSize.GetValue()
+        self.trace['signal'] = self.tcSignal.GetValue()
+        if self.cbTrigger.GetValue():
+            self.trace['valid'] = self.tcValid.GetValue()
+        else:
+            self.trace['valid'] = None
+        self.trace['trigger'] = self.rbTrigger.GetSelection()
+        event.Skip()
+
+    def GetTrace(self):
+        return self.trace
+
 class PseudoSimEvent():
     def __init__(self, eng=None):
         self._set = False
@@ -279,7 +383,7 @@ class ModulePanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnPause, id=self.ID_SIM_PAUSE)
         self.tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnTreeSelChanged)
         self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
-        self.tree.Bind( wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
+        self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id = self.ID_MP_ADD_TO_NEW_VIEWER)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id = self.ID_MP_DUMP)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id = self.ID_MP_TRACE_BUF)
@@ -524,10 +628,20 @@ class ModulePanel(wx.Panel):
     def OnProcessCommand(self, event):
         eid = event.GetId()
         viewer = None
-        if eid == self.ID_MP_DUMP:
-            pass
-        elif eid == self.ID_MP_TRACE_BUF:
-            pass
+        if eid in [self.ID_MP_DUMP, self.ID_MP_TRACE_BUF]:
+            objs = [o for o, v in self.objects.iteritems() if v['numeric'] and v['readable']]
+            objs.sort()
+            active = ''
+            items = self.tree.GetSelections()
+            if items:
+                active = self.tree.GetExtendObj(items[0])['name']
+            dlg = DumpDlg(self,objs, active, eid == self.ID_MP_DUMP)
+            if dlg.ShowModal() == wx.ID_OK:
+                t = dlg.GetTrace()
+                if eid == self.ID_MP_DUMP:
+                    self.trace_file(t['signal'], t['format'], t['valid'], t['trigger'])
+                else:
+                    self.trace_buf(t['signal'], t['size'], t['valid'], t['trigger'])
         elif eid == self.ID_MP_ADD_TO_NEW_VIEWER:
             viewer = sim.propgrid()
         elif eid >= wx.ID_FILE1 and eid <= wx.ID_FILE9:
