@@ -40,12 +40,12 @@ class simObj(ct.Structure):
                 ('parent', ct.c_char*255),
                 ('nkind', ct.c_int),
                 ('register', ct.c_bool)]
-                
+
 class simTraceFile(ct.Structure):
     _fields_ = [('name', ct.c_char*255),
                 ('type', ct.c_int),
                 ('obj', ct.c_voidp)]
- 
+
 class simTraceBuf(ct.Structure):
     _fields_ = [('name', ct.c_char*255),
                 ('buffer', ct.POINTER(ct.c_double)),
@@ -57,7 +57,7 @@ class SimContext(ct.Structure):
     _fields_ = [('version', ct.c_char*255),
                 ('copyright', ct.c_char*255),
                 ]
-                
+
 def sim_callback(i):
     # return 1 to stop the simulation
     return 0
@@ -84,7 +84,7 @@ class sim_engine:
             self.cdll = ct.cdll.LoadLibrary(dll)
             bsm_sim_top = self.interface("bsm_sim_top",None, ct.POINTER(SimContext))
             self.ctx = bsm_sim_top().contents
-            
+
             self.ctx_read_helper = self.interface("ctx_read", (ct.POINTER(simObj),), ct.c_bool)
             self.ctx_write_helper = self.interface("ctx_write", (ct.POINTER(simObj),), ct.c_bool)
             ctx_first_object = self.interface("ctx_first_object", (ct.POINTER(simObj),), ct.c_bool)
@@ -100,19 +100,19 @@ class sim_engine:
                 self.sim_objects[obj.name] = obj
                 obj = simObj()
                 rtn = ctx_next_object(obj)
-                
-            
+
+
             self.ctx_start = self.interface("ctx_start", (ct.c_int, ct.c_int), None)
             self.ctx_stop = self.interface("ctx_stop", None, None)
             self.ctx_time = self.interface("ctx_time", None, ct.c_double)
             self.ctx_time_sec = self.interface("ctx_time_sec", (ct.c_double, ct.c_int), ct.c_double)
             self.ctx_time_str_helper = self.interface("ctx_time_str", (ct.c_char*255, ), ct.c_bool)
             self.ctx_set_callback_helper = self.interface("ctx_set_callback", (self.SIM_CALLBACK, ), None)
-     
+
             self.ctx_add_trace_file = self.interface("ctx_add_trace_file", (ct.POINTER(simTraceFile),), ct.c_bool)
             self.ctx_remove_trace_file = self.interface("ctx_remove_trace_file", (ct.POINTER(simTraceFile),), ct.c_bool)
             self.ctx_trace_file = self.interface("ctx_trace_file", (ct.POINTER(simTraceFile),ct.POINTER(simObj), ct.POINTER(simObj), ct.c_int), ct.c_bool)
-            
+
             self.ctx_add_trace_buf = self.interface("ctx_add_trace_buf", (ct.POINTER(simTraceBuf),), ct.c_bool)
             self.ctx_remove_trace_buf = self.interface("ctx_remove_trace_buf", (ct.POINTER(simTraceBuf),), ct.c_bool)
             self.ctx_trace_buf = self.interface("ctx_trace_buf", (ct.POINTER(simTraceBuf),ct.POINTER(simObj),ct.POINTER(simObj), ct.c_int), ct.c_bool)
@@ -165,27 +165,27 @@ class sim_engine:
         if idx!=-1:
             name = name[0:idx]
             obj.parent = name
-    
+
     def ctx_read(self, simObj):
         if not simObj: return ""
         if self.ctx_read_helper(simObj):
             return simObj.value
         return ""
-    
+
     def ctx_write(self, simObj, value):
         if not simObj: return False
         simObj.value = str(value)
         return self.ctx_write_helper(simObj)
-    
+
     def ctx_time_str(self):
         buf = ct.create_string_buffer(255)
         self.ctx_time_str_helper(buf)
         return buf.value
-    
+
     def ctx_set_callback(self, fun):
         self.ctx_callback = self.SIM_CALLBACK(fun)
         self.ctx_set_callback_helper(self.ctx_callback)
-        
+
     def interface(self, fun, arg = None, res=None):
         f = getattr(self.cdll, fun)
         f.argtypes = arg

@@ -39,7 +39,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         #self.menuProperties.SetBitmap(wx.BitmapFromXPMData(setting_xpm))
         #self.menuMagPlugins.SetBitmap(wx.BitmapFromXPMData(plugin_xpm))
         self.menuAbout.SetBitmap(wx.BitmapFromXPMData(about_xpm))
-        
+
         self.SetMinSize((640, 480))
         self._mgr.SetAGWFlags(self._mgr.GetAGWFlags()
                               | aui.AUI_MGR_ALLOW_ACTIVE_PANE
@@ -107,12 +107,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         wx.py.dispatcher.connect(receiver=self.set_status_text, signal='frame.setstatustext')
         wx.py.dispatcher.connect(receiver=self.file_history, signal='frame.filehistory')
         self.Bind(wx.EVT_CLOSE, self._onClose)
-        try:
-            import sys
-            sys.path.append('.')
-            import init_bsm
-        except:
-            pass
+
         #try:
         self.addon = {}
         self.panelShell.historyOn(False)
@@ -145,7 +140,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnPaneClose)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id = self.ID_VM_RENAME)
-    
+
     def file_history(self, filename):
         self.config.SetPath('/FileHistory')
         self.filehistory.AddFileToHistory(filename)
@@ -155,7 +150,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
     def OnPaneClose(self, evt):
         # check if the window should be destroyed
         # auiPaneInfo.IsDestroyOnClose() can not be used since if the pane is
-        # added to a notebook, IsDestroyOnClose() always return False
+        # added to a notebook, IsDestroyOnClose() always returns False
         if not hasattr(evt.pane, 'bsm_destroyonclose'):
             return
         if not evt.pane.bsm_destroyonclose:
@@ -181,16 +176,16 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         menu = wx.Menu()
         menu.Append(self.ID_VM_RENAME, "&Rename")
         self.PopupMenu(menu)
+
     def OnProcessCommand(self, evt):
         if not self.m_activeTabCtrl:
             return
         id = evt.GetId()
-        tabCtrl = self.m_activeTabCtrl
         page = self.m_activeTabCtrl.GetPage(self.m_activeTabCtrlIndex)
         if id == self.ID_VM_RENAME:
             pane = self._mgr.GetPane(page)
             strNameIn = pane.caption
-            strNameIn = wx.GetTextFromUser("Type in the name:", "Input Name", 
+            strNameIn = wx.GetTextFromUser("Type in the name:", "Input Name",
                                                                strNameIn, self)
             if strNameIn:
                 pane.Caption(strNameIn)
@@ -211,7 +206,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
             response = wx.py.dispatcher.send(signal='frame.addmenu',
                     path='View:Layout:%s'%key, rxsignal='frame.perspective')
             if response:
-                self.perspective[response[0][1]] = {"key": key, "value":value} 
+                self.perspective[response[0][1]] = {"key": key, "value":value}
             more, key, index = self.config.GetNextEntry(index)
         wx.py.dispatcher.connect(self.OnSetPerspective, signal='frame.perspective')
 
@@ -233,7 +228,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
             self.statusbar_width.extend([0 for i in range(index+1-len(self.statusbar_width))])
             self.statusbar.SetFieldsCount(index+1)
         if self.statusbar_width[index]!=width:
-            self.statusbar_width[index]=width            
+            self.statusbar_width[index]=width
             self.statusbar.SetStatusWidths(self.statusbar_width)
         self.statusbar.SetStatusText(text,index)
 
@@ -249,7 +244,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
                    if module.endswith(MODULE_EXTENSIONS)])
 
     def run_command(self, command, prompt=True, verbose=True, debug=False):
-        if debug and not self.tbDebug.IsShown(): 
+        if debug and not self.tbDebug.IsShown():
             self.showPanel(self.tbDebug)
         self.panelShell.runCommand(command, prompt, verbose, debug)
 
@@ -339,7 +334,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         wx.BeginBusyCursor()
         import webbrowser
         webbrowser.open("http://bsmedit.feiyilin.com")
-        wx.EndBusyCursor() 
+        wx.EndBusyCursor()
 
     def OnHelpContact(self, event):
         wx.BeginBusyCursor()
@@ -356,10 +351,9 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         self.add_editor()
 
     def OnOpenPythonScript(self, event):
-        defaultDir = os.path.dirname(os.getcwd())
         dlg = wx.FileDialog(self, 'Open',
                             wildcard='Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*',
-                            style=wx.OPEN | wx.FILE_MUST_EXIST)  # defaultDir  = defaultDir,
+                            style=wx.OPEN | wx.FILE_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPaths()[0]
             wx.py.dispatcher.send(signal='bsm.editor.openfile', filename=path)
@@ -448,7 +442,7 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         elif eid == self.ID_DBG_STEP_OUT:
             bEnable = bPaused and self.panelShell.debugger._can_stepout
         event.Enable(bEnable)
-        
+
 class bsmAboutDialog(bsm_dlg_helper.dlgAbout):
     def __init__(self, parent):
         bsm_dlg_helper.dlgAbout.__init__(self, parent)
@@ -529,7 +523,7 @@ class DirPanel(wx.Panel):
             return
         (path, fileExtension) = os.path.splitext(filename)
         if fileExtension == '.py':
-            wx.py.dispatcher.send(signal='bsm.editor.openfile', 
+            wx.py.dispatcher.send(signal='bsm.editor.openfile',
                     filename=filepath)
         else:
             os.system("start "+ filepath)

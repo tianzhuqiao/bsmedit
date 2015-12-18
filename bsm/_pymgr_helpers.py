@@ -113,10 +113,10 @@ class Gcm(object):
             if m != mgr: self._activeQue.append(m)
         self._activeQue.append(mgr)
         self.mgrs[mgr.num] = mgr
-    
+
     def get_nums(self):
         return self.mgrs.keys()
-    
+
     def get_next_num(self):
         allnums = self.get_nums()
         return max(allnums) + 1 if allnums else 1

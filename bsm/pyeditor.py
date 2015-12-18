@@ -14,10 +14,10 @@ except:
 
 class BreakpointSettingsDlg(wx.Dialog):
     def __init__(self, parent, condition = '', hitcount = '', curhitcount = 0):
-        wx.Dialog.__init__ (self, parent, id = wx.ID_ANY, 
-                title = u"Breakpoint Condition", size = wx.Size(431,290), 
+        wx.Dialog.__init__ (self, parent, id = wx.ID_ANY,
+                title = u"Breakpoint Condition", size = wx.Size(431,290),
                 style = wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER)
-        
+
         self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
         szAll = wx.BoxSizer(wx.VERTICAL)
         self.stInfo = wx.StaticText(self, wx.ID_ANY, 'When the breakkpoint'
@@ -26,47 +26,47 @@ class BreakpointSettingsDlg(wx.Dialog):
         self.stInfo.Wrap(-1)
         szAll.Add(self.stInfo, 1, wx.ALL, 15)
         szCnd = wx.BoxSizer(wx.HORIZONTAL)
-        
+
         szCnd.AddSpacer((20, 0), 0, wx.EXPAND, 5)
-        
+
         szCond = wx.BoxSizer(wx.VERTICAL)
-        
-        
+
+
         self.cbCond = wx.CheckBox(self, wx.ID_ANY, u"Is true")
         szCond.Add(self.cbCond, 0, wx.ALL|wx.EXPAND, 5)
-        
+
         self.tcCond = wx.TextCtrl(self, wx.ID_ANY)
         szCond.Add(self.tcCond, 0, wx.ALL|wx.EXPAND, 5)
-        
+
         self.cbHitCount = wx.CheckBox(self, wx.ID_ANY, u"Hit count (hit count: #; for example, #>10")
         szCond.Add(self.cbHitCount, 0, wx.ALL, 5)
-        
+
         self.tcHitCount = wx.TextCtrl(self, wx.ID_ANY)
         szCond.Add(self.tcHitCount, 0, wx.ALL|wx.EXPAND, 5)
-       
+
         self.stHtCount = wx.StaticText(self, wx.ID_ANY, u"Current hit count: %d"%curhitcount)
         szCond.Add(self.stHtCount, 0, wx.ALL|wx.EXPAND, 5)
 
         szCnd.Add(szCond, 1, wx.EXPAND, 5)
-        
+
         szAll.Add(szCnd, 1, wx.EXPAND, 5)
-        
+
         self.stLine = wx.StaticLine(self, style = wx.LI_HORIZONTAL)
         szAll.Add(self.stLine, 0, wx.EXPAND |wx.ALL, 5)
-        
+
         szConfirm = wx.BoxSizer(wx.HORIZONTAL)
-        
+
         self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
         szConfirm.Add(self.btnOK, 0, wx.ALL, 5)
-        
+
         self.btnCancel = wx.Button(self, wx.ID_CANCEL, u"Cancel")
         szConfirm.Add(self.btnCancel, 0, wx.ALL, 5)
-        
+
         szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
-        
+
         self.SetSizer(szAll)
         self.Layout()
-        
+
         # initialize the controls
         self.condition = condition
         self.hitcount = hitcount
@@ -83,23 +83,23 @@ class BreakpointSettingsDlg(wx.Dialog):
             self.tcHitCount.Disable()
         else:
             self.cbHitCount.SetValue(True)
-        self.tcHitCount.SetValue(self.hitcount) 
+        self.tcHitCount.SetValue(self.hitcount)
         # Connect Events
         #self.rbChanged.Bind(wx.EVT_RADIOBUTTON, self.OnRadioButton)
         self.cbCond.Bind(wx.EVT_CHECKBOX, self.OnRadioButton)
         self.cbHitCount.Bind(wx.EVT_CHECKBOX, self.OnRadioButton)
         self.btnOK.Bind(wx.EVT_BUTTON, self.OnBtnOK)
-    
+
     def __del__(self):
         pass
-    
+
     # Virtual event handlers, overide them in your derived class
     def OnRadioButton(self, event):
         self.tcCond.Enable(self.cbCond.GetValue())
         self.tcHitCount.Enable(self.cbHitCount.GetValue())
-        
+
         event.Skip()
-   
+
     def OnBtnOK(self, event):
         # set condition to empty string to indicate the breakpoint will be
         # trigged when the value is changed
@@ -276,7 +276,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
             # check if a breakpoint marker is at this line
             bpset = self.MarkerGet(lineClicked) & 1
             bpdata = None
-            resp = wx.py.dispatcher.send(signal = 'debugger.getbreakpoint', 
+            resp = wx.py.dispatcher.send(signal = 'debugger.getbreakpoint',
                    filename = self.filename, lineno = lineClicked + 1)
             if resp:
                 bpdata = resp[0][1]
@@ -483,7 +483,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
 
     def SetUpEditor(self):
         """
-        This method carries out the work of setting up the demo editor.            
+        This method carries out the work of setting up the demo editor.
         It's seperate so as not to clutter up the init code.
         """
         # key binding
@@ -505,14 +505,14 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # Reasonable value for, say, 4-5 digits using a mono font (40 pix)
         self.SetMarginWidth(0, 40)
         # Indentation and tab stuff
-        self.SetIndent(4) 
+        self.SetIndent(4)
         self.SetIndentationGuides(True)
         # Backspace unindents rather than delete 1 space
         self.SetBackSpaceUnIndents(True)
         self.SetTabIndents(True)
-        
+
         # Use spaces rather than tabs, or TabTimmy will complain!
-        self.SetUseTabs(False)  
+        self.SetUseTabs(False)
         # Don't view white space
         self.SetViewWhiteSpace(False)
         # EOL: Since we are loading/saving ourselves, and the
@@ -840,7 +840,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
             if dlg.ShowModal() == wx.ID_OK:
                 cond = dlg.GetCondition()
                 ids = self.breakpointlist[key]['id']
-                wx.py.dispatcher.send('debugger.editbreakpoint', id=ids, 
+                wx.py.dispatcher.send('debugger.editbreakpoint', id=ids,
                                 condition=cond[0], hitcount = cond[1])
 
 class PyEditorPanel(wx.Panel):
@@ -870,7 +870,7 @@ class PyEditorPanel(wx.Panel):
         self.fileName = """"""
         self.splitter = wx.SplitterWindow(self, style = wx.SP_LIVE_UPDATE)
         self.editor = PyEditor(self.splitter)
-        self.editor2 = None 
+        self.editor2 = None
         self.splitter.Initialize(self.editor)
         self.editor.RegisterModifiedEvent(self.OnCodeModified)
         self.findDialog = None
@@ -947,7 +947,7 @@ class PyEditorPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnSplitVert, id=self.ID_SPLIT_VERT)
         self.Bind(wx.EVT_TOOL, self.OnSplitHorz, id=self.ID_SPLIT_HORZ)
         self.m_cbWrapMode.Bind(wx.EVT_CHECKBOX, self.OnWrap)
-        self.accel = wx.AcceleratorTable([ 
+        self.accel = wx.AcceleratorTable([
             (wx.ACCEL_CTRL, ord('F'), self.ID_FIND_REPLACE),
             (wx.ACCEL_NORMAL, wx.WXK_F3, self.ID_FIND_NEXT),
             (wx.ACCEL_SHIFT, wx.WXK_F3, self.ID_FIND_PREV),
@@ -1021,7 +1021,7 @@ class PyEditorPanel(wx.Panel):
             return False
         info = bpdata[0]
         filename = info[1]
-        
+
         lineno = -1
         marker = -1
         active = False
@@ -1141,7 +1141,7 @@ class PyEditorPanel(wx.Panel):
         eid = event.GetId()
         if eid == wx.ID_SAVE:
             event.Enable(self.editor.IsModified())
-    
+
     def OnShowFindReplace(self, event):
         """Find and Replace dialog and action."""
         # find string
@@ -1180,7 +1180,7 @@ class PyEditorPanel(wx.Panel):
         lines = cmd.split('\n')
         for line in lines:
             self.runcommand(line, prompt=True, verbose=True)
-    
+
     def CheckModified(self):
         if self.editor.IsModified():
             wx.MessageBox('The file has been modified. Save it first and try it again!'
@@ -1438,7 +1438,7 @@ class PyEditorPanel(wx.Panel):
         wx.py.dispatcher.connect(receiver=cls.open_script, signal='bsm.editor.openfile')
         wx.py.dispatcher.connect(receiver=cls.debugPaused, signal='debugger.paused')
         wx.py.dispatcher.connect(receiver=cls.debugUpdateScope, signal='debugger.updatescopes')
-    
+
     @classmethod
     def debugPaused(cls, data):
         if data is None:
@@ -1480,12 +1480,12 @@ class PyEditorPanel(wx.Panel):
     @classmethod
     def add_editor(cls, title='Untitle', activated=True):
         panelEditor = PyEditorPanel(cls.frame)
-        wx.py.dispatcher.send(signal="frame.addpanel", 
-                       panel = panelEditor, 
+        wx.py.dispatcher.send(signal="frame.addpanel",
+                       panel = panelEditor,
                        title="Module",
                        active = activated)
         return panelEditor
-    
+
     @classmethod
     def open_script(cls, filename, activated=True, lineno = 0):
         if filename:

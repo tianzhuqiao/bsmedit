@@ -134,8 +134,7 @@ try:
             self.sizer.Add(self.toolbar, 0, wx.EXPAND)
             self.sizer.Add(self.canvas, 1, wx.LEFT | wx.TOP | wx.GROW)
             self.Bind(wx.EVT_CLOSE, self._onClose)
-            connection_id = self.canvas.mpl_connect('button_press_event',
-                    self._onClick)
+            self.canvas.mpl_connect('button_press_event', self._onClick)
             wx.py.dispatcher.connect(self.simLoad, signal='sim.load')
 
         def simLoad(self, num):

@@ -15,7 +15,7 @@ EVT_BSM_PROP_RIGHT_CLICK = wx.PyEventBinder(wxEVT_BSM_PROP_RIGHT_CLICK, 1)
 
 wxEVT_BSM_PROP_COLLAPSED = wx.NewEventType()
 EVT_BSM_PROP_COLLAPSED = wx.PyEventBinder(wxEVT_BSM_PROP_COLLAPSED, 1)
-wxEVT_BSM_PROP_EXPANDED = wx.NewEventType()     
+wxEVT_BSM_PROP_EXPANDED = wx.NewEventType()
 EVT_BSM_PROP_EXPANDED = wx.PyEventBinder(wxEVT_BSM_PROP_EXPANDED, 1)
 wxEVT_BSM_PROP_DOUBLE_CLICK = wx.NewEventType()
 EVT_BSM_PROP_DOUBLE_CLICK = wx.PyEventBinder(wxEVT_BSM_PROP_DOUBLE_CLICK, 1)
@@ -31,7 +31,7 @@ wxEVT_BSM_PROP_DELETE = wx.NewEventType()
 EVT_BSM_PROP_DELETE = wx.PyEventBinder(wxEVT_BSM_PROP_DELETE, 1)
 wxEVT_BSM_PROP_DROP = wx.NewEventType()
 EVT_BSM_PROP_DROP = wx.PyEventBinder(wxEVT_BSM_PROP_DROP, 1)
-wxEVT_BSM_PROP_BEGIN_DRAG = wx.NewEventType() 
+wxEVT_BSM_PROP_BEGIN_DRAG = wx.NewEventType()
 EVT_BSM_PROP_BEGIN_DRAG = wx.PyEventBinder(wxEVT_BSM_PROP_BEGIN_DRAG, 1)
 wxEVT_BSM_PROP_CLICK_RADIO = wx.NewEventType()
 EVT_BSM_PROP_CLICK_RADIO = wx.PyEventBinder(wxEVT_BSM_PROP_CLICK_RADIO, 1)
@@ -45,9 +45,9 @@ class bsmProperty(object):
     PROP_HIT_VALUE = 5
     PROP_HIT_EDGE_BOTTOM = 6
     PROP_HIT_EDGE_TOP = 7
-    
+
     IDC_BSM_PROP_CONTROL = wx.NewId()
-    
+
     VALIDATE_NONE = 0
     VALIDATE_DEC = 1
     VALIDATE_HEX = 2
@@ -60,8 +60,8 @@ class bsmProperty(object):
     PROP_CTRL_EDIT     = 2
     PROP_CTRL_COMBO    = 3
     PROP_CTRL_FILE_SEL = 4
-    PROP_CTRL_FOLDER_SEL = 5 
-    PROP_CTRL_SLIDER = 6 
+    PROP_CTRL_FOLDER_SEL = 5
+    PROP_CTRL_SLIDER = 6
     PROP_CTRL_SPIN   = 7
     PROP_CTRL_CHECK  = 8
     PROP_CTRL_RADIO  = 9
@@ -116,9 +116,9 @@ class bsmProperty(object):
             type(self).imgExpColp = wx.ImageList(12,12,True,2)
             type(self).imgRadio.Add(wx.BitmapFromXPMData(radio_xpm))
             type(self).imgExpColp.Add(wx.BitmapFromXPMData(tree_xpm))
-    
+
     def duplicate(self):
-        # copy the object, copy.deepcopy does not work since the object 
+        # copy the object, copy.deepcopy does not work since the object
         # contains pointer to wx objects
         p = bsmProperty(self.parent, self.name, self.label, self.value)
         p.description = self.description
@@ -148,13 +148,13 @@ class bsmProperty(object):
         p.showValueTips = self.showValueTips
         p.separator = self.separator
         return p
-   
+
     def SetParent(self, parent):
         self.parent = parent
-    
+
     def GetParent(self):
         return self.parent
-    
+
     def SetSeparator(self, sep, silent = False):
         self.separator = sep
         if not silent and self.GetVisible():
@@ -165,14 +165,14 @@ class bsmProperty(object):
 
     def SetBPCondition(self, cond):
         self.bpCondition = cond
-    
+
     def GetBPCondition(self):
         return self.bpCondition
-    
+
     def SetControlStyle(self, uStyle):
         if uStyle != type(self).PROP_CTRL_DEFAULT:
             self.ctrlType = uStyle
-    
+
     def SetChoice(self, choice, value):
         self.valueList = []
         self.choiceList = []
@@ -185,7 +185,7 @@ class bsmProperty(object):
     def AddPropChoice(self, choice, value):
         self.valueList.append(value)
         self.choiceList.append(choice)
-    
+
     def SetEnable(self, bEnable):
         self.enable = bEnable
 
@@ -220,12 +220,12 @@ class bsmProperty(object):
     def SetRange(self, maxVal, minVal):
         self.valueMax = int(maxVal)
         self.valueMin = int(minVal)
-    
+
     def SetShowRadio(self, bShow, silent=True):
         self.showRadio = bShow
         if not silent and self.GetVisible():
             self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
-    
+
     def GetCtrlStyle(self):
         return self.ctrlType
 
@@ -263,7 +263,7 @@ class bsmProperty(object):
         return self.radioChecked
 
     def IsPropItalicText(self):
-        return self.italic  
+        return self.italic
     def GetControlStyle(self):
         return self.ctrlType
 
@@ -278,7 +278,7 @@ class bsmProperty(object):
 
     def GetRange(self):
         return (self.valueMax, self.valueMin)
-    
+
     def GetReadOnly(self):
         return self.readOnly
 
@@ -287,7 +287,7 @@ class bsmProperty(object):
 
     def GetShowRadio(self):
         return self.showRadio
-    
+
     def GetTextColor(self):
         return (self.textColor, self.textColorSel, self.textColorDisable)
 
@@ -297,7 +297,7 @@ class bsmProperty(object):
     def SetNameWidth(self, width):
         self.nameWidth = width
 
-    def GetNameWidth(self): 
+    def GetNameWidth(self):
         return self.nameWidth
 
     def DrawItem(self, dc):
@@ -312,7 +312,7 @@ class bsmProperty(object):
 
         rc = self.GetClientRect()
         self.PrepareDrawRect()
-       
+
         # draw background
         crBg  = self.GetParent().GetBackgroundColour()
         pen = wx.Pen(wx.BLACK, 1, wx.TRANSPARENT)
@@ -328,7 +328,7 @@ class bsmProperty(object):
         dc.DrawLine(rc.GetLeft(),rc.GetTop(),rc.GetRight(),rc.GetTop())
         dc.DrawLine(rc.GetLeft()+1,rc.GetTop(), rc.GetLeft()+1,rc.GetBottom())
         dc.DrawLine(rc.GetRight(),rc.GetTop(), rc.GetRight(),rc.GetBottom())
-        
+
         # draw select rectangle
         if self.activated:
             pen.SetColour(wx.BLACK)
@@ -338,10 +338,10 @@ class bsmProperty(object):
             brush.SetStyle(wx.TRANSPARENT)
             dc.SetBrush(brush)
             dc.DrawRectangle(rc.x, rc.y, rc.width, rc.height)
-        
+
 
         dc.SetClippingRect(self.titleRectColumn)
-        if self.IsPropHasChildren():        
+        if self.IsPropHasChildren():
             if type(self).imgExpColp.GetImageCount() == 2:
                 (imagex, imagey) = type(self).imgExpColp.GetSize(0)
                 x = self.expanderRect.x+(self.expanderRect.width-imagex)/2
@@ -350,7 +350,7 @@ class bsmProperty(object):
                 if not self.expanded:
                     idx = 1
                 type(self).imgExpColp.Draw(idx, dc,x,y,wx.IMAGELIST_DRAW_TRANSPARENT)
-        
+
         # draw title
         if self.italic:
             dc.SetFont(wx.ITALIC_FONT)
@@ -366,7 +366,7 @@ class bsmProperty(object):
 
         # separator does not have radio button, splitter bar and value sections
         if self.GetSeparator(): return
-        
+
         # draw radio button
         if self.GetShowRadio():
             nRadioState = 0
@@ -384,7 +384,7 @@ class bsmProperty(object):
                 x = self.radioRect.x+(self.radioRect.width-imagex)/2
                 y = self.radioRect.y+(self.radioRect.height-imagey)/2+1
                 type(self).imgRadio.Draw(nRadioState,dc,x,y,wx.IMAGELIST_DRAW_TRANSPARENT)
-        
+
         # draw splitter
         rcSplitter = self.splitterRect
         dc.SetPen(wx.Pen(wx.SystemSettings.GetColour(wx.SYS_COLOUR_3DSHADOW)))
@@ -417,7 +417,7 @@ class bsmProperty(object):
             dc.DrawRectangle(self.valueRect.x, self.valueRect.y, self.valueRect.width, self.valueRect.height)
 
             dc.SetTextForeground(crtxt)
-           
+
             strValue = self.GetValue()
             if self.description != "":
                 strValue = strValue + " (" + self.description + ")"
@@ -441,7 +441,7 @@ class bsmProperty(object):
 
         self.titleRect = wx.Rect(*rc)
         self.titleRect.SetLeft (self.radioRect.GetRight() + MARGIN_X)
-        
+
         self.titleRect.SetWidth(self.nameWidth)
 
         self.splitterRect = wx.Rect(*rc)
@@ -451,12 +451,12 @@ class bsmProperty(object):
         self.titleRectColumn = wx.Rect(*rc)
         self.titleRectColumn.SetLeft(self.expanderRect.GetLeft())
         self.titleRectColumn.SetRight(self.nameWidth)
-        
+
         self.valueRect = wx.Rect(*rc)
         self.valueRect.SetX(self.splitterRect.GetRight())
         self.valueRect.SetWidth(rc.GetRight()-self.splitterRect.GetRight())
         self.valueRect.Deflate(1,1)
-  
+
     # mouse actions, called by the parent grid
     def PropHitTest(self, pt):
         rc = wx.Rect(*self.clientRect)
@@ -479,7 +479,7 @@ class bsmProperty(object):
             return self.PROP_HIT_SPLITTER
         elif self.valueRect.Contains(pt):
             return self.PROP_HIT_VALUE
-        
+
         return self.PROP_HIT_NONE
 
     def OnMouseDown(self, pt):
@@ -546,13 +546,13 @@ class bsmProperty(object):
         self.PreparePropValidator()
         uCtrlType = self.ctrlType
         if uCtrlType == type(self).PROP_CTRL_EDIT:
-            self.controlWin = wx.TextCtrl(self.parent,self.IDC_BSM_PROP_CONTROL, 
+            self.controlWin = wx.TextCtrl(self.parent,self.IDC_BSM_PROP_CONTROL,
                         self.GetValue(), self.valueRect.GetTopLeft(),
                         wx.DefaultSize,wx.TE_PROCESS_ENTER)
             sizeCtrl = self.controlWin.GetSize()
         elif uCtrlType == type(self).PROP_CTRL_COMBO:
-            self.controlWin = wx.ComboBox(self.parent, wx.ID_ANY, 
-                        self.GetValue(), self.valueRect.GetTopLeft(), 
+            self.controlWin = wx.ComboBox(self.parent, wx.ID_ANY,
+                        self.GetValue(), self.valueRect.GetTopLeft(),
                         wx.DefaultSize, self.choiceList,wx.TE_PROCESS_ENTER)
             sizeCtrl = self.controlWin.GetSize()
         elif uCtrlType == type(self).PROP_CTRL_FILE_SEL or \
@@ -564,9 +564,9 @@ class bsmProperty(object):
             nmax = int(self.valueMax)
             nmin = int(self.valueMin)
             val = int(self.value)
-            
+
             rcSlider = wx.Rect(*self.valueRect)
-            self.controlWin = wx.Slider(self.parent, wx.ID_ANY, val , 
+            self.controlWin = wx.Slider(self.parent, wx.ID_ANY, val ,
                     nmin, nmax, rcSlider.GetTopLeft(), wx.DefaultSize,
                     wx.SL_LABELS|wx.SL_AUTOTICKS|wx.SL_HORIZONTAL|wx.SL_TOP)
 
@@ -579,7 +579,7 @@ class bsmProperty(object):
                     self.valueRect.GetTopLeft(), wx.DefaultSize,
                     wx.SP_ARROW_KEYS, nmin, nmax, val)
             sizeCtrl = self.controlWin.GetSize()
-        
+
         elif uCtrlType == type(self).PROP_CTRL_CHECK:
             val = int(self.value)
             control = wx.CheckBox(self.parent, wx.ID_ANY, "",
@@ -599,7 +599,7 @@ class bsmProperty(object):
             self.controlWin = radio
             sizeCtrl = self.controlWin.GetSize()
         elif uCtrlType == type(self).PROP_CTRO_COLOR:
-            color = wx.ColourPickerCtrl(self.parent, wx.ID_ANY, wx.BLACK, 
+            color = wx.ColourPickerCtrl(self.parent, wx.ID_ANY, wx.BLACK,
                     style = wx.CLRP_DEFAULT_STYLE|wx.CLRP_SHOW_LABEL)
             try:
                 color.SetColour(self.value)
@@ -626,7 +626,7 @@ class bsmProperty(object):
         rc.Offset(wx.Point(-x*5,-y*5))
         if self.ctrlType in [type(self).PROP_CTRL_EDIT, type(self).PROP_CTRL_COMBO, type(self).PROP_CTRL_SPIN,
                                 type(self).PROP_CTRL_CHECK, type(self).PROP_CTRL_RADIO, type(self).PROP_CTRL_SLIDER,
-                                type(self).PROP_CTRL_FILE_SEL, type(self).PROP_CTRL_FOLDER_SEL, 
+                                type(self).PROP_CTRL_FILE_SEL, type(self).PROP_CTRL_FOLDER_SEL,
                                 type(self).PROP_CTRO_COLOR]:
             self.controlWin.SetSize(rc.GetSize())
             self.controlWin.Move(rc.GetTopLeft())
@@ -652,7 +652,7 @@ class bsmProperty(object):
     def UpdatePropValue(self):
         if self.controlWin == None:
             return False
-        
+
         bRtn = False
         strValue       = self.value
         strDescription = self.description
@@ -714,7 +714,7 @@ class bsmProperty(object):
         strDescription = self.description
         self.description = ""
         uCtrlType = self.ctrlType
-        if uCtrlType == type(self).PROP_CTRL_EDIT:        
+        if uCtrlType == type(self).PROP_CTRL_EDIT:
             pass
         elif uCtrlType == type(self).PROP_CTRL_FILE_SEL or \
              uCtrlType == type(self).PROP_CTRL_FOLDER_SEL:
@@ -763,7 +763,7 @@ class bsmProperty(object):
     def GetParent(self):
         return self.parent
 
-    #size 
+    #size
     def SetClientRect(self, rcClient):
         if self.clientRect!=rcClient:
             self.clientRect = wx.Rect(*rcClient)
@@ -775,16 +775,16 @@ class bsmProperty(object):
             self.minimumSize = wx.Size(*size)
             if not silent:
                 self.SendPropEvent(wxEVT_BSM_PROP_RESIZE)
-    
+
     def GetClientRect(self):
         return wx.Rect(*self.clientRect)
-    
+
     def GetSize(self):
         return self.clientRect.GetSize()
-    
+
     def GetMinSize(self):
         return wx.Size(*self.minimumSize)
-    
+
     #overide setting functions
     def SetValue(self, value, silent = False):
         if self.value != value:
@@ -855,7 +855,7 @@ class bsmProperty(object):
             if silent: return
             self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
 
-    def SetTextColor(self, crText = None, crTextSel = None, 
+    def SetTextColor(self, crText = None, crTextSel = None,
                                          crTextDisable = None, silent = False):
         self.textColor = crText
         if not self.textColor:
@@ -869,7 +869,7 @@ class bsmProperty(object):
         if not silent:
             self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
 
-    def SetBGColor(self, crBg = None, crBgSel = None, crBgDisable = None, 
+    def SetBGColor(self, crBg = None, crBgSel = None, crBgDisable = None,
                                                                silent = False):
         self.bgColor = crBg
         if not self.bgColor:
@@ -882,20 +882,20 @@ class bsmProperty(object):
             self.bgColorDisable = wx.SystemSettings.GetColour(wx.SYS_COLOUR_3DFACE).GetAsString(wx.C2S_HTML_SYNTAX)
         if not silent:
             self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
-    
+
     def GetShowLabelTips(self):
         return self.showLabelTips
 
     def GetShowValueTips(self):
         return self.showValueTips
-   
+
     def GetContextMenu(self, menu, nIDStart, nIDEnd):
         return False
 
     def OnPropContextMenu(self, nID):
         return False
 
-#properties event 
+#properties event
 class bsmPropertyEvent(wx.PyCommandEvent):
     def __init__(self, commandType, id = 0):
         wx.PyCommandEvent.__init__(self, commandType, id)

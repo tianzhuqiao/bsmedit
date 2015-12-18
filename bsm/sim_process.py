@@ -2,7 +2,6 @@ import Queue
 from sim_engine import *
 import numpy as np
 import ctypes
-import sys
 import traceback
 # the class to handle the breakpoint condition
 # one breakpoint may trigger on multiple conditions,
@@ -30,7 +29,7 @@ class bp_cond():
         self.hitcount.append(hitcount)
         # regenerate the set
         self.hitcountset = set(self.hitcount)
-    
+
     def del_hitcount(self, hitcount):
         idx = self.hitcount.index(hitcount)
         if idx == -1: return
@@ -49,7 +48,7 @@ class bp_cond():
                 trigger = eval(cond)
             except:
                 pass
-        
+
         if trigger:
             self.hitsofar += 1
             for hc in self.hitcountset:
@@ -67,7 +66,7 @@ class bp_cond():
         return None
 
     def __len__(self):
-        # return the hitcount length, it may be called to determine whether 
+        # return the hitcount length, it may be called to determine whether
         # the condition is empty and can be deleted.
         return len(self.hitcount)
 
@@ -91,7 +90,7 @@ class bp():
             if c.condition == cond:
                 c.del_hitcount(hitcount)
                 if len(c) <=0:
-                    del self.condition[self.condition.index(c)]                    
+                    del self.condition[self.condition.index(c)]
                 return
     def triggered(self, v, vp):
         for c in self.condition:
@@ -101,7 +100,7 @@ class bp():
         return None
 
     def __len__(self):
-        # it may be called to determine whether the bp is empty and can be 
+        # it may be called to determine whether the bp is empty and can be
         # deleted
         return len(self.condition)
 
@@ -188,7 +187,7 @@ class processCommand():
         self.simTotal = -1
         self.simUnitTotal = BSM_NS
         self.simTotalSec = -1
-        
+
     def __del__(self):
         if self.simengine:
             self.simengine.ctx_stop()
@@ -236,7 +235,7 @@ class processCommand():
     def step(self, running):
         simStep = self.simStep
         simUnit = self.simUnitStep
-        if self.simTotalSec > 0: 
+        if self.simTotalSec > 0:
             t = self.simTotalSec - self.simengine.ctx_time()
             if t>0:
                  scale = [1e15, 1e12,1e9, 1e6, 1e3,1e0]
@@ -319,7 +318,7 @@ class processCommand():
     def trace_buf(self, name, size, valid=None, trigger=BSM_BOTHEDGE):
         if not self.IsValidObj(name):
             return [{'resp': 'ack', 'value': False}]
-        
+
         if valid and not self.IsValidObj(valid):
             return [{'resp': 'ack', 'value': False}]
         if valid:
@@ -340,7 +339,7 @@ class processCommand():
             data = np.zeros((size))
             trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
             if self.simengine.ctx_add_trace_buf(trace):
-                self.simengine.ctx_trace_buf(trace, self.simengine.sim_objects[name], 
+                self.simengine.ctx_trace_buf(trace, self.simengine.sim_objects[name],
                         valid, trigger)
                 self.traceBuf[name] = {'trace':trace, 'data':data}
         return [{'resp': 'ack', 'value': True}]
