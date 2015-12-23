@@ -64,7 +64,7 @@ class bsmMainFrame(framePlus):
         self.filehistory.Load(self.config)
         self.filehistory.UseMenu(self.menuRecentFiles)
         self.filehistory.AddFilesToMenu()
-        self.Bind(wx.EVT_MENU_RANGE, self.onMenuFileHistory, id=wx.ID_FILE1, id2=wx.ID_FILE9)
+        self.Bind(wx.EVT_MENU_RANGE, self.OnMenuFileHistory, id=wx.ID_FILE1, id2=wx.ID_FILE9)
 
         # shell panel
         ns = {}
@@ -97,6 +97,7 @@ class bsmMainFrame(framePlus):
                       target=self.panelHistory,
                       showhidemenu='View:Panels:Browsing')
 
+        self.tbDebug = None
         self.initDebugger()
         self._mgr.Update()
 
@@ -294,6 +295,7 @@ class bsmMainFrame(framePlus):
         self.panelShell.runCommand(command, prompt, verbose, debug)
 
     def OnPaneActivated(self, event):
+        """notify the window managers that the panel is activated"""
         pane = event.GetPane()
         if isinstance(pane, aui.auibook.AuiNotebook):
             window = pane.GetCurrentPage()
@@ -314,55 +316,42 @@ class bsmMainFrame(framePlus):
     def OnClose(self, event):
         self.Destroy()
 
-    def OnFileLoadProject(self, event):
-        pass
-
-    def OnFileCloseProject(self, event):
-        pass
-
-    def OnFileSaveProject(self, event):
-        pass
-
-    def OnFileSaveProjectAs(self, event):
-        pass
-
     def OnFileQuit(self, event):
+        """close the program"""
         self.Close(True)
 
     def OnHelpHome(self, event):
+        """go to homepage"""
         wx.BeginBusyCursor()
         import webbrowser
         webbrowser.open("http://bsmedit.feiyilin.com")
         wx.EndBusyCursor()
 
     def OnHelpContact(self, event):
+        """send email"""
         wx.BeginBusyCursor()
         import webbrowser
         webbrowser.open("mail:tianzhu.qiao@feiyilin.com")
         wx.EndBusyCursor()
 
     def OnHelpAbout(self, event):
+        """show about dialog"""
         dlg = bsmAboutDialog(self)
         dlg.ShowModal()
         dlg.Destroy()
 
-    def OnOpenPythonScript(self, event):
-        wildchar = 'Python script (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
-        dlg = wx.FileDialog(self, 'Open', wildchar=wildchar,
-                            style=wx.OPEN | wx.FILE_MUST_EXIST)
-        if dlg.ShowModal() == wx.ID_OK:
-            path = dlg.GetPaths()[0]
-            dispatcher.send(signal='bsm.editor.openfile', filename=path)
-
-        dlg.Destroy()
-
-    def onMenuFileHistory(self, event):
+    def OnMenuFileHistory(self, event):
+        """open the recent file"""
         fileNum = event.GetId() - wx.ID_FILE1
         path = self.filehistory.GetHistoryFile(fileNum)
         self.filehistory.AddFileToHistory(path)
         dispatcher.send(signal='bsm.editor.openfile', filename=path)
 
     def initDebugger(self):
+        """initialized the debug toolbar"""
+        if self.tbDebug:
+            return
+
         self.addMenu('Tools:Debug', rxsignal='', kind='Popup')
         self.ID_DBG_RUN = self.addMenu('Tools:Debug:Run\tF5',
                                        rxsignal='debugger.resume',
@@ -374,10 +363,10 @@ class bsmMainFrame(framePlus):
                                         rxsignal='debugger.step',
                                         updatesignal='frame.updateui')
         self.ID_DBG_STEP_INTO = self.addMenu('Tools:Debug:Step Into\tF11',
-                                             rxsignal='debugger.stepinto',
+                                             rxsignal='debugger.step_into',
                                              updatesignal='frame.updateui')
         self.ID_DBG_STEP_OUT = self.addMenu('Tools:Debug:Step Out\tShift-F11',
-                                            rxsignal='debugger.stepout',
+                                            rxsignal='debugger.step_out',
                                             updatesignal='frame.updateui')
 
         self.tbDebug = aui.AuiToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
@@ -407,15 +396,17 @@ class bsmMainFrame(framePlus):
         dispatcher.connect(self.debug_ended, 'debugger.ended')
         self.SetExtraStyle(wx.WS_EX_PROCESS_UI_UPDATES)
 
-    def debug_paused(self, data):
-        if data is None:
+    def debug_paused(self):
+        """update the debug toolbar status"""
+        resp = dispatcher.send(signal='debugger.get_status')
+        if not resp or not resp[0][1]:
             return
-        status = data[3]
-        self.tbDebug.EnableTool(self.ID_DBG_RUN, True)
-        self.tbDebug.EnableTool(self.ID_DBG_STOP, True)
-        self.tbDebug.EnableTool(self.ID_DBG_STEP, True)
-        self.tbDebug.EnableTool(self.ID_DBG_STEP_INTO, status[0])
-        self.tbDebug.EnableTool(self.ID_DBG_STEP_OUT, status[1])
+        status = resp[0][1]
+        self.tbDebug.EnableTool(self.ID_DBG_RUN, status['paused'])
+        self.tbDebug.EnableTool(self.ID_DBG_STOP, status['paused'])
+        self.tbDebug.EnableTool(self.ID_DBG_STEP, status['paused'])
+        self.tbDebug.EnableTool(self.ID_DBG_STEP_INTO, status['can_stepin'])
+        self.tbDebug.EnableTool(self.ID_DBG_STEP_OUT, status['can_stepout'])
         self.tbDebug.Refresh(False)
 
     def debug_ended(self):
@@ -431,13 +422,11 @@ class bsmMainFrame(framePlus):
         """update the debugger toolbar"""
         eid = event.GetId()
         resp = dispatcher.send(signal='debugger.get_status')
-        if not resp:
-            return
-        status = resp[0][1]
         paused = False
         stepin = False
         stepout = False
-        if status:
+        if resp and resp[0][1]:
+            status = resp[0][1]
             paused = status['paused']
             stepin = status['can_stepin']
             stepout = status['can_stepout']

@@ -3,7 +3,7 @@ import wx
 import wx.stc as stc
 from pyeditorxpm import *
 import inspect
-
+import wx.py.dispatcher as dispatcher
 magic_format = False
 try:
     from PythonTidy import tidy_up
@@ -161,7 +161,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
     def clear_breakpoint(self):
         for key in self.breakpointlist.keys():
             id = self.breakpointlist[key]['id']
-            wx.py.dispatcher.send('debugger.clearbreakpoint', id=id)
+            wx.py.dispatcher.send('debugger.clear_breakpoint', id=id)
 
     def SaveFile(self, filename, filetype=wx.TEXT_TYPE_ANY):
         rtn = wx.py.editwindow.EditWindow.SaveFile(self, filename, filetype)
@@ -276,7 +276,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
             # check if a breakpoint marker is at this line
             bpset = self.MarkerGet(lineClicked) & 1
             bpdata = None
-            resp = wx.py.dispatcher.send(signal = 'debugger.getbreakpoint',
+            resp = wx.py.dispatcher.send(signal = 'debugger.get_breakpoint',
                    filename = self.filename, lineno = lineClicked + 1)
             if resp:
                 bpdata = resp[0][1]
@@ -284,7 +284,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                 # No breakpoint at this line, add one
                 # bpdata =  {id, filename, lineno, condition, ignore_count, trigger_count}
                 bp = {'filename': self.filename, 'lineno': lineClicked + 1}
-                wx.py.dispatcher.send('debugger.setbreakpoint',  bpdata=bp)
+                wx.py.dispatcher.send('debugger.set_breakpoint',  bpdata=bp)
             else:
                 if ctrldown:
                     condition = """"""
@@ -295,11 +295,11 @@ class PyEditor(wx.py.editwindow.EditWindow):
                             message='Condition', defaultValue="""""",
                             style=wx.OK)
                     if dlg.ShowModal() == wx.ID_OK:
-                        wx.py.dispatcher.send('debugger.editbreakpoint'
+                        wx.py.dispatcher.send('debugger.edit_breakpoint'
                                 , id=bpdata['id'],
                                 condition=dlg.GetValue())
                 else:
-                    wx.py.dispatcher.send('debugger.clearbreakpoint', id=bpdata['id'])
+                    wx.py.dispatcher.send('debugger.clear_breakpoint', id=bpdata['id'])
         # fold and unfold as needed
         if evt.GetMargin() == 2:
             if evt.GetShift() and evt.GetControl():
@@ -825,7 +825,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                     break
             else:
                 return
-            wx.py.dispatcher.send('debugger.clearbreakpoint', id=bp['id'])
+            wx.py.dispatcher.send('debugger.clear_breakpoint', id=bp['id'])
         elif id == self.ID_EDIT_BREAKPOINT:
             bp = None
             for key in self.breakpointlist:
@@ -839,7 +839,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
             if dlg.ShowModal() == wx.ID_OK:
                 cond = dlg.GetCondition()
                 ids = self.breakpointlist[key]['id']
-                wx.py.dispatcher.send('debugger.editbreakpoint', id=ids,
+                wx.py.dispatcher.send('debugger.edit_breakpoint', id=ids,
                                 condition=cond[0], hitcount = cond[1])
 
 class PyEditorPanel(wx.Panel):
@@ -976,7 +976,7 @@ class PyEditorPanel(wx.Panel):
             line = self.editor.MarkerLineFromHandle(key) + 1
             if line != self.editor.breakpointlist[key]['lineno']:
                 ids = self.editor.breakpointlist[key]['id']
-                wx.py.dispatcher.send('debugger.editbreakpoint', id=ids, lineno=line)
+                wx.py.dispatcher.send('debugger.edit_breakpoint', id=ids, lineno=line)
 
     def debug_bpadded(self, bpdata):
         # data =((name,filename,lineno),
@@ -1008,7 +1008,7 @@ class PyEditorPanel(wx.Panel):
                     del self.editor.breakpointlist[key]
                     break
 
-    def debug_paused(self, bpdata):
+    def debug_paused(self, status):
         # data =((name,filename,lineno),
         #         self._scopes, self._active_scope,
         #         (self._can_stepin,self._can_stepout), frames)
@@ -1016,20 +1016,19 @@ class PyEditorPanel(wx.Panel):
         if self.debug_curline:
             self.editor.MarkerDeleteHandle(self.debug_curline)
             self.debug_curline = None
-        if bpdata is None:
+        if status is None:
             return False
-        info = bpdata[0]
-        filename = info[1]
+        filename = status['filename']
 
         lineno = -1
         marker = -1
         active = False
         if filename == self.editor.filename:
-            lineno = info[2]
+            lineno = status['lineno']
             marker = 1
             active = True
         else:
-            frames=bpdata[4]
+            frames=status['frames']
             if frames is not None:
                 for frame in frames:
                     filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
@@ -1436,26 +1435,31 @@ class PyEditorPanel(wx.Panel):
         wx.py.dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
         wx.py.dispatcher.connect(receiver=cls.open_script, signal='bsm.editor.openfile')
         wx.py.dispatcher.connect(receiver=cls.debugPaused, signal='debugger.paused')
-        wx.py.dispatcher.connect(receiver=cls.debugUpdateScope, signal='debugger.updatescopes')
+        wx.py.dispatcher.connect(receiver=cls.debugUpdateScope,
+                signal='debugger.update_scopes')
 
     @classmethod
-    def debugPaused(cls, data):
-        if data is None:
+    def debugPaused(cls):
+        resp = dispatcher.send(signal='debugger.get_status')
+        if not resp or not resp[0][1]:
             return
-        filename = data[0][1]
+        status = resp[0][1]
+        filename = status['filename']
         editor = cls.open_script(filename)
         if editor:
-            editor.debug_paused(data)
+            editor.debug_paused(status)
         for editor2 in PyEditorPanel.get_instances():
             if editor != editor2:
-                editor2.debug_paused(data)
+                editor2.debug_paused(status)
 
     @classmethod
-    def debugUpdateScope(cls, data):
-        if data is None:
+    def debugUpdateScope(cls):
+        resp = dispatcher.send(signal='debugger.get_status')
+        if not resp or not resp[0][1]:
             return
+        status = resp[0][1]
         for editor2 in PyEditorPanel.get_instances():
-            editor2.debug_paused(data)
+            editor2.debug_paused(status)
 
     @classmethod
     def Uninitialize(cls):

@@ -570,12 +570,20 @@ class bsmShell(Shell):
 
     def debugPrompt(self, ismore=False, iserr=False):
         """show the debug prompt"""
+        startpos = self.promptPosEnd
+        endpos = self.GetTextLength()
+        self.GotoPos(endpos)
         self.more = ismore
+        # skip the uncessary prompt, it is not ideal and will eat the typed
+        # commands
+        if self.GetCurLine()[0] == "K>> ":
+            return
         autoIndent = self.autoIndent
         if self.more:
             self.autoIndent = True
         self.prompt()
         self.autoIndent = autoIndent
+        return
 
 class HistoryPanel(wx.Panel):
 
@@ -779,18 +787,22 @@ class StackPanel(wx.Panel):
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated,
                   self.listctrl)
         dispatcher.connect(self.debug_ended, 'debugger.ended')
-        dispatcher.connect(self.debug_update_scopes, 'debugger.updatescopes')
+        dispatcher.connect(self.debug_update_scopes, 'debugger.update_scopes')
 
     def debug_ended(self):
         self.listctrl.DeleteAllItems()
 
-    def debug_update_scopes(self, data):
+    def debug_update_scopes(self):
         #data =( (name,self._abs_filename( filename ),lineno),
         #        self._scopes, self._active_scope,
         #        (self._can_stepin,self._can_stepout),self._frames)
         self.listctrl.DeleteAllItems()
-        frames = data[4]
-        level = data[2]
+        resp = dispatcher.send(signal='debugger.get_status')
+        if not resp or not resp[0][1]:
+            return
+        status = resp[0][1]
+        frames = status['frames']
+        level = status['active_scope']
         if frames is not None:
             for frame in frames:
                 name = frame.f_code.co_name
@@ -811,4 +823,4 @@ class StackPanel(wx.Panel):
         dispatcher.send(signal='bsm.editor.openfile', filename=filename,
                         lineno=int(lineno))
         # ask the debugger to trigger the update scope event to set mark
-        dispatcher.send(signal='debugger.setscope', level=currentItem)
+        dispatcher.send(signal='debugger.set_scope', level=currentItem)

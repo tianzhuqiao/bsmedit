@@ -115,13 +115,13 @@ class EngineDebugger():
         dispatcher.connect(self.stop_code,     'debugger.stop')
         dispatcher.connect(self.end,           'debugger.end')
         dispatcher.connect(self.step,          'debugger.step')
-        dispatcher.connect(self.step_in,       'debugger.stepinto')
-        dispatcher.connect(self.step_out,      'debugger.stepout')
-        dispatcher.connect(self.set_scope,     'debugger.setscope')
-        dispatcher.connect(self.set_breakpoint,      'debugger.setbreakpoint')
-        dispatcher.connect(self.clear_breakpoint,    'debugger.clearbreakpoint')
-        dispatcher.connect(self.edit_breakpoint,     'debugger.editbreakpoint')
-        dispatcher.connect(self.get_breakpoint,      'debugger.getbreakpoint')
+        dispatcher.connect(self.step_in,       'debugger.step_into')
+        dispatcher.connect(self.step_out,      'debugger.step_out')
+        dispatcher.connect(self.set_scope,     'debugger.set_scope')
+        dispatcher.connect(self.set_breakpoint,      'debugger.set_breakpoint')
+        dispatcher.connect(self.clear_breakpoint,    'debugger.clear_breakpoint')
+        dispatcher.connect(self.edit_breakpoint,     'debugger.edit_breakpoint')
+        dispatcher.connect(self.get_breakpoint,      'debugger.get_breakpoint')
         dispatcher.connect(self.get_status,      'debugger.get_status')
 
     # Interface methods
@@ -389,14 +389,7 @@ class EngineDebugger():
         self._active_scope = level
 
         #send scope change message
-        frame = self._frames[level]
-        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-        lineno = frame.f_lineno
-        name = frame.f_code.co_name
-        data = ((name, self._abs_filename(filename), lineno),
-                self._scopes, self._active_scope,
-                (self._can_stepin, self._can_stepout), self._frames)
-        dispatcher.send(signal='debugger.updatescopes', data=data)
+        dispatcher.send(signal='debugger.update_scopes')
         return True
 
     def get_status(self):
@@ -408,9 +401,11 @@ class EngineDebugger():
         lineno = frame.f_lineno
         name = frame.f_code.co_name
         return {'name':name, 'filename':self._abs_filename(filename),
-                'line':lineno, 'scopes':self._scopes,
-                'active':self._active_scope, 'paused': self._paused,
-                'can_stepin':self._can_stepin, 'can_stepout':self._can_stepout}
+                'lineno':lineno, 'scopes':self._scopes,
+                'active_scope':self._active_scope, 'paused': self._paused,
+                'can_stepin':self._can_stepin,
+                'can_stepout':self._can_stepout,
+                'frames': self._frames}
 
     def push_line(self, line):
         """
@@ -675,11 +670,7 @@ class EngineDebugger():
         #send a paused message to the console
         #(it will publish an ENGINE_DEBUG_PAUSED message after updating internal
         #state)
-        data = ((name, self._abs_filename(filename), lineno),
-                self._scopes, self._active_scope,
-                (self._can_stepin, self._can_stepout), self._frames)
-
-        dispatcher.send(signal='debugger.paused', data=data)
+        dispatcher.send(signal='debugger.paused')
         #The user can then select whether to resume, step, step-in, step-out
         #cancel the code or stop debugging.
 
@@ -843,14 +834,7 @@ class EngineDebugger():
         if self._active_scope != level:
             self.set_scope(level)
         else:
-            frame = self._frames[level]
-            filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-            lineno = frame.f_lineno
-            name = frame.f_code.co_name
-            data = ((name, self._abs_filename(filename), lineno),
-                    self._scopes, self._active_scope,
-                    (self._can_stepin, self._can_stepout), self._frames)
-            dispatcher.send(signal='debugger.updatescopes', data=data)
+            dispatcher.send(signal='debugger.update_scopes')
 
     def _update_frame_locals(self, frame):
         """
