@@ -161,7 +161,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
     def clear_breakpoint(self):
         for key in self.breakpointlist.keys():
             id = self.breakpointlist[key]['id']
-            wx.py.dispatcher.send('debugger.clearbreakpoint', ids=[id])
+            wx.py.dispatcher.send('debugger.clearbreakpoint', id=id)
 
     def SaveFile(self, filename, filetype=wx.TEXT_TYPE_ANY):
         rtn = wx.py.editwindow.EditWindow.SaveFile(self, filename, filetype)
@@ -299,8 +299,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                                 , id=bpdata['id'],
                                 condition=dlg.GetValue())
                 else:
-                    wx.py.dispatcher.send('debugger.clearbreakpoint',
-                            ids=[bpdata['id']])
+                    wx.py.dispatcher.send('debugger.clearbreakpoint', id=bpdata['id'])
         # fold and unfold as needed
         if evt.GetMargin() == 2:
             if evt.GetShift() and evt.GetControl():
@@ -474,7 +473,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         caretPos = self.GetCurrentPos()
         col = self.GetColumn(caretPos) + 1
         line = self.LineFromPosition(caretPos) + 1
-        wx.py.dispatcher.send(signal='frame.setstatustext', text='%d,%d'
+        wx.py.dispatcher.send(signal='frame.set_status_text', text='%d,%d'
                                % (line, col), index=1, width=40)
 
     def OnUpdateUI(self, event):
@@ -826,7 +825,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                     break
             else:
                 return
-            wx.py.dispatcher.send('debugger.clearbreakpoint', ids=[bp['id']])
+            wx.py.dispatcher.send('debugger.clearbreakpoint', id=bp['id'])
         elif id == self.ID_EDIT_BREAKPOINT:
             bp = None
             for key in self.breakpointlist:
@@ -1048,7 +1047,7 @@ class PyEditorPanel(wx.Panel):
                     show = parent.IsShown()
                     parent = parent.GetParent()
                 if not show:
-                    wx.py.dispatcher.send(signal='frame.showpanel',
+                    wx.py.dispatcher.send(signal='frame.show_panel',
                         panel=self)
             return True
         return False
@@ -1078,7 +1077,7 @@ class PyEditorPanel(wx.Panel):
             filename = file
         if self.editor.IsModified():
             filename = filename + '*'
-        wx.py.dispatcher.send(signal='frame.updatepanetitle',
+        wx.py.dispatcher.send(signal='frame.set_panel_title',
                               pane=self, title=filename)
 
     def OnPrint(self, event):
@@ -1092,7 +1091,7 @@ class PyEditorPanel(wx.Panel):
         self.editor.LoadFile(path)
         self.fileName = path
         (path, file) = os.path.split(self.fileName)
-        wx.py.dispatcher.send(signal='frame.updatepanetitle',
+        wx.py.dispatcher.send(signal='frame.set_panel_title',
                               pane=self, title=file)
 
     def OnBtnOpen(self, event):
@@ -1118,7 +1117,7 @@ class PyEditorPanel(wx.Panel):
             dlg.Destroy()
         self.editor.SaveFile(self.fileName)
         (path, file) = os.path.split(self.fileName)
-        wx.py.dispatcher.send(signal='frame.updatepanetitle',
+        wx.py.dispatcher.send(signal='frame.set_panel_title',
                               pane=self, title=file)
         self.update_bp()
 
@@ -1133,7 +1132,7 @@ class PyEditorPanel(wx.Panel):
             dlg.Destroy()
         self.editor.SaveFile(self.fileName)
         (path, file) = os.path.split(self.fileName)
-        wx.py.dispatcher.send(signal='frame.updatepanetitle',
+        wx.py.dispatcher.send(signal='frame.set_panel_title',
                               pane=self, title=file)
         self.update_bp()
 
@@ -1250,7 +1249,7 @@ class PyEditorPanel(wx.Panel):
         self.runcommand('del sys.path[0]', verbose=False)
 
     def message(self, text):
-        wx.py.dispatcher.send(signal='frame.setstatustext', text=text)
+        wx.py.dispatcher.send(signal='frame.set_status_text', text=text)
 
     def __findReplaceEvents__(self):
         self.findStr = ""
@@ -1425,11 +1424,11 @@ class PyEditorPanel(wx.Panel):
     @classmethod
     def Initialize(cls, frame):
         cls.frame = frame
-        response = wx.py.dispatcher.send(signal='frame.addmenu',
+        response = wx.py.dispatcher.send(signal='frame.add_menu',
                             path='File:New:Python script\tCtrl+N', rxsignal='bsm.editor')
         if response:
             cls.ID_EDITOR_NEW = response[0][1]
-        response = wx.py.dispatcher.send(signal='frame.addmenu',
+        response = wx.py.dispatcher.send(signal='frame.add_menu',
                             path='File:Open:Python script\tctrl+O', rxsignal='bsm.editor')
         if response:
             cls.ID_EDITOR_OPEN = response[0][1]
@@ -1480,7 +1479,7 @@ class PyEditorPanel(wx.Panel):
     @classmethod
     def add_editor(cls, title='Untitle', activated=True):
         panelEditor = PyEditorPanel(cls.frame)
-        wx.py.dispatcher.send(signal="frame.addpanel",
+        wx.py.dispatcher.send(signal="frame.add_panel",
                        panel = panelEditor,
                        title="Module",
                        active = activated)
@@ -1495,10 +1494,10 @@ class PyEditorPanel(wx.Panel):
                 if editor is None:
                     editor = cls.add_editor()
                     editor.openFile(filename)
-                    wx.py.dispatcher.send(signal = 'frame.filehistory', filename = filename)
+                    wx.py.dispatcher.send(signal = 'frame.add_file_history', filename = filename)
 
                 if editor and activated and editor.IsShown() == False:
-                    wx.py.dispatcher.send(signal = 'frame.showpanel', panel = editor, focus = True)
+                    wx.py.dispatcher.send(signal = 'frame.show_panel', panel = editor, focus = True)
                 if lineno > 0:
                     editor.JumpToLine(lineno-1, True)
                 return editor

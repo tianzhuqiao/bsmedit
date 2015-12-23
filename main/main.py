@@ -3,16 +3,17 @@
 import os
 import imp
 import importlib
+from datetime import date
 import wx
 import wx.lib.agw.aui as aui
-import bsm_dlg_helper
+import wx.py.dispatcher as dispatcher
+from frameplus import framePlus
 from bsmshell import bsmShell, HistoryPanel, StackPanel
 from bsmhelp import HelpPanel
-from datetime import date
-import DirTreeCtrl
+from dirtreectrl import DirTreeCtrl, Directory
 from debuggerxpm import *
 from dirpanelxpm import *
-from mainframexpm import *
+from mainframexpm import about_xpm, bsmedit_xpm, header_xpm
 from version import *
 
 # Implementing mainFrame
@@ -26,19 +27,18 @@ class FileDropTarget(wx.FileDropTarget):
         wx.FileDropTarget.__init__(self)
 
     def OnDropFiles(self, x, y, filenames):
-        for file in filenames:
-            wx.py.dispatcher.send(signal='bsm.editor.openfile',
-                                  filename=file)
+        for fname in filenames:
+            dispatcher.send(signal='bsm.editor.openfile', filename=fname)
+        return True
 
-class bsmMainFrame(bsm_dlg_helper.mainFrame):
+class bsmMainFrame(framePlus):
 
     ID_VM_RENAME = wx.NewId()
     def __init__(self, parent):
-        bsm_dlg_helper.mainFrame.__init__(self, parent)
-        #self.menuSave.SetBitmap(wx.BitmapFromXPMData(save_sim_xpm))
-        #self.menuProperties.SetBitmap(wx.BitmapFromXPMData(setting_xpm))
-        #self.menuMagPlugins.SetBitmap(wx.BitmapFromXPMData(plugin_xpm))
-        self.menuAbout.SetBitmap(wx.BitmapFromXPMData(about_xpm))
+        framePlus.__init__(self, parent, title=u"BSMEdit",
+                           size=wx.Size(800, 600),
+                           style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
+        self.initMenu()
 
         self.SetMinSize((640, 480))
         self._mgr.SetAGWFlags(self._mgr.GetAGWFlags()
@@ -82,18 +82,18 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         self.addPanel(self.panelHistory, title="History",
                       showhidemenu='View:Panels:Command History')
         # help panel
-        self.panelHelp = HelpPanel(self, self.panelShell.interp.locals)
+        self.panelHelp = HelpPanel(self)
         self.addPanel(self.panelHelp, title="Help",
                       target=self.panelHistory,
                       showhidemenu='View:Panels:Command Help')
         # debug stack panel
         self.panelStack = StackPanel(self)
-        self.addPanel(self.panelStack, title = "Call Stack",
+        self.addPanel(self.panelStack, title="Call Stack",
                       target=self.panelHistory,
                       showhidemenu='View:Panels:Call Stack')
         # directory panel
         self.panelDir = DirPanel(self)
-        self.addPanel(self.panelDir, title = "Browsing",
+        self.addPanel(self.panelDir, title="Browsing",
                       target=self.panelHistory,
                       showhidemenu='View:Panels:Browsing')
 
@@ -101,47 +101,108 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         self._mgr.Update()
 
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
-        wx.py.dispatcher.connect(receiver=self.run_command, signal='frame.run')
-        wx.py.dispatcher.connect(receiver=self.set_pane_title, signal='frame.updatepanetitle')
-        wx.py.dispatcher.connect(receiver=self.activate_pane, signal='frame.activatingpane')
-        wx.py.dispatcher.connect(receiver=self.set_status_text, signal='frame.setstatustext')
-        wx.py.dispatcher.connect(receiver=self.file_history, signal='frame.filehistory')
+        dispatcher.connect(receiver=self.runCommand, signal='frame.run')
+        dispatcher.connect(receiver=self.setPanelTitle, signal='frame.set_panel_title')
+        dispatcher.connect(receiver=self.setStatusText, signal='frame.set_statu_stext')
+        dispatcher.connect(receiver=self.addFileHistory, signal='frame.add_file_history')
         self.Bind(wx.EVT_CLOSE, self._onClose)
 
         #try:
         self.addon = {}
-        self.panelShell.historyOn(False)
-        bsmpackages = self.package_contents('bsm')
+        bsmpackages = self._package_contents('bsm')
         for pkg in bsmpackages:
             mod = importlib.import_module('bsm.%s' % pkg)
             if hasattr(mod, 'bsm_Initialize'):
                 mod.bsm_Initialize(self)
                 self.addon[pkg] = True
-        self.panelShell.historyOn(True)
         #except:
         #    print 'Initializing addon failed'
         #    pass
 
-        self.panelShell.historyOn(True)
-
         # Create a File Drop Target object
         dt = FileDropTarget()
-
         # Link the Drop Target Object to the Text Control
         self.SetDropTarget(dt)
 
-        wx.py.dispatcher.send(signal='frame.loadconfig', config = self.config)
+        dispatcher.send(signal='frame.load_config', config=self.config)
 
-        self.perspective = {}
-        #self.LoadPerspective()
         self.panelShell.SetFocus()
+
+        self.activeTabCtrl = None
+        self.activeTabCtrlIndex = -1
 
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_UP, self.OnNoteBookTabRightUp)
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnPaneClose)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id = self.ID_VM_RENAME)
+        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_VM_RENAME)
 
-    def file_history(self, filename):
+    def initMenu(self):
+        """initialize the menubar"""
+        menubar = wx.MenuBar(0)
+        menuFile = wx.Menu()
+        menuNew = wx.Menu()
+        menuFile.AppendSubMenu(menuNew, u"New")
+
+        menuOpen = wx.Menu()
+        menuFile.AppendSubMenu(menuOpen, u"Open")
+
+        menuFile.AppendSeparator()
+
+        self.menuRecentFiles = wx.Menu()
+        menuFile.AppendSubMenu(self.menuRecentFiles, u"Recent Files")
+
+        menuFile.AppendSeparator()
+
+        menuQuit = wx.MenuItem(menuFile, wx.ID_CLOSE, u"&Quit",
+                               wx.EmptyString, wx.ITEM_NORMAL)
+        menuFile.AppendItem(menuQuit)
+
+        menubar.Append(menuFile, u"&File")
+
+        menuView = wx.Menu()
+        menuToolbar = wx.Menu()
+        menuView.AppendSubMenu(menuToolbar, u"&Toolbars")
+
+        menuView.AppendSeparator()
+
+        menuPanes = wx.Menu()
+        menuView.AppendSubMenu(menuPanes, u"Panels")
+
+        menubar.Append(menuView, u"&View")
+
+        menuTool = wx.Menu()
+
+        menubar.Append(menuTool, u"&Tools")
+
+        menuHelp = wx.Menu()
+        menuHome = wx.MenuItem(menuHelp, wx.ID_ANY, u"&Home", wx.EmptyString,
+                               wx.ITEM_NORMAL)
+        menuHelp.AppendItem(menuHome)
+
+        menuContact = wx.MenuItem(menuHelp, wx.ID_ANY, u"&Contact",
+                                  wx.EmptyString, wx.ITEM_NORMAL)
+        menuHelp.AppendItem(menuContact)
+
+        menuHelp.AppendSeparator()
+
+        menuAbout = wx.MenuItem(menuHelp, wx.ID_ABOUT, u"&About",
+                                wx.EmptyString, wx.ITEM_NORMAL)
+        menuAbout.SetBitmap(wx.BitmapFromXPMData(about_xpm))
+        menuHelp.AppendItem(menuAbout)
+
+        menubar.Append(menuHelp, u"&Help")
+
+        self.SetMenuBar(menubar)
+
+        # Connect Events
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+        self.Bind(wx.EVT_MENU, self.OnFileQuit, id=menuQuit.GetId())
+        self.Bind(wx.EVT_MENU, self.OnHelpHome, id=menuHome.GetId())
+        self.Bind(wx.EVT_MENU, self.OnHelpContact, id=menuContact.GetId())
+        self.Bind(wx.EVT_MENU, self.OnHelpAbout, id=menuAbout.GetId())
+
+    def addFileHistory(self, filename):
+        """add the file to recent file list"""
         self.config.SetPath('/FileHistory')
         self.filehistory.AddFileToHistory(filename)
         self.filehistory.Save(self.config)
@@ -157,8 +218,8 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
             evt.Veto()
             if evt.pane.IsNotebookPage():
                 notebook = self._mgr._notebooks[evt.pane.notebook_id]
-                id = notebook.GetPageIndex(evt.pane.window)
-                notebook.RemovePage(id)
+                idx = notebook.GetPageIndex(evt.pane.window)
+                notebook.RemovePage(idx)
                 evt.pane.Dock()
                 evt.pane.Hide()
                 evt.pane.window.Reparent(self._mgr._frame)
@@ -167,72 +228,54 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
                 self._mgr.Update()
             self._mgr.ShowPane(evt.pane.window, False)
             self._mgr.Update()
+
     def OnNoteBookTabRightUp(self, evt):
         idx = evt.GetSelection() # this is the index inside the current tab control
         tabctrl = evt.GetEventObject()
         tabctrl.SetSelection(idx)
-        self.m_activeTabCtrl = tabctrl
-        self.m_activeTabCtrlIndex = idx
+        self.activeTabCtrl = tabctrl
+        self.activeTabCtrlIndex = idx
         menu = wx.Menu()
         menu.Append(self.ID_VM_RENAME, "&Rename")
         self.PopupMenu(menu)
 
     def OnProcessCommand(self, evt):
-        if not self.m_activeTabCtrl:
+        if not self.activeTabCtrl:
             return
-        id = evt.GetId()
-        page = self.m_activeTabCtrl.GetPage(self.m_activeTabCtrlIndex)
-        if id == self.ID_VM_RENAME:
+        nid = evt.GetId()
+        page = self.activeTabCtrl.GetPage(self.activeTabCtrlIndex)
+        if nid == self.ID_VM_RENAME:
             pane = self._mgr.GetPane(page)
-            strNameIn = pane.caption
-            strNameIn = wx.GetTextFromUser("Type in the name:", "Input Name",
-                                                               strNameIn, self)
-            if strNameIn:
-                pane.Caption(strNameIn)
-                page.SetLabel(strNameIn)
+            name = pane.caption
+            name = wx.GetTextFromUser("Type in the name:", "Input Name",
+                                      name, self)
+            if name:
+                pane.Caption(name)
+                page.SetLabel(name)
                 self._mgr.Update()
 
-        self.m_activeTabCtrl = None
-        self.m_activeTabCtrlIndex = -1
-    def LoadPerspective(self):
-        for key in self.perspective:
-            path = "View:Layout:%s"%self.perspective[key]["key"]
-            wx.py.dispatcher.send(signal='frame.delmenu', path=path, id=key)
-        self.perspective = {}
-        self.config.SetPath('/Perspective')
-        more, key, index = self.config.GetFirstEntry()
-        while more:
-            value = self.config.Read(key)
-            response = wx.py.dispatcher.send(signal='frame.addmenu',
-                    path='View:Layout:%s'%key, rxsignal='frame.perspective')
-            if response:
-                self.perspective[response[0][1]] = {"key": key, "value":value}
-            more, key, index = self.config.GetNextEntry(index)
-        wx.py.dispatcher.connect(self.OnSetPerspective, signal='frame.perspective')
-
-    def OnSetPerspective(self, command):
-        layout = self.perspective.get(command, "")
-        if layout:
-            self._mgr.LoadPerspective(layout["value"])
+        self.activeTabCtrl = None
+        self.activeTabCtrlIndex = -1
 
     def _onClose(self, evt):
         # stop the debugger if it is on
-        if self.panelShell.IsDebuggerOn():
-            wx.py.dispatcher.send(signal='debugger.end')
-        wx.py.dispatcher.send(signal='frame.saveconfig', config = self.config)
-        wx.py.dispatcher.send(signal='frame.exit')
+        if self.panelShell.isDebuggerOn():
+            dispatcher.send(signal='debugger.stop')
+        dispatcher.send(signal='frame.save_config', config=self.config)
+        dispatcher.send(signal='frame.exit')
         evt.Skip()
 
-    def set_status_text(self, text,index=0,width=-1):
-        if index>=len(self.statusbar_width):
+    def setStatusText(self, text, index=0, width=-1):
+        """set the status text"""
+        if index >= len(self.statusbar_width):
             self.statusbar_width.extend([0 for i in range(index+1-len(self.statusbar_width))])
             self.statusbar.SetFieldsCount(index+1)
-        if self.statusbar_width[index]!=width:
-            self.statusbar_width[index]=width
+        if self.statusbar_width[index] != width:
+            self.statusbar_width[index] = width
             self.statusbar.SetStatusWidths(self.statusbar_width)
-        self.statusbar.SetStatusText(text,index)
+        self.statusbar.SetStatusText(text, index)
 
-    def package_contents(self, package_name):
+    def _package_contents(self, package_name):
         MODULE_EXTENSIONS = ('.py', '.pyc', '.pyo')
         (file, pathname, description) = imp.find_module(package_name)
         if file:
@@ -240,29 +283,27 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
 
         # Use a set because some may be both source and compiled.
         return set([os.path.splitext(module)[0] for module in
-                   os.listdir(pathname)
-                   if module.endswith(MODULE_EXTENSIONS)])
+                    os.listdir(pathname)
+                    if module.endswith(MODULE_EXTENSIONS)])
 
-    def run_command(self, command, prompt=True, verbose=True, debug=False):
+    def runCommand(self, command, prompt=True, verbose=True, debug=False):
+        """execute the command in shell"""
+        # show the debug toolbar in debug mode
         if debug and not self.tbDebug.IsShown():
             self.showPanel(self.tbDebug)
         self.panelShell.runCommand(command, prompt, verbose, debug)
 
     def OnPaneActivated(self, event):
         pane = event.GetPane()
-        wx.py.dispatcher.send(signal='frame.activatepane', pane=pane)
         if isinstance(pane, aui.auibook.AuiNotebook):
             window = pane.GetCurrentPage()
             if window:
-                wx.py.dispatcher.send(signal='frame.activatepane', pane=window)
+                dispatcher.send(signal='frame.activate_panel', pane=window)
+        else:
+            dispatcher.send(signal='frame.activate_panel', pane=pane)
 
-    def activate_pane(self, pane):
-        if pane:
-            info = self._mgr.GetPane(pane)
-            if info and info.IsOk() and pane.IsShown() == False:
-                self._mgr.ShowPane(pane, True)
-
-    def set_pane_title(self, pane, title):
+    def setPanelTitle(self, pane, title):
+        """set the panel title"""
         if pane:
             info = self._mgr.GetPane(pane)
             if info and info.IsOk() and info.caption != title:
@@ -288,48 +329,6 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
     def OnFileQuit(self, event):
         self.Close(True)
 
-    def OnViewSaveLayout(self, event):
-        self.config.SetPath('/Perspective')
-        layout = self._mgr.SavePerspective()
-        dlg = wx.TextEntryDialog(self, "Perspective label")
-        if dlg.ShowModal() == wx.ID_OK:
-            label = dlg.GetValue()
-            self.config.Write(label, layout)
-        dlg.Destroy()
-        self.LoadPerspective()
-
-    def OnViewDeleteLayout(self, event):
-        layout = []
-        for k in self.perspective:
-            layout.append(str(self.perspective[k]["key"]))
-        dlg = wx.SingleChoiceDialog(
-                self, 'Delete layout', '', layout, wx.CHOICEDLG_STYLE)
-
-        if dlg.ShowModal() == wx.ID_OK:
-            self.config.SetPath('/Perspective')
-            self.config.DeleteEntry(dlg.GetStringSelection())
-            self.config.Flush()
-        dlg.Destroy()
-        self.LoadPerspective()
-
-    def OnViewToggleBar(self, event):
-        pass
-
-    def OnUpdateViewToggleBar(self, event):
-        pass
-
-    def OnViewStatusbar(self, event):
-        pass
-
-    def OnUpdateViewStatusbar(self, event):
-        pass
-
-    def OnToolsProperties(self, event):
-        pass
-
-    def OnPluginsManage(self, event):
-        pass
-
     def OnHelpHome(self, event):
         wx.BeginBusyCursor()
         import webbrowser
@@ -347,16 +346,13 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         dlg.ShowModal()
         dlg.Destroy()
 
-    def OnNewPythonScript(self, event):
-        self.add_editor()
-
     def OnOpenPythonScript(self, event):
-        dlg = wx.FileDialog(self, 'Open',
-                            wildcard='Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*',
+        wildchar = 'Python script (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
+        dlg = wx.FileDialog(self, 'Open', wildchar=wildchar,
                             style=wx.OPEN | wx.FILE_MUST_EXIST)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPaths()[0]
-            wx.py.dispatcher.send(signal='bsm.editor.openfile', filename=path)
+            dispatcher.send(signal='bsm.editor.openfile', filename=path)
 
         dlg.Destroy()
 
@@ -364,47 +360,51 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         fileNum = event.GetId() - wx.ID_FILE1
         path = self.filehistory.GetHistoryFile(fileNum)
         self.filehistory.AddFileToHistory(path)
-        wx.py.dispatcher.send(signal='bsm.editor.openfile', filename=path)
+        dispatcher.send(signal='bsm.editor.openfile', filename=path)
 
     def initDebugger(self):
         self.addMenu('Tools:Debug', rxsignal='', kind='Popup')
         self.ID_DBG_RUN = self.addMenu('Tools:Debug:Run\tF5',
-                rxsignal='debugger.resume',
-                updatesignal='frame.updateui')
+                                       rxsignal='debugger.resume',
+                                       updatesignal='frame.updateui')
         self.ID_DBG_STOP = self.addMenu('Tools:Debug:Stop\tShift-F5',
-                rxsignal='debugger.stop', updatesignal='frame.updateui')
+                                        rxsignal='debugger.stop',
+                                        updatesignal='frame.updateui')
         self.ID_DBG_STEP = self.addMenu('Tools:Debug:Step\tF10',
-                rxsignal='debugger.step', updatesignal='frame.updateui')
-        self.ID_DBG_STEP_INTO = \
-            self.addMenu('Tools:Debug:Step Into\tF11',
-                         rxsignal='debugger.stepinto',
-                         updatesignal='frame.updateui')
-        self.ID_DBG_STEP_OUT = \
-            self.addMenu('Tools:Debug:Step Out\tShift-F11',
-                         rxsignal='debugger.stepout',
-                         updatesignal='frame.updateui')
+                                        rxsignal='debugger.step',
+                                        updatesignal='frame.updateui')
+        self.ID_DBG_STEP_INTO = self.addMenu('Tools:Debug:Step Into\tF11',
+                                             rxsignal='debugger.stepinto',
+                                             updatesignal='frame.updateui')
+        self.ID_DBG_STEP_OUT = self.addMenu('Tools:Debug:Step Out\tShift-F11',
+                                            rxsignal='debugger.stepout',
+                                            updatesignal='frame.updateui')
 
-        self.tbDebug = aui.AuiToolBar(self, style = wx.TB_FLAT | wx.TB_HORIZONTAL)
-        self.tbDebug.AddSimpleTool(self.ID_DBG_RUN, u'Run (F5)',
-                wx.BitmapFromXPMData(arrow_xpm), u'Run (F5)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STOP, u'Stop (Shift-F5)',
-                wx.BitmapFromXPMData(control_stop_square_xpm), u'Stop (Shift-F5)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP, u'Step (F10)',
-                wx.BitmapFromXPMData(arrow_step_over_xpm), u'Step (F10)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_INTO, u'Step Into (F11)',
-                wx.BitmapFromXPMData(arrow_step_xpm), u'Step Into (F11)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_OUT, u'Step Out (Shift-F11)',
-                wx.BitmapFromXPMData(arrow_step_out_xpm), u'Step Out (Shift-F11)')
+        self.tbDebug = aui.AuiToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
+        self.tbDebug.AddSimpleTool(self.ID_DBG_RUN, 'Run (F5)',
+                                   wx.BitmapFromXPMData(arrow_xpm),
+                                   'Run (F5)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STOP, 'Stop (Shift-F5)',
+                                   wx.BitmapFromXPMData(control_stop_square_xpm),
+                                   'Stop (Shift-F5)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP, 'Step (F10)',
+                                   wx.BitmapFromXPMData(arrow_step_over_xpm),
+                                   'Step (F10)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_INTO, 'Step Into (F11)',
+                                   wx.BitmapFromXPMData(arrow_step_xpm),
+                                   'Step Into (F11)')
+        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_OUT, 'Step Out (Shift-F11)',
+                                   wx.BitmapFromXPMData(arrow_step_out_xpm),
+                                   'Step Out (Shift-F11)')
         self.tbDebug.Realize()
 
-        self.addPanel(self.tbDebug, 'Debugger', active = False,
-                      paneInfo=aui.AuiPaneInfo().Name('debugger'
-                      ).Caption('Debugger').ToolbarPane().Top(),
+        self.addPanel(self.tbDebug, 'Debugger', active=False,
+                      paneInfo=aui.AuiPaneInfo().Name('debugger')
+                      .Caption('Debugger').ToolbarPane().Top(),
                       showhidemenu='View:Toolbars:Debugger')
-        wx.py.dispatcher.connect(receiver=self.OnUpdateUI,
-                                 signal='frame.updateui')
-        wx.py.dispatcher.connect(self.debug_paused, 'debugger.paused')
-        wx.py.dispatcher.connect(self.debug_ended, 'debugger.ended')
+        dispatcher.connect(receiver=self.OnUpdateUI, signal='frame.updateui')
+        dispatcher.connect(self.debug_paused, 'debugger.paused')
+        dispatcher.connect(self.debug_ended, 'debugger.ended')
         self.SetExtraStyle(wx.WS_EX_PROCESS_UI_UPDATES)
 
     def debug_paused(self, data):
@@ -428,38 +428,103 @@ class bsmMainFrame(bsm_dlg_helper.mainFrame):
         self.showPanel(self.tbDebug, False)
 
     def OnUpdateUI(self, event):
+        """update the debugger toolbar"""
         eid = event.GetId()
-        bPaused = self.panelShell.debugger._paused
-        bEnable = False
+        resp = dispatcher.send(signal='debugger.get_status')
+        if not resp:
+            return
+        status = resp[0][1]
+        paused = False
+        stepin = False
+        stepout = False
+        if status:
+            paused = status['paused']
+            stepin = status['can_stepin']
+            stepout = status['can_stepout']
+
+        enable = False
         if eid == self.ID_DBG_RUN:
-            bEnable = bPaused
+            enable = paused
         elif eid == self.ID_DBG_STOP:
-            bEnable = bPaused
+            enable = paused
         elif eid == self.ID_DBG_STEP:
-            bEnable = bPaused
+            enable = paused
         elif eid == self.ID_DBG_STEP_INTO:
-            bEnable = bPaused and self.panelShell.debugger._can_stepin
+            enable = paused and stepin
         elif eid == self.ID_DBG_STEP_OUT:
-            bEnable = bPaused and self.panelShell.debugger._can_stepout
-        event.Enable(bEnable)
+            enable = paused and stepout
+        event.Enable(enable)
 
-class bsmAboutDialog(bsm_dlg_helper.dlgAbout):
+class bsmAboutDialog(wx.Dialog):
     def __init__(self, parent):
-        bsm_dlg_helper.dlgAbout.__init__(self, parent)
-        self.m_bitmap.SetBitmap(wx.BitmapFromXPMData(header_xpm))
-        self.m_stTitle.SetLabel('BSMEdit %s.%s'%(BSM_VERSION_MAJOR, BSM_VERSION_MIDDLE))
+        wx.Dialog.__init__(self, parent, title=u"About", style=wx.DEFAULT_DIALOG_STYLE)
+
+        self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
+
+        szAll = wx.BoxSizer(wx.VERTICAL)
+
+        self.panel = wx.Panel(self, style=wx.TAB_TRAVERSAL)
+        self.panel.SetBackgroundColour(wx.Colour(255, 255, 255))
+
+        szPanel = wx.BoxSizer(wx.VERTICAL)
+
+        szVersion = wx.BoxSizer(wx.VERTICAL)
+
+        self.header = wx.StaticBitmap(self.panel)
+        self.header.SetBitmap(wx.BitmapFromXPMData(header_xpm))
+        szVersion.Add(self.header, 0, wx.ALL|wx.EXPAND, 0)
+        caption = 'BSMEdit %s.%s'%(BSM_VERSION_MAJOR, BSM_VERSION_MIDDLE)
+        self.stCaption = wx.StaticText(self.panel, wx.ID_ANY, caption)
+        self.stCaption.Wrap(-1)
+        self.stCaption.SetFont(wx.Font(28, 74, 90, 92, False, "Arial"))
+        self.stCaption.SetForegroundColour(wx.Colour(255, 128, 64))
+
+        szVersion.Add(self.stCaption, 0, wx.ALL, 5)
+
+        version = ' Build %s' % (BSM_VERSION_MINOR)
+        self.stVerion = wx.StaticText(self.panel, wx.ID_ANY, version)
+        self.stVerion.Wrap(-1)
+        self.stVerion.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
+        self.stVerion.SetForegroundColour(wx.Colour(120, 120, 120))
+
+        szVersion.Add(self.stVerion, 0, wx.ALL, 5)
+
         today = date.today()
-        self.m_stVersion.SetLabel(' Build %s' % (BSM_VERSION_MINOR))
-        self.m_stCopyright.SetLabel('(c) 2008-%i %s' % (today.year,
-                                    'Tianzhu Qiao. All rights reserved.'
-                                    ))
+        copyright = '(c) 2008-%i %s'%(today.year, 'Tianzhu Qiao. All rights reserved.')
 
-        strBuild = wx.GetOsDescription() + '; wxWidgets ' + wx.version()
-        self.m_stBuildinfo.SetLabel(strBuild)
-        self.m_stBuildinfo.Wrap(256 - 30)
-        self.m_panel.Fit()
-        self.Fit()
+        self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, copyright)
+        self.stCopyright.Wrap(-1)
+        self.stCopyright.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
 
+        szVersion.Add(self.stCopyright, 0, wx.ALL, 5)
+
+        build = wx.GetOsDescription() + '; wxWidgets ' + wx.version()
+        self.stBuild = wx.StaticText(self.panel, wx.ID_ANY, build)
+        self.stBuild.Wrap(256 - 30)
+        self.stBuild.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
+
+        szVersion.Add(self.stBuild, 0, wx.ALL|wx.EXPAND, 5)
+
+        szPanel.Add(szVersion, 0, wx.EXPAND, 5)
+
+        stLine = wx.StaticLine(self.panel, style=wx.LI_HORIZONTAL)
+        szPanel.Add(stLine, 0, wx.EXPAND |wx.ALL, 0)
+
+        self.panel.SetSizer(szPanel)
+        self.panel.Layout()
+        szPanel.Fit(self.panel)
+
+        szAll.Add(self.panel, 1, wx.EXPAND |wx.ALL, 0)
+
+        szConfirm = wx.BoxSizer(wx.VERTICAL)
+        self.btnOk = wx.Button(self, wx.ID_OK, u"Ok")
+        szConfirm.Add(self.btnOk, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
+
+        szAll.Add(szConfirm, 0, wx.EXPAND, 5)
+
+        self.SetSizer(szAll)
+        self.Layout()
+        szAll.Fit(self)
 
 class DirPanel(wx.Panel):
 
@@ -469,29 +534,29 @@ class DirPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        self.tb = wx.ToolBar(self, style = wx.TB_FLAT | wx.TB_HORIZONTAL)
+        self.tb = wx.ToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
         self.tb.AddLabelTool(
             self.ID_GOTO_PARENT,
-            u'Parent',
+            'Parent',
             wx.BitmapFromXPMData(arrow_090_xpm),
             wx.NullBitmap,
             wx.ITEM_NORMAL,
-            u'Parent folder',
+            'Parent folder',
             wx.EmptyString,
             )
         self.tb.AddLabelTool(
             self.ID_GOTO_HOME,
-            u'Home',
+            'Home',
             wx.BitmapFromXPMData(home_xpm),
             wx.NullBitmap,
             wx.ITEM_NORMAL,
-            u'Current folder',
+            'Current folder',
             wx.EmptyString,
             )
         self.tb.Realize()
-        self.dirtree = DirTreeCtrl.DirTreeCtrl(self,
-                style=wx.TR_DEFAULT_STYLE
-                | wx.TR_HAS_VARIABLE_ROW_HEIGHT | wx.TR_HIDE_ROOT)
+        self.dirtree = DirTreeCtrl(self, style=wx.TR_DEFAULT_STYLE |
+                                   wx.TR_HAS_VARIABLE_ROW_HEIGHT |
+                                   wx.TR_HIDE_ROOT)
         self.dirtree.SetRootDir(os.getcwd())
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)
@@ -512,8 +577,7 @@ class DirPanel(wx.Panel):
         currentItem = event.GetItem()
         filename = self.dirtree.GetItemText(currentItem)
         parentItem = self.dirtree.GetItemParent(currentItem)
-        if type(self.dirtree.GetPyData(parentItem)) \
-            == type(DirTreeCtrl.Directory()):
+        if isinstance(self.dirtree.GetPyData(parentItem), Directory):
             d = self.dirtree.GetPyData(parentItem)
             filepath = os.path.join(d.directory, filename)
         else:
@@ -523,15 +587,13 @@ class DirPanel(wx.Panel):
             return
         (path, fileExtension) = os.path.splitext(filename)
         if fileExtension == '.py':
-            wx.py.dispatcher.send(signal='bsm.editor.openfile',
-                    filename=filepath)
+            dispatcher.send(signal='bsm.editor.openfile', filename=filepath)
         else:
             os.system("start "+ filepath)
 
     def OnGotoHome(self, event):
         root = self.dirtree.GetRootItem()
-        if root and type(self.dirtree.GetPyData(root)) \
-            == type(DirTreeCtrl.Directory()):
+        if root and isinstance(self.dirtree.GetPyData(root), Directory):
             d = self.dirtree.GetPyData(root)
             if d.directory == os.getcwd():
                 return
@@ -539,11 +601,9 @@ class DirPanel(wx.Panel):
 
     def OnGotoParent(self, event):
         root = self.dirtree.GetRootItem()
-        if root and type(self.dirtree.GetPyData(root)) \
-            == type(DirTreeCtrl.Directory()):
+        if root and isinstance(self.dirtree.GetPyData(root), Directory):
             d = self.dirtree.GetPyData(root)
-            path = os.path.abspath(os.path.join(d.directory,
-                                   os.path.pardir))
+            path = os.path.abspath(os.path.join(d.directory, os.path.pardir))
             if path == d.directory:
                 return
             self.dirtree.SetRootDir(path)

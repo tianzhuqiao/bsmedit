@@ -6,8 +6,6 @@ Engine debugger
 - Can manually pause in traced code.
 """
 import time
-import wx
-
 import inspect                          #for debugger frame inpsection
 import sys                              #for set_trace etc
 import thread                           #for keyboard interrupt
@@ -15,6 +13,8 @@ import os.path                          #for absolute filename conversions
 import ctypes                           #for pythonapi calls
 from codeop import _maybe_compile, Compile
 import traceback                        #for formatting errors
+import wx
+import wx.py.dispatcher as dispatcher
 
 help_msg = """
 \"\"\"
@@ -58,7 +58,7 @@ class PseudoEvent():
     def wait(self, timeout=None):
         if timeout is not None:
             raise NotImplementedError('Timeout not implemented')
-        while (self._set is False): #and (self._eng._stop is False):
+        while self._set is False: #and (self._eng._stop is False):
             wx.YieldIfNeeded()
             time.sleep(0.05)
 
@@ -90,7 +90,7 @@ class EngineDebugger():
         self._scopes    = []        #list of scope (function) names
         self._frames    = []        #list of scope frames
         self._active_scope = 0 #the current scope level used for exec/eval/commands
-
+        self._paused_active_scope = 0
         #internal variable used to keep track of where wer started debugging
         self._bottom_frame = None
 
@@ -110,18 +110,20 @@ class EngineDebugger():
         self._bp_tcount = {} # trigger counter {id: tcount}
 
         #Register message handlers for the debugger
-        wx.py.dispatcher.connect(self.debug_pause,    'debugger.pause')
-        wx.py.dispatcher.connect(self.debug_resume,   'debugger.resume')
-        wx.py.dispatcher.connect(self.debug_stop,     'debugger.stop')
-        wx.py.dispatcher.connect(self.debug_end,      'debugger.end')
-        wx.py.dispatcher.connect(self.debug_step,     'debugger.step')
-        wx.py.dispatcher.connect(self.debug_stepinto, 'debugger.stepinto')
-        wx.py.dispatcher.connect(self.debug_stepout,  'debugger.stepout')
-        wx.py.dispatcher.connect(self.debug_setscope, 'debugger.setscope')
-        wx.py.dispatcher.connect(self.dbg_setbp,      'debugger.setbreakpoint')
-        wx.py.dispatcher.connect(self.dbg_clearbp,    'debugger.clearbreakpoint')
-        wx.py.dispatcher.connect(self.dbg_editbp,     'debugger.editbreakpoint')
-        wx.py.dispatcher.connect(self.dbg_getbp,      'debugger.getbreakpoint')
+        dispatcher.connect(self.pause,        'debugger.pause')
+        dispatcher.connect(self.resume,        'debugger.resume')
+        dispatcher.connect(self.stop_code,     'debugger.stop')
+        dispatcher.connect(self.end,           'debugger.end')
+        dispatcher.connect(self.step,          'debugger.step')
+        dispatcher.connect(self.step_in,       'debugger.stepinto')
+        dispatcher.connect(self.step_out,      'debugger.stepout')
+        dispatcher.connect(self.set_scope,     'debugger.setscope')
+        dispatcher.connect(self.set_breakpoint,      'debugger.setbreakpoint')
+        dispatcher.connect(self.clear_breakpoint,    'debugger.clearbreakpoint')
+        dispatcher.connect(self.edit_breakpoint,     'debugger.editbreakpoint')
+        dispatcher.connect(self.get_breakpoint,      'debugger.getbreakpoint')
+        dispatcher.connect(self.get_status,      'debugger.get_status')
+
     # Interface methods
     def reset(self):
         """Reset the debugger internal state"""
@@ -132,8 +134,8 @@ class EngineDebugger():
         self._resume     = False
         self._end        = False
         self._stop       = False
-        self._step_in    = False
-        self._step_out   = False
+        self._stepin     = False
+        self._stepout    = False
 
         self._resume_event.clear()
 
@@ -167,17 +169,18 @@ class EngineDebugger():
             pass
 
         # send the notification, the debugger may stop after the notification
-        wx.py.dispatcher.send(signal = 'debugger.ended')
+        dispatcher.send(signal='debugger.ended')
+
     def end(self):
-        """ End the debugging and finsish running the code """
+        """ End the debugging and finish running the code """
         #set the end flag and wake the traceback function
         #if necessary
-        self._end=True
-        self._resume=True
+        self._end = True
+        self._resume = True
         self._resume_event.set()
 
         # send the notification, the debugger may stop after the notification
-        wx.py.dispatcher.send(signal = 'debugger.ended')
+        dispatcher.send(signal='debugger.ended')
         return True
 
     def pause(self, flag=True):
@@ -190,7 +193,7 @@ class EngineDebugger():
             return True
 
         #set the paused flag to pause at next oppertunity
-        self._paused=True
+        self._paused = True
         return True
 
     def resume(self):
@@ -213,7 +216,7 @@ class EngineDebugger():
             return False
         #make sure the step_in flag is False, so we don't step into a new scope
         #but rather step 'over' it.
-        self._step_in = False
+        self._stepin = False
         #set the event so the trace function can resume - but don't change the
         #paused flag so the code will pause again after the next line.
         self._resume_event.set()
@@ -259,13 +262,13 @@ class EngineDebugger():
         where id should be a unique identifier for this breakpoint
         """
         #check if the id to use already exists.
-        if len(self.bpoints.filter(('id',),(id,)))!=0:
+        if len(self.bpoints.filter(('id',), (id,))) != 0:
             return False
 
         #check bpdata
         keys = bpdata.keys()
         if 'id' not in keys:
-            bpdata['id'] = EngineDebugger.bpnum;
+            bpdata['id'] = EngineDebugger.bpnum
             EngineDebugger.bpnum += 1
         elif 'filename' not in keys:
             return False
@@ -281,7 +284,7 @@ class EngineDebugger():
         #create new breakpoint
         bpdata['filename'] = self._abs_filename(bpdata['filename'])
         self.bpoints.append(bpdata)
-        wx.py.dispatcher.send(signal='debugger.breakpoint_added', bpdata=bpdata)
+        dispatcher.send(signal='debugger.breakpoint_added', bpdata=bpdata)
         return True
 
     def get_breakpoint(self, filename, lineno):
@@ -289,7 +292,8 @@ class EngineDebugger():
         Return the break point according to the (filename, lineno),
         if not found, return None
         """
-        bps = self.bpoints.filter(('filename','lineno'), (self._abs_filename(filename),lineno))
+        bps = self.bpoints.filter(('filename', 'lineno'),
+                                  (self._abs_filename(filename), lineno))
         if bps:
             return bps[0]
         return None
@@ -304,14 +308,14 @@ class EngineDebugger():
             return True
 
         #check if the id to clear exists.
-        bps = self.bpoints.filter(('id',),(id,))
-        if len(bps)==0:
+        bps = self.bpoints.filter(('id',), (id,))
+        if len(bps) == 0:
             return False
 
         #remove the breakpoint
         bp = bps[0]
         self.bpoints.remove(bp)
-        wx.py.dispatcher.send(signal='debugger.breakpoint_cleared', bpdata=bp)
+        dispatcher.send(signal='debugger.breakpoint_cleared', bpdata=bp)
         return True
 
     def edit_breakpoint(self, id, **kwargs):
@@ -325,11 +329,11 @@ class EngineDebugger():
         the breakpoint filename and lineno.
         """
         #check if the id to clear exists.
-        bps = self.bpoints.filter(('id',),(id,))
-        if len(bps)==0:
+        bps = self.bpoints.filter(('id',), (id,))
+        if len(bps) == 0:
             return False
 
-        bpdata= bps[0]
+        bpdata = bps[0]
         if kwargs.has_key('filename'):
             kwargs['filename'] = self._abs_filename(kwargs['filename'])
         bpdata.update(kwargs)
@@ -358,15 +362,15 @@ class EngineDebugger():
         #returns to make the changes stick immediately. This is done in the
         #function  _update_frame_locals(frame)
         if level is None:
-            level=self._active_scope
-        if level>len(self._scopes) or level<0:
+            level = self._active_scope
+        if level > len(self._scopes) or level < 0:
             raise Exception('Level out of range: '+str(level))
         #get the scope name
         name = self._scopes[level]
         frame = self._frames[level]
         globals = frame.f_globals
         locals = frame.f_locals
-        return name,frame,globals,locals
+        return name, frame, globals, locals
 
     def set_scope(self, level):
         """
@@ -380,7 +384,7 @@ class EngineDebugger():
         if level > (len(self._scopes)-1):
             return False
         #check if already in this level
-        if level==self._active_scope:
+        if level == self._active_scope:
             return True
         self._active_scope = level
 
@@ -389,13 +393,26 @@ class EngineDebugger():
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
         lineno = frame.f_lineno
         name = frame.f_code.co_name
-        data =((name,self._abs_filename(filename),lineno),
+        data = ((name, self._abs_filename(filename), lineno),
                 self._scopes, self._active_scope,
-                (self._can_stepin,self._can_stepout),self._frames)
-        wx.py.dispatcher.send(signal='debugger.updatescopes', data = data)
+                (self._can_stepin, self._can_stepout), self._frames)
+        dispatcher.send(signal='debugger.updatescopes', data=data)
         return True
 
-    def push_line(self,line):
+    def get_status(self):
+        """return the current status"""
+        if self._active_scope < 0 or self._active_scope >= len(self._frames):
+            return None
+        frame = self._frames[self._active_scope]
+        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        lineno = frame.f_lineno
+        name = frame.f_code.co_name
+        return {'name':name, 'filename':self._abs_filename(filename),
+                'line':lineno, 'scopes':self._scopes,
+                'active':self._active_scope, 'paused': self._paused,
+                'can_stepin':self._can_stepin, 'can_stepout':self._can_stepout}
+
+    def push_line(self, line):
         """
         A debugger commands to run - this is called from the engine when a
         line is pushed and we are debugging and paused, so store internally and
@@ -424,7 +441,7 @@ class EngineDebugger():
         return self._block_files
 
     #engine like interfaces
-    def evaluate(self,expression, level=None):
+    def evaluate(self, expression, level=None):
         """
         Evaluate expression in the active debugger scope and return result
         (like builtin eval)
@@ -439,7 +456,7 @@ class EngineDebugger():
         Returns None on errors
         """
         #get the scope locals/globals
-        name,frame,globals,locals = self.get_scope(level)
+        name, frame, globals, locals = self.get_scope(level)
 
         #try to evaluate the expression
         try:
@@ -451,7 +468,7 @@ class EngineDebugger():
         self._update_frame_locals(frame)
         return result
 
-    def execute(self,expression, level=None):
+    def execute(self, expression, level=None):
         """
         Execute expression in engine (like builtin exec)
 
@@ -464,7 +481,7 @@ class EngineDebugger():
         scope (the usernamespace).
         """
         #get the scope locals/globals
-        name,frame,globals,locals = self.get_scope(level)
+        name, frame, globals, locals = self.get_scope(level)
 
         #execute the expression
         try:
@@ -474,37 +491,6 @@ class EngineDebugger():
 
         #update the locals
         self._update_frame_locals(frame)
-
-    def run_task(self, taskname, args=(), kwargs={}, level=None):
-        """
-        Run a complex task in the engine; taskname is the name of a registered
-        task function taking the following arguments:
-                task(globals, locals, *args, **kwargs)
-
-        The optional level argument controls the scope that will be used.
-        scope=None uses the current debugger scope and scope=0 is the top level
-        scope (the usernamespace).
-
-        Returns None on errors.
-        """
-        #get the task
-        task = self.eng.get_task(taskname)
-        if task is None:
-            raise NameError('No task with name: '+taskname)
-
-        #get the scope locals/globals
-        name,frame,globals,locals = self.get_scope(level)
-
-        #run the task
-        try:
-            result=task(globals, locals, *args, **kwargs)
-        except:
-            result=None
-
-        #update the locals
-        self._update_frame_locals(frame)
-
-        return result
 
     # trace methods
     #Trace every line - why?
@@ -539,7 +525,7 @@ class EngineDebugger():
 
         #file and name of scope being called.
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-        lineno =  frame.f_lineno
+        lineno = frame.f_lineno
 
         #if the file is on the block list do not trace
         #this is mainly engine/message bus files and prevents the user pausing and
@@ -547,7 +533,7 @@ class EngineDebugger():
         if self._check_files(filename, self._block_files):
             return None
         #if the calling frame is also blocked return None
-        if (frame.f_back.f_trace is None and frame!=self._bottom_frame):
+        if frame.f_back.f_trace is None and frame != self._bottom_frame:
             return None
 
         #if trace_stepout is the parent frames trace function then do not pause
@@ -558,7 +544,7 @@ class EngineDebugger():
 
         #check for breakpoints
         filename = self._abs_filename(filename)
-        bps = self.bpoints.filter(('filename','lineno'), (filename,lineno))
+        bps = self.bpoints.filter(('filename', 'lineno'), (filename, lineno))
         for bpdata in bps:
             paused = self._hit_bp(bpdata, frame)
             if paused is True:
@@ -606,11 +592,11 @@ class EngineDebugger():
 
         #file and name of scope being called.
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-        lineno =  frame.f_lineno
+        lineno = frame.f_lineno
 
         #check for breakpoints
         filename = self._abs_filename(filename)
-        bps = self.bpoints.filter(('filename','lineno'), (filename,lineno))
+        bps = self.bpoints.filter(('filename', 'lineno'), (filename, lineno))
         for bpdata in bps:
             paused = self._hit_bp(bpdata, frame)
             if paused is True:
@@ -650,11 +636,11 @@ class EngineDebugger():
 
         #file and name of scope being called.
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-        lineno =  frame.f_lineno
+        lineno = frame.f_lineno
 
         #check for breakpoints
         filename = self._abs_filename(filename)
-        bps = self.bpoints.filter(('filename','lineno'), (filename,lineno))
+        bps = self.bpoints.filter(('filename', 'lineno'), (filename, lineno))
         for bpdata in bps:
             will_break = self._check_bp(bpdata, frame)
             if will_break is True:
@@ -677,23 +663,23 @@ class EngineDebugger():
         #    return
         if event == 'call':
             self._can_stepout = False
-            self._can_stepin  = True
+            self._can_stepin = True
         elif len(self._scopes)>1:
             self._can_stepout = True
-            self._can_stepin  = True
+            self._can_stepin = True
         else:
             self._can_stepout = False
-            self._can_stepin  = True
+            self._can_stepin = True
         if event == 'call' and not self._stepin:
             return
         #send a paused message to the console
         #(it will publish an ENGINE_DEBUG_PAUSED message after updating internal
         #state)
-        data =((name,self._abs_filename(filename),lineno),
+        data = ((name, self._abs_filename(filename), lineno),
                 self._scopes, self._active_scope,
-                (self._can_stepin,self._can_stepout),self._frames)
+                (self._can_stepin, self._can_stepout), self._frames)
 
-        wx.py.dispatcher.send(signal='debugger.paused', data = data)
+        dispatcher.send(signal='debugger.paused', data=data)
         #The user can then select whether to resume, step, step-in, step-out
         #cancel the code or stop debugging.
 
@@ -714,7 +700,7 @@ class EngineDebugger():
                 #turn console debug mode off -Note: None to turn off, True/False
                 #is line continuation
                 #need to step or resume so exit this while block
-                self.prompt()
+                #self.prompt()
                 loop = False
 
             #user command to process.
@@ -762,21 +748,21 @@ class EngineDebugger():
             except:
                 #fail safe - so trigger anyway.
                 traceback.print_exc(file=sys.stdout)
-                hit =  True
+                hit = True
                 trigger = True
 
         if not trigger and hit:
             ht = bpdata['hitcount']
             if ht == "":
-               trigger = True
+                trigger = True
             else:
-               ht = ht.replace('#', str(bpdata['tcount']))
-               try:
-                   trigger = eval(ht, frame.f_globals, frame.f_locals)
-               except:
-                   #fail safe - so trigger anyway.
-                   traceback.print_exc(file=sys.stdout)
-                   trigger = True
+                ht = ht.replace('#', str(bpdata['tcount']))
+                try:
+                    trigger = eval(ht, frame.f_globals, frame.f_locals)
+                except:
+                    #fail safe - so trigger anyway.
+                    traceback.print_exc(file=sys.stdout)
+                    trigger = True
 
         return trigger
 
@@ -802,22 +788,22 @@ class EngineDebugger():
             except:
                 #fail safe - so trigger anyway.
                 traceback.print_exc(file=sys.stdout)
-                hit =  True
+                hit = True
                 trigger = True
 
         if not trigger and hit:
             bpdata['tcount'] += 1
             ht = bpdata['hitcount']
             if ht == "":
-               trigger = True
+                trigger = True
             else:
-               ht = ht.replace('#', str(bpdata['tcount']))
-               try:
-                   trigger = eval(ht, frame.f_globals, frame.f_locals)
-               except:
-                   #fail safe - so trigger anyway.
-                   traceback.print_exc(file=sys.stdout)
-                   trigger = True
+                ht = ht.replace('#', str(bpdata['tcount']))
+                try:
+                    trigger = eval(ht, frame.f_globals, frame.f_locals)
+                except:
+                    #fail safe - so trigger anyway.
+                    traceback.print_exc(file=sys.stdout)
+                    trigger = True
 
         # pause if triggered
         if trigger is True:
@@ -833,9 +819,9 @@ class EngineDebugger():
         #of scope names and frames.
         while frame is not None:
             name = frame.f_code.co_name
-            if name=='<module>':
+            if name == '<module>':
                 filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-                if filename=='<input>':
+                if filename == '<input>':
                     name = 'Main'
             scopes.append(name)
             frames.append(frame)
@@ -854,17 +840,17 @@ class EngineDebugger():
 
         #set current scope
         level = len(self._scopes)-1
-        if self._active_scope!=level:
+        if self._active_scope != level:
             self.set_scope(level)
         else:
             frame = self._frames[level]
             filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
             lineno = frame.f_lineno
             name = frame.f_code.co_name
-            data =((name,self._abs_filename(filename),lineno),
+            data = ((name, self._abs_filename(filename), lineno),
                     self._scopes, self._active_scope,
-                    (self._can_stepin,self._can_stepout),self._frames)
-            wx.py.dispatcher.send(signal='debugger.updatescopes', data = data)
+                    (self._can_stepin, self._can_stepout), self._frames)
+            dispatcher.send(signal='debugger.updatescopes', data=data)
 
     def _update_frame_locals(self, frame):
         """
@@ -875,7 +861,7 @@ class EngineDebugger():
         # http://www.gossamer-threads.com/lists/python/dev/546183
         #use PyFrame_LocalsToFast(f, 1) to save changes back into c array.
         func = ctypes.pythonapi.PyFrame_LocalsToFast
-        func.restype=None
+        func.restype = None
         func(ctypes.py_object(frame), 1)
 
     def _abs_filename(self, filename):
@@ -889,7 +875,7 @@ class EngineDebugger():
             fname = filename
         else:
             #check in cache of filenames already done.
-            fname = self._fncache.get(filename,None)
+            fname = self._fncache.get(filename, None)
             if not fname:
                 #not in cache, get the absolute path
                 fname = os.path.abspath(filename)
@@ -912,7 +898,7 @@ class EngineDebugger():
                 if fname.startswith(f[:-1]):
                     return True
             #a normal path - check if fname is this path.
-            elif fname==f:
+            elif fname == f:
                 return True
         return False
 
@@ -932,7 +918,7 @@ class EngineDebugger():
         cmd = cmd.lower() #convert to all lower case:
 
         #step
-        if cmd in ['#step','#s']:
+        if cmd in ['#step', '#s']:
             res = self.step()
             if res is False:
                 self.write_debug('Cannot step here')
@@ -940,7 +926,7 @@ class EngineDebugger():
                 #no need to prompt as stepping
                 return True
         #step in
-        elif cmd in ['#stepin','#si']:
+        elif cmd in ['#stepin', '#si']:
             res = self.step_in()
             if res is False:
                 self.write_debug('Cannot step in here')
@@ -948,7 +934,7 @@ class EngineDebugger():
                 #no need to prompt as stepping
                 return True
         #stepout
-        elif cmd in ['#stepout','#so']:
+        elif cmd in ['#stepout', '#so']:
             res = self.step_out()
             if res is False:
                 self.write_debug('Cannot step out here')
@@ -957,8 +943,8 @@ class EngineDebugger():
                 return True
 
         #set scope
-        elif cmd in ['#setscope','#ss']:
-            if len(args)!=1:
+        elif cmd in ['#setscope', '#ss']:
+            if len(args) != 1:
                 level = 0
             try:
                 level = int(args[0])
@@ -966,9 +952,7 @@ class EngineDebugger():
                 level = args[0]
             res = self.set_scope(level)
             if res is False:
-                msg = ('Usage: #setscope level\n'+
-                'Where level should be an integer, in the range 0 (main user namespace) to '+
-                str(len(self._scopes)-1)+' (scope currently being executed)')
+                msg = 'Usage: #setscope level (0 to %d)'%(str(len(self._scopes)-1))
                 self.write_debug(msg)
         #resume
         elif cmd in ['#resume', '#r']:
@@ -987,8 +971,8 @@ class EngineDebugger():
         elif cmd in ['#help', '#h']:
             self.write_debug(help_msg)
 
-        elif cmd in ['#line','#l']:
-            frame = self._frames[ self._active_scope ]
+        elif cmd in ['#line', '#l']:
+            frame = self._frames[self._active_scope]
             tb = inspect.getframeinfo(frame)
             if tb.code_context is None:
                 self.write_debug('Source line unavailable')
@@ -1004,13 +988,13 @@ class EngineDebugger():
         self.prompt()
         return True
 
-    def _process_dbg_source(self,line):
+    def _process_dbg_source(self, line):
         """
         Process a line of user input as python source to execute in the active
         scope
         """
         ##line is user python command compile it
-        ismore,code,err = self.compiler.compile(line)
+        ismore, code, err = self.compiler.compile(line)
 
         #need more
         #   - tell the console to prompt for more
@@ -1022,7 +1006,7 @@ class EngineDebugger():
         #   - compiler will output the error
         #   - tell the console to prompt for new command
         if err:
-            self.prompt(iserr = True)
+            self.prompt(iserr=True)
             return
 
         #no code object - could be a blank line
@@ -1033,7 +1017,7 @@ class EngineDebugger():
         ##run the code in the active scope
         name, frame, globals, locals = self.get_scope(self._active_scope)
         try:
-            exec code in globals,locals
+            exec code in globals, locals
         except SystemExit:
             self.write_debug('Blocking system exit')
         except KeyboardInterrupt:
@@ -1053,63 +1037,16 @@ class EngineDebugger():
 
         ##Finsihed running the code - prompt for a new command
         # add the command to history
-        wx.py.dispatcher.send(signal='shell.addToHistory',command=line)
+        dispatcher.send(signal='shell.addToHistory', command=line)
         self.prompt()
-
     def write_debug(self, string):
         """
         Write a debugger message to the controlling console
         """
         print string
 
-    def prompt(self, ismore = False, iserr = False):
-        wx.py.dispatcher.send(signal='shell.prompt', ismore = ismore,
-                                                                 iserr = iserr)
-    # Message handlers
-    def debug_pause(self):
-        return self.pause()
-
-    def debug_resume(self):
-        return self.resume()
-
-    def debug_stop(self):
-        self.stop_code()
-
-    def debug_end(self):
-        res=self.end()
-        return res
-
-    def debug_step(self):
-        self.step()
-
-    def debug_stepinto(self):
-        self.step_in()
-
-    def debug_stepout(self):
-        self.step_out()
-
-    def debug_setscope(self, level):
-        #level = msg.data[0]
-        self.set_scope(level)
-
-    def dbg_setbp(self, bpdata):
-        #bpdata= {id,filename, lineno, condition, ignore_count, trigger_count}
-        res = self.set_breakpoint(bpdata)
-        return res
-    def dbg_getbp(self, filename,lineno):
-        #bpdata= {id,filename, lineno, condition, ignore_count, trigger_count}
-        res = self.get_breakpoint(filename,lineno)
-        return res
-    def dbg_clearbp(self, ids):
-        for id in ids:
-            res = self.clear_breakpoint(id)
-        return res
-
-    def dbg_editbp(self, id, **kwargs):
-        #id,kwargs = msg.get_data()
-        res = self.edit_breakpoint(id,**kwargs)
-        return res
-
+    def prompt(self, ismore=False, iserr=False):
+        dispatcher.send(signal='shell.prompt', ismore=ismore, iserr=iserr)
 
 """
 Engine misc.
@@ -1190,7 +1127,7 @@ class DictList():
         """
         dicts = self._dicts
         #filter for each key,value in
-        for key, value in zip(keys,values):
+        for key, value in zip(keys, values):
             self._fkey = key
             self._fvalue = value
             dicts = filter(self._filter, dicts)
@@ -1202,7 +1139,7 @@ class DictList():
         """
         Return a list of all values a given key has in the dictionarys.
         """
-        values=[]
+        values = []
         for i in self.items():
             value = i[key]
             if value not in values:
@@ -1231,7 +1168,7 @@ class DictList():
         """
         Remove the dictionary from the list and return it.
         """
-        n= self.index(d)
+        n = self.index(d)
         return self.pop(n)
 
     def set_default(self, d):
@@ -1249,7 +1186,7 @@ class DictList():
             return False
 
     def __len__(self):
-        return len(self._items)
+        return len(self._dicts)
 
     def __iter__(self):
         return self._dicts.__iter__()
@@ -1287,10 +1224,10 @@ class EngineCompiler(Compile):
         self._buffer = ''
 
         #register message handlers
-        wx.py.dispatcher.connect(self.future_flag,   'debugger.futureflag')
+        dispatcher.connect(self.future_flag, 'debugger.futureflag')
 
     # Interface methods
-    def set_compiler_flag(self,flag,set=True):
+    def set_compiler_flag(self, flag, set=True):
         """
         Set or unset a __future__ compiler flag
         """
@@ -1299,7 +1236,7 @@ class EngineCompiler(Compile):
         else:
             self.flags &= ~flag
 
-    def compile(self,source):
+    def compile(self, source):
         """
         Compile source.
         Returns (more,code,err) where:
@@ -1320,46 +1257,46 @@ class EngineCompiler(Compile):
         else:
             source = ""
         ##check that the line is not empty
-        if source.lstrip()=='':
-            return False,None,False
+        if source.lstrip() == '':
+            return False, None, False
 
         ##to enable multiple lines to be compiled at once we use a cheat...
         ##everything is enclosed in if True: block so that it will compile as a
         ##single line, but need to check that there is no indentation error...
-        if source[0]!=' ': #check for first line indentation error
-            self._lineadjust=-1
+        if source[0] != ' ': #check for first line indentation error
+            self._lineadjust = -1
             lastline = source.split('\n')[-1]
-            source ="if True:\n "+source.replace('\n','\n ')
+            source = "if True:\n " + source.replace('\n', '\n ')
             #the old source ended with a '\n' no more to come so add '\n'
             #so that it compiles
             if source.endswith('\n '):
                 source = source+'\n'
             #also if the last line is zero indent add a \n as the block is also
             #complete
-            if (len(lastline)-len(lastline.lstrip()))==0:
+            if (len(lastline)-len(lastline.lstrip())) == 0:
                 source = source+'\n'
         else:
-            self._lineadjust=0
+            self._lineadjust = 0
 
         #store source in buffer
         self._buffer = source
 
         ##now compile as usual.
-        filename="<Engine input>"
-        symbol="single"
+        filename = "<Engine input>"
+        symbol = "single"
         try:
             code = _maybe_compile(self, source, filename, symbol)
         except (OverflowError, SyntaxError, ValueError):
             # Case 1 - syntax error
             self.show_syntaxerror()
-            return False,None,True
+            return False, None, True
 
         if code is None:
             # Case 2 - more needed
-            return True,None,False
+            return True, None, False
 
         # Case 3 - compile to code
-        return False,code,False
+        return False, code, False
 
     def show_syntaxerror(self):
         """
@@ -1372,7 +1309,7 @@ class EngineCompiler(Compile):
 
         taken from: code.InteractiveInterpreter
         """
-        filename="<Engine input>"
+        filename = "<Engine input>"
 
         errtype, value, sys.last_traceback = sys.exc_info()
         sys.last_type = errtype
@@ -1384,7 +1321,7 @@ class EngineCompiler(Compile):
             # Not the format we expect; leave it alone
             pass
         else:
-            if dummy_filename==filename:
+            if dummy_filename == filename:
                 #(lineno-1 due to multiline hack in compile source)
                 value = errtype(msg, (filename, lineno+self._lineadjust, offset, line))
             else:
@@ -1401,26 +1338,26 @@ class EngineCompiler(Compile):
         modified from: code.InteractiveInterpreter
         """
         try:
-            type, value, sys.last_traceback = sys.exc_info()
-            sys.last_type = type
+            typ, value, sys.last_traceback = sys.exc_info()
+            sys.last_type = typ
             sys.last_value = value
             tblist = traceback.extract_tb(sys.last_traceback)
             del tblist[:1] #in our code so remove
 
-            for  n in  range(0,len(tblist)):
+            for n in range(0, len(tblist)):
                 filename, lineno, offset, line = tblist[n]
-                if filename =="<Engine input>":
+                if filename == "<Engine input>":
                     #alter line number
                     tblist[n] = (filename, lineno+self._lineadjust, offset, line)
-                list = traceback.format_list(tblist)
-                if list:
-                    list.insert(0, "Traceback (most recent call last):\n")
-                list[len(list):] = traceback.format_exception_only(type, value)
-            map(sys.stderr.write, list)
+                lst = traceback.format_list(tblist)
+                if lst:
+                    lst.insert(0, "Traceback (most recent call last):\n")
+                lst[len(lst):] = traceback.format_exception_only(typ, value)
+            map(sys.stderr.write, lst)
         except:
             pass
     # Message handlers
     def future_flag(self, msg):
         """enable or disable a __future__ feature using flags"""
-        flag,set = msg.get_data()
-        self.set_compiler_flag(flag,set)
+        flag, set = msg.get_data()
+        self.set_compiler_flag(flag, set)

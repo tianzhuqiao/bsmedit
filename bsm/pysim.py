@@ -41,11 +41,11 @@ def simulation(num = None, filename = None, scilent = False, create = True,
     manager = Gcs.get_manager(num)
     if manager == None and create:
         manager = ModulePanel(sim.frame, num, filename, scilent)
-        wx.py.dispatcher.send(signal="frame.addpanel", panel = manager,
+        wx.py.dispatcher.send(signal="frame.add_panel", panel = manager,
                       title = "Simulation-%d"%manager.num, target = "History")
     # activate the manager
     elif manager and activate:
-        wx.py.dispatcher.send(signal = 'frame.showpanel', panel = manager)
+        wx.py.dispatcher.send(signal = 'frame.show_panel', panel = manager)
 
     return manager
 

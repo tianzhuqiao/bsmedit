@@ -730,7 +730,7 @@ class ModulePanel(wx.Panel):
                 bp = value #[name, condition, hitcount, hitsofar]
                 for grid in bsmPropGrid.get_instances():
                     if grid.triggerBreakPoint(self._abs_object_name(bp[0]), bp[1], bp[2]):
-                        wx.py.dispatcher.send(signal = 'frame.showpanel', panel = grid)
+                        wx.py.dispatcher.send(signal = 'frame.show_panel', panel = grid)
                         break
 
             elif command == 'ack':
@@ -744,7 +744,7 @@ class ModulePanel(wx.Panel):
 
     def OnIdle(self, event):
         if (self.ui_timestamp is not None) and self.ui_update == 0:
-            wx.py.dispatcher.send(signal="frame.setstatustext", text = self.ui_timestamp)
+            wx.py.dispatcher.send(signal="frame.set_status_text", text = self.ui_timestamp)
             self.ui_timestamp = None
         elif (self.ui_objs is not None) and self.ui_update == 1:
             wx.py.dispatcher.send(signal="grid.updateprop", objs = self.ui_objs)
@@ -812,14 +812,14 @@ class sim:
     def Initialize(cls, frame):
         cls.frame = frame
 
-        response = wx.py.dispatcher.send(signal='frame.addmenu',
+        response = wx.py.dispatcher.send(signal='frame.add_menu',
                             path='File:New:Simulation', rxsignal='bsm.simulation')
         if response:
             cls.ID_SIM_NEW = response[0][1]
 
         wx.py.dispatcher.connect(cls.ProcessCommand, signal='bsm.simulation')
         wx.py.dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
-        wx.py.dispatcher.connect(receiver=cls.set_active, signal='frame.activatepane')
+        wx.py.dispatcher.connect(receiver=cls.set_active, signal='frame.activate_panel')
 
         wx.py.dispatcher.connect(receiver = cls.OnAddProp, signal='prop.insert')
         wx.py.dispatcher.connect(receiver = cls.OnDelProp, signal='prop.delete')
@@ -942,11 +942,11 @@ class sim:
         if not manager and create:
             manager = bsmPropGrid(cls.frame)
             manager.SetLabel("Propgrid-%d"%manager.num)
-            wx.py.dispatcher.send(signal="frame.addpanel", panel=manager,
+            wx.py.dispatcher.send(signal="frame.add_panel", panel=manager,
                                                           title=manager.GetLabel())
         elif manager and activate:
             # activate the manager
-            wx.py.dispatcher.send(signal = 'frame.showpanel', panel = manager)
+            wx.py.dispatcher.send(signal = 'frame.show_panel', panel=manager)
         return manager
     @classmethod
     def get_object_name(cls, name):

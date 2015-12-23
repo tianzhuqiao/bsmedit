@@ -1,7 +1,7 @@
+import pydoc
 import wx
 import wx.html2 as html
 from bsmhelpxpm import * # for toolbar icon
-import pydoc
 from bsm.autocomplete import AutocompleteTextCtrl
 
 html_template = '''
@@ -19,16 +19,15 @@ html_template = '''
 '''
 class HelpPanel(wx.Panel):
 
-    def __init__(self, parent, namespace={}):
+    def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        self.search =  AutocompleteTextCtrl(self, completer = self.completer)
+        self.search = AutocompleteTextCtrl(self, completer=self.completer)
 
         self.html = html.WebView.New(self)
-        self.namespace = namespace
 
-        self.tb = wx.ToolBar(self, style = wx.TB_FLAT|wx.TB_HORIZONTAL|
-                                                  wx.NO_BORDER|wx.TB_NODIVIDER)
+        self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|
+                             wx.NO_BORDER|wx.TB_NODIVIDER)
         self.tb.AddLabelTool(
             wx.ID_BACKWARD,
             'Back',
@@ -53,13 +52,15 @@ class HelpPanel(wx.Panel):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer2 = wx.BoxSizer(wx.HORIZONTAL)
         sizer2.Add(self.tb, 0, wx.ALL|wx.EXPAND, 5)
-        sizer2.Add(self.search, 1,wx.ALL|wx.EXPAND, 5)
+        sizer2.Add(self.search, 1, wx.ALL|wx.EXPAND, 5)
         sizer.Add(sizer2, 0, wx.ALL | wx.EXPAND, 0)
         sizer.Add(self.html, 1, wx.ALL | wx.EXPAND, 5)
         self.SetSizer(sizer)
 
-        self.history=[]
+        self.history = []
         self.history_index = -1
+        self.findStr = ""
+        self.findFlags = html.WEBVIEW_FIND_DEFAULT | html.WEBVIEW_FIND_WRAP
 
         self.Bind(wx.EVT_TEXT_ENTER, self.OnDoSearch, self.search)
         self.Bind(html.EVT_WEBVIEW_NAVIGATING, self.OnWebViewNavigating, self.html)
@@ -92,8 +93,7 @@ class HelpPanel(wx.Panel):
     def OnFind(self, evt):
         self.findStr = evt.GetFindString()
         flags = evt.GetFlags()
-        self.findFlags = html.WEBVIEW_FIND_DEFAULT |\
-                         html.WEBVIEW_FIND_WRAP
+        self.findFlags = html.WEBVIEW_FIND_DEFAULT | html.WEBVIEW_FIND_WRAP
         if wx.FR_WHOLEWORD & flags:
             self.findFlags |= html.WEBVIEW_FIND_ENTIRE_WORD
         if wx.FR_MATCHCASE & flags:
@@ -101,9 +101,10 @@ class HelpPanel(wx.Panel):
         if not(wx.FR_DOWN & flags):
             self.findFlags |= html.WEBVIEW_FIND_BACKWARDS
         self.html.Find(self.findStr, self.findFlags)
+
     def completer(self, query):
         response = wx.py.dispatcher.send(signal='shell.auto_complete_list',
-                    command = query)
+                                         command=query)
         if response:
             root = query[0:query.rfind('.')+1]
             remain = query[query.rfind('.')+1:]
@@ -111,15 +112,15 @@ class HelpPanel(wx.Panel):
             objs = [root + o for o in response[0][1] if o.lower().startswith(remain)]
             return objs, objs
 
-    def add_history(self,command):
-        if len(self.history)==0 or self.history[-1]!=command:
+    def add_history(self, command):
+        if len(self.history) == 0 or self.history[-1] != command:
             self.history.append(command)
             self.history_index = -1
 
-    def show_help(self,command, addhistory=True):
+    def show_help(self, command, addhistory=True):
         strhelp = pydoc.plain(pydoc.render_doc(str(command), "Help on %s"))
-        htmlpage = html_template%({'title':'','message':strhelp})
-        self.html.SetPage(htmlpage,'')
+        htmlpage = html_template%({'title':'', 'message':strhelp})
+        self.html.SetPage(htmlpage, '')
         # do not use SetValue since it will trigger the text update event, which
         # will popup the auto complete list window
         self.search.ChangeValue(command)
@@ -144,21 +145,22 @@ class HelpPanel(wx.Panel):
         idx = event.GetId()
         h_idx = -1
         h_len = len(self.history)
-        if h_len>0: h_idx = self.history_index%h_len
+        if h_len > 0:
+            h_idx = self.history_index%h_len
         if idx == wx.ID_FORWARD:
-            event.Enable(h_idx>=0 and h_idx<h_len-1)
+            event.Enable(h_idx >= 0 and h_idx < h_len-1)
         elif idx == wx.ID_BACKWARD:
-            event.Enable(h_idx>0)
+            event.Enable(h_idx > 0)
 
-    def OnBack(self,event):
+    def OnBack(self, event):
         # the button is only enabled when history_index>0
-        self.history_index -=1
+        self.history_index -= 1
         command = self.history[self.history_index]
         self.show_help(command, False)
 
-    def OnForward(self,event):
+    def OnForward(self, event):
         # the button is only enable when history_index hasn't reached the last
         # one
-        self.history_index +=1
+        self.history_index += 1
         command = self.history[self.history_index]
         self.show_help(command, False)

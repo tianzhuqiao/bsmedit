@@ -108,7 +108,7 @@ try:
 
         clsFrame = None
         clsID_new_figure = wx.NOT_FOUND
-
+        initialized = False
         def __init__(self, parent, title=None, num=-1, thisFig = None):
             wx.Panel.__init__(self, parent)
 
@@ -157,7 +157,7 @@ try:
 
         def destroy(self, *args):
             if self.isdestory == False:
-                wx.py.dispatcher.send(signal='frame.closepanel', panel=self)
+                wx.py.dispatcher.send(signal='frame.close_panel', panel=self)
                 wx.WakeUpIdle()
 
         def Destroy(self):
@@ -178,13 +178,13 @@ try:
         def set_window_title(self, title):
             if title == self.title: return
             self.title = title
-            wx.py.dispatcher.send(signal='frame.updatepanetitle',
+            wx.py.dispatcher.send(signal='frame.set_panel_title',
                                   pane=self, title=self.title)
 
         def show(self):
             if self.IsShown() == False:
                 self.canvas.draw()
-                wx.py.dispatcher.send(signal='frame.showpanel', panel=self)
+                wx.py.dispatcher.send(signal='frame.show_panel', panel=self)
 
         def update_buffer(self, bufs):
             for l in self.figure.gca().lines:
@@ -237,7 +237,7 @@ try:
         @classmethod
         def addFigure(cls, title=None, num=None, thisFig = None):
             panelFigure = cls(cls.clsFrame, title=title, num=num, thisFig = thisFig)
-            wx.py.dispatcher.send(signal='frame.addpanel',
+            wx.py.dispatcher.send(signal='frame.add_panel',
                                   panel=panelFigure,
                                   title=panelFigure.GetTitle(),
                                   target=Gcf.get_active())
@@ -245,8 +245,11 @@ try:
 
         @classmethod
         def Initialize(cls, frame):
+            if cls.initialized:
+                return
+            cls.initialized = True
             cls.clsFrame = frame
-            response = wx.py.dispatcher.send(signal='frame.addmenu',
+            response = wx.py.dispatcher.send(signal='frame.add_menu',
                     path='File:New:Figure', rxsignal='bsm.figure')
             if response:
                 cls.clsID_new_figure = response[0][1]
@@ -256,9 +259,12 @@ try:
             wx.py.dispatcher.connect(receiver=cls.Uninitialize,
                                      signal='frame.exit')
             wx.py.dispatcher.connect(receiver=cls.setactive,
-                                     signal='frame.activatepane')
+                                     signal='frame.activate_panel')
             wx.py.dispatcher.connect(receiver=cls.OnBufferChanged,
                                      signal='sim.buffer_changed')
+            wx.py.dispatcher.send(signal='frame.run',
+                                  command='from matplotlib.pyplot import *',
+                                  prompt=False, verbose=False)
         @classmethod
         def OnBufferChanged(cls, bufs):
             for p in Gcf.get_all_fig_managers():
@@ -272,12 +278,9 @@ try:
             if command == cls.clsID_new_figure:
                 plt.figure()
 
-
     def bsm_Initialize(frame):
         MatplotPanel.Initialize(frame)
-        wx.py.dispatcher.send(signal='frame.run',
-                              command='from matplotlib.pyplot import *',
-                              prompt=False, verbose=False)
+
 except ImportError,e:
     def bsm_Initialize(frame):
         pass
