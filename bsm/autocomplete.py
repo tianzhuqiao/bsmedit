@@ -23,11 +23,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 POSSIBILITY OF SUCH DAMAGE."""
 
 __author__ = u"Toni Ruža <gmr.gaf@gmail.com>"
-__url__  = "http://bitbucket.org/raz/wxautocompletectrl"
-
+__url__ = "http://bitbucket.org/raz/wxautocompletectrl"
 
 import wx
-
 
 class SuggestionsPopup(wx.Frame):
     def __init__(self, parent):
@@ -79,16 +77,12 @@ class SuggestionsPopup(wx.Frame):
 
 
 class AutocompleteTextCtrl(wx.TextCtrl):
-    def __init__(
-        self, parent,
-        height=300, completer=None,
-        multiline=False, frequency=250,
-        value = ""
-    ):
+    def __init__(self, parent, height=300, completer=None, multiline=False,
+                 frequency=250, value=""):
         style = wx.TE_PROCESS_ENTER
         if multiline:
             style = style | wx.TE_MULTILINE
-        wx.TextCtrl.__init__(self, parent, value = value, style=style)
+        wx.TextCtrl.__init__(self, parent, value=value, style=style)
         self.height = height
         self.frequency = frequency
         if completer:
@@ -139,7 +133,7 @@ class AutocompleteTextCtrl(wx.TextCtrl):
                 self.queued_popup = True
         event.Skip()
 
-    def AutoComplete(self):
+    def AutoComplete(self, *args, **kwargs):
         self.queued_popup = False
         if self.Value != "":
             formated, unformated = self.completer(self.Value)

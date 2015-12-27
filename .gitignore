@@ -9,3 +9,5 @@ libs/
 *.pyo
 *.dll
 License
+*.bsm
+*.zip

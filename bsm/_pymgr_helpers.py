@@ -1,14 +1,7 @@
 """
-Manage propgrid for pygrid interface.
+Manage windows (originated from matplotlib).
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import six
-
-import sys, gc
-
-import atexit
+import gc
 
 class Gcm(object):
     """
@@ -47,7 +40,8 @@ class Gcm(object):
         In the interactive backends, this is bound to the
         window "destroy" and "delete" events.
         """
-        if not self.has_num(num): return
+        if not self.has_num(num):
+            return
         manager = self.mgrs[num]
 
         # There must be a good reason for theg following careful
@@ -65,7 +59,7 @@ class Gcm(object):
     def destroy_mgr(self, mgr):
         "*mgr* is a manager instance"
         num = None
-        for manager in six.itervalues(self.mgrs):
+        for manager in self.mgrs.values():
             if manager == mgr:
                 num = manager.num
                 break
@@ -73,6 +67,7 @@ class Gcm(object):
             self.destroy(num)
 
     def destroy_all(self):
+        """remove all the managers"""
         self._activeQue = []
         self.mgrs.clear()
         gc.collect(1)
@@ -99,7 +94,7 @@ class Gcm(object):
         """
         Return the manager of the active manager, or *None*.
         """
-        if len(self._activeQue)==0:
+        if len(self._activeQue) == 0:
             return None
         else: return self._activeQue[-1]
 
@@ -110,14 +105,17 @@ class Gcm(object):
         oldQue = self._activeQue[:]
         self._activeQue = []
         for m in oldQue:
-            if m != mgr: self._activeQue.append(m)
+            if m != mgr:
+                self._activeQue.append(m)
         self._activeQue.append(mgr)
         self.mgrs[mgr.num] = mgr
 
     def get_nums(self):
+        """return all the occupied nums"""
         return self.mgrs.keys()
 
     def get_next_num(self):
+        """return the next available num"""
         allnums = self.get_nums()
         return max(allnums) + 1 if allnums else 1
 

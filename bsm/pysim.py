@@ -1,7 +1,7 @@
-from sim import *
-from bsmpropgrid import *
+from sim import sim, Gcs
+from bsmpropgrid import bsmPropGrid
 from bsmplot import *
-
+from sim_engine import *
 def gcp():
     """
     get the current propgrid manager
@@ -11,13 +11,13 @@ def gcp():
         mgr = propgrid()
     return mgr
 
-def propgrid(num = None, create = True, activate = False):
+def propgrid(*args, **kwargs):
     """
     get the propgrid manager by its number
 
     If the manager exists, return its handler; otherwise, it will be created.
     """
-    return sim.propgrid(num, create, activate)
+    return sim.propgrid(*args, **kwargs)
 
 def gcs():
     """
@@ -25,55 +25,39 @@ def gcs():
 
     If no simulation is available, create a new one.
     """
-    sim = Gcs.get_active()
-    if not sim:
-        sim = simulation()
-    return sim
+    s = Gcs.get_active()
+    if not s:
+        s = simulation()
+    return s
 
-def simulation(num = None, filename = None, scilent = False, create = True,
-               activate = False):
+def simulation(*args, **kwargs):
     """
     create a simulation
 
     If the simulation exists, return its handler; otherwise, create it if
     create == True.
     """
-    manager = Gcs.get_manager(num)
-    if manager == None and create:
-        manager = ModulePanel(sim.frame, num, filename, scilent)
-        wx.py.dispatcher.send(signal="frame.add_panel", panel = manager,
-                      title = "Simulation-%d"%manager.num, target = "History")
-    # activate the manager
-    elif manager and activate:
-        wx.py.dispatcher.send(signal = 'frame.show_panel', panel = manager)
+    return sim.simulation(*args, **kwargs)
 
-    return manager
-
-def set_parameter(step, unitStep, total, unitTotal, block = False):
+def set_parameter(*args, **kwargs):
     """
     set the parameters for the current simulation
     """
-    sim = gcs()
-    if not sim: return
-    sim.set_parameter(step, unitStep, total, unitTotal, block)
+    sim.set_parameter(*args, **kwargs)
 
-def load(filename, block = True):
+def load(*args, **kwargs):
     """
     load the simulation library (e.g., dll)
     """
-    sim = gcs()
-    if not sim: return
-    sim.load(filename, block)
+    sim.load(*args, **kwargs)
 
-def load_interactive():
+def load_interactive(*args, **kwargs):
     """
     open a filedialog to load the simulation
     """
-    sim = gcs()
-    if not sim: return
-    sim.load_interactive()
+    sim.load_interactive(*args, **kwargs)
 
-def step():
+def step(*args, **kwargs):
     """
     proceed the simulation with one step
 
@@ -82,60 +66,46 @@ def step():
 
     The breakpoints are checked at each delta cycle.
     """
-    sim = gcs()
-    if not sim: return
-    sim.step()
+    sim.step(*args, **kwargs)
 
-def run():
+def run(*args, **kwargs):
     """
     keep running the simulation
 
     The simulation is executed step by step. After each step, the simulation
     'server' will notify the 'client' to update the GUI.
     """
-    sim = gcs()
-    if not sim: return
-    sim.run()
+    sim.run(*args, **kwargs)
 
-def pause():
+def pause(*args, **kwargs):
     """
     pause the simulation after the current step.
     """
-    sim = gcs()
-    if not sim: return
-    sim.pause()
+    sim.pause(*args, **kwargs)
 
-def stop():
+def stop(*args, **kwargs):
     """
     stop the simulation after the current step.
     """
-    sim = gcs()
-    if not sim: return
-    sim.stop()
+    return sim.stop(*args, **kwargs)
 
-def reset():
+def reset(*args, **kwargs):
     """
     reset the simulation
     """
-    sim = gcs()
-    if not sim: return
-    sim.reset()
+    return sim.reset(*args, **kwargs)
 
-def time_stamp(block = True):
+def time_stamp(*args, **kwargs):
     """
     get the simulation time stamp
 
     if block == False, it will return after sending the command; otherwise, it
     will return the current simulation time
     """
-    sim = gcs()
-    if not sim: return
-    return sim.time_stamp(block)
+    return sim.time_stamp(*args, **kwargs)
 
-def time_stamp_sec(block = True):
-    sim = gcs()
-    if not sim: return
-    return sim.time_stamp_sec(block)
+def time_stamp_sec(*args, **kwargs):
+    return sim.time_stamp_sec(*args, **kwargs)
 
 def get_object_name(name):
     return sim.get_object_name(name)
@@ -144,10 +114,11 @@ def get_abs_name(name):
     num, n = get_object_name(name)
     if not num:
         mgr = gcs()
-        if mgr: return mgr._abs_object_name(n)
+        if mgr:
+            return mgr._abs_object_name(n)
     return name
 
-def read(objects, block = True):
+def read(*args, **kwargs):
     """
     get the values of the registers
 
@@ -170,40 +141,9 @@ def read(objects, block = True):
     Example: read multiple registers from multiple simulations
     >>> read(['1.top.sig_bool', '2.top.sig_cos']
     """
-    sim = gcs()
-    if not sim: return
+    return sim.read(*args, **kwargs)
 
-    if isinstance(objects, str):
-        objects = [objects]
-    objs = {}
-    for obj in objects:
-       num, name = get_object_name(obj)
-       if num is None:
-           num = sim.num
-       if num in objs.keys():
-           objs[num].append(name)
-       else:
-           objs[num] = [name]
-    resp = {}
-    for num, obj in objs.iteritems():
-        mgr = simulation(num)
-        if not mgr: continue
-        v = mgr.read(obj, block)
-        if isinstance(v, str) or isinstance(v, unicode):
-            resp[mgr._abs_object_name(obj[0])] = v
-            if mgr == sim: resp[obj[0]] = v
-        else:
-            if mgr == sim: resp.update(v)
-            v = {mgr._abs_object_name(name):value for name, value in v.iteritems()}
-            resp.update(v)
-
-    resp =  {obj: resp.get(obj, '') for obj in objects}
-    if len(resp) == 1:
-        return resp.values()[0]
-    else:
-        return {obj: resp.get(obj, '') for obj in objects}
-
-def write(objects, block = True):
+def write(*args, **kwargs):
     """
     write the values to registers
 
@@ -222,25 +162,9 @@ def write(objects, block = True):
     >>> step()
     >>> c = read('top.sig_int', True)
     """
-    sim = gcs()
-    if not sim: return
-    objs = {}
-    for obj, value in objects.iteritems():
-       num, name = get_object_name(obj)
-       if num is None:
-           num = sim.num
-       if num in objs.keys():
-           objs[num][name] = value
-       else:
-           objs[num] = {name:value}
+    sim.write(*args, **kwargs)
 
-    for num, obj in objs.iteritems():
-        mgr = simulation(num, False)
-        if not mgr: continue
-        mgr.write(obj, block)
-
-def trace_file(name, trace_type = BSM_TRACE_SIMPLE, valid=None,\
-              trigger = BSM_BOTHEDGE, block = True):
+def trace_file(*args, **kwargs):
     """
     dump the values to a file
 
@@ -259,29 +183,16 @@ def trace_file(name, trace_type = BSM_TRACE_SIMPLE, valid=None,\
         BSM_NONEEDGE: no triggering
 
     """
-    num, obj = get_object_name(name)
-    mgr = None
-    if not num: mgr = gcs()
-    else: mgr = simulation(num, create = False)
+    return sim.trace_file(*args, **kwargs)
 
-    if not mgr: return False
-
-    return mgr.trace_file(obj, trace_type, valid, trigger, block)
-
-def trace_buf(name, size = 256, valid = None, trigger = BSM_BOTHEDGE, block = True):
+def trace_buf(*args, **kwargs):
     """
     trace the register with a buffer
 
     """
-    num, obj = get_object_name(name)
-    mgr = None
-    if not num: mgr = gcs()
-    else: mgr = simulation(num, create = False)
+    return sim.trace_buf(*args, **kwargs)
 
-    if not mgr: return None
-    return mgr.trace_buf(obj, size, valid, trigger, block)
-
-def read_buf(name, block = True):
+def read_buf(*args, **kwargs):
     """
     read the previous traced buffer to an numpy array
 
@@ -289,13 +200,7 @@ def read_buf(name, block = True):
     previous defined size will return; otherwise the trace_buf will be called
     with default arguments first.
     """
-    num, obj = get_object_name(name)
-    mgr = None
-    if not num: mgr = gcs()
-    else: mgr = simulation(num, create = False)
-
-    if not mgr: return False
-    return mgr.read_buf(obj, block)
+    return sim.read_buf(*args, **kwargs)
 
 def plot_trace(x, y, autorelim=True, *args, **kwargs):
     """
@@ -313,32 +218,10 @@ def plot_trace(x, y, autorelim=True, *args, **kwargs):
     mgr = plt.get_current_fig_manager()
     mgr.plot_trace(x, y, autorelim, *args, **kwargs)
 
-def monitor(objects, grid = None):
+def monitor(*args, **kwargs):
     """
     show the register in the active propgrid window
 
     If no propgrid window has been created, one will be created first.
     """
-    sim = gcs()
-    if not sim: return
-
-    if grid == None:
-        grid = gcp()
-    if not grid: return
-
-    if isinstance(objects, str):
-        objects = [objects]
-    objs = {}
-    for obj in objects:
-       num, name = get_object_name(obj)
-       if num is None:
-           num = sim.num
-       if num in objs.keys():
-           objs[num].append(name)
-       else:
-           objs[num] = [name]
-    for num, obj in objs.iteritems():
-        mgr = simulation(num, create = False)
-        if not mgr: continue
-        mgr.show_prop(grid, obj)
-
+    return sim.monitor(*args, **kwargs)

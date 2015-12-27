@@ -104,7 +104,7 @@ class bsmMainFrame(framePlus):
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
         dispatcher.connect(receiver=self.runCommand, signal='frame.run')
         dispatcher.connect(receiver=self.setPanelTitle, signal='frame.set_panel_title')
-        dispatcher.connect(receiver=self.setStatusText, signal='frame.set_statu_stext')
+        dispatcher.connect(receiver=self.setStatusText, signal='frame.set_status_text')
         dispatcher.connect(receiver=self.addFileHistory, signal='frame.add_file_history')
         self.Bind(wx.EVT_CLOSE, self._onClose)
 
@@ -277,7 +277,7 @@ class bsmMainFrame(framePlus):
         self.statusbar.SetStatusText(text, index)
 
     def _package_contents(self, package_name):
-        MODULE_EXTENSIONS = ('.py', '.pyc', '.pyo')
+        MODULE_EXTENSIONS = ('.py')
         (file, pathname, description) = imp.find_module(package_name)
         if file:
             raise ImportError('Not a package: %r', package_name)
@@ -285,7 +285,8 @@ class bsmMainFrame(framePlus):
         # Use a set because some may be both source and compiled.
         return set([os.path.splitext(module)[0] for module in
                     os.listdir(pathname)
-                    if module.endswith(MODULE_EXTENSIONS)])
+                    if module.endswith(MODULE_EXTENSIONS) and
+                       not module.startswith('_')])
 
     def runCommand(self, command, prompt=True, verbose=True, debug=False):
         """execute the command in shell"""
