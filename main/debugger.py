@@ -60,6 +60,9 @@ class PseudoEvent():
             raise NotImplementedError('Timeout not implemented')
         while self._set is False: #and (self._eng._stop is False):
             wx.YieldIfNeeded()
+            # send the EVT_UPDATE_UI events so the UI status has a chance to
+            # update (e.g., menubar, toolbar)
+            wx.GetApp().ProcessIdle()
             time.sleep(0.05)
 
 class EngineDebugger():
