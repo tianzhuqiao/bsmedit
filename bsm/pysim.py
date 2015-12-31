@@ -2,6 +2,8 @@ from sim import sim, Gcs
 from bsmpropgrid import bsmPropGrid
 from bsmplot import *
 from sim_engine import *
+from _docstring import copy_docstring
+
 def gcp():
     """
     get the current propgrid manager
@@ -30,82 +32,45 @@ def gcs():
         s = simulation()
     return s
 
+@copy_docstring(sim.propgrid)
 def simulation(*args, **kwargs):
-    """
-    create a simulation
-
-    If the simulation exists, return its handler; otherwise, create it if
-    create == True.
-    """
     return sim.simulation(*args, **kwargs)
 
+@copy_docstring(sim.set_parameter)
 def set_parameter(*args, **kwargs):
-    """
-    set the parameters for the current simulation
-    """
     sim.set_parameter(*args, **kwargs)
 
+@copy_docstring(sim.load)
 def load(*args, **kwargs):
-    """
-    load the simulation library (e.g., dll)
-    """
     sim.load(*args, **kwargs)
 
+@copy_docstring(sim.load_interactive)
 def load_interactive(*args, **kwargs):
-    """
-    open a filedialog to load the simulation
-    """
     sim.load_interactive(*args, **kwargs)
 
+@copy_docstring(sim.step)
 def step(*args, **kwargs):
-    """
-    proceed the simulation with one step
-
-    The step is set with set_parameter(). The GUI components will be updated
-    after the running.
-
-    The breakpoints are checked at each delta cycle.
-    """
     sim.step(*args, **kwargs)
 
+@copy_docstring(sim.run)
 def run(*args, **kwargs):
-    """
-    keep running the simulation
-
-    The simulation is executed step by step. After each step, the simulation
-    'server' will notify the 'client' to update the GUI.
-    """
     sim.run(*args, **kwargs)
 
+@copy_docstring(sim.pause)
 def pause(*args, **kwargs):
-    """
-    pause the simulation after the current step.
-    """
     sim.pause(*args, **kwargs)
 
+@copy_docstring(sim.stop)
 def stop(*args, **kwargs):
-    """
-    stop the simulation after the current step.
-    """
     return sim.stop(*args, **kwargs)
 
+@copy_docstring(sim.reset)
 def reset(*args, **kwargs):
-    """
-    reset the simulation
-    """
     return sim.reset(*args, **kwargs)
 
+@copy_docstring(sim.time_stamp)
 def time_stamp(*args, **kwargs):
-    """
-    get the simulation time stamp
-
-    if block == False, it will return after sending the command; otherwise, it
-    will return the current simulation time
-    """
     return sim.time_stamp(*args, **kwargs)
-
-def time_stamp_sec(*args, **kwargs):
-    return sim.time_stamp_sec(*args, **kwargs)
 
 def get_object_name(name):
     return sim.get_object_name(name)
@@ -115,11 +80,13 @@ def get_abs_name(name):
     if not num:
         mgr = gcs()
         if mgr:
-            return mgr._abs_object_name(n)
+            return mgr.abs_object_name(n)
     return name
 
 def read(*args, **kwargs):
     """
+    read(objects, block=True)
+
     get the values of the registers
 
     If block == False, it will return after sending the command; otherwise, it
@@ -145,6 +112,8 @@ def read(*args, **kwargs):
 
 def write(*args, **kwargs):
     """
+    write(objects, block=True)
+
     write the values to registers
 
     Objects should be a dictionary where the keys are the register name. Due to

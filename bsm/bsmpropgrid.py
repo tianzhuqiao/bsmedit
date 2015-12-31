@@ -511,8 +511,8 @@ class bsmPropGridBase(wx.ScrolledWindow):
     def OnPropEventsHandler(self, evt):
         """process the property notification"""
         self.SendPropEvent(evt.GetEventType(), evt.GetProperty())
-        if evt.GetEventType() in [EVT_BSM_PROP_COLLAPSED, EVT_BSM_PROP_EXPANDED,
-                                  EVT_BSM_PROP_INDENT, EVT_BSM_PROP_RESIZE]:
+        if evt.GetEventType() in [wxEVT_BSM_PROP_COLLAPSED, wxEVT_BSM_PROP_EXPANDED,
+                                  wxEVT_BSM_PROP_INDENT, wxEVT_BSM_PROP_RESIZE]:
             self.UpdateGrid(True, True)
 
     def OnPropTextEnter(self, evt):
@@ -629,6 +629,8 @@ class bsmPropGridBase(wx.ScrolledWindow):
 
             # pass the event to the property
             ht = prop.OnMouseDown(pt)
+            self.PropUnderMouse = prop
+            self.CaptureMouse()
             self.resizeMode = self.BSMGRID_NONE
             if ht == bsmProperty.PROP_HIT_SPLITTER:
                 # drag the splitter
@@ -640,15 +642,13 @@ class bsmPropGridBase(wx.ScrolledWindow):
                 # drag the bottom edge of the property above
                 if index > 0:
                     index = index-1
+                    self.PropUnderMouse = self.GetProperty(index)
                     self.resizeMode = self.BSMGRID_RESIZE_BOT
             elif ht == bsmProperty.PROP_HIT_TITLE:
                 # start drag & drop
                 bsmPropGrid.dragStartPt = self.ClientToScreen(pt)
                 bsmPropGrid.dragProperty = prop
                 bsmPropGrid.dragPropState = 1
-            else:
-                self.PropUnderMouse = prop
-                self.CaptureMouse()
         evt.Skip()
 
     def OnMouseUp(self, evt):
@@ -925,7 +925,8 @@ class bsmPropGrid(bsmPropGridBase):
             prop.SetReadOnly(not prop.GetReadOnly())
         elif eid == self.ID_PROP_GRID_PROP:
             dlg = dlgSettings(self, prop)
-            dlg.ShowModal()
+            if dlg.ShowModal() == wx.ID_OK:
+                prop.Refresh()
         elif eid == self.ID_PROP_GRID_INDENT_INS:
             prop.SetIndent(prop.GetIndent()+1)
         elif eid == self.ID_PROP_GRID_INDENT_DES:
@@ -1164,6 +1165,8 @@ class dlgSettings(wx.Dialog):
 
 
     def OnBtnOk(self, event):
+        if self.propgrid.PropSelected:
+            self.propgrid.PropSelected.OnTextEnter()
         for (name, label, ctrl) in self.items:
             v = self.propgrid.GetProperty(name)
             if name in ['choiceList', 'valueList']:

@@ -271,7 +271,7 @@ class bsmMainFrame(framePlus):
         if index >= len(self.statusbar_width):
             self.statusbar_width.extend([0 for i in range(index+1-len(self.statusbar_width))])
             self.statusbar.SetFieldsCount(index+1)
-        if self.statusbar_width[index] != width:
+        if self.statusbar_width[index] < width:
             self.statusbar_width[index] = width
             self.statusbar.SetStatusWidths(self.statusbar_width)
         self.statusbar.SetStatusText(text, index)
@@ -392,7 +392,7 @@ class bsmMainFrame(framePlus):
                       paneInfo=aui.AuiPaneInfo().Name('debugger')
                       .Caption('Debugger').ToolbarPane().Top(),
                       showhidemenu='View:Toolbars:Debugger')
-        dispatcher.connect(receiver=self.OnUpdateUI, signal='frame.updateui')
+        #dispatcher.connect(receiver=self.OnUpdateUI, signal='frame.updateui')
         dispatcher.connect(self.debug_paused, 'debugger.paused')
         dispatcher.connect(self.debug_ended, 'debugger.ended')
         self.SetExtraStyle(wx.WS_EX_PROCESS_UI_UPDATES)

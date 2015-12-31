@@ -367,6 +367,10 @@ class bsmProperty(object):
         """return the width"""
         return self.titleWidth
 
+    def Refresh(self):
+        """notify the parent to redraw the property"""
+        self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
+
     def DrawItem(self, dc):
         """draw the property"""
         if not self.GetVisible():

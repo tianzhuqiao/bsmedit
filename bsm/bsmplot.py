@@ -256,7 +256,8 @@ class Toolbar(NavigationToolbar):
 
     def set_message(self, s):
         """show the status message"""
-        dispatcher.send(signal='frame.set_status_text', text=s)
+        dispatcher.send(signal='frame.set_status_text', text=s, index=1,
+                        width=160)
 
 class MatplotPanel(wx.Panel):
 

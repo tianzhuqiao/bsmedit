@@ -506,8 +506,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
         caretPos = self.GetCurrentPos()
         col = self.GetColumn(caretPos) + 1
         line = self.LineFromPosition(caretPos) + 1
-        dispatcher.send(signal='frame.set_status_text', text='%d,%d'%(line, col),
-                        index=1, width=40)
+        dispatcher.send(signal='frame.set_status_text', text='%d, %d'%(line, col),
+                        index=1, width=100)
 
     def OnUpdateUI(self, event):
         super(PyEditor, self).OnUpdateUI(event)
@@ -1010,7 +1010,7 @@ class PyEditorPanel(wx.Panel):
     def Destroy(self, *args, **kwargs):
         """destroy the panel"""
         self.editor.ClearBreakpoint()
-        return super(PyEditorPanel, self).Destroy(self, *args, **kwargs)
+        return super(PyEditorPanel, self).Destroy(*args, **kwargs)
 
     def update_bp(self):
         """update the breakpoints"""

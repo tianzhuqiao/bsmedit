@@ -3,6 +3,8 @@ import threading
 import re
 import json
 import multiprocessing as mp
+import Queue
+from time import time as _time
 import wx
 import wx.py.dispatcher as dispatcher
 from wx.lib.masked import NumCtrl
@@ -12,6 +14,7 @@ from bsmpropgrid import bsmPropGrid
 from sim_engine import *
 from bsm._pymgr_helpers import Gcm
 from autocomplete import AutocompleteTextCtrl
+from _docstring import copy_docstring_raw
 
 class ModuleTree(wx.TreeCtrl):
     ID_MP_DUMP = wx.NewId()
@@ -265,44 +268,6 @@ class DumpDlg(wx.Dialog):
     def GetTrace(self):
         return self.trace
 
-class PseudoSimEvent(object):
-    def __init__(self):
-        self._set = False
-        self._waiting = False
-
-    def set(self):
-        self._set = True
-
-    def clear(self):
-        self._set = False
-
-    def wait(self):
-        self._waiting = True
-        while self._set is False:
-            wx.YieldIfNeeded()
-            time.sleep(0.05)
-        self._waiting = False
-    def isWaiting(self):
-        return self._waiting
-class Stack:
-    def __init__(self):
-        self.items = []
-
-    def isEmpty(self):
-        return self.items == []
-
-    def push(self, item):
-        self.items.append(item)
-
-    def pop(self):
-        return self.items.pop()
-
-    def peek(self):
-        return self.items[len(self.items)-1]
-
-    def size(self):
-        return len(self.items)
-
 class ModulePanel(wx.Panel):
     ID_GOTO_PARENT = wx.NewId()
     ID_GOTO_HOME = wx.NewId()
@@ -322,15 +287,12 @@ class ModulePanel(wx.Panel):
             self.num = Gcs.get_next_num()
         Gcs.set_active(self)
 
-        # event for 'block' operations
-        self._resume_event = PseudoSimEvent()
         # the variable used to update the UI in idle()
         self.ui_timestamp = None
         self.ui_objs = None
         self.ui_buffers = None
         self.ui_load = False
         self.ui_update = 0
-        self.response = None
         self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|wx.TB_NODIVIDER)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
 
@@ -399,8 +361,15 @@ class ModulePanel(wx.Panel):
         self.Bind(wx.EVT_MENU_RANGE, self.OnProcessCommand, id=wx.ID_FILE1, id2=wx.ID_FILE9)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
         self.objects = None
+        # the grid list used in context menu
         self.gridList = []
+
         # create the simulation kernel
+        self.response = {}
+        self._cmdId = 0
+        self._cmdId_resp = -1
+        self.qRespNotify = mp.Queue()
+
         self.qResp = None
         self.qCmd = None
         self.respThread = None
@@ -422,22 +391,28 @@ class ModulePanel(wx.Panel):
     def sendCommand(self, cmd, args, block=False):
         """send the command to the simulation process"""
         try:
+            # always increase the command ID
+            cid = self._cmdId
+            self._cmdId += 1
+
             # return, if the previous call has not finished
             # it may happen when the previous command is waiting for response,
             # and another command is sent (by clicking a button)
-            if self._resume_event.isWaiting():
-                block = False
-
             if self.qResp is None or self.qCmd is None or\
                self.simProcess is None or self.respThread is None:
                 raise KeyboardInterrupt
-            self._resume_event.clear()
             if not isinstance(args, dict):
                 return False
-            self.qCmd.put([{'cmd':cmd, 'arguments':args}])
-            if block:
-                self._resume_event.wait()
-                return self.response
+            self.qCmd.put({'id':cid, 'block':block, 'cmd':cmd, 'arguments':args})
+            #print 'block: ', block
+            if block is True:
+                # wait for the command to finish
+                while True:
+                    resp = self.qRespNotify.get()
+                    #print resp
+                    rtn = self.ProcessResponse(resp)
+                    if resp.get('id', -1) == cid:
+                        return rtn
             return True
         except:
             traceback.print_exc(file=sys.stdout)
@@ -462,7 +437,7 @@ class ModulePanel(wx.Panel):
         self.stop()
         self.qResp = mp.Queue()
         self.qCmd = mp.Queue()
-        self.respThread = RespThread(self, self.qResp)
+        self.respThread = RespThread(self, self.qResp, self.qRespNotify)
         self.respThread.start()
         self.simProcess = mp.Process(target=sim_process,
                                      args=(self.qResp, self.qCmd))
@@ -505,7 +480,7 @@ class ModulePanel(wx.Panel):
         # no response from the subprocess
         self.sendCommand('exit', {}, False)
         # stop the client
-        self.qResp.put([{'resp':'exit'}])
+        self.qResp.put({'cmd':'exit'})
         self.simProcess.join()
         self.respThread.join()
         self.respThread = None
@@ -521,13 +496,12 @@ class ModulePanel(wx.Panel):
         """reset the simulation"""
         self.start()
 
-    def time_stamp(self, block=True):
+    def time_stamp(self, inSecond=False, block=True):
         """return the simulation time elapsed as a string"""
-        return self.sendCommand('timestamp', {}, block)
-
-    def time_stamp_sec(self, block=True):
-        """return the simulation time elapsed as a double"""
-        return self.sendCommand('timestamp', {'format':'second'}, block)
+        args = {}
+        if inSecond:
+            args['format'] = 'second'
+        return self.sendCommand('time_stamp', args, block)
 
     def read(self, objects, block=True):
         """read the register"""
@@ -545,7 +519,7 @@ class ModulePanel(wx.Panel):
         if isinstance(obj, list):
             obj = obj[0]
         args = {'name':obj, 'type':trace_type, 'valid':valid, 'trigger':trigger}
-        return self.sendCommand('tracefile', args, block)
+        return self.sendCommand('trace_file', args, block)
 
     def trace_buf(self, obj, size=256, valid=None, trigger=BSM_BOTHEDGE,
                   block=True):
@@ -553,13 +527,13 @@ class ModulePanel(wx.Panel):
         if isinstance(obj, list):
             obj = obj[0]
         args = {'name':obj, 'size':size, 'valid':valid, 'trigger':trigger}
-        return self.sendCommand('tracebuf', args, block)
+        return self.sendCommand('trace_buf', args, block)
 
     def read_buf(self, objects, block=True):
         """read the traced buffer"""
         if isinstance(objects, str):
             objects = [objects]
-        return self.sendCommand('readbuf', {'objects':objects}, block)
+        return self.sendCommand('read_buf', {'objects':objects}, block)
 
     def monitor_reg(self, objs, block=True):
         """
@@ -585,7 +559,7 @@ class ModulePanel(wx.Panel):
         """delete the breakpoint"""
         return self.sendCommand('breakpoint_del', {'objects':objs}, block)
 
-    def _abs_object_name(self, obj):
+    def abs_object_name(self, obj):
         """generate the global name for simulation object (num.name)"""
         num, name = sim.get_object_name(obj)
         if num is not None:
@@ -603,7 +577,7 @@ class ModulePanel(wx.Panel):
             obj = self.objects.get(name, None)
             if obj is None:
                 continue
-            prop = grid.InsertProperty(self._abs_object_name(obj['name']),
+            prop = grid.InsertProperty(self.abs_object_name(obj['name']),
                                        obj['basename'], obj['value'], index)
             if not obj['readable'] and not obj['writable']:
                 prop.SetReadOnly(True)
@@ -627,7 +601,7 @@ class ModulePanel(wx.Panel):
             obj = self.tree.GetExtendObj(item)
             objects.append(obj['name'])
         if objects:
-            self.read(objects)
+            wx.CallAfter(self.read, objects, True)
 
     def OnTreeItemMenu(self, event):
         item = event.GetItem()
@@ -675,11 +649,11 @@ class ModulePanel(wx.Panel):
                 objchild = []
                 while child.IsOk():
                     ext2 = self.tree.GetExtendObj(child)
-                    objchild.append(self._abs_object_name(ext2['name']))
+                    objchild.append(self.abs_object_name(ext2['name']))
                     (child, cookie) = self.tree.GetNextChild(item, cookie)
-                objs.append({'reg':self._abs_object_name(ext['name']), 'child':objchild})
+                objs.append({'reg':self.abs_object_name(ext['name']), 'child':objchild})
             else:
-                objs.append({'reg':self._abs_object_name(ext['name'])})
+                objs.append({'reg':self.abs_object_name(ext['name'])})
 
         # need to explicitly allow drag
         # start drag operation
@@ -743,60 +717,71 @@ class ModulePanel(wx.Panel):
                         prop.SetIndent(1)
                         (child, cookie) = self.tree.GetNextChild(item, cookie)
 
-
-    def OnSimNotify(self, e):
-        """
-        process the response from the simulation process
-
-        Never call sendCommand here, which may cause deadlock
-        """
-
-        command = e.GetVal()
-        for cmd in command:
-            command = cmd['resp']
-            value = cmd['value']
+    def ProcessResponse(self, resp):
+        try:
+            command = resp.get('cmd', '')
+            cid = resp.get('id', -1)
+            value = resp.get('value', False)
+            block = resp.get('block', False)
             if command == 'load':
                 self.objects = value
                 self.tree.Load(self.objects)
                 self.ui_load = True
-
-            elif command == 'monitor':
-                objs = value
-                self.ui_objs = {self._abs_object_name(name):v for name, v in objs.iteritems()}
-
+            elif command == 'step':
+                if value:
+                    # simulation proceeds one step, update the values
+                    self.time_stamp(False, False)
+                    self.read([], False)
+                    self.read_buf([], False)
+            elif command == 'pause':
+                pass
             elif command == 'monitor_add':
-                objs = [self._abs_object_name(name) for name, v in value.iteritems() if v]
+                objs = [self.abs_object_name(name) for name, v in value.iteritems() if v]
                 wx.CallAfter(wx.py.dispatcher.send, signal='sim.monitor_added', objs=objs)
-
+            elif command == 'monitor_del':
+                pass
+            elif command == 'breakpoint_add':
+                pass
+            elif command == 'breakpoint_del':
+                pass
+            elif command == 'set_parameter':
+                pass
+            elif command == 'get_parameter':
+                pass
             elif command == 'read':
-                for name, obj in value.iteritems():
-                    o = self.objects.get(name, None)
-                    if o is None: continue
-                    o['value'] = obj
-
-            elif command == 'timestamp':
+                self.ui_objs = {self.abs_object_name(name):v for name, v in value.iteritems()}
+            elif command == 'read_buf':
+                self.ui_buffers = {self.abs_object_name(name):v for name, v in value.iteritems()}
+            elif command == 'write':
+                pass
+            elif command == 'time_stamp':
                 if isinstance(value, str):
                     self.ui_timestamp = value
-
-            elif command == 'readbuf':
-                self.ui_buffers = {self._abs_object_name(name):v for name, v in value.iteritems()}
-
-            elif command == 'triggered':
+            elif command == 'trace_file':
+                pass
+            elif command == 'trace_buf':
+                pass
+            elif command == 'breakpoint_triggered':
                 bp = value #[name, condition, hitcount, hitsofar]
                 for grid in bsmPropGrid.GCM.get_all_managers():
-                    if grid.triggerBreakPoint(self._abs_object_name(bp[0]), bp[1], bp[2]):
+                    if grid.triggerBreakPoint(self.abs_object_name(bp[0]), bp[1], bp[2]):
                         dispatcher.send(signal='frame.show_panel', panel=grid)
                         break
-
-            elif command == 'ack':
-                pass
-
             elif command == 'writeOut':
                 dispatcher.send(signal='shell.writeout', text=value)
+            return value
+        except:
+            traceback.print_exc(file=sys.stdout)
 
-        self.response = value
-        self._resume_event.set()
-
+    def OnSimNotify(self, e):
+        """process the response from the simulation process"""
+        try:
+            cmd = self.qRespNotify.get_nowait()
+            while cmd:
+                self.ProcessResponse(cmd)
+                cmd = self.qRespNotify.get_nowait()
+        except Queue.Empty:
+            pass
     def OnIdle(self, event):
         """update the GUI"""
         if self.ui_load:
@@ -838,23 +823,35 @@ class simEvent(wx.PyCommandEvent):
         return self.val
 
 class RespThread(threading.Thread):
-    def __init__(self, frame, q):
+    def __init__(self, frame, qResp, qRespNotify):
         threading.Thread.__init__(self)
         self.frame = frame
-        self.q = q
-
+        self.qResp = qResp
+        self.qRespNotify = qRespNotify
+        self.lastTimeNotify = -1
     def run(self):
-        while self.command():
+        while self.response():
             pass
 
-    def command(self):
-        command = self.q.get()
-        for cmd in command:
-            if cmd['resp'] == 'exit':
-                return False
-        event = simEvent(bsmEVT_SIM_NOTIFY)
-        event.SetVal(command)
-        wx.PostEvent(self.frame, event)
+    def response(self):
+        command = self.qResp.get()
+        if command['cmd'] == 'exit':
+            return False
+        if command.get('block', False):
+            # always forward the response from blocking command, otherwise
+            # the main thread may not be able to return
+            self.qRespNotify.put(command)
+        else:
+            # TODO if the qRespNonBlock is not almost empty, maybe we send too
+            # many responses (e.g., in running mode), and ignore the
+            # unimportant response.
+            #delta = _time() - self.lastTimeNotify
+            #if delta > 0 or command.get('important', False):
+            #    self.lastTimeNotify += delta
+            self.qRespNotify.put(command)
+            event = simEvent(bsmEVT_SIM_NOTIFY)
+            event.SetVal(command)
+            wx.PostEvent(self.frame, event)
         return True
 
 class sim:
@@ -918,11 +915,16 @@ class sim:
                                 del kwargs[arg]
                 v = fun(obj, *args, **kwargs)
                 if isinstance(v, bool):
-                    resp[mgr._abs_object_name(obj[0])] = v
+                    obj2 = obj
+                    if isinstance(obj, dict):
+                        obj2 = obj.keys()
+                    for o in obj2:
+                        resp[o] = v
+                        resp[mgr.abs_object_name(o)] = v
                 elif isinstance(v, dict):
                     resp.update(v)
-                    v2 = {mgr._abs_object_name(name):value for name, value in v.iteritems()}
-                    resp.update(v)
+                    v2 = {mgr.abs_object_name(name):value for name, value in v.iteritems()}
+                    resp.update(v2)
                 else:
                     print v
                     raise TypeError("Unsupported response type")
@@ -931,7 +933,13 @@ class sim:
             response = {obj: resp.get(obj, '') for obj in objects}
             if len(response) == 1:
                 return response.values()[0]
+            elif all(r == True for r in response.values()):
+                return True
+            elif all(r == False for r in response.values()):
+                return False
             return response
+        copy_docstring_raw(getattr(ModulePanel, method), function)
+        function.__name__ = method
         return function
 
     @classmethod
@@ -1210,13 +1218,7 @@ class sim:
         s = Gcs.get_active()
         if not s:
             return
-        return s.time_stamp(block)
-    @classmethod
-    def time_stamp_sec(cls, block=True):
-        s = Gcs.get_active()
-        if not s:
-            return
-        return s.time_stamp_sec(block)
+        return s.time_stamp(block=block)
 
 def bsm_Initialize(frame):
     sim.Initialize(frame)
