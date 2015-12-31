@@ -1,5 +1,6 @@
 import pydoc
 import wx
+import wx.py.dispatcher as dispatcher
 import wx.html2 as html
 from bsmhelpxpm import * # for toolbar icon
 from bsm.autocomplete import AutocompleteTextCtrl
@@ -103,8 +104,8 @@ class HelpPanel(wx.Panel):
         self.html.Find(self.findStr, self.findFlags)
 
     def completer(self, query):
-        response = wx.py.dispatcher.send(signal='shell.auto_complete_list',
-                                         command=query)
+        response = dispatcher.send(signal='shell.auto_complete_list',
+                                   command=query)
         if response:
             root = query[0:query.rfind('.')+1]
             remain = query[query.rfind('.')+1:]

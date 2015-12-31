@@ -110,7 +110,12 @@ class bsmMainFrame(framePlus):
 
         #try:
         self.addon = {}
-        bsmpackages = self._package_contents('bsm')
+        try:
+            # check if the __init__ module defines all the modules to be loaded
+            mod = importlib.import_module('bsm.__init__')
+            bsmpackages = mod.auto_load_module
+        except ImportError:
+            bsmpackages = self._package_contents('bsm')
         for pkg in bsmpackages:
             mod = importlib.import_module('bsm.%s' % pkg)
             if hasattr(mod, 'bsm_Initialize'):
