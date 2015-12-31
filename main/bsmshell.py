@@ -273,8 +273,9 @@ class bsmShell(Shell):
         event.Skip()
 
     def OnUpdateUI(self, event):
+        # update the caret position so that it is always in valid area
+        self.UpdateCaretPos()
         super(bsmShell, self).OnUpdateUI(event)
-        wx.CallAfter(self.UpdateCaretPos)
 
     def UpdateCaretPos(self):
         # when editing the command, do not allow moving the caret to
@@ -411,6 +412,7 @@ class bsmShell(Shell):
             self.EmptyUndoBuffer()
             # move the caret to the end
             self.GotoPos(self.GetTextLength())
+            self.Update()
 
     def writeErr(self, text):
         """Replacement for stderror"""
