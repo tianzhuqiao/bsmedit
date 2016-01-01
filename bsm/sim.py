@@ -434,9 +434,15 @@ class ModulePanel(wx.Panel):
         unitStep = int(self.cmbUnitStep.GetSelection())
         total = int(self.tcTotal.GetValue())
         unitTotal = int(self.cmbUnitTotal.GetSelection())
-        self.set_parameter(step, unitStep, total, unitTotal, block)
+        self._set_parameter(step, unitStep, total, unitTotal, False, block)
 
-    def set_parameter(self, step=None, unitStep=None, total=None,
+    def set_parameter(self, step=None, total=None, more=False, block=True):
+        """set the simulation parameters"""
+        step, stepUnit = self.ParseTime(step)
+        total, totalUnit = self.ParseTime(total)
+        return self._set_parameter(step, stepUnit, total, totalUnit, more, block)
+
+    def _set_parameter(self, step=None, unitStep=None, total=None,
                       unitTotal=None, more=False, block=True):
         """
         set the simulation parameters
@@ -452,7 +458,7 @@ class ModulePanel(wx.Panel):
             args['total'] = total
         if unitTotal:
             args['unitTotal'] = unitTotal
-        self.SendCommand('set_parameter', args, block)
+        return self.SendCommand('set_parameter', args, block)
 
     def start(self):
         """create an empty simulation"""
@@ -467,7 +473,7 @@ class ModulePanel(wx.Panel):
 
     def load(self, filename, block=True):
         """load the simulation library (e.g., dll)"""
-        self.SendCommand('load', {'filename':filename}, block)
+        return self.SendCommand('load', {'filename':filename}, block)
 
     def load_interactive(self):
         """show a file open dialog to select and open the simulation"""
@@ -487,7 +493,7 @@ class ModulePanel(wx.Panel):
                be used)
         """
         if time:
-            pattern = r"[+-]?(\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:\s)*(ps|ns|us|ms|s|)"
+            pattern = r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:\s)*(ps|ns|us|ms|s|)"
             x = re.match(pattern, str(time))
             if x:
                 if x.group(2):
@@ -495,8 +501,7 @@ class ModulePanel(wx.Panel):
                              'ms':BSM_MS, 's':BSM_SEC}
                     unit = units.get(x.group(2), None)
                     if not unit:
-                        print "unknown time format: ", time
-                        return None, None
+                        raise ValueError("unknown time format: " + str(time))
                     return float(x.group(1)), unit
                 else:
                     return float(x.group(1)), None
@@ -511,10 +516,9 @@ class ModulePanel(wx.Panel):
 
         The breakpoints are checked at each delta cycle.
         """
-        step, unit = self.ParseTime(step)
-        self.set_parameter(step=step, unitStep=unit, block=False)
+        self.set_parameter(step=step, block=False)
 
-        self.SendCommand('step', {'running': False}, block)
+        return self.SendCommand('step', {'running': False}, block)
 
     def run(self, to=None, more=None, block=True):
         """
@@ -523,21 +527,20 @@ class ModulePanel(wx.Panel):
         The simulation is executed step by step. After each step, the simulation
         'server' will notify the 'client' to update the GUI.
         """
+        total = None
         if to:
-            total, unit = self.ParseTime(to)
-            ismore = False
+            total, ismore = to, False
         elif more:
-            total, unit = self.ParseTime(more)
-            ismore = True
+            total, ismore = more, True
         else:
             # run forever
-            total, unit, ismore = -1, None, False
-        self.set_parameter(total=total, unitTotal=unit, more=ismore, block=False)
-        self.SendCommand('step', {'running': True}, block)
+            total, ismore = -1,  False
+        self.set_parameter(total=total, more=ismore, block=False)
+        return self.SendCommand('step', {'running': True}, block)
 
     def pause(self, block=True):
         """pause the simulation"""
-        self.SendCommand('pause', {}, block)
+        return self.SendCommand('pause', {}, block)
 
     def _stop(self):
         """destroy the simulation process"""
@@ -581,36 +584,53 @@ class ModulePanel(wx.Panel):
         """write the value to the registers"""
         return self.SendCommand('write', {'objects':objects}, block)
 
-    def trace_file(self, obj, trace_type=BSM_TRACE_SIMPLE, valid=None,
-                   trigger=BSM_BOTHEDGE, block=True):
+    def trace_file(self, obj, ttype='bsm', valid=None,
+                   trigger='posneg', block=True):
         """
         dump the values to a file
 
         obj:
             register name
-        trace_type:
-            BSM_TRACE_SIMPLE only output the register value, one per line
-            BSM_TRACE_VCD output the SystemC VCD format data
+        ttype:
+            'bsm': only output the register value, one per line (Default)
+            'vcd': output the SystemC VCD format data
         valid:
             the trigger signal. If it is none, the write-operation will be
             triggered by the register itself
         trigger:
-            BSM_BOTHEDGE: trigger on both rising and falling edges
-            BSM_POSEDGE: trigger on rising edge
-            BSM_NEGEDGE: trigger on falling edge
-            BSM_NONEEDGE: no triggering
+            'posneg': trigger on both rising and falling edges
+            'pos': trigger on rising edge
+            'neg': trigger on falling edge
+            'none': no triggering
         """
         if isinstance(obj, list):
             obj = obj[0]
-        args = {'name':obj, 'type':trace_type, 'valid':valid, 'trigger':trigger}
+        tTypeDict = {'bsm': BSM_TRACE_SIMPLE, 'vcd': BSM_TRACE_VCD}
+        tTriggerDict = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
+                        'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE}
+        traceType = tTypeDict.get(ttype, None)
+        traceTrigger = tTriggerDict.get(trigger, None)
+        if not traceType:
+            raise ValueError("Not supported trace type: " + str(ttype))
+        if not traceTrigger:
+            raise ValueError("Not supported trigger type: " + str(trigger))
+
+        args = {'name':obj, 'type':traceType, 'valid':valid,
+                'trigger':traceTrigger}
         return self.SendCommand('trace_file', args, block)
 
-    def trace_buf(self, obj, size=256, valid=None, trigger=BSM_BOTHEDGE,
+    def trace_buf(self, obj, size=256, valid=None, trigger='posneg',
                   block=True):
         """start dumping the register to a numpy.array"""
         if isinstance(obj, list):
             obj = obj[0]
-        args = {'name':obj, 'size':size, 'valid':valid, 'trigger':trigger}
+        tTriggerDict = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
+                        'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE}
+        traceTrigger = tTriggerDict.get(trigger, None)
+        if not traceTrigger:
+            raise ValueError("Not supported trigger type: " + str(traceTrigger))
+
+        args = {'name':obj, 'size':size, 'valid':valid, 'trigger':traceTrigger}
         return self.SendCommand('trace_buf', args, block)
 
     def read_buf(self, objects, block=True):
@@ -843,7 +863,7 @@ class ModulePanel(wx.Panel):
                     total = self.tcTotal.GetValue()
                     self.tcTotal.SetValue(str(args.get('total', total)))
                     unitTotal = self.cmbUnitTotal.GetSelection()
-                    self.cmbUnitTotal.SetSelection(args.get('unitTotal', unitStep))
+                    self.cmbUnitTotal.SetSelection(args.get('unitTotal', unitTotal))
             elif command == 'get_parameter':
                 pass
             elif command == 'read':
