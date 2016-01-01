@@ -195,7 +195,7 @@ class ProcessCommand(object):
             self.simengine.ctx_stop()
 
     def IsValidObj(self, name):
-        return name in self.simengine.sim_objects.keys()
+        return name and name in self.simengine.sim_objects.keys()
 
     def response(self, resp):
         self.qResp.put(resp)
@@ -227,7 +227,7 @@ class ProcessCommand(object):
             if t is not None:
                 # set the important filed to be True, so the client will
                 # never ignore the events
-                resp ={'cmd': 'breakpoint_triggered', 'important': True,
+                resp = {'cmd': 'breakpoint_triggered', 'important': True,
                         'value': [name, t[0], t[1], t[2]]}
                 self.response(resp)
                 self.running = False
@@ -251,7 +251,8 @@ class ProcessCommand(object):
                 self.running = False
                 return False
         self.running = running
-        self.simengine.ctx_start(simStep, simUnit)
+        # TODO, simStep should support double
+        self.simengine.ctx_start(int(simStep), simUnit)
 
         return True
 
@@ -261,9 +262,12 @@ class ProcessCommand(object):
         self.simStep = param.get('step', self.simStep)
         self.simTotal = param.get('total', self.simTotal)
         self.simUnitTotal = param.get('unitTotal', self.simUnitTotal)
+        more = param.get('more', False)
         if self.simTotal > 0:
             scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
             self.simTotalSec = self.simTotal/scale[self.simUnitTotal]
+            if more:
+                self.simTotalSec += self.time_stamp(True)
         else:
             self.simTotalSec = -1
         return True
@@ -296,15 +300,19 @@ class ProcessCommand(object):
     def time_stamp(self, insecond):
         """return the current simulation time stamp in string"""
         if self.simengine is None:
-            return False
+            return 0.0
         if insecond:
             """in second"""
             return self.simengine.ctx_time()
         else:
             return self.simengine.ctx_time_str()
 
-    def trace_file(self, name, ntype, valid, trigger):
+    def trace_file(self, args):
         """dump the file"""
+        name = args.get('name', None)
+        ntype = args.get('ntype', BSM_TRACE_SIMPLE)
+        valid = args.get('valid', None)
+        trigger = args.get('trigger', BSM_BOTHEDGE)
         if not self.IsValidObj(name):
             return False
         if valid and not self.IsValidObj(valid):
@@ -322,8 +330,12 @@ class ProcessCommand(object):
 
         return False
 
-    def trace_buf(self, name, size, valid=None, trigger=BSM_BOTHEDGE):
+    def trace_buf(self, args):
         """trace the buffer"""
+        name = args.get('name', None)
+        size = args.get('size', 256)
+        valid = args.get('valid', None)
+        trigger = args.get('trigger', BSM_BOTHEDGE)
         if not self.IsValidObj(name):
             return False
 
@@ -449,12 +461,10 @@ class ProcessCommand(object):
                         resp['value'] = t
 
                     elif command == 'trace_file':
-                        resp['value'] = self.trace_file(args['name'], args['type'],
-                                               args['valid'], args['trigger'])
+                        resp['value'] = self.trace_file(args)
 
                     elif command == 'trace_buf':
-                        resp['value'] = self.trace_buf(args['name'], args['size'],
-                                              args['valid'], args['trigger'])
+                        resp['value'] = self.trace_buf(args)
 
                     else:
                         print 'Unknown command: ', cmd

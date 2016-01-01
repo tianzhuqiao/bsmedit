@@ -18,10 +18,13 @@ def copy(source, dropSelf=True):
                     pass
                 else:  # Drop the first argument.
                     argspec = '(' + ','.join(temp[1:]).lstrip()
-            docstring = "\n" + source.__name__ + argspec + '\n'+ textwrap.dedent(source.__doc__)
+
+            docstring = textwrap.dedent(source.__doc__)
+            if target.__doc__:
+                docstring += textwrap.dedent(target.__doc__)
 
             target.__doc__ = docstring
-            return target
+        return target
     return do_copy
 
 def copy_docstring(source, dropSelf=True):
@@ -43,8 +46,9 @@ def copy_docstring_raw(source, target, dropSelf=True):
                 pass
             else:  # Drop the first argument.
                 argspec = '(' + ','.join(temp[1:]).lstrip()
-        docstring = "\n" + source.__name__ + argspec + '\n'+ textwrap.dedent(source.__doc__)
+        docstring = '\n' + source.__name__ + argspec + '\n'
+        docstring += '\n' + textwrap.dedent(source.__doc__).strip() + '\n'
 
         target.__doc__ = docstring
-        return target
+    return target
 
