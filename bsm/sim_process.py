@@ -108,6 +108,7 @@ class Breakpoint(object):
 class BpList(object):
     def __init__(self):
         self.data = {}
+        self.data_raw = []
     def add(self, objs, objectsdict):
         resp = {}
         for name, cond, hitcount in objs:
@@ -120,6 +121,7 @@ class BpList(object):
                 self.data[name] = Breakpoint(name)
                 self.data[name].add_cond(cond, hitcount)
             resp[name] = True
+            self.data_raw.append([name, cond, hitcount])
         return resp
 
     def delete(self, objs, objectsdict):
@@ -133,7 +135,9 @@ class BpList(object):
             self.data[name].del_cond(cond, hitcount)
             if len(self.data[name]) <= 0:
                 del self.data[name]
-            resp[name] = False
+            resp[name] = True
+            idx = self.data_raw.index([name, cond, hitcount])
+            del self.data_raw[idx]
         return resp
 
     def get_bp(self):
@@ -180,7 +184,9 @@ class ProcessCommand(object):
         self.breakpoint = BpList()
         self.bp_values_prev = {}
         self.tfile = {}
+        self.tfile_raw = {}
         self.tbuf = {}
+        self.tbuf_raw = {}
         self.qCmd = qCmd
         self.qResp = qResp
         self.running = False
@@ -326,6 +332,7 @@ class ProcessCommand(object):
         if self.simengine.ctx_add_trace_file(trace):
             self.simengine.ctx_trace_file(trace, self.simengine.sim_objects[name], valid, trigger)
             self.tfile[name] = trace
+            self.tfile_raw[name] = [ntype, valid, trigger]
             return True
 
         return False
@@ -348,7 +355,8 @@ class ProcessCommand(object):
             # remove the existing trace
             trace = self.tbuf[name]['trace']
             self.simengine.ctx_remove_trace_buf(trace)
-            del self.tbuf.keys[name]
+            del self.tbuf[name]
+            del self.tbuf_raw[name]
 
         trace = SimTraceBuf()
         trace.name = name
@@ -359,6 +367,7 @@ class ProcessCommand(object):
             self.simengine.ctx_trace_buf(trace, self.simengine.sim_objects[name],
                                          valid, trigger)
             self.tbuf[name] = {'trace':trace, 'data':data}
+            self.tbuf_raw[name] = [size, valid, trigger]
         return True
 
     def read_buf(self, objects):
@@ -423,7 +432,8 @@ class ProcessCommand(object):
                     elif command == 'monitor_del':
                         objs = self.monitor.delete(args['objects'], self.simengine.sim_objects)
                         resp['value'] = objs
-
+                    elif command == 'get_monitor':
+                        resp['value'] = self.monitor.data
                     elif command == 'breakpoint_add':
                         objs = self.breakpoint.add(args['objects'], self.simengine.sim_objects)
                         bps = self.breakpoint.get_bp()
@@ -433,9 +443,11 @@ class ProcessCommand(object):
                         resp['value'] = objs
 
                     elif command == 'breakpoint_del':
-                        self.breakpoint.delete(args['objects'], self.simengine.sim_objects)
-                        resp['value'] = True
-
+                        objs = self.breakpoint.delete(args['objects'],
+                                                      self.simengine.sim_objects)
+                        resp['value'] = objs
+                    elif command == 'get_breakpoint':
+                        resp['value'] = self.breakpoint.data_raw
                     elif command == 'set_parameter':
                         resp['value'] = self.set_parameter(args)
 
@@ -462,10 +474,12 @@ class ProcessCommand(object):
 
                     elif command == 'trace_file':
                         resp['value'] = self.trace_file(args)
-
+                    elif command == 'get_trace_file':
+                        resp['value'] = self.tfile_raw
                     elif command == 'trace_buf':
                         resp['value'] = self.trace_buf(args)
-
+                    elif command == 'get_trace_buf':
+                        resp['value'] = self.tbuf_raw
                     else:
                         print 'Unknown command: ', cmd
                     if resp:
@@ -474,6 +488,7 @@ class ProcessCommand(object):
             pass
         except:
             traceback.print_exc(file=sys.stdout)
+            self.response(resp)
         return True
 
     def exit(self):
