@@ -342,9 +342,9 @@ class ModulePanel(wx.Panel):
                              wx.ITEM_DROPDOWN,
                              "Setting", "Configure the simulation")
         menu = wx.Menu()
-        menu.Append(wx.ID_ANY, "&Reset")
+        menu.Append(wx.ID_RESET, "&Reset")
         menu.AppendSeparator()
-        menu.Append(wx.ID_ANY, "&Exit")
+        menu.Append(wx.ID_EXIT, "&Exit")
         self.tb.SetDropdownMenu(self.ID_SIM_SET, menu)
         self.tb.Realize()
 
@@ -368,6 +368,8 @@ class ModulePanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_MP_DUMP)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_MP_TRACE_BUF)
         self.Bind(wx.EVT_MENU_RANGE, self.OnProcessCommand, id=wx.ID_FILE1, id2=wx.ID_FILE9)
+        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_EXIT)
+        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_RESET)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
         self.objects = None
         # the grid list used in context menu
@@ -397,7 +399,7 @@ class ModulePanel(wx.Panel):
         self._stop()
         Gcs.destroy(self.num)
 
-    def SendCommand(self, cmd, args, block=False):
+    def SendCommand(self, cmd, args={}, block=False):
         """send the command to the simulation process"""
         try:
             # always increase the command ID
@@ -443,20 +445,20 @@ class ModulePanel(wx.Panel):
         return self._set_parameter(step, stepUnit, total, totalUnit, more, block)
 
     def _set_parameter(self, step=None, unitStep=None, total=None,
-                      unitTotal=None, more=False, block=True):
+                       unitTotal=None, more=False, block=True):
         """
         set the simulation parameters
 
         If more is True, total is additional to the current simulation time.
         """
         args = {'more':more}
-        if step:
+        if step is not None:
             args['step'] = step
-        if unitStep:
+        if unitStep is not None:
             args['unitStep'] = unitStep
-        if total:
+        if total is not None:
             args['total'] = total
-        if unitTotal:
+        if unitTotal is not None:
             args['unitTotal'] = unitTotal
         return self.SendCommand('set_parameter', args, block)
 
@@ -493,14 +495,14 @@ class ModulePanel(wx.Panel):
                be used)
         """
         if time:
-            pattern = r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:\s)*(ps|ns|us|ms|s|)"
+            pattern = r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:\s)*(fs|ps|ns|us|ms|s|)"
             x = re.match(pattern, str(time))
             if x:
                 if x.group(2):
                     units = {'fs':BSM_FS, 'ps':BSM_PS, 'ns':BSM_NS, 'us':BSM_US,
                              'ms':BSM_MS, 's':BSM_SEC}
                     unit = units.get(x.group(2), None)
-                    if not unit:
+                    if unit is None:
                         raise ValueError("unknown time format: " + str(time))
                     return float(x.group(1)), unit
                 else:
@@ -534,7 +536,7 @@ class ModulePanel(wx.Panel):
             total, ismore = more, True
         else:
             # run forever
-            total, ismore = -1,  False
+            total, ismore = -1, False
         self.set_parameter(total=total, more=ismore, block=False)
         return self.SendCommand('step', {'running': True}, block)
 
@@ -804,6 +806,10 @@ class ModulePanel(wx.Panel):
             viewer = sim.propgrid()
         elif eid >= wx.ID_FILE1 and eid <= wx.ID_FILE9:
             viewer = self.gridList[eid - wx.ID_FILE1]
+        elif eid == wx.ID_EXIT:
+            self.stop()
+        elif eid == wx.ID_RESET:
+            self.reset()
         if viewer:
             ids = self.tree.GetSelections()
             objs = []
@@ -1295,4 +1301,7 @@ class sim:
 
 def bsm_Initialize(frame):
     sim.Initialize(frame)
+    dispatcher.send(signal='frame.run',
+                    command='from bsm.pysim import *',
+                    prompt=False, verbose=False)
 

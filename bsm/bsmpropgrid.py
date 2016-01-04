@@ -1077,7 +1077,6 @@ class BreakpointSettingsDlg(wx.Dialog):
         return (self.condition, self.hitcount)
 
 class dlgSettings(wx.Dialog):
-
     def __init__(self, parent, prop):
         wx.Dialog.__init__(self, parent, title=u"Settings...",
                            size=wx.Size(402, 494),
@@ -1136,6 +1135,9 @@ class dlgSettings(wx.Dialog):
                 t.SetRGB(t.GetRGB()^0xffffff)
                 t = t.GetAsString(wx.C2S_HTML_SYNTAX)
                 pp.SetTextColor(t, t, t)
+            elif ctrl in [PROP_CTRL_SPIN, PROP_CTRL_SLIDER]:
+                pp.SetRange(2**31-1, -2**31)
+                pp.SetValue(str(v))
             else:
                 pp.SetValue(str(v))
             pp.SetShowRadio(False)
