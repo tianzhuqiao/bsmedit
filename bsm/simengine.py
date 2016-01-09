@@ -83,7 +83,7 @@ class SimEngine(object):
         PTFILE = POINTER(SimTraceFile)
         PTOBJ = POINTER(SimObj)
         PTBUF = POINTER(SimTraceBuf)
-        interfaces = [['start', '', (c_int, c_int), None],
+        interfaces = [['start', '', (c_double, c_int), None],
                       ['stop', '', None, None],
                       ['time', '', None, c_double],
                       ['time_sec', '', (c_double, c_int), c_double],

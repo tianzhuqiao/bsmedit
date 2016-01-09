@@ -1,48 +1,42 @@
-import subprocess
-import sys
-
-if len(sys.argv) <2:
-    print 'Usage:', sys.argv[0], ' version'
-    sys.exit()
-ver = sys.argv[1]
-#ver = '3.0-beta1'
-# exe
-#subprocess.call(['c:/Program Files (x86)/NSIS/makensis.exe', 'bsmedit.nsi'])
-
-# zip
+import os
 import zipfile
-from os import walk
-try:
-    import zlib
-    compression = zipfile.ZIP_DEFLATED
-except:
-    compression = zipfile.ZIP_STORED
+import sys
+import os
+if len(sys.argv)<2:
+    print 'Usage: %s filename [lite]'%os.path.basename(sys.argv[0])
+    exit()
+if len(sys.argv)<3 or sys.argv[2] != 'lite':
+    lite = False
+else:
+    lite = True
+filename = sys.argv[1]
+def add_folder(zf, folder, ext):
+    for f in os.listdir(folder):
+        if f.endswith(ext):
+            fn = os.path.join(folder, f)
+            print fn
+            zf.write(fn)
+filelist = ['bsmedit.py', 'backup.py']
+zf = zipfile.ZipFile(filename, 'w', zipfile.ZIP_DEFLATED)
 
-def add_folder(zf, folder, compression):
-    try:
-        for (dirpath, dirnames, filenames) in walk(folder):
-            for fn in filenames:
-                if not fn.endswith('.py'):
-                    continue
-                print 'adding %s/%s'%(dirpath, fn)
-                zf.write('%s/%s'%(dirpath, fn), compress_type=compression)
-    except:
-        pass
-modes = { zipfile.ZIP_DEFLATED: 'deflated',
-          zipfile.ZIP_STORED:   'stored',
-          }
+def add_folder_r(zf, path):
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            print os.path.join(root, file)
+            zf.write(os.path.join(root, file))
+for f in filelist:
+    print f
+    zf.write(f)
+add_folder(zf, 'bsm', '.py')
 
-print 'creating archive'
-zf = zipfile.ZipFile('bsmedit-%s.zip'%ver, mode='w')
-filelist = ['bsmedit.py', 'License', 'readme.txt']
-try:
-    add_folder(zf, 'bsm', compression)
-    add_folder(zf, 'main', compression)
-    for fn in filelist:
-        print 'adding %s'%fn
-        zf.write(fn, compress_type=compression)
-finally:
-    print 'closing'
+add_folder(zf, 'main', '.py')
+if not lite:
+    add_folder_r(zf, 'examples' )
+    add_folder_r(zf, 'systemc-2.1')
+    add_folder_r(zf, 'xsc')
+    add_folder_r(zf, 'libs')
 zf.close()
 
+# p = subprocess.Popen(['git', 'describe', '--match', 'hardware', '--long'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+# out, err = p.communicate()
 

@@ -7,11 +7,15 @@ from time import time as _time
 import wx
 import wx.py.dispatcher as dispatcher
 from wx.lib.masked import NumCtrl
-import bsmplot
-from simxpm import *
-from sim_process import sim_process
-from bsmpropgrid import bsmPropGrid
-from sim_engine import *
+import graph
+from _simxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
+                    module_grey_xpm, switch_grey_xpm, in_grey_xpm, out_grey_xpm,\
+                    inout_grey_xpm, step_xpm, run_xpm, pause_xpm,\
+                    step_grey_xpm, run_grey_xpm, pause_grey_xpm, setting_xpm,\
+                    setting_grey_xpm
+from simprocess import sim_process
+from propgrid import bsmPropGrid
+from simengine import *
 from bsm._pymgr_helpers import Gcm
 from autocomplete import AutocompleteTextCtrl
 from _docstring import copy_docstring_raw
@@ -912,7 +916,7 @@ class ModulePanel(wx.Panel):
             self.ui_load = False
             #dispatcher.send(signal='sim.loaded', num=self.num)
         elif (self.ui_timestamp is not None) and self.ui_update == 0:
-            dispatcher.send(signal="frame.set_status_text", text=self.ui_timestamp)
+            dispatcher.send(signal="frame.show_status_text", text=self.ui_timestamp)
             self.ui_timestamp = None
         elif (self.ui_objs is not None) and self.ui_update == 1:
             dispatcher.send(signal="grid.updateprop", objs=self.ui_objs)
@@ -1274,7 +1278,7 @@ class sim:
 
         The trace will be automatically updated after each simulation step.
         """
-        if not bsmplot.initialized:
+        if not graph.initialized:
             print "Matplotlib is not installed correctly!"
             return
         if y is None:
@@ -1284,7 +1288,7 @@ class sim:
         if x is not None:
             dx = cls.read_buf(x, True)
             x = {cls.get_abs_name(x):dx}
-        mgr = bsmplot.plt.get_current_fig_manager()
+        mgr = graph.plt.get_current_fig_manager()
         mgr.plot_trace(x, y, autorelim, *args, **kwargs)
 
     @classmethod
@@ -1301,7 +1305,7 @@ class sim:
 
 def bsm_Initialize(frame):
     sim.Initialize(frame)
-    dispatcher.send(signal='frame.run',
+    dispatcher.send(signal='shell.run',
                     command='from bsm.pysim import *',
-                    prompt=False, verbose=False)
+                    prompt=False, verbose=False, history=False)
 

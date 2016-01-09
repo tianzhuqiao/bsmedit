@@ -3,16 +3,11 @@
 import os
 import imp
 import importlib
-from datetime import date
 import wx
 import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dispatcher
 from frameplus import framePlus
-from bsmshell import bsmShell, HistoryPanel, StackPanel
-from bsmhelp import HelpPanel
-from dirtreectrl import DirTreeCtrl, Directory
-from debuggerxpm import *
-from dirpanelxpm import *
+from bsmshell import bsmShell
 from mainframexpm import about_xpm, bsmedit_xpm, header_xpm
 from version import *
 
@@ -38,9 +33,7 @@ class bsmMainFrame(framePlus):
         framePlus.__init__(self, parent, title=u"BSMEdit",
                            size=wx.Size(800, 600),
                            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
-        self.initMenu()
-
-        self.SetMinSize((640, 480))
+        self.InitMenu()
         self._mgr.SetAGWFlags(self._mgr.GetAGWFlags()
                               | aui.AUI_MGR_ALLOW_ACTIVE_PANE
                               | aui.AUI_MGR_SMOOTH_DOCKING
@@ -77,36 +70,28 @@ class bsmMainFrame(framePlus):
                           .CenterPane().CloseButton(False).Layer(1)
                           .Position(1).MinimizeButton(True).MaximizeButton(True))
 
-        # history panel
-        self.panelHistory = HistoryPanel(self)
-        self.addPanel(self.panelHistory, title="History",
-                      showhidemenu='View:Panels:Command History')
-        # help panel
-        self.panelHelp = HelpPanel(self)
-        self.addPanel(self.panelHelp, title="Help",
-                      target=self.panelHistory,
-                      showhidemenu='View:Panels:Command Help')
-        # debug stack panel
-        self.panelStack = StackPanel(self)
-        self.addPanel(self.panelStack, title="Call Stack",
-                      target=self.panelHistory,
-                      showhidemenu='View:Panels:Call Stack')
-        # directory panel
-        self.panelDir = DirPanel(self)
-        self.addPanel(self.panelDir, title="Browsing",
-                      target=self.panelHistory,
-                      showhidemenu='View:Panels:Browsing')
+        ## history panel
+        #self.panelHistory = HistoryPanel(self)
+        #self.addPanel(self.panelHistory, title="History",
+        #              showhidemenu='View:Panels:Command History')
+        ## help panel
+        #self.panelHelp = HelpPanel(self)
+        #self.addPanel(self.panelHelp, title="Help",
+        #              target=self.panelHistory,
+        #              showhidemenu='View:Panels:Command Help')
+        ## directory panel
+        #self.panelDir = DirPanel(self)
+        #self.addPanel(self.panelDir, title="Browsing",
+        #              target=self.panelHistory,
+        #              showhidemenu='View:Panels:Browsing')
 
-        self.tbDebug = None
-        self.initDebugger()
         self._mgr.Update()
 
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
-        dispatcher.connect(receiver=self.runCommand, signal='frame.run')
-        dispatcher.connect(receiver=self.setPanelTitle, signal='frame.set_panel_title')
-        dispatcher.connect(receiver=self.setStatusText, signal='frame.set_status_text')
-        dispatcher.connect(receiver=self.addFileHistory, signal='frame.add_file_history')
-        self.Bind(wx.EVT_CLOSE, self._onClose)
+        dispatcher.connect(receiver=self.SetPanelTitle, signal='frame.set_panel_title')
+        dispatcher.connect(receiver=self.ShowStatusText, signal='frame.show_status_text')
+        dispatcher.connect(receiver=self.AddFileHistory, signal='frame.add_file_history')
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         #try:
         self.addon = {}
@@ -142,7 +127,7 @@ class bsmMainFrame(framePlus):
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnPaneClose)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_VM_RENAME)
 
-    def initMenu(self):
+    def InitMenu(self):
         """initialize the menubar"""
         menubar = wx.MenuBar(0)
         menuFile = wx.Menu()
@@ -201,13 +186,12 @@ class bsmMainFrame(framePlus):
         self.SetMenuBar(menubar)
 
         # Connect Events
-        self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.Bind(wx.EVT_MENU, self.OnFileQuit, id=menuQuit.GetId())
         self.Bind(wx.EVT_MENU, self.OnHelpHome, id=menuHome.GetId())
         self.Bind(wx.EVT_MENU, self.OnHelpContact, id=menuContact.GetId())
         self.Bind(wx.EVT_MENU, self.OnHelpAbout, id=menuAbout.GetId())
 
-    def addFileHistory(self, filename):
+    def AddFileHistory(self, filename):
         """add the file to recent file list"""
         self.config.SetPath('/FileHistory')
         self.filehistory.AddFileToHistory(filename)
@@ -218,17 +202,31 @@ class bsmMainFrame(framePlus):
         # check if the window should be destroyed
         # auiPaneInfo.IsDestroyOnClose() can not be used since if the pane is
         # added to a notebook, IsDestroyOnClose() always returns False
+        if evt.pane.IsNotebookControl():
+            nb = evt.pane.window
+            for idx in range(nb.GetPageCount()-1, -1, -1):
+                wnd = nb.GetPage(idx)
+                page = self._mgr.GetPane(wnd)
+                if page.IsOk() and hasattr(page, 'bsm_destroyonclose'):
+                    nb.RemovePage(idx)
+                    page.Dock()
+                    page.Hide()
+                    page.window.Reparent(self)
+                    page.window.notebook_id = -1
+                    page.Top()
+            return
         if not hasattr(evt.pane, 'bsm_destroyonclose'):
             return
         if not evt.pane.bsm_destroyonclose:
             evt.Veto()
             if evt.pane.IsNotebookPage():
-                notebook = self._mgr._notebooks[evt.pane.notebook_id]
+                nb = self._mgr.GetNotebooks()
+                notebook = nb[evt.pane.notebook_id]
                 idx = notebook.GetPageIndex(evt.pane.window)
                 notebook.RemovePage(idx)
                 evt.pane.Dock()
                 evt.pane.Hide()
-                evt.pane.window.Reparent(self._mgr._frame)
+                evt.pane.window.Reparent(self)
                 evt.pane.window.notebook = notebook
                 evt.pane.Top()
                 self._mgr.Update()
@@ -263,18 +261,17 @@ class bsmMainFrame(framePlus):
         self.activeTabCtrl = None
         self.activeTabCtrlIndex = -1
 
-    def _onClose(self, evt):
-        # stop the debugger if it is on
-        if self.panelShell.isDebuggerOn():
-            dispatcher.send(signal='debugger.stop')
+    def OnClose(self, evt):
+        """close the main program"""
         dispatcher.send(signal='frame.save_config', config=self.config)
         dispatcher.send(signal='frame.exit')
         evt.Skip()
 
-    def setStatusText(self, text, index=0, width=-1):
+    def ShowStatusText(self, text, index=0, width=-1):
         """set the status text"""
         if index >= len(self.statusbar_width):
-            self.statusbar_width.extend([0 for i in range(index+1-len(self.statusbar_width))])
+            exd = [0]*(index+1-len(self.statusbar_width))
+            self.statusbar_width.extend(exd)
             self.statusbar.SetFieldsCount(index+1)
         if self.statusbar_width[index] < width:
             self.statusbar_width[index] = width
@@ -282,7 +279,8 @@ class bsmMainFrame(framePlus):
         self.statusbar.SetStatusText(text, index)
 
     def _package_contents(self, package_name):
-        MODULE_EXTENSIONS = ('.py')
+        """return a list of the modules"""
+        MOD_EXT = ('.py')
         (file, pathname, description) = imp.find_module(package_name)
         if file:
             raise ImportError('Not a package: %r', package_name)
@@ -290,27 +288,18 @@ class bsmMainFrame(framePlus):
         # Use a set because some may be both source and compiled.
         return set([os.path.splitext(module)[0] for module in
                     os.listdir(pathname)
-                    if module.endswith(MODULE_EXTENSIONS) and
-                       not module.startswith('_')])
-
-    def runCommand(self, command, prompt=True, verbose=True, debug=False):
-        """execute the command in shell"""
-        # show the debug toolbar in debug mode
-        if debug and not self.tbDebug.IsShown():
-            self.showPanel(self.tbDebug)
-        self.panelShell.runCommand(command, prompt, verbose, debug)
+                    if module.endswith(MOD_EXT) and not module.startswith('_')])
 
     def OnPaneActivated(self, event):
         """notify the window managers that the panel is activated"""
         pane = event.GetPane()
         if isinstance(pane, aui.auibook.AuiNotebook):
             window = pane.GetCurrentPage()
-            if window:
-                dispatcher.send(signal='frame.activate_panel', pane=window)
         else:
-            dispatcher.send(signal='frame.activate_panel', pane=pane)
+            window = pane
+        dispatcher.send(signal='frame.activate_panel', pane=pane)
 
-    def setPanelTitle(self, pane, title):
+    def SetPanelTitle(self, pane, title):
         """set the panel title"""
         if pane:
             info = self._mgr.GetPane(pane)
@@ -319,9 +308,6 @@ class bsmMainFrame(framePlus):
                 self._mgr.RefreshPaneCaption(pane)
 
     # Handlers for mainFrame events.
-    def OnClose(self, event):
-        self.Destroy()
-
     def OnFileQuit(self, event):
         """close the program"""
         self.Close(True)
@@ -352,103 +338,6 @@ class bsmMainFrame(framePlus):
         path = self.filehistory.GetHistoryFile(fileNum)
         self.filehistory.AddFileToHistory(path)
         dispatcher.send(signal='bsm.editor.openfile', filename=path)
-
-    def initDebugger(self):
-        """initialized the debug toolbar"""
-        if self.tbDebug:
-            return
-
-        self.addMenu('Tools:Debug', rxsignal='', kind='Popup')
-        self.ID_DBG_RUN = self.addMenu('Tools:Debug:Run\tF5',
-                                       rxsignal='debugger.resume',
-                                       updatesignal='frame.updateui')
-        self.ID_DBG_STOP = self.addMenu('Tools:Debug:Stop\tShift-F5',
-                                        rxsignal='debugger.stop',
-                                        updatesignal='frame.updateui')
-        self.ID_DBG_STEP = self.addMenu('Tools:Debug:Step\tF10',
-                                        rxsignal='debugger.step',
-                                        updatesignal='frame.updateui')
-        self.ID_DBG_STEP_INTO = self.addMenu('Tools:Debug:Step Into\tF11',
-                                             rxsignal='debugger.step_into',
-                                             updatesignal='frame.updateui')
-        self.ID_DBG_STEP_OUT = self.addMenu('Tools:Debug:Step Out\tShift-F11',
-                                            rxsignal='debugger.step_out',
-                                            updatesignal='frame.updateui')
-
-        self.tbDebug = aui.AuiToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
-        self.tbDebug.AddSimpleTool(self.ID_DBG_RUN, 'Run (F5)',
-                                   wx.BitmapFromXPMData(arrow_xpm),
-                                   'Run (F5)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STOP, 'Stop (Shift-F5)',
-                                   wx.BitmapFromXPMData(control_stop_square_xpm),
-                                   'Stop (Shift-F5)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP, 'Step (F10)',
-                                   wx.BitmapFromXPMData(arrow_step_over_xpm),
-                                   'Step (F10)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_INTO, 'Step Into (F11)',
-                                   wx.BitmapFromXPMData(arrow_step_xpm),
-                                   'Step Into (F11)')
-        self.tbDebug.AddSimpleTool(self.ID_DBG_STEP_OUT, 'Step Out (Shift-F11)',
-                                   wx.BitmapFromXPMData(arrow_step_out_xpm),
-                                   'Step Out (Shift-F11)')
-        self.tbDebug.Realize()
-
-        self.addPanel(self.tbDebug, 'Debugger', active=False,
-                      paneInfo=aui.AuiPaneInfo().Name('debugger')
-                      .Caption('Debugger').ToolbarPane().Top(),
-                      showhidemenu='View:Toolbars:Debugger')
-        #dispatcher.connect(receiver=self.OnUpdateUI, signal='frame.updateui')
-        dispatcher.connect(self.debug_paused, 'debugger.paused')
-        dispatcher.connect(self.debug_ended, 'debugger.ended')
-        self.SetExtraStyle(wx.WS_EX_PROCESS_UI_UPDATES)
-
-    def debug_paused(self):
-        """update the debug toolbar status"""
-        resp = dispatcher.send(signal='debugger.get_status')
-        if not resp or not resp[0][1]:
-            return
-        status = resp[0][1]
-        self.tbDebug.EnableTool(self.ID_DBG_RUN, status['paused'])
-        self.tbDebug.EnableTool(self.ID_DBG_STOP, status['paused'])
-        self.tbDebug.EnableTool(self.ID_DBG_STEP, status['paused'])
-        self.tbDebug.EnableTool(self.ID_DBG_STEP_INTO, status['can_stepin'])
-        self.tbDebug.EnableTool(self.ID_DBG_STEP_OUT, status['can_stepout'])
-        self.tbDebug.Refresh(False)
-
-    def debug_ended(self):
-        self.tbDebug.EnableTool(self.ID_DBG_RUN, False)
-        self.tbDebug.EnableTool(self.ID_DBG_STOP, False)
-        self.tbDebug.EnableTool(self.ID_DBG_STEP, False)
-        self.tbDebug.EnableTool(self.ID_DBG_STEP_INTO, False)
-        self.tbDebug.EnableTool(self.ID_DBG_STEP_OUT, False)
-        self.tbDebug.Refresh(False)
-        self.showPanel(self.tbDebug, False)
-
-    def OnUpdateUI(self, event):
-        """update the debugger toolbar"""
-        eid = event.GetId()
-        resp = dispatcher.send(signal='debugger.get_status')
-        paused = False
-        stepin = False
-        stepout = False
-        if resp and resp[0][1]:
-            status = resp[0][1]
-            paused = status['paused']
-            stepin = status['can_stepin']
-            stepout = status['can_stepout']
-
-        enable = False
-        if eid == self.ID_DBG_RUN:
-            enable = paused
-        elif eid == self.ID_DBG_STOP:
-            enable = paused
-        elif eid == self.ID_DBG_STEP:
-            enable = paused
-        elif eid == self.ID_DBG_STEP_INTO:
-            enable = paused and stepin
-        elif eid == self.ID_DBG_STEP_OUT:
-            enable = paused and stepout
-        event.Enable(enable)
 
 class bsmAboutDialog(wx.Dialog):
     def __init__(self, parent):
@@ -484,8 +373,7 @@ class bsmAboutDialog(wx.Dialog):
 
         szVersion.Add(self.stVerion, 0, wx.ALL, 5)
 
-        today = date.today()
-        copyright = '(c) 2008-%i %s'%(today.year, 'Tianzhu Qiao. All rights reserved.')
+        copyright = '(c) 2008-2016 %s'%('Tianzhu Qiao. All rights reserved.')
 
         self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, copyright)
         self.stCopyright.Wrap(-1)
@@ -503,13 +391,13 @@ class bsmAboutDialog(wx.Dialog):
         szPanel.Add(szVersion, 0, wx.EXPAND, 5)
 
         stLine = wx.StaticLine(self.panel, style=wx.LI_HORIZONTAL)
-        szPanel.Add(stLine, 0, wx.EXPAND |wx.ALL, 0)
+        szPanel.Add(stLine, 0, wx.EXPAND|wx.ALL, 0)
 
         self.panel.SetSizer(szPanel)
         self.panel.Layout()
         szPanel.Fit(self.panel)
 
-        szAll.Add(self.panel, 1, wx.EXPAND |wx.ALL, 0)
+        szAll.Add(self.panel, 1, wx.EXPAND|wx.ALL, 0)
 
         szConfirm = wx.BoxSizer(wx.VERTICAL)
         self.btnOk = wx.Button(self, wx.ID_OK, u"Ok")
@@ -520,86 +408,4 @@ class bsmAboutDialog(wx.Dialog):
         self.SetSizer(szAll)
         self.Layout()
         szAll.Fit(self)
-
-class DirPanel(wx.Panel):
-
-    ID_GOTO_PARENT = wx.NewId()
-    ID_GOTO_HOME = wx.NewId()
-
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent)
-
-        self.tb = wx.ToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
-        self.tb.AddLabelTool(
-            self.ID_GOTO_PARENT,
-            'Parent',
-            wx.BitmapFromXPMData(arrow_090_xpm),
-            wx.NullBitmap,
-            wx.ITEM_NORMAL,
-            'Parent folder',
-            wx.EmptyString,
-            )
-        self.tb.AddLabelTool(
-            self.ID_GOTO_HOME,
-            'Home',
-            wx.BitmapFromXPMData(home_xpm),
-            wx.NullBitmap,
-            wx.ITEM_NORMAL,
-            'Current folder',
-            wx.EmptyString,
-            )
-        self.tb.Realize()
-        self.dirtree = DirTreeCtrl(self, style=wx.TR_DEFAULT_STYLE |
-                                   wx.TR_HAS_VARIABLE_ROW_HEIGHT |
-                                   wx.TR_HIDE_ROOT)
-        self.dirtree.SetRootDir(os.getcwd())
-        self.box = wx.BoxSizer(wx.VERTICAL)
-        self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(wx.StaticLine(self), 0, wx.EXPAND)
-        self.box.Add(self.dirtree, 1, wx.EXPAND)
-
-        self.box.Fit(self)
-        self.SetSizer(self.box)
-
-        self.Bind(wx.EVT_TOOL, self.OnGotoHome, id=self.ID_GOTO_HOME)
-        self.Bind(wx.EVT_TOOL, self.OnGotoParent,
-                  id=self.ID_GOTO_PARENT)
-
-        self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnItemActivated,
-                  self.dirtree)
-
-    def OnItemActivated(self, event):
-        currentItem = event.GetItem()
-        filename = self.dirtree.GetItemText(currentItem)
-        parentItem = self.dirtree.GetItemParent(currentItem)
-        if isinstance(self.dirtree.GetPyData(parentItem), Directory):
-            d = self.dirtree.GetPyData(parentItem)
-            filepath = os.path.join(d.directory, filename)
-        else:
-            return
-        if self.dirtree.ItemHasChildren(currentItem):
-            self.dirtree.SetRootDir(filepath)
-            return
-        (path, fileExtension) = os.path.splitext(filename)
-        if fileExtension == '.py':
-            dispatcher.send(signal='bsm.editor.openfile', filename=filepath)
-        else:
-            os.system("start "+ filepath)
-
-    def OnGotoHome(self, event):
-        root = self.dirtree.GetRootItem()
-        if root and isinstance(self.dirtree.GetPyData(root), Directory):
-            d = self.dirtree.GetPyData(root)
-            if d.directory == os.getcwd():
-                return
-        self.dirtree.SetRootDir(os.getcwd())
-
-    def OnGotoParent(self, event):
-        root = self.dirtree.GetRootItem()
-        if root and isinstance(self.dirtree.GetPyData(root), Directory):
-            d = self.dirtree.GetPyData(root)
-            path = os.path.abspath(os.path.join(d.directory, os.path.pardir))
-            if path == d.directory:
-                return
-            self.dirtree.SetRootDir(path)
 

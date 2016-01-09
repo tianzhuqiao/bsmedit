@@ -19,7 +19,8 @@ except:
 import wx
 import wx.aui
 import wx.py.dispatcher as dispatcher
-from bsmplotxpm import *
+from _graphxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm,\
+                      save_xpm, copy_xpm, print_xpm, cursor_xpm
 
 class DataCursor(object):
     x, y = 0.0, 0.0
@@ -185,18 +186,17 @@ class Toolbar(NavigationToolbar):
     def _init_toolbar(self):
         toolitems = (
             ('Home', 'Reset original view', home_xpm, 'home'),
-            ('Back', 'Back to  previous view', stock_left_xpm, 'back'),
-            ('Forward', 'Forward to next view', stock_right_xpm, 'forward'),
+            ('Back', 'Back to  previous view', back_xpm, 'back'),
+            ('Forward', 'Forward to next view', forward_xpm, 'forward'),
             (None, None, None, None),
-            ('Pan', 'Pan axes with left mouse, zoom with right',
-             moveto2_xpm, 'pan'),
-            ('Zoom', 'Zoom to rectangle', zoom_in_xpm, 'zoom'),
+            ('Pan', 'Pan axes with left mouse, zoom with right', pan_xpm, 'pan'),
+            ('Zoom', 'Zoom to rectangle', zoom_xpm, 'zoom'),
             ('Datatip', 'Show the data tip', cursor_xpm, 'datatip'),
             (None, None, None, None),
-            ('Save', 'Save the figure', saveas_xpm, 'save_figure'),
-            ('Copy', 'Copy to clipboard', page_copy_xpm, 'copy_figure'),
+            ('Save', 'Save the figure', save_xpm, 'save_figure'),
+            ('Copy', 'Copy to clipboard', copy_xpm, 'copy_figure'),
             (None, None, None, None),
-            ('Print', 'Print the figure', printer_xpm, 'print_figure'),
+            ('Print', 'Print the figure', print_xpm, 'print_figure'),
             )
 
         self._parent = self.canvas.GetParent()
@@ -256,7 +256,7 @@ class Toolbar(NavigationToolbar):
 
     def set_message(self, s):
         """show the status message"""
-        dispatcher.send(signal='frame.set_status_text', text=s, index=1,
+        dispatcher.send(signal='frame.show_status_text', text=s, index=1,
                         width=160)
 
 class MatplotPanel(wx.Panel):
@@ -458,6 +458,6 @@ def bsm_Initialize(frame):
     """module initialization"""
     if initialized:
         MatplotPanel.Initialize(frame)
-        dispatcher.send(signal='frame.run',
+        dispatcher.send(signal='shell.run',
                         command='from matplotlib.pyplot import *',
-                        prompt=False, verbose=False)
+                        prompt=False, verbose=False, history=False)

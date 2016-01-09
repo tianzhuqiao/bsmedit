@@ -164,8 +164,8 @@ class framePlus(wx.Frame):
         dispatcher.connect(receiver=self.addPanel, signal='frame.add_panel')
         dispatcher.connect(receiver=self.closePanel, signal='frame.close_panel')
         dispatcher.connect(receiver=self.showPanel, signal='frame.show_panel')
-        dispatcher.connect(receiver=self.showHidePanel, signal='frame.check_menu')
-        dispatcher.connect(receiver=self.showHidePanelUI, signal='frame.update_menu')
+        dispatcher.connect(receiver=self.TogglePanel, signal='frame.check_menu')
+        dispatcher.connect(receiver=self.TogglePanelUI, signal='frame.update_menu')
 
     def getMenu(self, pathlist):
         """find the menu item"""
@@ -256,10 +256,12 @@ class framePlus(wx.Frame):
     def addPanel(self, panel, title='Untitle', active=True, paneInfo=None,
                  target=None, showhidemenu=None):
         """add the panel to AUI"""
+        if not panel:
+            return False
+        panel.Reparent(self)
         # if the target is None, find the notebook control that has the same
         # type as panel. It tries to put the same type panels in the same
         # notebook
-        targetpane = None
         if target is None:
             for pane in self._mgr.GetAllPanes():
                 if isinstance(pane.window, type(panel)):
@@ -271,19 +273,16 @@ class framePlus(wx.Frame):
                 if pane.caption == target:
                     target = pane.window
                     break
+        targetpane = None
         try:
             if target:
                 targetpane = self._mgr.GetPane(target)
+                if targetpane and not targetpane.IsOk():
+                    targetpane = None
         except:
             targetpane = None
 
-        if targetpane and not targetpane.IsOk():
-            targetpane = None
-
         auipaneinfo = paneInfo
-        # auto generate the unique panel name
-        name = "pane-%d"%framePlus.PANE_NUM
-        framePlus.PANE_NUM += 1
 
         if auipaneinfo is None:
             # default panel settings
@@ -292,7 +291,12 @@ class framePlus(wx.Frame):
                    .DestroyOnClose(not showhidemenu).Top().Snappable()\
                    .Dockable().Layer(1).Position(1)\
                    .MinimizeButton(True).MaximizeButton(True)
+
+        # auto generate the unique panel name
+        name = "pane-%d"%framePlus.PANE_NUM
+        framePlus.PANE_NUM += 1
         auipaneinfo.Name(name)
+
         # if showhidemenu is false, the panel will be destroy when clicking
         # on the close button; otherwise it will be hidden
         auipaneinfo.bsm_destroyonclose = not showhidemenu
@@ -305,62 +309,64 @@ class framePlus(wx.Frame):
 
         # add the menu item to show/hide the panel
         if showhidemenu:
-            nid = self.addMenu(showhidemenu, 'frame.check_menu',
-                               updatesignal='frame.update_menu', kind='Check')
-            self.paneaddon[nid] = panel
+            id = self.addMenu(showhidemenu, 'frame.check_menu',
+                              updatesignal='frame.update_menu', kind='Check')
+            if id != wx.NOT_FOUND:
+                self.paneaddon[id] = {'panel':panel, 'path':showhidemenu}
+        return True
 
     def closePanel(self, panel):
-        """close the panel"""
+        """hide and destroy the panel"""
         # delete the show hide menu
         for (id, pane) in self.paneaddon.items():
-            if panel == pane:
+            if panel == pane['panel']:
+                self.delMenu(pane['path'], id)
                 del self.paneaddon[id]
                 break
 
         # delete the pane from the manager
         pane = self._mgr.GetPane(panel)
-        pane.bsm_destroyonclose = True
         if pane is None or not pane.IsOk():
-            return wx.NOT_FOUND
+            return False
+        pane.bsm_destroyonclose = True
         self._mgr.ClosePane(pane)
         self._mgr.Update()
-        return wx.OK
+        return True
 
     def showPanel(self, panel, show=True, focus=False):
-        """show the hidden panel"""
+        """show/hide the panel"""
         pane = self._mgr.GetPane(panel)
         if pane is None or not pane.IsOk():
-            return wx.NOT_FOUND
+            return False
         self._mgr.ShowPane(panel, show)
         if focus:
             panel.SetFocus()
-        # send the message so the panel managers may update its active instance
-        # e.g., the active figure
-        dispatcher.send(signal='bsm.activate_pane', pane=panel)
-        return wx.OK
+        return True
 
-    def showHidePanel(self, command):
-        """show/hide addon panel when the menu is checked/unchecked"""
+    def TogglePanel(self, command):
+        """toggle the display of the panel"""
         pane = self.paneaddon.get(command, None)
         if not pane:
             return
+        panel = pane['panel']
         # find the first hidden parent. Otherwise, the panel may be hidden while
         # IsShown() returns True
-        show = pane.IsShown()
-        parent = pane.GetParent()
+        show = panel.IsShown()
+        parent = panel.GetParent()
         while show and parent:
             show = parent.IsShown()
             parent = parent.GetParent()
         if pane:
-            self.showPanel(pane, not show)
+            self.showPanel(panel, not show)
 
-    def showHidePanelUI(self, event):
+    def TogglePanelUI(self, event):
         """update the menu checkbox"""
         pane = self.paneaddon.get(event.GetId(), None)
         if not pane:
             return
-        show = pane.IsShown()
-        parent = pane.GetParent()
+        panel = pane['panel']
+        show = panel.IsShown()
+        parent = panel.GetParent()
         while show and parent:
             show = parent.IsShown()
             parent = parent.GetParent()

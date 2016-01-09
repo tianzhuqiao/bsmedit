@@ -158,7 +158,7 @@ extern "C"{
         return false;
     }
 
-    BSMEDIT_EXPORT void ctx_start(int duration, int unit)
+    BSMEDIT_EXPORT void ctx_start(double duration, int unit)
     {
         context.m_sim->start(duration, unit);
     }
@@ -247,7 +247,7 @@ extern "C"{
 
     BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj, sim_object* val, int trigger)
     {
-        if(val) {    
+        if(val) {
             //ugly code, to be updated
             context.m_sim->trace_buf(t->m_obj, val->m_obj);
             t->m_obj->set_trace_type(-1, trigger, 1);

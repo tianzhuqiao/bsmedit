@@ -1,2 +1,2 @@
 
-auto_load_module = ['pyeditor', 'bsmplot', 'sim']
+auto_load_module = ['editor', 'graph', 'sim', 'misctools', 'debugtool']

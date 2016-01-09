@@ -2,7 +2,7 @@ import sys
 import traceback
 import wx
 import wx.py.dispatcher as dispatcher
-from bsmprop import *
+from prop import *
 from _pymgr_helpers import Gcm
 
 

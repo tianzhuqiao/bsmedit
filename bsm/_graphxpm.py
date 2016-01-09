@@ -1,6 +1,4 @@
-
 home_xpm=[
-
 "16 16 132 2",
 "   c #793E25",
 ".  c #246321",
@@ -153,7 +151,7 @@ home_xpm=[
 "s.s.s.s.s.s.s.s.s.s.s.s.s.s.s.s."
 ]
 
-stock_left_xpm=[
+back_xpm=[
 "16 16 26 1",
 " 	c None",
 ".	c #000000",
@@ -198,7 +196,7 @@ stock_left_xpm=[
 "                ",
 "                "]
 
-stock_right_xpm=[
+forward_xpm=[
 "16 16 25 1",
 " 	c None",
 ".	c #000000",
@@ -242,7 +240,7 @@ stock_right_xpm=[
 "                ",
 "                "]
 
-moveto2_xpm=[
+pan_xpm=[
 
 "16 16 256 2",
 "   c black",
@@ -520,7 +518,7 @@ moveto2_xpm=[
 "PXPXPXPXPXPXPXPXPXPXg.PXPXPXPXPX"
 ]
 
-zoom_in_xpm=[
+zoom_xpm=[
 
 "16 16 84 1",
 "  c #2A6B26",
@@ -626,7 +624,7 @@ zoom_in_xpm=[
 ")))))))))))#7$))"
 ]
 
-saveas_xpm=[
+save_xpm=[
 "16 16 33 1",
 " 	c None",
 ".	c #285FA7",
@@ -678,7 +676,7 @@ saveas_xpm=[
 "     +$*====*@. ",
 "                "]
 
-page_copy_xpm=[
+copy_xpm=[
 
 "16 16 111 2",
 "   c #4273C5",
@@ -811,7 +809,7 @@ page_copy_xpm=[
 "<.<.<.<.<.<.  X $ o $ o o % . = "
 ]
 
-printer_xpm=[
+print_xpm=[
 
 "16 16 133 2",
 "   c #232323",

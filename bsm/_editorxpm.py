@@ -1,5 +1,4 @@
-printer_xpm=[
-
+print_xpm=[
 "16 16 133 2",
 "   c #232323",
 ".  c gray14",
@@ -361,7 +360,6 @@ page_gear_xpm=[
 "XXXX* - = = = * & % @   $ # XXXX"
 ]
 open_xpm=[
-
 "16 16 256 2",
 "   c #2989BF",
 ".  c #328EC3",
@@ -1021,7 +1019,7 @@ find_xpm=[
 "````````````````",
 "````````````````"
 ]
-page_go_xpm=[
+execute_xpm=[
 
 "16 16 182 2",
 "   c #1E7B03",
@@ -1427,7 +1425,7 @@ package_go_xpm=[
 "{.{.{.{.{.s p 7._ B @ 8   {.{.{.",
 "{.{.{.{.{.{.{.y t {.X . {.{.{.{."
 ]
-tick_xpm=[
+check_xpm=[
 "16 16 66 1",
 " 	c None",
 ".	c #57A24E",
@@ -1511,7 +1509,7 @@ tick_xpm=[
 "     zA         ",
 "                ",
 "                "]
-tab_go_xpm=[
+run_xpm=[
 "16 16 92 2",
 "  	c None",
 ". 	c #9E9E9E",
@@ -1621,7 +1619,7 @@ tab_go_xpm=[
 "            P Q R S T U V W     ",
 "                    X Y Z       ",
 "                    O `         "]
-page_save_xpm=[
+saveas_xpm=[
 "16 16 197 2",
 "  	c None",
 ". 	c #4D8BC8",
@@ -1836,7 +1834,7 @@ page_save_xpm=[
 "C.D.E.F.G.G.H.I.J.K.L.M.N.O.P.Q.",
 "  R.S.T.T.R.U.V.W.X.Y.Z.`. +.+++",
 "            @+#+$+%+&+*+=+-+;+>+"]
-text_indent_xpm=[
+indent_xpm=[
 "16 16 62 1",
 " 	c None",
 ".	c #767676",
@@ -1916,7 +1914,7 @@ text_indent_xpm=[
 "  0abcdeuvw     ",
 "                ",
 "                "]
-text_indent_remove_xpm=[
+dedent_xpm=[
 "16 16 62 1",
 " 	c None",
 ".	c #767676",
@@ -1996,7 +1994,7 @@ text_indent_remove_xpm=[
 "  0abcdeuvw     ",
 "                ",
 "                "]
-folder_key_xpm=[
+folder_xpm=[
 "16 16 158 2",
 "  	c None",
 ". 	c #DA9931",
@@ -2172,7 +2170,7 @@ folder_key_xpm=[
 "9.0.a.b.c.d.e.f.g.h.i.j.k.9.    ",
 "l.m.n.o.p.q.r.s.t.u.v.w.x.l.    ",
 "  y.z.y.y.y.y.y.y.y.y.z.y.A.    "]
-bug__arrow_xpm=[
+debug_xpm=[
 "16 16 87 1",
 " 	c None",
 ".	c #037503",
@@ -2366,7 +2364,7 @@ wand_xpm=[
 "zABCs           ",
 "zDEn            ",
 " yF             "]
-application_tile_vertical_xpm=[
+vert_xpm=[
 "16 16 109 2",
 "  	c None",
 ". 	c #A5C2E4",
@@ -2493,7 +2491,7 @@ application_tile_vertical_xpm=[
 "  +.9 9 9 9 9 9 9 9 9 9 9 @.    ",
 "  #.$.%.&.*.=.-.;.>.,.'.).!.    ",
 "                                "]
-application_tile_horizontal_xpm=[
+horz_xpm=[
 "16 16 85 1",
 " 	c None",
 ".	c #A5C2E4",

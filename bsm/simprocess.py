@@ -2,7 +2,7 @@ import Queue
 import ctypes
 import traceback
 import numpy as np
-from bsm.sim_engine import *
+from simengine import *
 # the class to handle the breakpoint condition
 # one breakpoint may trigger on multiple conditions,
 # and each condition may trigger on multiple hit-counts.
@@ -258,7 +258,7 @@ class ProcessCommand(object):
                 return False
         self.running = running
         # TODO, simStep should support double
-        self.simengine.ctx_start(int(simStep), simUnit)
+        self.simengine.ctx_start(simStep, simUnit)
 
         return True
 

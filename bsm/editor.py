@@ -1,7 +1,9 @@
 import os
 import wx
 import wx.stc as stc
-from pyeditorxpm import *
+from _editorxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm,\
+                       dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm,\
+                       folder_xpm, vert_xpm, horz_xpm
 import inspect
 import wx.py.dispatcher as dispatcher
 
@@ -506,7 +508,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         caretPos = self.GetCurrentPos()
         col = self.GetColumn(caretPos) + 1
         line = self.LineFromPosition(caretPos) + 1
-        dispatcher.send(signal='frame.set_status_text', text='%d, %d'%(line, col),
+        dispatcher.send(signal='frame.show_status_text', text='%d, %d'%(line, col),
                         index=1, width=100)
 
     def OnUpdateUI(self, event):
@@ -925,23 +927,23 @@ class PyEditorPanel(wx.Panel):
         self.findDialog = None
         item = ((wx.ID_OPEN, 'Open', open_xpm, 'Open Python script'),
                 (wx.ID_SAVE, 'Save', save_xpm, 'Save current document (Ctrl+S)'),
-                (wx.ID_SAVEAS, 'Save As', page_save_xpm, 'Save current document as'),
+                (wx.ID_SAVEAS, 'Save As', saveas_xpm, 'Save current document as'),
                 (None, None, None, None),
                 (self.ID_FIND_REPLACE, u'Find', find_xpm, 'Find/Replace (Ctrl+F)'),
                 (None, None, None, None),
-                (self.ID_INDENT, 'Increase Indent', text_indent_xpm, 'Increase the indent'),
-                (self.ID_UNINDENT, 'Decrease Indent', text_indent_remove_xpm, 'Decrease the indent'),
+                (self.ID_INDENT, 'Increase Indent', indent_xpm, 'Increase the indent'),
+                (self.ID_UNINDENT, 'Decrease Indent', dedent_xpm, 'Decrease the indent'),
                 (None, None, None, None),
-                (self.ID_RUN_LINE, 'Run', tab_go_xpm, 'Run the current line or selection (Ctrl+Return)'),
-                (self.ID_RUN_SCRIPT, 'Execute', page_go_xpm, 'Execute the whole script'),
+                (self.ID_RUN_LINE, 'Run', run_xpm, 'Run the current line or selection (Ctrl+Return)'),
+                (self.ID_RUN_SCRIPT, 'Execute', execute_xpm, 'Execute the whole script'),
                 (None, None, None, None),
-                (self.ID_CHECK_SCRIPT, 'Check', tick_xpm, 'Check the module'),
-                (self.ID_DEBUG_SCRIPT, 'Debug', bug__arrow_xpm, 'Debug the script'),
+                (self.ID_CHECK_SCRIPT, 'Check', check_xpm, 'Check the module'),
+                (self.ID_DEBUG_SCRIPT, 'Debug', debug_xpm, 'Debug the script'),
                 (None, None, None, None),
-                (self.ID_SETCURFOLDER, 'Set current folder', folder_key_xpm, 'Set the file folder as current folder'),
+                (self.ID_SETCURFOLDER, 'Set current folder', folder_xpm, 'Set the file folder as current folder'),
                 (None, None, None, None),
-                (self.ID_SPLIT_VERT, 'Split Vert', application_tile_vertical_xpm, 'Split the window vertically'),
-                (self.ID_SPLIT_HORZ, 'Split Horz', application_tile_horizontal_xpm, 'Split the window horizontally'),
+                (self.ID_SPLIT_VERT, 'Split Vert', vert_xpm, 'Split the window vertically'),
+                (self.ID_SPLIT_HORZ, 'Split Horz', horz_xpm, 'Split the window horizontally'),
                )
         self.tb = wx.ToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
         for (id, label, img_xpm, tooltip) in item:
@@ -1205,7 +1207,7 @@ class PyEditorPanel(wx.Panel):
 
     def RunCommand(self, command, prompt=False, verbose=True, debug=False):
         """run command in shell"""
-        dispatcher.send(signal='frame.run', command=command, prompt=prompt,
+        dispatcher.send(signal='shell.run', command=command, prompt=prompt,
                         verbose=verbose, debug=debug)
 
     def OnBtnRun(self, event):
@@ -1275,7 +1277,7 @@ class PyEditorPanel(wx.Panel):
 
     def message(self, text):
         """show the message on statusbar"""
-        dispatcher.send(signal='frame.set_status_text', text=text)
+        dispatcher.send(signal='frame.show_status_text', text=text)
 
     def doFind(self, strFind, forward=True, message=1):
         """search the string"""
