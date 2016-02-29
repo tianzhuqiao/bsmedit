@@ -1,3 +1,0 @@
-SUBDIRS = \
-		  tb_dll
-
