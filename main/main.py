@@ -43,7 +43,6 @@ class bsmMainFrame(framePlus):
         icon = wx.EmptyIcon()
         icon.CopyFromBitmap(wx.BitmapFromXPMData(bsmedit_xpm))
         self.SetIcon(icon)
-
         # status bar
         self.statusbar = wx.StatusBar(self)
         self.SetStatusBar(self.statusbar)
@@ -207,7 +206,7 @@ class bsmMainFrame(framePlus):
             for idx in range(nb.GetPageCount()-1, -1, -1):
                 wnd = nb.GetPage(idx)
                 page = self._mgr.GetPane(wnd)
-                if page.IsOk() and hasattr(page, 'bsm_destroyonclose'):
+                if page.IsOk() and hasattr(wnd, 'bsm_destroyonclose'):
                     nb.RemovePage(idx)
                     page.Dock()
                     page.Hide()
@@ -215,9 +214,9 @@ class bsmMainFrame(framePlus):
                     page.window.notebook_id = -1
                     page.Top()
             return
-        if not hasattr(evt.pane, 'bsm_destroyonclose'):
+        if not hasattr(evt.pane.window, 'bsm_destroyonclose'):
             return
-        if not evt.pane.bsm_destroyonclose:
+        if not evt.pane.window.bsm_destroyonclose:
             evt.Veto()
             if evt.pane.IsNotebookPage():
                 nb = self._mgr.GetNotebooks()
@@ -297,7 +296,7 @@ class bsmMainFrame(framePlus):
             window = pane.GetCurrentPage()
         else:
             window = pane
-        dispatcher.send(signal='frame.activate_panel', pane=pane)
+        dispatcher.send(signal='frame.activate_panel', pane=window)
 
     def SetPanelTitle(self, pane, title):
         """set the panel title"""

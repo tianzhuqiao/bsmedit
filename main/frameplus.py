@@ -148,6 +148,18 @@ class AuiManagerPlus(aui.AuiManager):
             aui.DrawResizeHint(dc, hintrect)
             self._action_rect = wx.Rect(*hintrect)
 
+    def UpdateNotebook(self):
+        super(AuiManagerPlus, self).UpdateNotebook()
+        # update the icon to the notebook page
+        for paneInfo in self._panes:
+            if paneInfo.IsNotebookPage():
+                notebook = self._notebooks[paneInfo.notebook_id]
+                page_id = notebook.GetPageIndex(paneInfo.window)
+                if page_id >= 0:
+                    notebook.SetPageBitmap(page_id, paneInfo.icon)
+
+                notebook.DoSizing()
+
 class framePlus(wx.Frame):
     PANE_NUM = 0
     def __init__(self, parent, id=wx.ID_ANY, title=u'BSMEdit',
@@ -254,7 +266,7 @@ class framePlus(wx.Frame):
             event.Enable(True)
 
     def addPanel(self, panel, title='Untitle', active=True, paneInfo=None,
-                 target=None, showhidemenu=None):
+                 target=None, showhidemenu=None, icon=None):
         """add the panel to AUI"""
         if not panel:
             return False
@@ -290,7 +302,7 @@ class framePlus(wx.Frame):
                 aui.AuiPaneInfo().Caption(title).BestSize((300, 300))\
                    .DestroyOnClose(not showhidemenu).Top().Snappable()\
                    .Dockable().Layer(1).Position(1)\
-                   .MinimizeButton(True).MaximizeButton(True)
+                   .MinimizeButton(True).MaximizeButton(True).Icon(icon)
 
         # auto generate the unique panel name
         name = "pane-%d"%framePlus.PANE_NUM
@@ -299,7 +311,7 @@ class framePlus(wx.Frame):
 
         # if showhidemenu is false, the panel will be destroy when clicking
         # on the close button; otherwise it will be hidden
-        auipaneinfo.bsm_destroyonclose = not showhidemenu
+        panel.bsm_destroyonclose = not showhidemenu
         self._mgr.AddPane(panel, auipaneinfo, target=targetpane)
         if active:
             self.showPanel(panel)
@@ -328,7 +340,7 @@ class framePlus(wx.Frame):
         pane = self._mgr.GetPane(panel)
         if pane is None or not pane.IsOk():
             return False
-        pane.bsm_destroyonclose = True
+        panel.bsm_destroyonclose = True
         self._mgr.ClosePane(pane)
         self._mgr.Update()
         return True
