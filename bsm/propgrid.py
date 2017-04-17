@@ -80,6 +80,8 @@ class bsmPropGridBase(wx.ScrolledWindow):
         self.Bind(wx.EVT_MOTION, self.OnMouseMove)
         self.Bind(wx.EVT_LEAVE_WINDOW, self.OnMouseLeave)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
+        # calling CaptureMouse requires to implement EVT_MOUSE_CAPTURE_LOST
+        self.Bind(wx.EVT_MOUSE_CAPTURE_LOST, self.OnMouseCaptureLost)
 
         self.Bind(EVT_BSM_PROP_SELECTED, self.OnPropEventsHandler, id=wx.ID_ANY)
         self.Bind(EVT_BSM_PROP_CHANGING, self.OnPropEventsHandler, id=wx.ID_ANY)
@@ -683,6 +685,9 @@ class bsmPropGridBase(wx.ScrolledWindow):
             prop.OnMouseDoubleClick(pt)
 
         evt.Skip()
+
+    def OnMouseCaptureLost(self, evt):
+        pass
 
     def OnMouseMove(self, evt):
         """mouse move"""
