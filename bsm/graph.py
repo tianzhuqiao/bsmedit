@@ -11,6 +11,8 @@ try:
     from matplotlib.backends.backend_wxagg import NavigationToolbar2Wx as NavigationToolbar
     from matplotlib._pylab_helpers import Gcf
     import matplotlib.pyplot as plt
+    from matplotlib import rcParams
+    rcParams.update({'figure.autolayout': True})
     matplotlib.interactive(True)
     initialized = True
 except:
@@ -38,10 +40,14 @@ class DataCursor(object):
     def __call__(self, event):
         if not self.enable or self.active is None:
             return
+        if not event.mouseevent.xdata or not event.mouseevent.ydata:
+            return
+        if not event.artist:
+            return
         line = event.artist
         x, y = line.get_xdata(), line.get_ydata()
         self.x, self.y = event.mouseevent.xdata, event.mouseevent.ydata
-        idx = numpy.abs(x-self.x).argmin()
+        idx = (numpy.square(x-self.x) + numpy.square(y-self.y)).argmin()
         self.x, self.y = x[idx], y[idx]
         if self.x is not None:
             self.active.xy = self.x, self.y
@@ -53,9 +59,9 @@ class DataCursor(object):
         self.enable = enable
         if self.active:
             if enable:
-                self.active.get_bbox_patch().set_facecolor('y')
+                self.active.get_bbox_patch().set_facecolor('yellow')
             else:
-                self.active.get_bbox_patch().set_facecolor('w')
+                self.active.get_bbox_patch().set_facecolor('white')
 
     def mouse_move(self, x, y):
         """move the annotation position"""
@@ -76,7 +82,7 @@ class DataCursor(object):
                 py = -60
             elif dy < -40:
                 py = -20
-            self.active.xytext = (px, py)
+            self.active.xyann = (px, py)
             return True
         return False
 
@@ -92,17 +98,11 @@ class DataCursor(object):
         dm = -1
         active = None
         for ant in self.annotations:
-            pos = ant.get_position()
-            dx = x - pos[0]
-            dy = y - pos[1]
-            dis = math.sqrt(dx**2 + dy**2)
-            if dm < 0 or dis < dm:
-                dm = dis
+            box = ant.get_bbox_patch().get_extents()
+            if box.contains(x,y):
                 active = ant
-        if dm > 50:
-            active = None
-        if active:
-            self.set_active(active)
+                break
+        self.set_active(active)
         # return True for the parent to redraw
         return True
 
@@ -118,11 +118,13 @@ class DataCursor(object):
         """set the active annotation"""
         if ant and (ant not in self.annotations):
             return False
+        if self.active== ant:
+            return True
         if self.active:
-            self.active.get_bbox_patch().set_facecolor('w')
+            self.active.get_bbox_patch().set_facecolor('white')
         self.active = ant
         if self.active:
-            self.active.get_bbox_patch().set_facecolor('y')
+            self.active.get_bbox_patch().set_facecolor('yellow')
         return True
 
     def get_annotations(self):
@@ -131,13 +133,13 @@ class DataCursor(object):
 
     def create_annotation(self):
         """create the annotation and set it active"""
-        bbox = dict(boxstyle='round,pad=0.5', fc='y', ec='0.5', alpha=0.9)
-        arrowprops = dict(arrowstyle='->', connectionstyle='arc3,rad=0')
         ax = self.ax
-        ant = ax.annotate(self.text_template, xy=(self.x, self.y),
-                          xytext=(self.xoffset, self.yoffset), bbox=bbox,
-                          textcoords='offset points', ha='right', va='bottom',
-                          arrowprops=arrowprops)
+        ant = ax.annotate(self.text_template,
+                xy=(self.x, self.y), xytext=(self.xoffset, self.yoffset),
+                textcoords='offset points', ha='right', va='bottom',
+                bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0')
+                )
         ant.set_visible(False)
         self.annotations.append(ant)
         self.set_active(ant)
@@ -156,6 +158,7 @@ class DataCursor(object):
             for ant in self.annotations:
                 ant.remove()
             self.annotations = []
+            self.create_annotation()
             return True
         elif cmd == wx.ID_NEW:
             self.create_annotation()
@@ -172,16 +175,71 @@ class Toolbar(NavigationToolbar):
         self.canvas.mpl_connect('motion_notify_event', self.OnMove)
         self.canvas.mpl_connect('button_press_event', self.OnPressed)
         self.canvas.mpl_connect('button_release_event', self.OnReleased)
+        self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
     def OnPressed(self, event):
+        if self.mode != 'datatip':
+            return
+        # some lines may be added
+        for l in self.figure.gca().lines:
+            l.set_picker(5)
         if self.datacursor.mouse_pressed(event.x, event.y):
             self.canvas.draw()
 
     def OnReleased(self, event):
+        if self.mode != 'datatip':
+            return
         self.datacursor.mouse_released(event.x, event.y)
 
     def OnMove(self, event):
+        if self.mode != 'datatip':
+            return
         if self.datacursor.mouse_move(event.x, event.y):
             self.canvas.draw()
+
+    def OnZoomFun(self, event):
+        # get the current x and y limits
+        if not self.GetToolState(self.wx_ids['Zoom']):
+            return
+        if self._views.empty():
+            self.push_current()
+        base_scale = 2.0
+        ax = self.figure.gca()
+        cur_xlim = ax.get_xlim()
+        cur_ylim = ax.get_ylim()
+
+        xdata = event.xdata # get event x location
+        ydata = event.ydata # get event y location
+        if(xdata is None):
+            return()
+        if(ydata is None):
+            return()
+
+        if event.button == 'down':
+            # deal with zoom in
+            scale_factor = 1 / base_scale
+        elif event.button == 'up':
+            # deal with zoom out
+            scale_factor = base_scale
+        else:
+            # deal with something that should never happen
+            scale_factor = 1
+            print(event.button)
+
+        new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
+        new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
+
+        relx = (cur_xlim[1] - xdata)/(cur_xlim[1] - cur_xlim[0])
+        rely = (cur_ylim[1] - ydata)/(cur_ylim[1] - cur_ylim[0])
+        xzoom = yzoom = True
+        if wx.GetKeyState(wx.WXK_CONTROL_X):
+            yzoom = False
+        elif wx.GetKeyState(wx.WXK_CONTROL_Y):
+            xzoom = False
+        if(xzoom) and new_width * (1-relx)>0:
+            ax.set_xlim([xdata - new_width * (1-relx), xdata + new_width * (relx)])
+        if(yzoom) and  new_height * (1-rely)>0:
+            ax.set_ylim([ydata - new_height * (1-rely), ydata + new_height * (rely)])
+        self.canvas.draw()
 
     def _init_toolbar(self):
         toolitems = (
