@@ -256,7 +256,7 @@ class ProcessCommand(object):
                 # finished, no need to run
                 self.running = False
                 return False
-        self.running = running
+        self.running = (running and (simStep == self.simStep))
         # TODO, simStep should support double
         self.simengine.ctx_start(simStep, simUnit)
 
@@ -376,7 +376,7 @@ class ProcessCommand(object):
         resp = {}
         for obj in objects:
             if obj not in self.tbuf.keys():
-                self.trace_buf(obj, 256)
+                self.trace_buf({'name':obj})
             if obj in self.tbuf.keys():
                 self.simengine.ctx_read_trace_buf(self.tbuf[obj]['trace'])
                 resp[obj] = self.tbuf[obj]['data']
@@ -420,7 +420,7 @@ class ProcessCommand(object):
                         resp['value'] = self.load(args.get('filename', None))
                     elif command == 'step':
                         resp['value'] = self.step(args.get('running', False))
-
+                        args['running'] = self.running
                     elif command == 'pause':
                         self.running = False
                         resp['value'] = True

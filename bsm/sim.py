@@ -298,13 +298,13 @@ class ModulePanel(wx.Panel):
             self.num = num
         else:
             self.num = Gcs.get_next_num()
+        self.colour = wx.Colour(178, 34, 34)
         Gcs.set_active(self)
 
         # the variable used to update the UI in idle()
         self.ui_timestamp = None
         self.ui_objs = None
         self.ui_buffers = None
-        self.ui_load = False
         self.ui_update = 0
         self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|wx.TB_NODIVIDER)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
@@ -391,17 +391,26 @@ class ModulePanel(wx.Panel):
         self.simProcess = None
         self.start()
         self.lock = threading.Lock()
+        self.waiting = 0
+        self.busy = 0
         #
         if isinstance(filename, str) and filename is not None:
             self.load(filename)
         elif not silent:
             self.load_interactive()
+        self.sim_filename = filename
         self.SetParameter()
     def __del__(self):
         # stop() will involve some gui operations, it should not be called in
         # __del__()
         self._stop()
         Gcs.destroy(self.num)
+
+    def SetColor(self, clr):
+        self.color = clr
+
+    def GetColor(self):
+        return self.color
 
     def SendCommand(self, cmd, args={}, block=False):
         """send the command to the simulation process"""
@@ -539,8 +548,8 @@ class ModulePanel(wx.Panel):
         elif more:
             total, ismore = more, True
         else:
-            # run forever
-            total, ismore = -1, False
+            # run with the current settings
+            total, ismore = None, False
         self.set_parameter(total=total, more=ismore, block=False)
         return self.SendCommand('step', {'running': True}, block)
 
@@ -572,7 +581,10 @@ class ModulePanel(wx.Panel):
     def reset(self):
         """reset the simulation"""
         self.start()
-
+        if self.filename:
+            self.load(self.filename)
+        else:
+            self.load_interactive()
     def time_stamp(self, inSecond=False, block=True):
         """return the simulation time elapsed as a string"""
         args = {}
@@ -695,6 +707,7 @@ class ModulePanel(wx.Panel):
                 continue
             prop = grid.InsertProperty(self.abs_object_name(obj['name']),
                                        obj['basename'], obj['value'], index)
+            prop.SetGripperColor(self.color)
             if not obj['readable'] and not obj['writable']:
                 prop.SetReadOnly(True)
                 prop.SetShowRadio(False)
@@ -748,6 +761,7 @@ class ModulePanel(wx.Panel):
 
         ids = self.tree.GetSelections()
         objs = []
+        objs_name = []
         for i in range(0, len(ids)):
             item = ids[i]
             if item == self.tree.GetRootItem():
@@ -766,11 +780,12 @@ class ModulePanel(wx.Panel):
                 while child.IsOk():
                     ext2 = self.tree.GetExtendObj(child)
                     objchild.append(self.abs_object_name(ext2['name']))
+                    objs_name.append(ext2['name'])
                     (child, cookie) = self.tree.GetNextChild(item, cookie)
                 objs.append({'reg':self.abs_object_name(ext['name']), 'child':objchild})
             else:
                 objs.append({'reg':self.abs_object_name(ext['name'])})
-
+            objs_name.append(ext['name'])
         # need to explicitly allow drag
         # start drag operation
         data = wx.PyTextDataObject(json.dumps(objs))
@@ -787,7 +802,7 @@ class ModulePanel(wx.Panel):
             pass
         elif rtn == wx.DragCancel:
             pass
-
+        self.read(objs_name, False)
     def OnProcessCommand(self, event):
         """process the menu command"""
         eid = event.GetId()
@@ -826,6 +841,7 @@ class ModulePanel(wx.Panel):
                 ext = self.tree.GetExtendObj(item)
                 nkind = ext['nkind']
                 self.show_prop(viewer, ext['name'])
+                objs.append(ext['name'])
                 if nkind == SC_OBJ_XSC_ARRAY:
                     (child, cookie) = self.tree.GetFirstChild(item)
                     if child.IsOk() and self.tree.GetItemText(child) == "...":
@@ -834,24 +850,38 @@ class ModulePanel(wx.Panel):
                     while child.IsOk():
                         ext2 = self.tree.GetExtendObj(child)
                         prop = self.show_prop(viewer, ext2['name'])
+                        objs.append(ext2['name'])
                         prop.SetIndent(1)
                         (child, cookie) = self.tree.GetNextChild(item, cookie)
-
+            self.read(objs, False)
     def ProcessResponse(self, resp):
         try:
+            self.waiting += 1;
             command = resp.get('cmd', '')
             cid = resp.get('id', -1)
             value = resp.get('value', False)
+            args = resp.get('arguments', {})
             if command == 'load':
                 self.objects = value
                 self.tree.Load(self.objects)
-                self.ui_load = True
+                self.filename = args['filename']
+                dispatcher.send(signal='sim.loaded', num=self.num)
+                self.time_stamp(False, False)
+                self.read([], False)
+                self.read_buf([], False)
             elif command == 'step':
                 if value:
+                    if self.waiting > 1000:
+                        self.waiting = 0
+                        self.busy = True
+                        self.set_parameter(step=self.tcStep.GetValue()*10, block=False)
+                        print(self.tcStep.GetValue())
                     # simulation proceeds one step, update the values
-                    self.time_stamp(False, False)
-                    self.read([], False)
-                    self.read_buf([], False)
+                    if not args.get('running', False) or self.waiting < 20:
+                        self.time_stamp(False, False)
+                    if not args.get('running', False) or self.waiting < 100:
+                        self.read([], False)
+                        self.read_buf([], False)
             elif command == 'pause':
                 pass
             elif command == 'monitor_add':
@@ -865,6 +895,7 @@ class ModulePanel(wx.Panel):
                 pass
             elif command == 'set_parameter':
                 if value:
+                    self.busy = False
                     args = resp['arguments']
                     step = self.tcStep.GetValue()
                     self.tcStep.SetValue(str(args.get('step', step)))
@@ -912,10 +943,8 @@ class ModulePanel(wx.Panel):
             pass
     def OnIdle(self, event):
         """update the GUI"""
-        if self.ui_load:
-            self.ui_load = False
-            #dispatcher.send(signal='sim.loaded', num=self.num)
-        elif (self.ui_timestamp is not None) and self.ui_update == 0:
+        self.waiting = 0 ;
+        if (self.ui_timestamp is not None) and self.ui_update == 0:
             dispatcher.send(signal="frame.show_status_text", text=self.ui_timestamp)
             self.ui_timestamp = None
         elif (self.ui_objs is not None) and self.ui_update == 1:
@@ -930,14 +959,14 @@ class ModulePanel(wx.Panel):
 
     def OnStep(self, event):
         self.SetParameter(False)
-        self.step(False)
+        self.step()
 
     def OnRun(self, event):
         self.SetParameter(False)
-        self.run(False)
+        self.run()
 
     def OnPause(self, event):
-        self.pause(False)
+        self.pause()
 
 bsmEVT_SIM_NOTIFY = wx.NewEventType()
 EVT_SIM_NOTIFY = wx.PyEventBinder(bsmEVT_SIM_NOTIFY)
@@ -958,6 +987,7 @@ class RespThread(threading.Thread):
 
     def response(self):
         command = self.qResp.get()
+        command['waiting'] = self.qResp.qsize()
         if command['cmd'] == 'exit':
             return False
         if command.get('block', False):
@@ -965,7 +995,7 @@ class RespThread(threading.Thread):
             # the main thread may not be able to return
             self.qRespNotify.put(command)
         else:
-            # TODO if the qRespNonBlock is not almost empty, maybe we send too
+            # TODO if the qRespNotify is not almost empty, maybe we send too
             # many responses (e.g., in running mode), and ignore the
             # unimportant response.
             #delta = _time() - self.lastTimeNotify
@@ -1184,9 +1214,47 @@ class sim:
             return (None, name)
         else:
             return (int(x.group(1)), x.group(2))
+    @classmethod
+    def MakeBitmap(cls, red, green, blue, alpha=128):
+        # Create the bitmap that we will stuff pixel values into using
+        # the raw bitmap access classes.
+        bmp = wx.EmptyBitmap(16, 16, 32)
+
+        # Create an object that facilitates access to the bitmap's
+        # pixel buffer
+        pixelData = wx.AlphaPixelData(bmp)
+        if not pixelData:
+            raise RuntimeError("Failed to gain raw access to bitmap data.")
+
+        # We have two ways to access each pixel, first we'll use an
+        # iterator to set every pixel to the colour and alpha values
+        # passed in.
+        for pixel in pixelData:
+            pixel.Set(red, green, blue, alpha)
+
+        # Next we'll use the pixel accessor to set the border pixels
+        # to be fully opaque
+        pixels = pixelData.GetPixels()
+        for x in xrange(16):
+            pixels.MoveTo(pixelData, x, 0)
+            pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
+            pixels.MoveTo(pixelData, x, 16-1)
+            pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
+        for y in xrange(16):
+            pixels.MoveTo(pixelData, 0, y)
+            pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
+            pixels.MoveTo(pixelData, 16-1, y)
+            pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
+
+        return bmp
 
     @classmethod
-    def simulation(cls, num=None, filename=None, scilent=False, create=True,
+    def GetColorByNum(cls, num):
+        color = ['green', 'red', 'blue', 'black', 'cyan', 'yellow', 'magenta', 'cyan']
+        return wx.NamedColour(color[num%len(color)])
+
+    @classmethod
+    def simulation(cls, num=None, filename=None, silent=False, create=True,
                    activate=False):
         """
         create a simulation
@@ -1196,9 +1264,14 @@ class sim:
         """
         manager = Gcs.get_manager(num)
         if manager is None and create:
-            manager = ModulePanel(sim.frame, num, filename, scilent)
+            manager = ModulePanel(sim.frame, num, filename, silent)
+            clr = cls.GetColorByNum(manager.num)
+            clr.Set(clr.red, clr.green, clr.blue, 128)
+            manager.SetColor(clr)
+            page_bmp = cls.MakeBitmap(clr.red, clr.green, clr.blue)#178,  34,  34)
             dispatcher.send(signal="frame.add_panel", panel=manager,
-                            title="Simulation-%d"%manager.num, target="History")
+                            title="Simulation-%d"%manager.num, target="History",
+                            icon=page_bmp)
         # activate the manager
         elif manager and activate:
             dispatcher.send(signal='frame.show_panel', panel=manager)

@@ -114,10 +114,10 @@ class bsmPropGridBase(wx.ScrolledWindow):
             if not resp:
                 return
             status = resp[0][1]
-            if not isinstance(status, dict):
+            if status == False:
                 return
             for obj in objs:
-                if not status.get(obj, False):
+                if isinstance(status, dict) and not status.get(obj, False):
                     continue
                 p = self.GetProperty(obj)
                 if not p: continue

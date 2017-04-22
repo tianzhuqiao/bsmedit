@@ -96,11 +96,13 @@ class bsmProperty(object):
         self.parentProp = -1
         self.choiceList = []
         self.valueList = []
+        self.SetGripperColor()
         self.SetTextColor(silent=True)
         self.SetBGColor(silent=True)
         self.minimumSize = wx.Size(200, 25)
         self.defaultSize = wx.Size(200, 25)
         self.clientRect = wx.Rect(0, 0, 0, 0)
+        self.gripperRect = wx.Rect(0, 0, 0, 0)
         self.expanderRect = wx.Rect(0, 0, 0, 0)
         self.radioRect = wx.Rect(0, 0, 0, 0)
         self.splitterRect = wx.Rect(0, 0, 0, 0)
@@ -147,6 +149,7 @@ class bsmProperty(object):
         p.parentProp = self.parentProp
         p.choiceList = self.choiceList[:]
         p.valueList = self.valueList[:]
+        p.SetGripperColor(self.gripperColor)
         p.SetTextColor(self.textColor, self.textColorSel, self.textColorDisable, True)
         p.SetBGColor(self.bgColor, self.bgColorSel, self.bgColorDisable, True)
         p.showLabelTips = self.showLabelTips
@@ -351,6 +354,9 @@ class bsmProperty(object):
         """return whether the radio icon is shown"""
         return self.showRadio
 
+    def GetGripperColor(self):
+        return self.gripperColor
+
     def GetTextColor(self):
         """get the text colors"""
         return (self.textColor, self.textColorSel, self.textColorDisable)
@@ -422,6 +428,18 @@ class bsmProperty(object):
                 if not self.expanded:
                     idx = 1
                 type(self).imgExpColp.Draw(idx, dc, x, y, wx.IMAGELIST_DRAW_TRANSPARENT)
+
+        # draw gripper
+        if self.gripperColor:
+            pen.SetColour(self.gripperColor)#(178,34,34))
+            pen.SetStyle(wx.TRANSPARENT)
+
+            dc.SetPen(pen)
+            brush.SetColour(self.gripperColor)#(178,34,34))
+            brush.SetStyle(wx.SOLID)
+            dc.SetBrush(brush)
+            rcSim = self.gripperRect
+            dc.DrawRectangle(rcSim.x, rcSim.y+1, 3, rcSim.height-1)
 
         # draw title
         if self.italic:
@@ -507,8 +525,12 @@ class bsmProperty(object):
         """calculate the rect for each section"""
         MARGIN_X = type(self).MARGIN_X
         rc = self.GetClientRect()
+        self.gripperRect = wx.Rect(*rc)
+        self.gripperRect.x = self.gripperRect.x + MARGIN_X+self.indent*20
+        self.gripperRect.SetWidth(6)
+
         self.expanderRect = wx.Rect(*rc)
-        self.expanderRect.x = self.expanderRect.x + MARGIN_X+self.indent*20
+        self.expanderRect.x = self.gripperRect.right + MARGIN_X
         self.expanderRect.SetWidth(self.radioWidth)
 
         self.radioRect = wx.Rect(*rc)
@@ -516,7 +538,7 @@ class bsmProperty(object):
         self.radioRect.SetWidth(self.radioWidth)
 
         self.titleRect = wx.Rect(*rc)
-        self.titleRect.SetLeft(self.radioRect.right + MARGIN_X)
+        self.titleRect.SetLeft(self.radioRect.right + MARGIN_X*2)
 
         self.titleRect.SetWidth(self.titleWidth)
 
@@ -525,7 +547,7 @@ class bsmProperty(object):
         self.splitterRect.SetWidth(8)
 
         self.titleRectColumn = wx.Rect(*rc)
-        self.titleRectColumn.SetLeft(self.expanderRect.left)
+        self.titleRectColumn.SetLeft(self.gripperRect.left)
         self.titleRectColumn.SetRight(self.titleWidth)
 
         self.valueRect = wx.Rect(*rc)
@@ -947,6 +969,9 @@ class bsmProperty(object):
             self.radioChecked = check
             if not silent and self.GetVisible():
                 self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
+
+    def SetGripperColor(self, clr=None):
+        self.gripperColor = clr
 
     def SetTextColor(self, crText=None, crTextSel=None, crTextDisable=None,
                      silent=False):
