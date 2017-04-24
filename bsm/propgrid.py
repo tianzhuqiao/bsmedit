@@ -905,7 +905,7 @@ class bsmPropGrid(bsmPropGridBase):
             menu.AppendSeparator()
             menu.Append(self.ID_PROP_GRID_DELETE, "&Delete")
             menu.AppendSeparator()
-            menu.Append(self.ID_PROP_GRID_PROP, "&Properities")
+            menu.Append(self.ID_PROP_GRID_PROP, "&Properties")
 
             self.PopupMenu(menu)
             menu.Destroy()
@@ -1098,28 +1098,28 @@ class dlgSettings(wx.Dialog):
                           ('indent', 'indent', PROP_CTRL_SPIN),
                           ('italic', 'italic', PROP_CTRL_CHECK))
         else:
-            self.items = (('name', 'name', PROP_CTRL_EDIT),
-                          ('label', 'label', PROP_CTRL_EDIT),
-                          ('value', 'value', PROP_CTRL_EDIT),
-                          ('description', 'description', PROP_CTRL_EDIT),
-                          ('valueMax', 'valueMax', PROP_CTRL_SPIN),
-                          ('valueMin', 'valueMin', PROP_CTRL_SPIN),
-                          ('indent', 'indent', PROP_CTRL_SPIN),
-                          ('showRadio', 'showRadio', PROP_CTRL_CHECK),
-                          ('enable', 'enable', PROP_CTRL_CHECK),
-                          ('italic', 'italic', PROP_CTRL_CHECK),
-                          ('readOnly', 'readOnly', PROP_CTRL_CHECK),
-                          ('ctrlType', 'ctrlType', PROP_CTRL_COMBO),
-                          ('choiceList', 'choiceList', PROP_CTRL_EDIT),
-                          ('valueList', 'valueList', PROP_CTRL_EDIT),
-                          ('textColor', 'crText', PROP_CTRL_COLOR),
-                          ('textColorSel', 'crTextSel', PROP_CTRL_COLOR),
-                          ('textColorDisable', 'crTextDisable', PROP_CTRL_COLOR),
-                          ('bgColor', 'crBg', PROP_CTRL_COLOR),
-                          ('bgColorSel', 'crBgSel', PROP_CTRL_COLOR),
-                          ('bgColorDisable', 'crBgDisable', PROP_CTRL_COLOR),
-                          ('showLabelTips', 'showLabelTips', PROP_CTRL_CHECK),
-                          ('showValueTips', 'showValueTips', PROP_CTRL_CHECK))
+            self.items = (('name', 'Name', PROP_CTRL_EDIT),
+                          ('label', 'Label', PROP_CTRL_EDIT),
+                          ('value', 'Value', PROP_CTRL_EDIT),
+                          ('description', 'Description', PROP_CTRL_EDIT),
+                          ('valueMax', 'Max value', PROP_CTRL_SPIN),
+                          ('valueMin', 'Min value', PROP_CTRL_SPIN),
+                          ('indent', 'Indent level', PROP_CTRL_SPIN),
+                          ('showRadio', 'Show breakpoint', PROP_CTRL_CHECK),
+                          ('enable', 'Enable', PROP_CTRL_CHECK),
+                          ('italic', 'Italic', PROP_CTRL_CHECK),
+                          ('readOnly', 'Read only', PROP_CTRL_CHECK),
+                          ('ctrlType', 'Control window type', PROP_CTRL_COMBO),
+                          ('choiceList', 'Choice list', PROP_CTRL_EDIT),
+                          ('valueList', 'Value list', PROP_CTRL_EDIT),
+                          ('textColor', 'Normal text color', PROP_CTRL_COLOR),
+                          ('textColorSel', 'Selected text color', PROP_CTRL_COLOR),
+                          ('textColorDisable', 'Disable text color', PROP_CTRL_COLOR),
+                          ('bgColor', 'Normal background color', PROP_CTRL_COLOR),
+                          ('bgColorSel', 'Selected background color', PROP_CTRL_COLOR),
+                          ('bgColorDisable', 'Disable background color', PROP_CTRL_COLOR),
+                          ('showLabelTips', 'Show label tips', PROP_CTRL_CHECK),
+                          ('showValueTips', 'Show value tips', PROP_CTRL_CHECK))
         p = self.propgrid
         for (name, label, ctrl) in self.items:
             pp = p.InsertProperty(name, label, '')
@@ -1127,6 +1127,13 @@ class dlgSettings(wx.Dialog):
                 v = getattr(prop, name)
             else:
                 v = ""
+            if name == 'ctrlType':
+                choice = ['default', 'none', 'editbox', 'combobox',
+                          'select file button', 'select folder button',
+                          'slider', 'spin', 'checkbox', 'radio button',
+                          'colorpicker']
+                value = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
+                pp.SetChoice(choice, value)
             if name in ['choiceList', 'valueList']:
                 pp.SetValue('; '.join(v))
             elif ctrl == PROP_CTRL_CHECK:
@@ -1180,6 +1187,8 @@ class dlgSettings(wx.Dialog):
                 setattr(self.prop, name, v.GetValue().split(';'))
             elif ctrl == PROP_CTRL_CHECK:
                 setattr(self.prop, name, bool(int(v.GetValue())))
+            elif name == 'ctrlType':
+                self.prop.SetControlStyle(int(v.GetValue()))
             else:
                 setattr(self.prop, name, type(getattr(self.prop, name))(v.GetValue()))
         event.Skip()
