@@ -58,6 +58,7 @@ class bsmMainFrame(framePlus):
         self.filehistory.AddFilesToMenu()
         self.Bind(wx.EVT_MENU_RANGE, self.OnMenuFileHistory, id=wx.ID_FILE1, id2=wx.ID_FILE9)
 
+        self.closing = False
         # shell panel
         ns = {}
         ns['wx'] = wx
@@ -68,29 +69,12 @@ class bsmMainFrame(framePlus):
                           aui.AuiPaneInfo().Name('shell').Caption('Console')
                           .CenterPane().CloseButton(False).Layer(1)
                           .Position(1).MinimizeButton(True).MaximizeButton(True))
-
-        ## history panel
-        #self.panelHistory = HistoryPanel(self)
-        #self.addPanel(self.panelHistory, title="History",
-        #              showhidemenu='View:Panels:Command History')
-        ## help panel
-        #self.panelHelp = HelpPanel(self)
-        #self.addPanel(self.panelHelp, title="Help",
-        #              target=self.panelHistory,
-        #              showhidemenu='View:Panels:Command Help')
-        ## directory panel
-        #self.panelDir = DirPanel(self)
-        #self.addPanel(self.panelDir, title="Browsing",
-        #              target=self.panelHistory,
-        #              showhidemenu='View:Panels:Browsing')
-
         self._mgr.Update()
 
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
         dispatcher.connect(receiver=self.SetPanelTitle, signal='frame.set_panel_title')
         dispatcher.connect(receiver=self.ShowStatusText, signal='frame.show_status_text')
         dispatcher.connect(receiver=self.AddFileHistory, signal='frame.add_file_history')
-        self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         #try:
         self.addon = {}
@@ -201,12 +185,24 @@ class bsmMainFrame(framePlus):
         # check if the window should be destroyed
         # auiPaneInfo.IsDestroyOnClose() can not be used since if the pane is
         # added to a notebook, IsDestroyOnClose() always returns False
+        def PaneClosingVeto(pane):
+            force = self.closing
+            if hasattr(pane, 'bsm_destroyonclose'):
+                force = pane.bsm_destroyonclose
+            resp = dispatcher.send('frame.closing_pane', pane = pane, force = force)
+            if resp:
+                status = resp[0][1]
+                if isinstance(status, dict):
+                    return dict.get('veto', False)
+            return not force
+        # close the notebook
         if evt.pane.IsNotebookControl():
             nb = evt.pane.window
             for idx in range(nb.GetPageCount()-1, -1, -1):
                 wnd = nb.GetPage(idx)
                 page = self._mgr.GetPane(wnd)
-                if page.IsOk() and hasattr(wnd, 'bsm_destroyonclose'):
+
+                if page.IsOk() and PaneClosingVeto(wnd):
                     nb.RemovePage(idx)
                     page.Dock()
                     page.Hide()
@@ -214,14 +210,14 @@ class bsmMainFrame(framePlus):
                     page.window.notebook_id = -1
                     page.Top()
             return
-        if not hasattr(evt.pane.window, 'bsm_destroyonclose'):
-            return
-        if not evt.pane.window.bsm_destroyonclose:
+        # close a page or a panel
+        wnd = evt.pane.window
+        if PaneClosingVeto(wnd):
             evt.Veto()
             if evt.pane.IsNotebookPage():
                 nb = self._mgr.GetNotebooks()
                 notebook = nb[evt.pane.notebook_id]
-                idx = notebook.GetPageIndex(evt.pane.window)
+                idx = notebook.GetPageIndex(wnd)
                 notebook.RemovePage(idx)
                 evt.pane.Dock()
                 evt.pane.Hide()
@@ -229,7 +225,7 @@ class bsmMainFrame(framePlus):
                 evt.pane.window.notebook = notebook
                 evt.pane.Top()
                 self._mgr.Update()
-            self._mgr.ShowPane(evt.pane.window, False)
+            self._mgr.ShowPane(wnd, False)
             self._mgr.Update()
 
     def OnNoteBookTabRightUp(self, evt):
@@ -262,9 +258,10 @@ class bsmMainFrame(framePlus):
 
     def OnClose(self, evt):
         """close the main program"""
+        self.closing = True
         dispatcher.send(signal='frame.save_config', config=self.config)
         dispatcher.send(signal='frame.exit')
-        evt.Skip()
+        super(bsmMainFrame, self).OnClose(evt)
 
     def ShowStatusText(self, text, index=0, width=-1):
         """set the status text"""

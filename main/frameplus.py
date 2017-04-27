@@ -1,7 +1,9 @@
 import wx
 import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dispatcher
-
+from wx.lib.agw.aui import AuiPaneButton, AuiPaneInfo
+from wx.lib.agw.aui.aui_constants import AUI_BUTTON_MINIMIZE,\
+                                 AUI_BUTTON_MAXIMIZE_RESTORE, AUI_BUTTON_CLOSE
 class AuiFloatingFramePlus(aui.AuiFloatingFrame):
     def __init__(self, parent, owner_mgr, pane=None, id=wx.ID_ANY, title='',
                  style=wx.FRAME_TOOL_WINDOW | wx.FRAME_NO_TASKBAR |
@@ -149,7 +151,222 @@ class AuiManagerPlus(aui.AuiManager):
             self._action_rect = wx.Rect(*hintrect)
 
     def UpdateNotebook(self):
-        super(AuiManagerPlus, self).UpdateNotebook()
+        """ Updates the automatic :class:`~lib.agw.aui.auibook.AuiNotebook` in
+        the layout (if any exists). """
+
+        # Workout how many notebooks we need.
+        max_notebook = -1
+
+        # destroy floating panes which have been
+        # redocked or are becoming non-floating
+        for paneInfo in self._panes:
+            if max_notebook < paneInfo.notebook_id:
+                max_notebook = paneInfo.notebook_id
+
+        # We are the master of our domain
+        extra_notebook = len(self._notebooks)
+        max_notebook += 1
+
+        for i in xrange(extra_notebook, max_notebook):
+            self.CreateNotebook()
+
+        # Remove pages from notebooks that no-longer belong there ...
+        for nb, notebook in enumerate(self._notebooks):
+            pages = notebook.GetPageCount()
+            pageCounter, allPages = 0, pages
+
+            # Check each tab ...
+            for page in xrange(pages):
+
+                if page >= allPages:
+                    break
+
+                window = notebook.GetPage(pageCounter)
+                paneInfo = self.GetPane(window)
+                if paneInfo.IsOk() and paneInfo.notebook_id != nb:
+                    notebook.RemovePage(pageCounter)
+                    window.Hide()
+                    window.Reparent(self._frame)
+                    pageCounter -= 1
+                    allPages -= 1
+
+                pageCounter += 1
+
+            notebook.DoSizing()
+
+        # Add notebook pages that aren't there already...
+        for paneInfo in self._panes:
+            if paneInfo.IsNotebookPage():
+
+                title = (paneInfo.caption == "" and [paneInfo.name] or [paneInfo.caption])[0]
+
+                notebook = self._notebooks[paneInfo.notebook_id]
+                page_id = notebook.GetPageIndex(paneInfo.window)
+
+                if page_id < 0:
+
+                    paneInfo.window.Reparent(notebook)
+                    notebook.AddPage(paneInfo.window, title, True, paneInfo.icon)
+
+                # Update title and icon ...
+                else:
+
+                    notebook.SetPageText(page_id, title)
+                    notebook.SetPageBitmap(page_id, paneInfo.icon)
+
+                notebook.DoSizing()
+
+            # Wire-up newly created notebooks
+            elif paneInfo.IsNotebookControl() and not paneInfo.window:
+                paneInfo.window = self._notebooks[paneInfo.notebook_id]
+
+        # Delete empty notebooks, and convert notebooks with 1 page to
+        # normal panes...
+        remap_ids = [-1]*len(self._notebooks)
+        nb_idx = 0
+
+        for nb, notebook in enumerate(self._notebooks):
+            if notebook.GetPageCount() == 1:
+
+                # Convert notebook page to pane...
+                window = notebook.GetPage(0)
+                child_pane = self.GetPane(window)
+                notebook_pane = self.GetPane(notebook)
+                if child_pane.IsOk() and notebook_pane.IsOk():
+
+                    child_pane.SetDockPos(notebook_pane)
+                    child_pane.window.Hide()
+                    child_pane.window.Reparent(self._frame)
+                    child_pane.frame = None
+                    child_pane.notebook_id = -1
+                    if notebook_pane.IsFloating():
+                        child_pane.Float()
+
+                    self.DetachPane(notebook)
+
+                    notebook.RemovePage(0)
+                    notebook.Destroy()
+
+                else:
+
+                    raise Exception("Odd notebook docking")
+
+            elif notebook.GetPageCount() == 0:
+
+                self.DetachPane(notebook)
+                notebook.Destroy()
+
+            else:
+
+                # Correct page ordering. The original wxPython code
+                # for this did not work properly, and would misplace
+                # windows causing errors.
+                notebook.Freeze()
+                self._notebooks[nb_idx] = notebook
+                pages = notebook.GetPageCount()
+                selected = notebook.GetPage(notebook.GetSelection())
+
+                # Take each page out of the notebook, group it with
+                # its current pane, and sort the list by pane.dock_pos
+                # order
+                pages_and_panes = []
+                dock_pos = -1
+                needUpdate = False
+                for idx in reversed(range(pages)):
+                    page = notebook.GetPage(idx)
+                    pane = self.GetPane(page)
+                    pages_and_panes.append((page, pane))
+                    # notebook.RemovePage(idx)
+                    # check if the notebook needs to be updated to avoid
+                    # unnecessary remove/insert operation, especially when
+                    # resizing the window
+                    if dock_pos == -1:
+                        dock_pos = pane.dock_pos
+                    elif dock_pos < pane.dock_pos:
+                        needUpdate = True
+                        dock_pos = pane.dock_pos
+
+                if needUpdate:
+                    sorted_pnp = sorted(pages_and_panes, key=lambda tup: tup[1].dock_pos)
+                    for idx in reversed(range(pages)):
+                        notebook.RemovePage(idx)
+                    # Grab the attributes from the panes which are ordered
+                    # correctly, and copy those attributes to the original
+                    # panes. (This avoids having to change the ordering
+                    # of self._panes) Then, add the page back into the notebook
+                    sorted_attributes = [self.GetAttributes(tup[1])
+                                         for tup in sorted_pnp]
+                    for attrs, tup in zip(sorted_attributes, pages_and_panes):
+                        pane = tup[1]
+                        self.SetAttributes(pane, attrs)
+                        notebook.AddPage(pane.window, pane.caption)
+
+                notebook.SetSelection(notebook.GetPageIndex(selected), True)
+                notebook.DoSizing()
+                notebook.Thaw()
+
+                # It's a keeper.
+                remap_ids[nb] = nb_idx
+                nb_idx += 1
+
+        # Apply remap...
+        nb_count = len(self._notebooks)
+
+        if nb_count != nb_idx:
+
+            self._notebooks = self._notebooks[0:nb_idx]
+            for p in self._panes:
+                if p.notebook_id >= 0:
+                    p.notebook_id = remap_ids[p.notebook_id]
+                    if p.IsNotebookControl():
+                        p.SetNameFromNotebookId()
+
+        # Make sure buttons are correct ...
+        for notebook in self._notebooks:
+            want_max = True
+            want_min = True
+            want_close = True
+
+            pages = notebook.GetPageCount()
+            for page in xrange(pages):
+
+                win = notebook.GetPage(page)
+                pane = self.GetPane(win)
+                if pane.IsOk():
+
+                    if not pane.HasCloseButton():
+                        want_close = False
+                    if not pane.HasMaximizeButton():
+                        want_max = False
+                    if not pane.HasMinimizeButton():
+                        want_min = False
+
+            notebook_pane = self.GetPane(notebook)
+            if notebook_pane.IsOk():
+                if notebook_pane.HasMinimizeButton() != want_min:
+                    if want_min:
+                        button = AuiPaneButton(AUI_BUTTON_MINIMIZE)
+                        notebook_pane.state |= AuiPaneInfo.buttonMinimize
+                        notebook_pane.buttons.append(button)
+
+                    # todo: remove min/max
+
+                if notebook_pane.HasMaximizeButton() != want_max:
+                    if want_max:
+                        button = AuiPaneButton(AUI_BUTTON_MAXIMIZE_RESTORE)
+                        notebook_pane.state |= AuiPaneInfo.buttonMaximize
+                        notebook_pane.buttons.append(button)
+
+                    # todo: remove min/max
+
+                if notebook_pane.HasCloseButton() != want_close:
+                    if want_close:
+                        button = AuiPaneButton(AUI_BUTTON_CLOSE)
+                        notebook_pane.state |= AuiPaneInfo.buttonClose
+                        notebook_pane.buttons.append(button)
+
+                    # todo: remove close
+
         # update the icon to the notebook page
         for paneInfo in self._panes:
             if paneInfo.IsNotebookPage():
@@ -176,8 +393,14 @@ class framePlus(wx.Frame):
         dispatcher.connect(receiver=self.addPanel, signal='frame.add_panel')
         dispatcher.connect(receiver=self.closePanel, signal='frame.close_panel')
         dispatcher.connect(receiver=self.showPanel, signal='frame.show_panel')
-        dispatcher.connect(receiver=self.TogglePanel, signal='frame.check_menu')
-        dispatcher.connect(receiver=self.TogglePanelUI, signal='frame.update_menu')
+        dispatcher.connect(receiver=self.togglePanel, signal='frame.check_menu')
+        dispatcher.connect(receiver=self.togglePanelUI, signal='frame.update_menu')
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+    def OnClose(self, event):
+        self._mgr.UnInit()
+        del self._mgr
+        event.Skip()
 
     def getMenu(self, pathlist):
         """find the menu item"""
@@ -233,21 +456,29 @@ class framePlus(wx.Frame):
 
             return newid
 
-    def delMenu(self, path, id):
+    def delMenu(self, path, id=None):
         """delete the menu item"""
         pathlist = path.split(':')
         menuitem = self.getMenu(pathlist[:-1])
         if menuitem is None:
             return wx.NOT_FOUND
+        if id is None:
+            for m in range(menuitem.GetMenuItemCount()):
+                item = menuitem.FindItemByPosition(m)
+                stritem = item.GetItemLabelText()
+                stritem = stritem.split('\t')[0]
+                if stritem == pathlist[-1] and item.IsSubMenu():
+                    menuitem.DeleteItem(item)
+                    return True
+        else:
+            item = menuitem.FindItemById(id)
+            if item is None:
+                return wx.NOT_FOUND
+            menuitem.DeleteItem(item)
+            self.Unbind(wx.EVT_MENU, id=id)
+            del self.menuaddon[id]
 
-        item = menuitem.FindItemById(id)
-        if item is None:
-            return wx.NOT_FOUND
-        menuitem.DeleteItem(item)
-        self.Unbind(wx.EVT_MENU, id=id)
-        del self.menuaddon[id]
-
-        return id
+            return id
 
     def OnMenuAddOn(self, event):
         idx = event.GetId()
@@ -355,7 +586,7 @@ class framePlus(wx.Frame):
             panel.SetFocus()
         return True
 
-    def TogglePanel(self, command):
+    def togglePanel(self, command):
         """toggle the display of the panel"""
         pane = self.paneaddon.get(command, None)
         if not pane:
@@ -371,7 +602,7 @@ class framePlus(wx.Frame):
         if pane:
             self.showPanel(panel, not show)
 
-    def TogglePanelUI(self, event):
+    def togglePanelUI(self, event):
         """update the menu checkbox"""
         pane = self.paneaddon.get(event.GetId(), None)
         if not pane:
