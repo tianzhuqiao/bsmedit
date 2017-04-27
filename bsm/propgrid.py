@@ -770,11 +770,11 @@ class bsmPropGridBase(wx.ScrolledWindow):
                         cursorMode = self.BSMGRID_CURSOR_STD
                     #if prop.GetShowLabelTips() and ht == bsmProperty.PROP_HIT_TITLE:
                     if ht == bsmProperty.PROP_HIT_TITLE:
-                        strToolTip = prop.GetName()
+                        strToolTip = prop.GetLabelTip()
                     elif prop.GetShowValueTips() and ht == bsmProperty.PROP_HIT_VALUE:
-                        strToolTip = prop.GetValue()
+                        strToolTip = prop.GetValueTip()
                     elif ht == bsmProperty.PROP_HIT_EXPAND:
-                        strToolTip = prop.GetName()
+                        strToolTip = prop.GetLabelTip()
                 # set the tooltip
                 if self.GetToolTipString() != strToolTip:
                     self.SetToolTipString(strToolTip)
@@ -1098,35 +1098,37 @@ class dlgSettings(wx.Dialog):
                           ('indent', 'indent', PROP_CTRL_SPIN),
                           ('italic', 'italic', PROP_CTRL_CHECK))
         else:
-            self.items = (('name', 'Name', PROP_CTRL_EDIT),
-                          ('label', 'Label', PROP_CTRL_EDIT),
-                          ('value', 'Value', PROP_CTRL_EDIT),
-                          ('description', 'Description', PROP_CTRL_EDIT),
-                          ('valueMax', 'Max value', PROP_CTRL_SPIN),
-                          ('valueMin', 'Min value', PROP_CTRL_SPIN),
-                          ('indent', 'Indent level', PROP_CTRL_SPIN),
-                          ('showRadio', 'Show breakpoint', PROP_CTRL_CHECK),
-                          ('enable', 'Enable', PROP_CTRL_CHECK),
-                          ('italic', 'Italic', PROP_CTRL_CHECK),
-                          ('readOnly', 'Read only', PROP_CTRL_CHECK),
-                          ('ctrlType', 'Control window type', PROP_CTRL_COMBO),
-                          ('choiceList', 'Choice list', PROP_CTRL_EDIT),
-                          ('valueList', 'Value list', PROP_CTRL_EDIT),
-                          ('textColor', 'Normal text color', PROP_CTRL_COLOR),
-                          ('textColorSel', 'Selected text color', PROP_CTRL_COLOR),
-                          ('textColorDisable', 'Disable text color', PROP_CTRL_COLOR),
-                          ('bgColor', 'Normal background color', PROP_CTRL_COLOR),
-                          ('bgColorSel', 'Selected background color', PROP_CTRL_COLOR),
-                          ('bgColorDisable', 'Disable background color', PROP_CTRL_COLOR),
-                          ('showLabelTips', 'Show label tips', PROP_CTRL_CHECK),
-                          ('showValueTips', 'Show value tips', PROP_CTRL_CHECK))
+            self.items = (('name', 'Name', '', PROP_CTRL_EDIT),
+                          ('label', 'Label', '', PROP_CTRL_EDIT),
+                          ('value', 'Value', '', PROP_CTRL_EDIT),
+                          ('description', 'Description', 'text shown next to the value', PROP_CTRL_EDIT),
+                          ('valueMax', 'Max value', '', PROP_CTRL_SPIN),
+                          ('valueMin', 'Min value', '', PROP_CTRL_SPIN),
+                          ('indent', 'Indent level', '', PROP_CTRL_SPIN),
+                          ('showRadio', 'Show breakpoint', '', PROP_CTRL_CHECK),
+                          ('enable', 'Enable', '', PROP_CTRL_CHECK),
+                          ('italic', 'Italic', '', PROP_CTRL_CHECK),
+                          ('readOnly', 'Read only', '', PROP_CTRL_CHECK),
+                          ('ctrlType', 'Control window type', '', PROP_CTRL_COMBO),
+                          ('choiceList', 'Choice list', 'separate by ";"', PROP_CTRL_EDIT),
+                          ('valueList', 'Value list', 'separate by ";"', PROP_CTRL_EDIT),
+                          ('textColor', 'Normal text color', '', PROP_CTRL_COLOR),
+                          ('textColorSel', 'Selected text color', '', PROP_CTRL_COLOR),
+                          ('textColorDisable', 'Disable text color', '', PROP_CTRL_COLOR),
+                          ('bgColor', 'Normal background color', '', PROP_CTRL_COLOR),
+                          ('bgColorSel', 'Selected background color', '', PROP_CTRL_COLOR),
+                          ('bgColorDisable', 'Disable background color', '', PROP_CTRL_COLOR))
+                          #('showLabelTips', 'Show label tips', PROP_CTRL_CHECK),
+                          #('showValueTips', 'Show value tips', PROP_CTRL_CHECK))
         p = self.propgrid
-        for (name, label, ctrl) in self.items:
+        for (name, label, tip, ctrl) in self.items:
             pp = p.InsertProperty(name, label, '')
             if prop:
                 v = getattr(prop, name)
             else:
                 v = ""
+            pp.SetLabelTip(label)
+            pp.SetValueTip(tip)
             if name == 'ctrlType':
                 choice = ['default', 'none', 'editbox', 'combobox',
                           'select file button', 'select folder button',
@@ -1135,7 +1137,7 @@ class dlgSettings(wx.Dialog):
                 value = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10']
                 pp.SetChoice(choice, value)
             if name in ['choiceList', 'valueList']:
-                pp.SetValue('; '.join(v))
+                pp.SetValue(';'.join(v))
             elif ctrl == PROP_CTRL_CHECK:
                 pp.SetValue(str(v+0))
                 pp.SetDescription(str(v))
@@ -1181,7 +1183,7 @@ class dlgSettings(wx.Dialog):
     def OnBtnOk(self, event):
         if self.propgrid.PropSelected:
             self.propgrid.PropSelected.OnTextEnter()
-        for (name, label, ctrl) in self.items:
+        for (name, label,labeltip, ctrl) in self.items:
             v = self.propgrid.GetProperty(name)
             if name in ['choiceList', 'valueList']:
                 setattr(self.prop, name, v.GetValue().split(';'))

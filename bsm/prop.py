@@ -73,7 +73,9 @@ class bsmProperty(object):
         self.parent = parent
         self.name = name
         self.label = label
+        self.labelTip = ''
         self.value = value
+        self.valueTip = ''
         self.description = ""
         self.valueMax = "100"
         self.valueMin = "0"
@@ -128,6 +130,8 @@ class bsmProperty(object):
         objects
         """
         p = bsmProperty(self.parent, self.name, self.label, self.value)
+        p.labelTip = self.labelTip
+        p.valueTip = self.valueTip
         p.description = self.description
         p.valueMax = self.valueMax
         p.valueMin = self.valueMin
@@ -187,6 +191,8 @@ class bsmProperty(object):
 
     def SetControlStyle(self, style):
         """set the control type"""
+        self.UpdatePropValue()
+        self.DestroyControl()
         if style != PROP_CTRL_DEFAULT:
             self.ctrlType = style
 
@@ -220,6 +226,10 @@ class bsmProperty(object):
         self.label = label
         if not silent and self.GetVisible():
             self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
+
+    def SetLabelTip(self, tip):
+        """set the label tip"""
+        self.labelTip = tip
 
     def SetDescription(self, description, silent=False):
         """set the description"""
@@ -294,8 +304,20 @@ class bsmProperty(object):
         """get the label"""
         return self.label
 
+    def GetLabelTip(self):
+        """get the label tip"""
+        if self.labelTip:
+            return self.labelTip
+        return self.GetName()
+
     def GetValue(self):
         """get the value"""
+        return self.value
+
+    def GetValueTip(self):
+        """get the valuetip"""
+        if self.valueTip:
+            return self.valueTip
         return self.value
 
     def GetDescription(self):
@@ -307,7 +329,7 @@ class bsmProperty(object):
         return self.indent
 
     def IsExpanded(self):
-        """return true if the expand/collapse button is expanced"""
+        """return true if the expand/collapse button is expanded"""
         return self.expanded
 
     def HasChildren(self):
@@ -746,12 +768,11 @@ class bsmProperty(object):
             self.controlWin.Show(False)
             self.controlWin.Destroy()
             self.controlWin = None
-
-            return True
             sz = self.GetSize()
             size = wx.Size(*self.defaultSize)
             if size != sz:
                 self.SetMinSize(size)
+            return True
         return False
 
     def PreparePropValidator(self):
@@ -892,12 +913,17 @@ class bsmProperty(object):
     def SetValue(self, value, silent=False):
         """set the value"""
         if self.value != value:
+            self.DestroyControl()
             self.value = value
             self.UpdateDescription()
             if not silent and self.GetVisible():
                 self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
             return True
         return False
+
+    def SetValueTip(self, tip):
+        """set the value tip"""
+        self.valueTip = tip
 
     def SetIndent(self, indent, silent=False):
         """set the indent to a positive integer"""
