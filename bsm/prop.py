@@ -46,6 +46,7 @@ PROP_CTRL_SPIN = 7
 PROP_CTRL_CHECK = 8
 PROP_CTRL_RADIO = 9
 PROP_CTRL_COLOR = 10
+PROP_CTRL_NUM = 11
 
 class bsmProperty(object):
     PROP_HIT_NONE = 0
@@ -77,8 +78,8 @@ class bsmProperty(object):
         self.value = value
         self.valueTip = ''
         self.description = ""
-        self.valueMax = "100"
-        self.valueMin = "0"
+        self.valueMax = 100
+        self.valueMin = 0
         self.radioWidth = 15
         self.titleWidth = 80
         self.indent = 0
@@ -190,18 +191,54 @@ class bsmProperty(object):
         return self.bpCondition
 
     def SetControlStyle(self, style):
-        """set the control type"""
+        """set the control type
+        style: default | none | editbox | combobox | file_sel_button |
+               folder_sel_button | slider | spin | checkbox | radiobox |
+               color
+        """
         self.UpdatePropValue()
         self.DestroyControl()
+        str_style = {'default':PROP_CTRL_DEFAULT, 'none': PROP_CTRL_NONE,
+                     'editbox': PROP_CTRL_EDIT, 'combobox':PROP_CTRL_COMBO,
+                     'file_sel_button':PROP_CTRL_FILE_SEL,
+                     'folder_sel_button': PROP_CTRL_FOLDER_SEL,
+                     'slider': PROP_CTRL_SLIDER, 'spin': PROP_CTRL_SPIN,
+                     'checkbox': PROP_CTRL_CHECK, 'radiobox': PROP_CTRL_RADIO,
+                     'color': PROP_CTRL_COLOR}
+        if isinstance(style, str):
+            style = str_style.get(style, None)
+        if not isinstance(style, int):
+            return False
+        if style < PROP_CTRL_DEFAULT or style >= PROP_CTRL_NUM:
+            return False
         if style != PROP_CTRL_DEFAULT:
             self.ctrlType = style
+        return True
 
-    def SetChoice(self, choice, value):
-        """set the choices list"""
-        if len(choice) != len(value):
+    def SetChoice(self, choice, value=None):
+        """set the choices list
+        Example:
+            # dict parameter
+            SetChoice({'1':1, '0':0, 'Z':'Z', 'X':'X'})
+            # two lists
+            SetChoice(['1', '0', 'Z', 'X'], [1, 0, 'Z', 'X'])
+            # one list
+            SetChoice([256, 512, 1024])
+        """
+        # dict, split the key and value
+        if value is None and isinstance(choice, dict):
+            value = choice.values()
+            choice = choice.keys()
+        # both choice and value are valid, but with different length
+        if not choice or (value and len(choice) != len(value)):
             return
-        self.choiceList = choice
-        self.valueList = value
+        # choice is always 'str'
+        self.choiceList = [str(item) for item in choice]
+        # value is not valid, use the choice instead
+        if not value:
+            self.valueList = choice
+        else:
+            self.valueList = value
 
     def SetEnable(self, enable, silent=False):
         """enable/disable the property"""
@@ -265,14 +302,14 @@ class bsmProperty(object):
             return
         self.parentProp = prop
 
-    def SetRange(self, maxVal, minVal):
+    def SetRange(self, minVal, maxVal):
         """
         set the min/max values
 
         It is only used in spin and slider controls.
         """
-        self.valueMax = int(maxVal)
-        self.valueMin = int(minVal)
+        self.valueMax = float(maxVal)
+        self.valueMin = float(minVal)
 
     def SetShowRadio(self, show, silent=True):
         """show/hide radio button"""
@@ -533,7 +570,7 @@ class bsmProperty(object):
 
             dc.SetTextForeground(crtxt)
 
-            value = self.GetValue()
+            value = str(self.GetValue())
             if self.description != "":
                 value += " (" + self.description + ")"
             (w, h) = dc.GetTextExtent(value)
