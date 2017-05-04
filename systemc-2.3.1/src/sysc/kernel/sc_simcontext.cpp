@@ -1014,7 +1014,7 @@ sc_simcontext::simulate( const sc_time& duration )
     // bsm call back
     if(m_bsm_callback_fun) {
         int rtn = m_bsm_callback_fun(0);
-        if(rtn == 1) return;
+        if (rtn == 1) m_paused = true;
     }
 
     } while ( t < until_t ); // hold off on the delta for the until_t time.
