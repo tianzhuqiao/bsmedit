@@ -946,13 +946,7 @@ class bsmPropGrid(bsmPropGridBase):
             condition = prop.GetBPCondition()
             dlg = BreakpointSettingsDlg(self, condition[0], condition[1])
             if dlg.ShowModal() == wx.ID_OK:
-                # clear the previous bp condition
-                if prop.IsRadioChecked():
-                    dispatcher.send(signal='prop.bp_del', prop=prop)
                 prop.SetBPCondition(dlg.GetCondition())
-                # set the bp condition
-                if prop.IsRadioChecked():
-                    dispatcher.send(signal='prop.bp_add', prop=prop)
         elif eid == self.ID_PROP_BREAKPOINT_CLEAR:
             self.clearBreakPoints()
 
@@ -1042,6 +1036,7 @@ class BreakpointSettingsDlg(wx.Dialog):
             self.tcCond.Disable()
         else:
             self.rbChanged.SetValue(False)
+            self.rbCond.SetValue(True)
         self.tcCond.SetValue(self.condition)
         if self.hitcount == '':
             self.cbHitCount.SetValue(False)

@@ -184,7 +184,15 @@ class bsmProperty(object):
 
     def SetBPCondition(self, cond):
         """set the breakpoint condition"""
-        self.bpCondition = cond
+        checked = self.GetRadioChecked()
+        if checked:
+            # delete the current breakpoint
+            self.SetRadioChecked(False)
+            self.bpCondition = cond
+            # add the breakpoint again
+            self.SetRadioChecked(True)
+        else:
+            self.bpCondition = cond
 
     def GetBPCondition(self):
         """return the breakpoint condition"""
@@ -404,6 +412,10 @@ class bsmProperty(object):
     def GetReadOnly(self):
         """return true if the property is readonly"""
         return self.readOnly
+
+    def GetRadioChecked(self):
+        """return true if the radio button is checked"""
+        return self.radioChecked
 
     def GetRadioFocused(self):
         """return whether the radio is drawn in focused mode"""
@@ -665,8 +677,8 @@ class bsmProperty(object):
             if self.GetShowRadio() and ht == self.PROP_HIT_RADIO:
                 checked = self.IsRadioChecked()
                 self.SetRadioChecked(not checked)
-                if not self.SendPropEvent(wxEVT_BSM_PROP_CLICK_RADIO):
-                    self.SetRadioChecked(checked)
+                #if not self.SendPropEvent(wxEVT_BSM_PROP_CLICK_RADIO):
+                #    self.SetRadioChecked(checked)
         return ht
 
     def OnMouseDoubleClick(self, pt):
@@ -1030,6 +1042,8 @@ class bsmProperty(object):
         """check/uncheck the radio button"""
         if check != self.IsRadioChecked():
             self.radioChecked = check
+            if not self.SendPropEvent(wxEVT_BSM_PROP_CLICK_RADIO):
+                self.radioChecked = not check
             if not silent and self.GetVisible():
                 self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
 
