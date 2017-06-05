@@ -1,9 +1,8 @@
 #include "systemc.h"
-
-#include "top.h"
 #include "bsm.h"
+#include "top.h"
 
-// for compatibility with v2
+// define the interfaces to bsmedit
 BSMEDIT_DECLARE_MODULE
 BSMEDIT_IMPLEMENT_MODULE(top,"top");
 

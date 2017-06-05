@@ -1,7 +1,6 @@
 #include "systemc.h"
-
-#include "top.h"
 #include "bsm.h"
+#include "top.h"
 
 #ifdef BSM_DLL_SIM
 // for compability with v2

@@ -47,7 +47,7 @@ public:
 
     bool retrive(double* buf, int size);
 protected:
-    std::vector<double> m_buffer; 
+    std::vector<double> m_buffer;
     int m_nRead;
     int m_nWrite;
 };
@@ -104,10 +104,10 @@ void bsm_sim_run(double duration, int time_unit)\
 }\
 sim_context* bsm_sim_top()\
 {\
-        context.m_sim = new bsm_sim_context_impl(new T(name));\
-        strcpy(context.copyright, context.m_sim->sc_copyright());\
-        strcpy(context.version, context.m_sim->sc_version());\
-        return &context;\
+    context.m_sim = new bsm_sim_context_impl(new T(name));\
+    strcpy(context.copyright, context.m_sim->sc_copyright());\
+    strcpy(context.version, context.m_sim->sc_version());\
+    return &context;\
 }
 
 #endif //!define _BSM_H

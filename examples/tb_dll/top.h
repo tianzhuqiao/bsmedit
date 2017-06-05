@@ -1,13 +1,5 @@
-// top.h: interface for the top class.
-//
-//////////////////////////////////////////////////////////////////////
-
-#if !defined(AFX_TB_TOP_H__42FDC667_4927_4DDB_94F4_B55552573FBE__INCLUDED_)
-#define AFX_TB_TOP_H__42FDC667_4927_4DDB_94F4_B55552573FBE__INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
+#ifndef _TOP_H_
+#define _TOP_H_
 
 #include "systemc.h"
 #include "xsc_array.h"
@@ -111,10 +103,6 @@ public:
     void Initialize();
     void InitPort();
     void Reset();
-public:
-    //property
-    //xsc_property<sc_int<10> > AE_SC_INT;
-    //xsc_property<double> AE_dSampleFreq;
 private:
     sub* interface_sub;
     double m_phase;
@@ -122,4 +110,4 @@ private:
 #ifdef INI_CHANNEL
 #undef INI_CHANNEL
 #endif
-#endif // !defined(AFX_TB_TOP_H__42FDC667_4927_4DDB_94F4_B55552573FBE__INCLUDED_)
+#endif // !defined(_TOP_H_)

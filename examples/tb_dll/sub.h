@@ -2,12 +2,8 @@
 //
 //////////////////////////////////////////////////////////////////////
 
-#if !defined(AFX_TB_SUB_H__42FDC667_4927_4DDB_94F4_B55552573FBE__INCLUDED_)
-#define AFX_TB_SUB_H__42FDC667_4927_4DDB_94F4_B55552573FBE__INCLUDED_
-
-#if _MSC_VER > 1000
-#pragma once
-#endif // _MSC_VER > 1000
+#ifndef _SUB_H_
+#define _SUB_H_
 
 #include "systemc.h"
 #
@@ -67,7 +63,7 @@
     ,out_sc_fixed_fast("out_sc_fixed_fast")\
     ,out_sc_ufixed("out_sc_ufixed")\
 
-class sub : public sc_module  
+class sub : public sc_module
 {
     //interface
 public:
@@ -107,9 +103,9 @@ public:
     sc_in<sc_bigint<64> >   in_sc_bigint;
     sc_in<sc_biguint<64> >   in_sc_biguint;
 
-    sc_in<sc_fixed<16,10,SC_RND,SC_SAT,0> >        in_sc_fixed;
-    sc_in<sc_fixed_fast<16,10,SC_RND,SC_SAT,0> >   in_sc_fixed_fast;
-    sc_in<sc_ufixed<16,10,SC_RND,SC_SAT,0> >       in_sc_ufixed;
+    sc_in<sc_fixed<16, 10, SC_RND, SC_SAT, 0> >        in_sc_fixed;
+    sc_in<sc_fixed_fast<16, 10, SC_RND, SC_SAT, 0> >   in_sc_fixed_fast;
+    sc_in<sc_ufixed<16, 10, SC_RND, SC_SAT, 0> >       in_sc_ufixed;
 
     //output
     sc_out<bool>   out_bool;
@@ -144,19 +140,19 @@ public:
     sc_out<sc_bigint<64> >   out_sc_bigint;
     sc_out<sc_biguint<64> >   out_sc_biguint;
 
-    sc_out<sc_fixed<16,10,SC_RND,SC_SAT,0> >        out_sc_fixed;
-    sc_out<sc_fixed_fast<16,10,SC_RND,SC_SAT,0> >   out_sc_fixed_fast;
-    sc_out<sc_ufixed<16,10,SC_RND,SC_SAT,0> >       out_sc_ufixed;
+    sc_out<sc_fixed<16, 10, SC_RND, SC_SAT, 0> >        out_sc_fixed;
+    sc_out<sc_fixed_fast<16, 10, SC_RND, SC_SAT, 0> >   out_sc_fixed_fast;
+    sc_out<sc_ufixed<16, 10, SC_RND, SC_SAT, 0> >       out_sc_ufixed;
 
 public:
     SC_HAS_PROCESS(sub);
-    sub(sc_module_name name_):
-    sc_module(name_)
+    sub(sc_module_name name_)
+        :sc_module(name_)
         INI_CHANNEL
     {
         Initialize();
         SC_METHOD(Action);
-        sensitive_pos<<clock; 
+        sensitive_pos << clock;
     }
     virtual ~sub();
 
@@ -173,4 +169,4 @@ private:
 #ifdef INI_CHANNEL
 #undef INI_CHANNEL
 #endif
-#endif // !defined(AFX_TB_SUB_H__42FDC667_4927_4DDB_94F4_B55552573FBE__INCLUDED_)
+#endif // !defined(_SUB_H_)
