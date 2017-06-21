@@ -1,24 +1,3 @@
-/**
-*BSMEdit-Systemc Simulation Module Controling
-*Copyright (C) 2009~2015 Tianzhu Qiao <ben.qiao@gmail.com>
-*http://bsmedit.feiyilin.com/
-*
-*This program is free software; you can redistribute it and/or modify
-*it under the terms of the GNU General Public License as published by
-*the Free Software Foundation; either version 2 of the License, or
-*(at your option) any later version.
-*
-*This program is distributed in the hope that it will be useful,
-*but WITHOUT ANY WARRANTY; without even the implied warranty of
-*MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-*GNU General Public License for more details.
-*
-*You should have received a copy of the GNU General Public License along
-*with this program; if not, write to the Free Software Foundation, Inc.,
-*51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
-*http://www.gnu.org/copyleft/gpl.html
-**/
-
 #include <vector>
 #include <assert.h>
 #include <stdlib.h>
@@ -130,7 +109,7 @@ extern "C"{
         return false;
     }
 
-    BSMEDIT_EXPORT bool ctx_del_object(sim_object* obj)
+    BSMEDIT_EXPORT bool ctx_free_object(sim_object* obj)
     {
         if(obj) {
             delete obj->m_obj;
@@ -142,7 +121,7 @@ extern "C"{
 
     BSMEDIT_EXPORT bool ctx_read(sim_object* obj)
     {
-        if(obj) {
+        if(obj && obj->readable) {
             strcpy(obj->value, obj->m_obj->read());
             return true;
         }
@@ -151,7 +130,7 @@ extern "C"{
 
     BSMEDIT_EXPORT bool ctx_write(sim_object* obj)
     {
-        if(obj) {
+        if(obj && obj->writable) {
             obj->m_obj->write(obj->value);
             return true;
         }
@@ -175,14 +154,9 @@ extern "C"{
         return context.m_sim->time();
     }
 
-    BSMEDIT_EXPORT double ctx_time_sec(double time, int unit)
-    {
-        return context.m_sim->time(time, unit);
-    }
-
     BSMEDIT_EXPORT bool ctx_time_str(char* time)
     {
-        if(time){
+        if(time) {
             strcpy(time, context.m_sim->time_string());
             return true;
         }
@@ -194,7 +168,7 @@ extern "C"{
         context.m_sim->set_callback(fun);
     }
 
-    BSMEDIT_EXPORT bool ctx_add_trace_file(sim_trace_file* t)
+    BSMEDIT_EXPORT bool ctx_create_trace_file(sim_trace_file* t)
     {
         bsm_sim_trace_file* obj = context.m_sim->add_trace(t->name, t->type);
         if(obj) {
@@ -204,7 +178,7 @@ extern "C"{
         return false;
     }
 
-    BSMEDIT_EXPORT bool ctx_remove_trace_file(sim_trace_file* t)
+    BSMEDIT_EXPORT bool ctx_stop_trace_file(sim_trace_file* t)
     {
         if(context.m_sim->remove_trace(t->m_obj)) {
             return true;
@@ -212,7 +186,8 @@ extern "C"{
         return false;
     }
 
-    BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj, sim_object* val, int trigger)
+    BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj, 
+                                       sim_object* val, int trigger)
     {
         if(val) {
             //ugly code, to be updated
@@ -227,7 +202,7 @@ extern "C"{
         return context.m_sim->trace(t->m_obj, obj->m_obj);
     }
 
-    BSMEDIT_EXPORT bool ctx_add_trace_buf(sim_trace_buf* t)
+    BSMEDIT_EXPORT bool ctx_create_trace_buf(sim_trace_buf* t)
     {
         bsm_sim_trace_buf* obj = context.m_sim->add_trace_buf(t->name);
         if(obj) {
@@ -240,12 +215,13 @@ extern "C"{
         return false;
     }
 
-    BSMEDIT_EXPORT bool ctx_remove_trace_buf(sim_trace_buf* t)
+    BSMEDIT_EXPORT bool ctx_stop_trace_buf(sim_trace_buf* t)
     {
         return context.m_sim->remove_trace_buf(t->m_obj);
     }
 
-    BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj, sim_object* val, int trigger)
+    BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj, 
+                                      sim_object* val, int trigger)
     {
         if(val) {
             //ugly code, to be updated

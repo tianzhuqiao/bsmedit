@@ -3,8 +3,6 @@
 #include "top.h"
 
 #ifdef BSM_DLL_SIM
-// for compability with v2
-BSMEDIT_DECLARE_MODULE
 BSMEDIT_IMPLEMENT_MODULE(top,"top");
 #else
 int sc_main(int ac, char* av[])

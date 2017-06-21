@@ -281,7 +281,7 @@ class DumpDlg(wx.Dialog):
     def GetTrace(self):
         return self.trace
 
-class ModulePanel(wx.Panel):
+class SimPanel(wx.Panel):
     ID_GOTO_PARENT = wx.NewId()
     ID_GOTO_HOME = wx.NewId()
     ID_SIM_STEP = wx.NewId()
@@ -375,6 +375,7 @@ class ModulePanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_EXIT)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_RESET)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
         self.objects = None
         # the grid list used in context menu
         self.gridList = []
@@ -389,7 +390,6 @@ class ModulePanel(wx.Panel):
         self.qCmd = None
         self.respThread = None
         self.simProcess = None
-        self.start()
         self.lock = threading.Lock()
         self.waiting = 0
         self.busy = 0
@@ -400,11 +400,26 @@ class ModulePanel(wx.Panel):
             self.load_interactive()
         self.sim_filename = filename
         self.SetParameter()
-    def __del__(self):
-        # stop() will involve some gui operations, it should not be called in
-        # __del__()
+
+    def __getitem__(self, key):
+        return self.read(key)
+
+    def __setitem__(self, key, value):
+        if isinstance(key, str):
+            return self.write({key:value})
+        elif isinstance(key, list):
+            return self.write(dict(zip(key, value)))
+        else:
+            raise ValueError()
+
+    def OnClose(self, evt):
         self._stop()
         Gcs.destroy(self.num)
+
+    def Destory(self, *args, **kwargs):
+        self._stop()
+        Gcs.destroy(self.num)
+        return super(SimPanel, self).Destroy(*args, **kwargs)
 
     def SetColor(self, clr):
         self.color = clr
@@ -488,6 +503,7 @@ class ModulePanel(wx.Panel):
 
     def load(self, filename, block=True):
         """load the simulation library (e.g., dll)"""
+        self.start()
         return self.SendCommand('load', {'filename':filename}, block)
 
     def load_interactive(self):
@@ -495,7 +511,7 @@ class ModulePanel(wx.Panel):
         dlg = wx.FileDialog(self, "Choose a file", "", "", "*.*", wx.OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             filename = dlg.GetPath()
-            self.SendCommand('load', {'filename':filename}, True)
+            self.load(filename)
         dlg.Destroy()
 
     def ParseTime(self, time):
@@ -580,7 +596,6 @@ class ModulePanel(wx.Panel):
 
     def reset(self):
         """reset the simulation"""
-        self.start()
         if self.filename:
             self.load(self.filename)
         else:
@@ -593,13 +608,41 @@ class ModulePanel(wx.Panel):
         return self.SendCommand('time_stamp', args, block)
 
     def read(self, objects, block=True):
-        """get the values of the registers"""
+        """
+        get the values of the registers
+
+        If block == False, it will return after sending the command; otherwise, it
+        will return the values.
+
+        If objects only contains one register, its value will be returned if succeed;
+        otherwise a dictionary is returned, where the keys are the items in objects.
+
+        Example: read a single register
+        >>> read('top.sig_bool', True)
+
+        Example: read multiple registers from the same simulation
+        >>> read(['top.sig_bool', 'top.sig_cos']
+        """
         if isinstance(objects, str):
             objects = [objects]
         return self.SendCommand('read', {'objects':objects}, block)
 
     def write(self, objects, block=True):
-        """write the value to the registers"""
+        """
+        write the value to the registers
+
+        Objects should be a dictionary where the keys are the register name. Due to
+        the two-step mechanism in SystemC, the value will be updated after the next
+        delta cycle. That is, if a read() is called after write(), it will return
+        the previous value.
+
+        Example:
+        >>> a = read('top.sig_int', True)
+        >>> write({'top.sig_int': 100}, True)
+        >>> b = read('top.sig_int', True) # a == b
+        >>> step()
+        >>> c = read('top.sig_int', True)
+        """
         return self.SendCommand('write', {'objects':objects}, block)
 
     def trace_file(self, obj, ttype='bsm', valid=None,
@@ -694,10 +737,16 @@ class ModulePanel(wx.Panel):
             return obj
         return "%d."%self.num + obj
 
-    def show_prop(self, grid, objects, index=-1):
+    def monitor(self, objects, grid = None, index=-1):
         """show the register in a propgrid window"""
-        if grid is None or objects is None:
+        if not objects:
             return None
+        if grid is None:
+            grid = bsmPropGrid.GCM.get_active()
+        if not grid:
+            grid = sim.propgrid()
+        if not grid:
+            return
         if isinstance(objects, str):
             objects = [objects]
         props = []
@@ -840,7 +889,7 @@ class ModulePanel(wx.Panel):
                     break
                 ext = self.tree.GetExtendObj(item)
                 nkind = ext['nkind']
-                self.show_prop(viewer, ext['name'])
+                self.monitor(ext['name'],viewer)
                 objs.append(ext['name'])
                 if nkind == SC_OBJ_XSC_ARRAY:
                     (child, cookie) = self.tree.GetFirstChild(item)
@@ -849,7 +898,7 @@ class ModulePanel(wx.Panel):
                     (child, cookie) = self.tree.GetFirstChild(item)
                     while child.IsOk():
                         ext2 = self.tree.GetExtendObj(child)
-                        prop = self.show_prop(viewer, ext2['name'])
+                        prop = self.monitor(ext2['name'], viewer)
                         objs.append(ext2['name'])
                         prop.SetIndent(1)
                         (child, cookie) = self.tree.GetNextChild(item, cookie)
@@ -886,7 +935,9 @@ class ModulePanel(wx.Panel):
                 pass
             elif command == 'monitor_add':
                 objs = [self.abs_object_name(name) for name, v in value.iteritems() if v]
-                wx.CallAfter(dispatcher.send, signal='sim.monitor_added', objs=objs)
+                dispatcher.send(signal='sim.monitor_added', objs=objs)
+                objs = [name for name, v in value.iteritems() if v]
+                self.read(objs, False)
             elif command == 'monitor_del':
                 pass
             elif command == 'breakpoint_add':
@@ -909,8 +960,12 @@ class ModulePanel(wx.Panel):
                 pass
             elif command == 'read':
                 self.ui_objs = {self.abs_object_name(name):v for name, v in value.iteritems()}
+                if len(value) == 1:
+                    value = value.values()[0]
             elif command == 'read_buf':
                 self.ui_buffers = {self.abs_object_name(name):v for name, v in value.iteritems()}
+                if len(value) == 1:
+                    value = value.values()[0]
             elif command == 'write':
                 pass
             elif command == 'time_stamp':
@@ -1016,24 +1071,13 @@ class sim:
     def Initialize(cls, frame):
         cls.frame = frame
 
+        dispatcher.send('frame.add_menu', path="View:Simulations",
+                        rxsignal='', kind='Popup')
         resp = dispatcher.send(signal='frame.add_menu',
                                path='File:New:Simulation',
                                rxsignal='bsm.simulation')
         if resp:
             cls.ID_SIM_NEW = resp[0][1]
-
-        # dispatch the call to proper simulation instance
-        interfaces = ['read', 'write', 'trace_file', 'trace_buf', 'read_buf',
-                      'monitor_reg', 'unmonitor_reg',
-                      'add_breakpoint', 'del_breakpoint']
-        for intf in interfaces:
-            setattr(cls, intf, staticmethod(cls.SimDispatch(intf)))
-            dispatcher.connect(receiver=getattr(cls, intf), signal='sim.'+intf)
-
-        interfaces = ['step', 'run', 'pause', 'load', 'load_interactive',
-                      'set_parameter', 'stop', 'reset', 'time_stamp']
-        for intf in interfaces:
-            setattr(cls, intf, staticmethod(cls.SimDispatchNoObj(intf)))
 
         dispatcher.connect(cls.ProcessCommand, signal='bsm.simulation')
         dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
@@ -1045,92 +1089,17 @@ class sim:
         dispatcher.connect(receiver=cls.OnBPAdd, signal='prop.bp_add')
         dispatcher.connect(receiver=cls.OnBPDel, signal='prop.bp_del')
         dispatcher.connect(receiver=cls.OnValChanged, signal='prop.changed')
+        dispatcher.connect(receiver=cls.OnPaneClosing, signal='frame.closing_pane')
 
     @classmethod
-    def SimDispatch(cls, method):
-        """dispatch the command to proper simulation interface"""
-        def function(objects, *args, **kwargs):
-            objs = cls.parse_objs(objects)
-            resp = {}
-            for num, obj in objs.iteritems():
-                mgr = Gcs.get_manager(num)
-                if not mgr:
-                    continue
-                fun = getattr(mgr, method)
-                if not fun:
-                    print 'Unsupported method: ', method
-                    continue
-                # remove the unsupported arguments
-                if hasattr(fun, 'im_func'):
-                    fc = fun.im_func.func_code
-                    acceptable = fc.co_varnames#[1:fc.co_argcount]
-                    if not (fc.co_flags & 8):
-                        # fc does not have a **kwargs type parameter, therefore
-                        # remove unacceptable arguments
-                        for arg in kwargs.keys():
-                            if arg not in acceptable:
-                                del kwargs[arg]
-                v = fun(obj, *args, **kwargs)
-                if isinstance(v, bool):
-                    obj2 = obj
-                    if isinstance(obj, dict):
-                        obj2 = obj.keys()
-                    for o in obj2:
-                        resp[o] = v
-                        resp[mgr.abs_object_name(o)] = v
-                elif isinstance(v, dict):
-                    resp.update(v)
-                    v2 = {mgr.abs_object_name(name):value for name, value in v.iteritems()}
-                    resp.update(v2)
-                else:
-                    print v
-                    raise TypeError("Unsupported response type")
-            if isinstance(objects, str):
-                objects = [objects]
-            response = {obj: resp.get(obj, '') for obj in objects}
-            if len(response) == 1:
-                return response.values()[0]
-            elif all(r is True for r in response.values()):
-                return True
-            elif all(r is False for r in response.values()):
-                return False
-            return response
-        copy_docstring_raw(getattr(ModulePanel, method), function)
-        function.__name__ = method
-        return function
-
-    @classmethod
-    def parse_objs(cls, objects):
-        s = Gcs.get_active()
-        if not s:
-            return {}
-        d = {}
-        if isinstance(objects, list):
-            for obj in objects:
-                num, name = cls.get_object_name(obj)
-                if num is None:
-                    num = s.num
-                if num in d.keys():
-                    d[num].append(name)
-                else:
-                    d[num] = [name]
-        elif isinstance(objects, dict):
-            for obj, value in objects.iteritems():
-                num, name = cls.get_object_name(obj)
-                if num is None:
-                    num = s.num
-                if num in d.keys():
-                    d[num][name] = value
-                else:
-                    d[num] = {name:value}
-        elif isinstance(objects, str):
-            num, name = cls.get_object_name(objects)
-            if num is None:
-                num = s.num
-            d[num] = [name]
-        else:
-            raise TypeError('Unsupported type')
-        return d
+    def OnPaneClosing(cls, pane, force):
+        if isinstance(pane, SimPanel):
+            if force:
+                pane.stop()
+                return {'veto': False}
+            for mgr in Gcs.get_all_managers():
+                if mgr == pane:
+                    return {'veto': True}
 
     @classmethod
     def OnValChanged(cls, prop):
@@ -1178,28 +1147,33 @@ class sim:
             mgr = Gcs.get_manager(num)
             if mgr is None:
                 continue
-            p = mgr.show_prop(grid, name, index)
+            p = mgr.monitor(name, grid, index)
             if index != -1:
                 index = index + 1
             for c in obj.get('child', []):
                 num, name = cls.get_object_name(str(c))
                 mgr = Gcs.get_manager(num)
                 if mgr is None: continue
-                p = mgr.show_prop(grid, name, index)
+                p = mgr.monitor(name, grid, index)
                 p.SetIndent(1)
                 if index != -1:
                     index = index + 1
 
     @classmethod
     def set_active(cls, pane):
-        if pane and isinstance(pane, ModulePanel):
+        if pane and isinstance(pane, SimPanel):
             Gcs.set_active(pane)
         if pane and isinstance(pane, bsmPropGrid):
             bsmPropGrid.GCM.set_active(pane)
 
     @classmethod
     def Uninitialize(cls):
-        pass
+        for mgr in Gcs.get_all_managers():
+            mgr.stop()
+            dispatcher.send('frame.close_panel', panel=mgr)
+        dispatcher.send('frame.del_menu', path="View:Simulations")
+        dispatcher.send('frame.del_menu', path="File:New:Simulation",
+                                        id = cls.ID_SIM_NEW)
 
     @classmethod
     def ProcessCommand(cls, command):
@@ -1214,6 +1188,7 @@ class sim:
             return (None, name)
         else:
             return (int(x.group(1)), x.group(2))
+
     @classmethod
     def MakeBitmap(cls, red, green, blue, alpha=128):
         # Create the bitmap that we will stuff pixel values into using
@@ -1264,14 +1239,15 @@ class sim:
         """
         manager = Gcs.get_manager(num)
         if manager is None and create:
-            manager = ModulePanel(sim.frame, num, filename, silent)
+            manager = SimPanel(sim.frame, num, filename, silent)
             clr = cls.GetColorByNum(manager.num)
             clr.Set(clr.red, clr.green, clr.blue, 128)
             manager.SetColor(clr)
             page_bmp = cls.MakeBitmap(clr.red, clr.green, clr.blue)#178,  34,  34)
+            title = "Simulation-%d"%manager.num
             dispatcher.send(signal="frame.add_panel", panel=manager,
-                            title="Simulation-%d"%manager.num, target="History",
-                            icon=page_bmp)
+                            title=title, target="History",
+                            icon=page_bmp, showhidemenu="View:Simulations:%s"%title)
         # activate the manager
         elif manager and activate:
             dispatcher.send(signal='frame.show_panel', panel=manager)
@@ -1297,53 +1273,11 @@ class sim:
         return manager
 
     @classmethod
-    def monitor(cls, objects, grid=None):
-        """
-        show the register in the active propgrid window
-
-        If no propgrid window has been created, one will be created first.
-        """
-        s = Gcs.get_active()
-        if not s: return
-
-        if grid is None:
-            grid = bsmPropGrid.GCM.get_active()
-        if not grid:
-            grid = cls.propgrid()
-        if not grid:
-            return
-
-        if isinstance(objects, str):
-            objects = [objects]
-        objs = {}
-        for obj in objects:
-            num, name = cls.get_object_name(obj)
-            if num is None:
-                num = s.num
-            if num in objs.keys():
-                objs[num].append(name)
-            else:
-                objs[num] = [name]
-        for num, obj in objs.iteritems():
-            mgr = cls.simulation(num, create=False)
-            if not mgr: continue
-            mgr.show_prop(grid, obj)
-
-    @classmethod
-    def get_abs_name(cls, name):
-        """
-        return the absolute register name
-
-        If the name does not start with a number. It will be treated as the one
-        from the active simulation.
-        """
+    def get_sim_from_signal(cls, name):
         num, n = cls.get_object_name(name)
         if not num:
-            mgr = Gcs.get_active()
-            if mgr:
-                return mgr.abs_object_name(n)
-        return name
-
+            return Gcs.get_active()
+        return Gcs.get_manager(num)
     @classmethod
     def plot_trace(cls, x=None, y=None, autorelim=True, *args, **kwargs):
         """
@@ -1356,25 +1290,19 @@ class sim:
             return
         if y is None:
             return
-        dy = cls.read_buf(y, True)
-        y = {cls.get_abs_name(y):dy}
+        s = cls.get_sim_from_signal(y)
+        if s is None:
+            return
+        dy = s.read_buf(cls.get_object_name(y), True)
+        y = {s.abs_object_name(y):dy}
         if x is not None:
-            dx = cls.read_buf(x, True)
-            x = {cls.get_abs_name(x):dx}
+            s = cls.get_sim_from_signal(x)
+            if s is None:
+                return
+            dx = s.read_buf(cls.get_object_name(x), True)
+            x = {s.abs_object_name(x):dx}
         mgr = graph.plt.get_current_fig_manager()
         mgr.plot_trace(x, y, autorelim, *args, **kwargs)
-
-    @classmethod
-    def SimDispatchNoObj(cls, method):
-        def function(*args, **kwargs):
-            s = Gcs.get_active()
-            if not s:
-                return
-            fun = getattr(s, method)
-            return fun(*args, **kwargs)
-        copy_docstring_raw(getattr(ModulePanel, method), function)
-        function.__name__ = method
-        return function
 
 def bsm_Initialize(frame):
     sim.Initialize(frame)

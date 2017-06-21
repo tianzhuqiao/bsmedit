@@ -329,7 +329,7 @@ class ProcessCommand(object):
         trace = SimTraceFile()
         trace.name = name
         trace.type = ntype
-        if self.simengine.ctx_add_trace_file(trace):
+        if self.simengine.ctx_create_trace_file(trace):
             self.simengine.ctx_trace_file(trace, self.simengine.sim_objects[name], valid, trigger)
             self.tfile[name] = trace
             self.tfile_raw[name] = [ntype, valid, trigger]
@@ -363,7 +363,7 @@ class ProcessCommand(object):
         trace.size = size
         data = np.zeros((size))
         trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        if self.simengine.ctx_add_trace_buf(trace):
+        if self.simengine.ctx_create_trace_buf(trace):
             self.simengine.ctx_trace_buf(trace, self.simengine.sim_objects[name],
                                          valid, trigger)
             self.tbuf[name] = {'trace':trace, 'data':data}
