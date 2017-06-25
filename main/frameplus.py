@@ -572,6 +572,7 @@ class framePlus(wx.Frame):
         if pane is None or not pane.IsOk():
             return False
         panel.bsm_destroyonclose = True
+        pane.DestroyOnClose(True)
         self._mgr.ClosePane(pane)
         self._mgr.Update()
         return True

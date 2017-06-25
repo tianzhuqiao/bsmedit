@@ -11,11 +11,6 @@ from bsmshell import bsmShell
 from mainframexpm import about_xpm, bsmedit_xpm, header_xpm
 from version import *
 
-# Implementing mainFrame
-intro = 'Welcome To BSMEdit 3\n' \
-        'PyCrust %s - The Flakiest Python Shell' \
-          % wx.py.version.VERSION
-
 # Define File Drop Target class
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):
@@ -30,7 +25,7 @@ class bsmMainFrame(framePlus):
 
     ID_VM_RENAME = wx.NewId()
     def __init__(self, parent):
-        framePlus.__init__(self, parent, title=u"BSMEdit",
+        framePlus.__init__(self, parent, title=u"bsmedit",
                            size=wx.Size(800, 600),
                            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
         self.InitMenu()
@@ -64,6 +59,7 @@ class bsmMainFrame(framePlus):
         ns['wx'] = wx
         ns['app'] = wx.GetApp()
         ns['frame'] = self
+        intro = 'Welcome To bsmedit 3'
         self.panelShell = bsmShell(self, 1, introText=intro, locals=ns)
         self._mgr.AddPane(self.panelShell,
                           aui.AuiPaneInfo().Name('shell').Caption('Console')
@@ -193,7 +189,7 @@ class bsmMainFrame(framePlus):
             if resp:
                 status = resp[0][1]
                 if isinstance(status, dict):
-                    return dict.get('veto', False)
+                    return status.get('veto', False)
             return not force
         # close the notebook
         if evt.pane.IsNotebookControl():
@@ -212,6 +208,7 @@ class bsmMainFrame(framePlus):
             return
         # close a page or a panel
         wnd = evt.pane.window
+        print 'bbb', wnd
         if PaneClosingVeto(wnd):
             evt.Veto()
             if evt.pane.IsNotebookPage():

@@ -33,12 +33,14 @@ def magicSingle(command):
         if arg.strip() == 'all':
             # when using the close', fill in both parentheses and quotes
             command = command[:5]+'("'+command[6:]+'")'
-    elif command[:6] == 'clear ':
+    elif command[:5] == 'clear':
         command = command[:5]+'()'
-    elif command[:6] == 'alias ':
-        c = command[6:].lstrip().split(' ')
+    elif command[:5] == 'alias':
+        c = command[5:].lstrip().split(' ')
         if len(c) < 2:
-            #print 'Not enough arguments for alias!'
+            # delete the alias if exists
+            if len(c)==1:
+                aliasDict.pop(c[0],None)
             command = ''
         else:
             n, v = c[0], ' '.join(c[1:])
@@ -110,7 +112,7 @@ def sx(cmd, *args, **kwds):
         if wait:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo,
                          stdout=sp.PIPE, stderr=sp.PIPE)
-            dispatcher.send(signal='shell.writeout', text=p.stdout.read())
+            dispatcher.send(signal='shell.write_out', text=p.stdout.read())
         else:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo)
         return
@@ -119,11 +121,11 @@ def sx(cmd, *args, **kwds):
     # try the shell command
     try:
         if wait:
-            p = sp.Popen(str.split(' '), startupinfo=startupinfo, shell=True,
+            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True,
                          stdout=sp.PIPE, stderr=sp.PIPE)
-            dispatcher.send(signal='shell.writeout', text=p.stdout.read())
+            dispatcher.send(signal='shell.write_out', text=p.stdout.read())
         else:
-            p = sp.Popen(str.split(' '), startupinfo=startupinfo)
+            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True)
         return
     except:
         pass
@@ -148,6 +150,7 @@ class bsmShell(Shell):
         # on windows
         import __builtin__
         __builtin__.sx = sx
+        self.callTipInsert = False
         self.searchHistory = True
         self.silent = False
         self.autoIndent = True
@@ -158,7 +161,7 @@ class bsmShell(Shell):
         self.interp.locals['clear'] = self.clear
         self.interp.locals['on'] = True
         self.interp.locals['off'] = False
-        dispatcher.connect(receiver=self.writeOut, signal='shell.writeout')
+        dispatcher.connect(receiver=self.writeOut, signal='shell.write_out')
         dispatcher.connect(receiver=self.runCommand, signal='shell.run')
         dispatcher.connect(receiver=self.debugPrompt, signal='shell.prompt')
         dispatcher.connect(receiver=self.addHistory, signal='shell.addToHistory')
@@ -283,17 +286,17 @@ class bsmShell(Shell):
         # If it is a letter or digit and the cursor is in readonly section,
         # move the cursor to the end of file
         if not canEdit and (not shiftDown) and (not controlDown) and (not altDown)\
-            and (not rawControlDown) and (str(key).isalnum() or\
+            and (not rawControlDown) and key<256 and (chr(key).isalnum() or\
                (key == wx.WXK_SPACE)):
             endpos = self.GetTextLength()
             self.GotoPos(endpos)
             event.Skip()
             return
 
-        if canEdit and (not shiftDown) and key == wx.WXK_UP:
+        if canEdit and not self.more and (not shiftDown) and key == wx.WXK_UP:
             # Replace with the previous command from the history buffer.
             self.GoToHistory(True)
-        elif canEdit and (not shiftDown) and key == wx.WXK_DOWN:
+        elif canEdit and not self.more and (not shiftDown) and key == wx.WXK_DOWN:
             # Replace with the next command from the history buffer.
             self.GoToHistory(False)
         elif canEdit and (not shiftDown) and key == wx.WXK_TAB:
@@ -502,8 +505,9 @@ class bsmShell(Shell):
         if not self.more:
             self.promptPosStart = self.GetCurrentPos()
         if not skip:
-            endpos = self.GetTextLength()
-            self.GotoPos(endpos)
+            # no need to go to the end position
+            #endpos = self.GetTextLength()
+            #self.GotoPos(endpos)
             self.write(prompt)
         if not self.more:
             self.promptPosEnd = self.GetCurrentPos()
@@ -552,6 +556,13 @@ class bsmShell(Shell):
             self.write(argspec + ')')
             endpos = self.GetCurrentPos()
             self.SetSelection(startpos, endpos)
+        if tip:
+            tippos = startpos
+            fallback = startpos - self.GetColumn(startpos)
+            # In case there isn't enough room, only go back to the
+            # fallback.
+            tippos = max(tippos, fallback)
+            self.CallTipShow(tippos, argspec)
 
     def debugPrompt(self, ismore=False, iserr=False):
         """show the debug prompt"""
@@ -569,4 +580,53 @@ class bsmShell(Shell):
         self.prompt()
         self.autoIndent = autoIndent
         return
+
+    def processLine(self):
+        """Process the line of text at which the user hit Enter."""
+
+        # The user hit ENTER and we need to decide what to do. They
+        # could be sitting on any line in the shell.
+
+        thepos = self.GetCurrentPos()
+        startpos = self.promptPosEnd
+        endpos = self.GetTextLength()
+        ps2 = str(sys.ps2)
+        # If they hit RETURN inside the current command, execute the
+        # command.
+        if self.CanEdit():
+            execute = self.GetCurrentLine() == self.LineFromPosition(endpos)
+            if self.more and not execute:
+                # if the interpreter needs more code and the current position
+                # is not on last line, insert a line after current position to
+                # allow the user inputs more code
+                self.prompt()
+                return
+            self.SetCurrentPos(endpos)
+            self.interp.more = False
+            command = self.GetTextRange(startpos, endpos)
+            lines = command.split(os.linesep + ps2)
+            lines = [line.rstrip() for line in lines]
+            command = '\n'.join(lines)
+            if self.reader.isreading:
+                if not command:
+                    # Match the behavior of the standard Python shell
+                    # when the user hits return without entering a
+                    # value.
+                    command = '\n'
+                self.reader.input = command
+                self.write(os.linesep)
+            else:
+                self.push(command)
+                wx.FutureCall(1, self.EnsureCaretVisible)
+        # Or replace the current command with the other command.
+        else:
+            # If the line contains a command (even an invalid one).
+            if self.getCommand(rstrip=False):
+                command = self.getMultilineCommand()
+                self.clearCommand()
+                self.write(command)
+            # Otherwise, put the cursor back where we started.
+            else:
+                self.SetCurrentPos(thepos)
+                self.SetAnchor(thepos)
 

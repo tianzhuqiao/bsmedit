@@ -491,15 +491,11 @@ class ProcessCommand(object):
             self.response(resp)
         return True
 
-    def exit(self):
-        if self.simengine:
-            self.simengine.ctx_stop()
-
 class SimLogger(object):
     def __init__(self, qResp):
         self.qResp = qResp
     def write(self, buf):
-        self.qResp.put({'cmd':'writeOut', 'important':True, 'value':buf})
+        self.qResp.put({'cmd':'write_out', 'important':True, 'value':buf})
 
     def flush(self):
         pass
