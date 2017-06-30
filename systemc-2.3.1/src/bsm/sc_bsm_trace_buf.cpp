@@ -1127,7 +1127,7 @@ bsm_trace_buf::trace(const tp& object_)                                       \
 {                                                                             \
     if( initialized ) {                                                       \
         buf_put_error_message(                                                \
-	    "No traces can be added once simulation has started.\n"               \
+        "No traces can be added once simulation has started.\n"               \
             "To add traces, create a new bsm trace file.", false );           \
     }                                                                         \
     traces.push_back( new buf_ ## tp ## _trace( object_) );                   \
@@ -1144,7 +1144,7 @@ bsm_trace_buf::trace(const sc_dt::tp& object_)                                \
 {                                                                             \
     if( initialized ) {                                                       \
         buf_put_error_message(                                                \
-	    "No traces can be added once simulation has started.\n"               \
+        "No traces can be added once simulation has started.\n"               \
             "To add traces, create a new bsm trace file.", false );           \
     }                                                                         \
     traces.push_back( new buf_ ## tp ## _trace( object_ ) );                  \
@@ -1173,7 +1173,7 @@ bsm_trace_buf::trace( const tp&        object_,                               \
 {                                                                             \
     if( initialized ) {                                                       \
         buf_put_error_message(                                                \
-	    "No traces can be added once simulation has started.\n"               \
+        "No traces can be added once simulation has started.\n"               \
             "To add traces, create a new bsm trace file.", false );           \
     }                                                                         \
     traces.push_back( new buf_signed_ ## tp ## _trace( object_,               \
@@ -1187,7 +1187,7 @@ bsm_trace_buf::trace( const unsigned tp& object_,                             \
 {                                                                             \
     if( initialized ) {                                                       \
         buf_put_error_message(                                                \
-	    "No traces can be added once simulation has started.\n"               \
+        "No traces can be added once simulation has started.\n"               \
             "To add traces, create a new bsm trace file.", false );           \
     }                                                                         \
     traces.push_back( new buf_unsigned_ ## tp ## _trace( object_,             \
@@ -1214,7 +1214,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
 {                                                                             \
     if( initialized ) {                                                       \
         buf_put_error_message(                                                \
-	    "No traces can be added once simulation has started.\n"               \
+        "No traces can be added once simulation has started.\n"               \
             "To add traces, create a new bsm trace file.", false );           \
     }                                                                         \
     traces.push_back( new buf_ ## tp ## _trace( object_,                      \

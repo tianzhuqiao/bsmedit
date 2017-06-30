@@ -2,14 +2,17 @@ import Queue
 import ctypes
 import traceback
 import numpy as np
-from simengine import *
-# the class to handle the breakpoint condition
-# one breakpoint may trigger on multiple conditions,
-# and each condition may trigger on multiple hit-counts.
+from bsm.simengine import *
+
 class BpCond(object):
+    """
+    The class to handle the breakpoint condition. One breakpoint may trigger on
+    multiple conditions, and each condition may trigger on multiple hit-counts.
+    """
     def __init__(self, condition, hitcount):
         # single condition
         self.condition = condition
+        self.valid = True
         # multiple hitcounts on multiple conditions
         # since they trigger on the same condition, it only needs to evaluate
         # the condition once
@@ -38,32 +41,33 @@ class BpCond(object):
         self.hitcountset = set(self.hitcount)
 
     def triggered(self, val, valp):
-        trigger = False
-        # if the condition is empty string, trigger if the value has changed
-        if self.condition == '':
-            trigger = (val != valp)
-        else:
-            # replace the '$' with the current value, then evaluate it
-            cond = self.condition.replace('$', str(val))
-            try:
+        # invalid condition, no need to check
+        if not self.valid:
+            return None
+        try:
+            trigger = False
+            # if the condition is empty, trigger if the value has changed
+            if not self.condition:
+                trigger = (val != valp)
+            else:
+                # replace the '$' with the current value, then evaluate it
+                cond = self.condition.replace('$', str(val))
                 trigger = eval(cond)
-            except:
-                pass
 
-        if trigger:
-            self.hitsofar += 1
-            for hc in self.hitcountset:
-                # if the hitcount is empty string, always trigger
-                if hc == '':
-                    return (hc, self.hitsofar)
-                # replace the '#' with the hitsofar
-                hce = hc.replace('#', str(self.hitsofar))
-                try:
+            if trigger:
+                self.hitsofar += 1
+                for hc in self.hitcountset:
+                    # if the hitcount is empty, always trigger
+                    if not hc:
+                        return (hc, self.hitsofar)
+                    # replace the '#' with the hitsofar
+                    hce = hc.replace('#', str(self.hitsofar))
                     bk = eval(hce)
                     if bk is True:
                         return (hc, self.hitsofar)
-                except:
-                    pass
+        except:
+            traceback.print_exc(file=sys.stdout)
+            self.valid = False
         return None
 
     def __len__(self):
@@ -92,7 +96,8 @@ class Breakpoint(object):
                 cnd.del_hitcount(hitcount)
                 if len(cnd) <= 0:
                     del self.condition[self.condition.index(cnd)]
-                return
+                break
+
     def triggered(self, val, valp):
         for cnd in self.condition:
             trigger = cnd.triggered(val, valp)
@@ -287,7 +292,8 @@ class ProcessCommand(object):
             if not self.IsValidObj(obj):
                 continue
             val = self.simengine.ctx_read(self.simengine.sim_objects[obj])
-            objs[obj] = unicode(val, errors='replace')
+            #objs[obj] = unicode(val.sValue, errors='replace')
+            objs[obj] = val
         return objs
 
     def write(self, objects):
@@ -425,16 +431,18 @@ class ProcessCommand(object):
                         self.running = False
                         resp['value'] = True
 
-                    elif command == 'monitor_add':
+                    elif command == 'monitor_signal':
                         objs = self.monitor.add(args['objects'], self.simengine.sim_objects)
                         resp['value'] = objs
 
-                    elif command == 'monitor_del':
+                    elif command == 'unmonitor_signal':
                         objs = self.monitor.delete(args['objects'], self.simengine.sim_objects)
                         resp['value'] = objs
-                    elif command == 'get_monitor':
-                        resp['value'] = self.monitor.data
-                    elif command == 'breakpoint_add':
+
+                    elif command == 'get_monitored_signal':
+                        resp['value'] = self.monitor.get_monitor()
+
+                    elif command == 'add_breakpoint':
                         objs = self.breakpoint.add(args['objects'], self.simengine.sim_objects)
                         bps = self.breakpoint.get_bp()
                         # update the current breakpoint values before they are
@@ -442,7 +450,7 @@ class ProcessCommand(object):
                         self.bp_values_prev = self.read(bps.keys())
                         resp['value'] = objs
 
-                    elif command == 'breakpoint_del':
+                    elif command == 'del_breakpoint':
                         objs = self.breakpoint.delete(args['objects'],
                                                       self.simengine.sim_objects)
                         resp['value'] = objs
@@ -480,6 +488,9 @@ class ProcessCommand(object):
                         resp['value'] = self.trace_buf(args)
                     elif command == 'get_trace_buf':
                         resp['value'] = self.tbuf_raw
+                    elif command == 'get_status':
+                        resp['value'] = {'running': self.running,
+                                         'valid': self.simengine and self.simengine.valid}
                     else:
                         print 'Unknown command: ', cmd
                     if resp:

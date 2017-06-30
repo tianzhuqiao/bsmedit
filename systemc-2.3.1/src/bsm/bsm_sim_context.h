@@ -8,11 +8,19 @@ public:
     bsm_sim_object() {};
     virtual~bsm_sim_object() {};
 public:
+	enum {TYPE_STRING, TYPE_FLOAT, TYPE_INT, TYPE_UINT};
+	typedef struct bsm_object_value {
+		char sValue[256];
+		double fValue;
+		unsigned long long uValue;
+		long long iValue;
+		int type;
+	} bsm_object_value;
     virtual const char* name() = 0;
     virtual const char* basename() = 0;
     virtual const char* kind() = 0;
-    virtual const char* read() = 0;
-    virtual bool write(const char*) = 0;
+    virtual bool read(bsm_object_value*) = 0;
+    virtual bool write(const bsm_object_value*) = 0;
     virtual bool is_writable() = 0;
     virtual bool is_readable() = 0;
     virtual bool is_number() = 0;

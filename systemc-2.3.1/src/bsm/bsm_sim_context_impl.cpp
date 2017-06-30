@@ -18,8 +18,6 @@ using namespace sc_dt;
 #include "sysc/datatypes/fx/sc_ufix.h"
 bsm_sim_object_impl::bsm_sim_object_impl(sc_object* obj)
     :m_obj(obj)
-    , m_value("NaN")
-    , m_disp("")
     , m_bInitialized(false)
     , m_nKind(SC_OBJ_UNKNOWN)
     , m_strBSMType("Unknown")
@@ -124,7 +122,19 @@ void bsm_sim_object_impl::Initialize()
         m_strBSMType.compare("sc_bv") == 0 ||
         m_strBSMType.compare("sc_lv") == 0) {
         m_nRegType = BSM_REG_TEMPL;
+        m_nDataType = TYPE_STRING;
     }
+    if(m_nRegType == BSM_REG_DOUBLE || m_nRegType == BSM_REG_FLOAT)
+        m_nDataType = TYPE_FLOAT;
+    else if(m_nRegType >= BSM_REG_BOOL || m_nRegType == BSM_REG_INT64)
+        m_nDataType = TYPE_INT;
+    else if(m_nRegType >= BSM_REG_UCHAR || m_nRegType == BSM_REG_UINT64)
+        m_nDataType = TYPE_UINT;
+    else if(m_nRegType == BSM_REG_SC_LOGIC || m_nRegType == BSM_REG_SC_BIT)
+        m_nDataType = TYPE_INT;
+    else
+        m_nDataType = TYPE_STRING;
+
     m_bInitialized = true;
 }
 void bsm_sim_object_impl::CheckSignalType()
@@ -194,665 +204,498 @@ bool bsm_sim_object_impl::is_writable()
 }
 
 #define  BSM_CHECK_TYPE(type) (m_nRegType == type)
-void bsm_sim_object_impl::Read_Signal()
+bool bsm_sim_object_impl::ReadSignal(bsm_object_value * v)
 {
-    const int buf_len = 128;
+    assert(v);
+    const int buf_len = 256;
     static char value[buf_len];
     if(BSM_CHECK_TYPE(BSM_REG_DOUBLE)) {
-        sc_signal<double > *dyObj =
-            dynamic_cast<sc_signal<double >*>(m_obj);
+        sc_signal<double > *dyObj = dynamic_cast<sc_signal<double >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%.14g", dyObj->read());
-        m_value = value;
-        return;
+        v->fValue = dyObj->read();
+        v->type = TYPE_FLOAT;
     } else if(BSM_CHECK_TYPE(BSM_REG_FLOAT)) {
         sc_signal<float > *dyObj = dynamic_cast<sc_signal<float >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%.14g", dyObj->read());
-        m_value = value;
-        return;
+        v->fValue = dyObj->read();
+        v->type = TYPE_FLOAT;
     } else if(BSM_CHECK_TYPE(BSM_REG_BOOL)) {
         sc_signal<bool > *dyObj = dynamic_cast<sc_signal<bool >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read() == 1 ? '1' : '0';
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_CHAR)) {
         sc_signal<char > *dyObj = dynamic_cast<sc_signal<char >*>(m_obj);
         assert(dyObj);
-        char chr = dyObj->read();
-        m_value = chr;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SHORT)) {
         sc_signal<short > *dyObj = dynamic_cast<sc_signal<short >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%hi", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_INT)) {
         sc_signal<int > *dyObj = dynamic_cast<sc_signal<int >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%i", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_LONG)) {
         sc_signal<long > *dyObj = dynamic_cast<sc_signal<long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%li", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_INT64)) {
         sc_signal<long long > *dyObj =
             dynamic_cast<sc_signal<long long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%li", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_UCHAR)) {
         sc_signal<unsigned char > *dyObj =
             dynamic_cast<sc_signal<unsigned char >*>(m_obj);
         assert(dyObj);
-        unsigned char chr = dyObj->read();
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;;
     } else if(BSM_CHECK_TYPE(BSM_REG_USHORT)) {
         sc_signal<unsigned short > *dyObj =
             dynamic_cast<sc_signal<unsigned short >*>(m_obj);
-        assert(dyObj);
-        sprintf(value, "%hu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;;
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT)) {
         sc_signal<unsigned int > *dyObj =
             dynamic_cast<sc_signal<unsigned int >*>(m_obj);
-        assert(dyObj);
-        sprintf(value, "%u", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;;
     } else if(BSM_CHECK_TYPE(BSM_REG_ULONG)) {
         sc_signal<unsigned long > *dyObj =
             dynamic_cast<sc_signal<unsigned long >*>(m_obj);
-        assert(dyObj);
-        sprintf(value, "%lu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;;
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT64)) {
         sc_signal<unsigned long long > *dyObj =
             dynamic_cast<sc_signal<unsigned long long>*>(m_obj);
-        assert(dyObj);
-        sprintf(value, "%lu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_LOGIC)) {
         sc_signal<sc_logic > *dyObj =
             dynamic_cast<sc_signal<sc_logic >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read().to_char();
-        return;
+        v->iValue = dyObj->read().to_char();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_signal<sc_bit > *dyObj =
             dynamic_cast<sc_signal<sc_bit >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read().to_char();
-        return;
+        v->iValue = dyObj->read().to_char();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_STR)) {
         sc_signal<std::string > *dyObj =
             dynamic_cast<sc_signal<std::string >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read();
-        return;
+        snprintf(v->sValue, 256, "%s", dyObj->read().c_str());
+        v->type = TYPE_STRING;
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_interface* interf = dynamic_cast<sc_interface*>(m_obj);
         assert(interf);
-        int nlen = 0;
+        int nLen = 256;
+        interf->bsm_to_string(v->sValue, nLen);
+        v->type = TYPE_STRING;
+        /*int nlen = 0;
         if(interf->bsm_to_string(0, nlen)) {
-            char *buf = NULL;
-            if(nlen >= buf_len)
-                buf = new char[nlen + 1];
-            else
-                buf = value;
-            interf->bsm_to_string(buf, nlen);
-            buf[nlen] = '\0';
-            m_value = buf;
-            if(nlen >= buf_len)
-                delete[] buf;
-            return;
-        }
+            int nLen = 256;
+            interf->bsm_to_string(v->sValue, nLen);
+        }*/
+    } else {
+        return false;
     }
-    m_value = ("NaN");
+    return true;
 }
 
-void bsm_sim_object_impl::Read_Port()
+bool bsm_sim_object_impl::ReadInPort(bsm_object_value* v)
 {
-    const int buf_len = 128;
-    static char value[buf_len];
+    assert(v);
     if(BSM_CHECK_TYPE(BSM_REG_DOUBLE)) {
-        sc_in<double > *dyObj =
-            dynamic_cast<sc_in<double >*>(m_obj);
+        sc_in<double > *dyObj = dynamic_cast<sc_in<double >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%.14g", dyObj->read());
-        m_value = value;
-        return;
+        v->fValue = dyObj->read();
+        v->type = TYPE_FLOAT;
     } else if(BSM_CHECK_TYPE(BSM_REG_FLOAT)) {
         sc_in<float > *dyObj = dynamic_cast<sc_in<float >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%.14g", dyObj->read());
-        m_value = value;
-        return;
+        v->fValue = dyObj->read();
+        v->type = TYPE_FLOAT;
     } else if(BSM_CHECK_TYPE(BSM_REG_BOOL)) {
         sc_in<bool > *dyObj = dynamic_cast<sc_in<bool >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read() == 1 ? '1' : '0';
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_CHAR)) {
         sc_in<char > *dyObj = dynamic_cast<sc_in<char >*>(m_obj);
         assert(dyObj);
-        char chr = dyObj->read();
-        m_value = chr;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SHORT)) {
         sc_in<short > *dyObj = dynamic_cast<sc_in<short >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%hi", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_INT)) {
         sc_in<int > *dyObj = dynamic_cast<sc_in<int >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%i", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_LONG)) {
         sc_in<long > *dyObj = dynamic_cast<sc_in<long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%li", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_INT64)) {
         sc_in<long long > *dyObj =
             dynamic_cast<sc_in<long long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%li", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_UCHAR)) {
         sc_in<unsigned char > *dyObj =
             dynamic_cast<sc_in<unsigned char >*>(m_obj);
         assert(dyObj);
-        unsigned char chr = dyObj->read();
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_USHORT)) {
         sc_in<unsigned short > *dyObj =
             dynamic_cast<sc_in<unsigned short >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%hu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT)) {
         sc_in<unsigned int > *dyObj =
             dynamic_cast<sc_in<unsigned int >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%u", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_ULONG)) {
         sc_in<unsigned long > *dyObj =
             dynamic_cast<sc_in<unsigned long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%lu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT64)) {
         sc_in<unsigned long long > *dyObj =
             dynamic_cast<sc_in<unsigned long long>*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%lu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_LOGIC)) {
         sc_in<sc_logic > *dyObj = dynamic_cast<sc_in<sc_logic >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read().to_char();
-        return;
+        v->iValue = dyObj->read().to_char();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_in<sc_bit > *dyObj = dynamic_cast<sc_in<sc_bit >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read().to_char();
-        return;
+        v->iValue = dyObj->read().to_char();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_port_base* port = dynamic_cast<sc_port_base*>(m_obj);
         assert(port);
-        int nlen = 0;
+        int nLen = 256;
+        port->bsm_to_string(v->sValue, nLen);
+        v->type = TYPE_STRING;
+        /*int nlen = 0;
         if(port->bsm_to_string(0, nlen)) {
-            char *buf = NULL;
-            if(nlen >= buf_len) buf = new char[nlen + 1];
-            else buf = value;
-            port->bsm_to_string(buf, nlen);
-            buf[nlen] = '\0';
-            m_value = buf;
-            if(nlen >= buf_len) delete[] buf;
-            return;
-        }
+            int nLen = 256;
+            port->bsm_to_string(v->sValue, nLen);
+        }*/
+    } else {
+        return false;
     }
-    m_value = ("NaN");
+    return true;
 }
 
-
-void bsm_sim_object_impl::Read_Port2()
+bool bsm_sim_object_impl::ReadInoutPort(bsm_object_value* v)
 {
-    const int buf_len = 128;
-    static char value[buf_len];
+    assert(v);
     if(BSM_CHECK_TYPE(BSM_REG_DOUBLE)) {
-        sc_inout<double > *dyObj =
-            dynamic_cast<sc_inout<double >*>(m_obj);
+        sc_inout<double > *dyObj = dynamic_cast<sc_inout<double >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%.14g", dyObj->read());
-        m_value = value;
-        return;
+        v->fValue = dyObj->read();
+        v->type = TYPE_FLOAT;
     } else if(BSM_CHECK_TYPE(BSM_REG_FLOAT)) {
         sc_inout<float > *dyObj = dynamic_cast<sc_inout<float >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%.14g", dyObj->read());
-        m_value = value;
-        return;
+        v->fValue = dyObj->read();
+        v->type = TYPE_FLOAT;
     } else if(BSM_CHECK_TYPE(BSM_REG_BOOL)) {
         sc_inout<bool > *dyObj = dynamic_cast<sc_inout<bool >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read() == 1 ? '1' : '0';
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_CHAR)) {
         sc_inout<char > *dyObj = dynamic_cast<sc_inout<char >*>(m_obj);
         assert(dyObj);
-        char chr = dyObj->read();
-        m_value = chr;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SHORT)) {
         sc_inout<short > *dyObj = dynamic_cast<sc_inout<short >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%hi", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_INT)) {
         sc_inout<int > *dyObj = dynamic_cast<sc_inout<int >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%i", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_LONG)) {
         sc_inout<long > *dyObj = dynamic_cast<sc_inout<long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%li", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_INT64)) {
         sc_inout<long long > *dyObj =
             dynamic_cast<sc_inout<long long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%li", dyObj->read());
-        m_value = value;
-        return;
+        v->iValue = dyObj->read();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_UCHAR)) {
         sc_inout<unsigned char > *dyObj =
             dynamic_cast<sc_inout<unsigned char >*>(m_obj);
         assert(dyObj);
-        unsigned char chr = dyObj->read();
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_USHORT)) {
         sc_inout<unsigned short > *dyObj =
             dynamic_cast<sc_inout<unsigned short >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%hu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT)) {
         sc_inout<unsigned int > *dyObj =
             dynamic_cast<sc_inout<unsigned int >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%u", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_ULONG)) {
         sc_inout<unsigned long > *dyObj =
             dynamic_cast<sc_inout<unsigned long >*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%lu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT64)) {
         sc_inout<unsigned long long > *dyObj =
             dynamic_cast<sc_inout<unsigned long long>*>(m_obj);
         assert(dyObj);
-        sprintf(value, "%lu", dyObj->read());
-        m_value = value;
-        return;
+        v->uValue = dyObj->read();
+        v->type = TYPE_UINT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_LOGIC)) {
         sc_inout<sc_logic > *dyObj = dynamic_cast<sc_inout<sc_logic >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read().to_char();
-        return;
+        v->iValue = dyObj->read().to_char();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_inout<sc_bit > *dyObj = dynamic_cast<sc_inout<sc_bit >*>(m_obj);
         assert(dyObj);
-        m_value = dyObj->read().to_char();
-        return;
+        v->iValue = dyObj->read().to_char();
+        v->type = TYPE_INT;
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_port_base* port = dynamic_cast<sc_port_base*>(m_obj);
-
-        int nlen = 0;
+        int nLen = 256;
+        port->bsm_to_string(v->sValue, nLen);
+        /*int nlen = 0;
         if(port->bsm_to_string(0, nlen)) {
-            char *buf = NULL;
-            if(nlen >= buf_len) buf = new char[nlen + 1];
-            else buf = value;
-            port->bsm_to_string(buf, nlen);
-            buf[nlen] = '\0';
-            m_value = buf;
-            if(nlen >= buf_len)
-                delete[] buf;
-            return;
-        }
+            nlen= nlen>256?256:nlen;
+            port->bsm_to_string(v->sValue, nlen);
+        }*/
+    } else {
+        return false;
     }
-    m_value = ("NaN");
+    return true;
 }
-const char* bsm_sim_object_impl::read()
+bool bsm_sim_object_impl::read(bsm_object_value* v)
 {
     if(!m_bInitialized) Initialize();
     if(!is_readable()) {
-        if(m_obj) return kind();//not readable ,return the kind
-        return ("NaN");
+        return false;
     }
     if(m_nSCType == BSM_SC_SIGNAL)
-        Read_Signal();
+        return ReadSignal(v);
     else if(m_nSCType == BSM_SC_IN)
-        Read_Port();
+        return ReadInPort(v);
     else if(m_nSCType == BSM_SC_INOUT)
-        Read_Port2();
-    return m_value.c_str();
+        return ReadInoutPort(v);
+    return false;
 }
 
-bool bsm_sim_object_impl::Write_Signal(const char* val)
+bool bsm_sim_object_impl::WriteSignal(const bsm_object_value* v)
 {
-    if(val == NULL) return false;
-
+    assert(v);
     if(BSM_CHECK_TYPE(BSM_REG_DOUBLE)) {
-        sc_signal<double > *dyObj =
-            dynamic_cast<sc_signal<double >*>(m_obj);
+        sc_signal<double > *dyObj = dynamic_cast<sc_signal<double >*>(m_obj);
         assert(dyObj);
-        char* end;
-        double value = strtod(val, &end);
-
-        dyObj->write(value);
-        return true;
+        dyObj->write(v->fValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_FLOAT)) {
         sc_signal<float > *dyObj = dynamic_cast<sc_signal<float >*>(m_obj);
         assert(dyObj);
-        char* end;
-        double value = strtod(val, &end);
-        dyObj->write((float)value);
-        return true;
+        dyObj->write((float)v->fValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_BOOL)) {
         sc_signal<bool > *dyObj = dynamic_cast<sc_signal<bool >*>(m_obj);
         assert(dyObj);
-        int value = atoi(val);
-        dyObj->write(value == 1);
-        return true;
+        dyObj->write(v->iValue == 1);
     } else if(BSM_CHECK_TYPE(BSM_REG_CHAR)) {
         sc_signal<char > *dyObj = dynamic_cast<sc_signal<char >*>(m_obj);
         assert(dyObj);
-        char chr = val[0];
-        dyObj->write(chr);
-        return true;
+        dyObj->write((char)v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_SHORT)) {
         sc_signal<short > *dyObj = dynamic_cast<sc_signal<short >*>(m_obj);
         assert(dyObj);
-        short value = 0;
-        if(sscanf(val, "%hi", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return  false;
+        dyObj->write(v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_INT)) {
         sc_signal<int > *dyObj = dynamic_cast<sc_signal<int >*>(m_obj);
         assert(dyObj);
-        int value = 0;
-        if(sscanf(val, "%i", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write(v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_LONG)) {
         sc_signal<long > *dyObj = dynamic_cast<sc_signal<long >*>(m_obj);
         assert(dyObj);
-        long value = 0;
-        if(sscanf(val, "%li", &value) == 1) {
-            dyObj->write((long)value);
-            return true;
-        }
-        return false;
+        dyObj->write((long)v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_INT64)) {
         sc_signal<long long > *dyObj =
             dynamic_cast<sc_signal<long long >*>(m_obj);
         assert(dyObj);
-
-        long value = 0;
-        if(sscanf(val, "%li", &value) == 1) {
-            dyObj->write((long long)value);
-            return true;
-        }
-        return false;
+        dyObj->write((long long)v->fValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_UCHAR)) {
         sc_signal<unsigned char > *dyObj =
             dynamic_cast<sc_signal<unsigned char >*>(m_obj);
         assert(dyObj);
-        unsigned char chr = (unsigned char)val[0];
-        dyObj->write(chr);
-        return true;
+        dyObj->write((unsigned char)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_USHORT)) {
         sc_signal<unsigned short > *dyObj =
             dynamic_cast<sc_signal<unsigned short >*>(m_obj);
         assert(dyObj);
-        unsigned short value = 0;
-        if(sscanf(val, "%hu", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write((unsigned short)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT)) {
         sc_signal<unsigned int > *dyObj =
             dynamic_cast<sc_signal<unsigned int >*>(m_obj);
         assert(dyObj);
-        unsigned int value = 0;
-        if(sscanf(val, "%u", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write((unsigned int)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_ULONG)) {
         sc_signal<unsigned long > *dyObj =
             dynamic_cast<sc_signal<unsigned long >*>(m_obj);
         assert(dyObj);
-        unsigned long value = 0;
-        if(sscanf(val, "%lu", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write((unsigned long)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT64)) {
         sc_signal<unsigned long long > *dyObj =
             dynamic_cast<sc_signal<unsigned long long>*>(m_obj);
         assert(dyObj);
-        unsigned long value = 0;
-        if(sscanf(val, "%lu", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write(v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_STR)) {
         //std::string
         sc_signal<std::string > *dyObj =
             dynamic_cast<sc_signal<std::string >*>(m_obj);
         assert(dyObj);
-        std::string str = val;
-        dyObj->write(str);
-        return true;
+        dyObj->write(v->sValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_LOGIC)) {
         sc_signal<sc_logic > *dyObj =
             dynamic_cast<sc_signal<sc_logic >*>(m_obj);
         assert(dyObj);
-        char chr = val[0];
-        dyObj->write(sc_logic(chr));
-        return true;
+        dyObj->write((sc_logic)((char)v->iValue));
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_signal<sc_bit > *dyObj =
             dynamic_cast<sc_signal<sc_bit >*>(m_obj);
         assert(dyObj);
-        char chr = val[0];
-        dyObj->write(sc_bit(chr));
-        return true;
+        dyObj->write((sc_bit)((char)v->iValue));
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_interface* interf = dynamic_cast<sc_interface*>(m_obj);
         assert(interf);
-        if(interf->bsm_from_string(val))
-            return true;
+        interf->bsm_from_string(v->sValue);
+    } else {
+        return false;
     }
-    return false;
+    return true;
 }
 
-bool bsm_sim_object_impl::Write_Port2(const char* val)
+bool bsm_sim_object_impl::WriteInoutPort(const bsm_object_value* v)
 {
-    if(val == NULL) return false;
-
+    assert(v);
+    if(v == NULL) return false;
     if(BSM_CHECK_TYPE(BSM_REG_DOUBLE)) {
-        sc_inout<double > *dyObj =
-            dynamic_cast<sc_inout<double >*>(m_obj);
+        sc_inout<double > *dyObj = dynamic_cast<sc_inout<double >*>(m_obj);
         assert(dyObj);
-        char* end;
-        double value = strtod(val, &end);
-
-        dyObj->write(value);
-        return true;
+        dyObj->write(v->fValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_FLOAT)) {
         sc_inout<float > *dyObj = dynamic_cast<sc_inout<float >*>(m_obj);
         assert(dyObj);
-        char* end;
-        double value = strtod(val, &end);
-        dyObj->write((float)value);
-        return true;
+        dyObj->write(v->fValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_BOOL)) {
         sc_inout<bool > *dyObj = dynamic_cast<sc_inout<bool >*>(m_obj);
         assert(dyObj);
-        int value = atoi(val);
-        dyObj->write(value == 1);
-        return true;
+        dyObj->write(v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_CHAR)) {
         sc_inout<char > *dyObj = dynamic_cast<sc_inout<char >*>(m_obj);
         assert(dyObj);
-        char chr = val[0];
-        dyObj->write(chr);
-        return true;
+        dyObj->write((char)v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_SHORT)) {
         sc_inout<short > *dyObj = dynamic_cast<sc_inout<short >*>(m_obj);
         assert(dyObj);
-        int value = atoi(val);
-        dyObj->write((short)value);
-        return true;
+        dyObj->write((short)v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_INT)) {
         sc_inout<int > *dyObj = dynamic_cast<sc_inout<int >*>(m_obj);
         assert(dyObj);
-        int value = atoi(val);
-        dyObj->write(value);
-        return true;
+        dyObj->write((int)v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_LONG)) {
         sc_inout<long > *dyObj = dynamic_cast<sc_inout<long >*>(m_obj);
         assert(dyObj);
-        long value = 0;
-        if(sscanf(val, "%li", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write((long)v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_INT64)) {
         sc_inout<long long > *dyObj =
             dynamic_cast<sc_inout<long long >*>(m_obj);
         assert(dyObj);
-        long value = 0;
-        if(sscanf(val, "%li", &value) == 1) {
-            dyObj->write((long long)value);
-            return true;
-        }
-        return false;
+        dyObj->write(v->iValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_UCHAR)) {
         sc_inout<unsigned char > *dyObj =
             dynamic_cast<sc_inout<unsigned char >*>(m_obj);
         assert(dyObj);
-        unsigned char chr = (unsigned char)val[0];
-        dyObj->write(chr);
-        return true;
+        dyObj->write((unsigned char)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_USHORT)) {
         sc_inout<unsigned short > *dyObj =
             dynamic_cast<sc_inout<unsigned short >*>(m_obj);
         assert(dyObj);
-        unsigned short value = 0;
-        if(sscanf(val, "%hu", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write((unsigned short)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT)) {
         sc_inout<unsigned int > *dyObj =
             dynamic_cast<sc_inout<unsigned int >*>(m_obj);
         assert(dyObj);
-        unsigned int value = 0;
-        if(sscanf(val, "%u", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write((unsigned int)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_ULONG)) {
         sc_inout<unsigned long > *dyObj =
             dynamic_cast<sc_inout<unsigned long >*>(m_obj);
         assert(dyObj);
-        unsigned long value = 0;
-        if(sscanf(val, "%lu", &value) == 1) {
-            dyObj->write(value);
-            return true;
-        }
-        return false;
+        dyObj->write((unsigned long)v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_UINT64)) {
         sc_inout<unsigned long long > *dyObj =
             dynamic_cast<sc_inout<unsigned long long>*>(m_obj);
         assert(dyObj);
-        unsigned long value = 0;
-        if(sscanf(val, "%lu", &value) == 1) {
-            dyObj->write((unsigned long long)value);
-            return true;
-        }
-        return false;
+        dyObj->write(v->uValue);
     } else if(BSM_CHECK_TYPE(BSM_REG_STR)) {//std::string
         assert(false);
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_LOGIC)) {
         sc_inout<sc_logic > *dyObj =
             dynamic_cast<sc_inout<sc_logic >*>(m_obj);
         assert(dyObj);
-        char chr = val[0];
-        dyObj->write(sc_logic(chr));
-        return true;
+        dyObj->write((sc_logic)((char)v->uValue));
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_inout<sc_bit > *dyObj =
             dynamic_cast<sc_inout<sc_bit >*>(m_obj);
         assert(dyObj);
-        char chr = val[0];
-        dyObj->write(sc_bit(chr));
-        return true;
+        dyObj->write((sc_bit)((char)v->uValue));
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_port_base* interf = dynamic_cast<sc_port_base*>(m_obj);
         assert(interf);
-        if(interf->bsm_from_string(val))
-            return true;
+        interf->bsm_from_string(v->sValue);
+    } else {
+        return false;
     }
-    return false;
+    return true;
 }
-bool bsm_sim_object_impl::write(const char* val)
+bool bsm_sim_object_impl::write(const bsm_object_value* val)
 {
     if(!m_bInitialized) Initialize();
 
@@ -860,9 +703,9 @@ bool bsm_sim_object_impl::write(const char* val)
 
     bool bRtn = false;
     if(m_nSCType == BSM_SC_SIGNAL)
-        return Write_Signal(val);
+        bRtn = WriteSignal(val);
     else if(m_nSCType == BSM_SC_INOUT)
-        return Write_Port2(val);
+        bRtn = WriteInoutPort(val);
     return bRtn;
 }
 
@@ -885,27 +728,7 @@ bool bsm_sim_object_impl::is_number()
         m_nRegType == BSM_REG_SC_LOGIC ||
         m_nRegType == BSM_REG_SC_BIT;
 }
-const char* bsm_sim_object_impl::get_fx_disp(bool bSigned, int nWL, int nIWL,
-    int nQM, int nOM, int nNR)
-{
-    try {
-        m_disp = m_value;
-        if(m_value.compare("NaN") != 0) {
-            if(bSigned) {
-                sc_fix_fast Inputa(nWL, nIWL, (sc_q_mode)nQM, (sc_o_mode)nOM);
-                Inputa = m_value.c_str();
-                m_disp = Inputa.to_string((sc_numrep)nNR);
-            } else {
-                sc_ufix_fast Inputa(nWL, nIWL, (sc_q_mode)nQM, (sc_o_mode)nOM);
-                Inputa = m_value.c_str();
-                m_disp = Inputa.to_string((sc_numrep)nNR);
-            }
-        }
-    } catch(...) {
-        m_disp = m_value;
-    }
-    return m_disp.c_str();
-}
+
 //////////////////////////////////////////////////////////////////////////////
 bsm_sim_trace_file_impl::bsm_sim_trace_file_impl(const char* name, int nType)
     :m_trace(NULL)

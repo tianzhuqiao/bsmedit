@@ -9,8 +9,8 @@
 #endif
 
 bsm_buffer_impl::bsm_buffer_impl(int size)
-: m_nRead(0)
-, m_nWrite(0)
+    : m_nRead(0)
+    , m_nWrite(0)
 {
     resize(size);
 }
@@ -76,7 +76,23 @@ bool bsm_buffer_impl::retrive(double* buf, int size)
     return true;
 }
 sim_context context;
-extern "C"{
+extern "C" {
+    BSMEDIT_EXPORT bool ctx_read(sim_object* obj)
+    {
+        if(obj && obj->readable) {
+            return obj->m_obj->read(&obj->value);
+        }
+        return false;
+    }
+
+    BSMEDIT_EXPORT bool ctx_write(sim_object* obj)
+    {
+        if(obj && obj->writable) {
+            return obj->m_obj->write(&obj->value);
+        }
+        return false;
+    }
+
     BSMEDIT_EXPORT bool ctx_first_object(sim_object* obj)
     {
         bsm_sim_object* simobj = context.m_sim->first_object();
@@ -88,6 +104,7 @@ extern "C"{
             obj->writable = simobj->is_writable();
             obj->readable = simobj->is_readable();
             obj->numeric = simobj->is_number();
+            ctx_read(obj);
             return true;
         }
         return false;
@@ -104,6 +121,7 @@ extern "C"{
             obj->writable = simobj->is_writable();
             obj->readable = simobj->is_readable();
             obj->numeric = simobj->is_number();
+            ctx_read(obj);
             return true;
         }
         return false;
@@ -114,24 +132,6 @@ extern "C"{
         if(obj) {
             delete obj->m_obj;
             obj->m_obj = NULL;
-            return true;
-        }
-        return false;
-    }
-
-    BSMEDIT_EXPORT bool ctx_read(sim_object* obj)
-    {
-        if(obj && obj->readable) {
-            strcpy(obj->value, obj->m_obj->read());
-            return true;
-        }
-        return false;
-    }
-
-    BSMEDIT_EXPORT bool ctx_write(sim_object* obj)
-    {
-        if(obj && obj->writable) {
-            obj->m_obj->write(obj->value);
             return true;
         }
         return false;
@@ -186,8 +186,8 @@ extern "C"{
         return false;
     }
 
-    BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj, 
-                                       sim_object* val, int trigger)
+    BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj,
+        sim_object* val, int trigger)
     {
         if(val) {
             //ugly code, to be updated
@@ -220,8 +220,8 @@ extern "C"{
         return context.m_sim->remove_trace_buf(t->m_obj);
     }
 
-    BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj, 
-                                      sim_object* val, int trigger)
+    BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj,
+        sim_object* val, int trigger)
     {
         if(val) {
             //ugly code, to be updated

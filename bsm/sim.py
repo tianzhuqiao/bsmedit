@@ -2,6 +2,7 @@ import re
 import json
 import multiprocessing as mp
 import Queue
+import time
 import wx
 import wx.py.dispatcher as dp
 from wx.lib.masked import NumCtrl
@@ -46,13 +47,17 @@ class Simulation(object):
         """write the value to the object"""
         if isinstance(obj, str):
             return self.write({obj:value})
-        elif isinstance(obj, list):
+        elif isinstance(obj, list) or isinstance(obj, tuple):
             return self.write(dict(zip(obj, value)))
         else:
             raise ValueError()
 
-    def _send_command(self, cmd, args=None, block=False):
-        """send the command to the simulation process"""
+    def _send_command(self, cmd, args=None, block=True):
+        """
+        send the command to the simulation process
+
+        don't call this function directly unless you know what it is doing.
+        """
         try:
             # always increase the command ID
             cid = self._cmdId
@@ -64,22 +69,52 @@ class Simulation(object):
             if self.qResp is None or self.qCmd is None or\
                self.simProcess is None:
                 raise KeyboardInterrupt
-            if not isinstance(args, dict):
+            if args and not isinstance(args, dict):
                 return False
-            if args is None: args = {}
+            if not args: args = {}
             self.qCmd.put({'id':cid, 'block':block, 'cmd':cmd, 'arguments':args})
-            #print 'block: ', block
             if block is True:
                 # wait for the command to finish
                 while True:
                     resp = self.qResp.get()
-                    #print resp
                     rtn = self._process_response(resp)
                     if resp.get('id', -1) == cid:
                         return rtn
             return True
         except:
             traceback.print_exc(file=sys.stdout)
+
+    def wait_until_simulation_paused(self, timeout=None):
+        """
+        wait for the simulation to pause
+
+        return: It will not return until the simulation has paused.
+                True: the simulation is valid and paused;
+                False: otherwise.
+        timeout: the maximum waiting period (in second)
+        """
+        # return if the simulation is not valid
+        if self.qResp is None or self.qCmd is None or self.simProcess is None:
+            return False
+        start = -1
+        if timeout is not None:
+            start = time.time()
+        while True:
+            resp = self.get_status()
+            if not resp['running']:
+                return True
+            wx.YieldIfNeeded()
+            time.sleep(0.1)
+            if start>0 and time.time()-start>timeout:
+                return False
+
+    def get_status(self):
+        """
+        get the simulation status.
+
+        return the dict showing the simulation status
+        """
+        return self._send_command('get_status', None, block=True)
 
     def set_parameter(self, step=None, total=None, more=False, block=True):
         """set the simulation parameters"""
@@ -305,7 +340,7 @@ class Simulation(object):
         """help function to generate object list"""
         if isinstance(objs, str):
             return [objs]
-        elif isinstance(objs, list):
+        elif isinstance(objs, list) or isinstance(objs, tuple):
             return objs
         else:
             raise ValueError()
@@ -321,31 +356,43 @@ class Simulation(object):
         objList = self._object_list(objects)
         return self._send_command('read_buf', {'objects':objList}, block)
 
-    def monitor_reg(self, objs, block=True):
+    def monitor_signal(self, objs, block=True):
         """
         monitor the register value
 
         At end of each step, the simulation process will report the value
         """
         objList = self._object_list(objs)
-        return self._send_command('monitor_add', {'objects':objList}, block)
+        return self._send_command('monitor_signal', {'objects':objList}, block)
 
-    def unmonitor_reg(self, objs, block=True):
+    def unmonitor_signal(self, objs, block=True):
         """stop monitoring the register"""
         objList = self._object_list(objs)
-        return self._send_command('monitor_del', {'objects':objList}, block)
+        return self._send_command('unmonitor_signal', {'objects':objList}, block)
+
+    def get_monitored_signal(self, block=True):
+        """get the list of the monitored signals"""
+        return self._send_command('get_monitored_singal', block=block)
 
     def add_breakpoint(self, bp, block=True):
         """
         add the breakpoint
 
-       bp = (name, condition, hitcount)
-       """
-        return self._send_command('breakpoint_add', {'objects':bp}, block)
+        bp = (name, condition, hitcount)
+        """
+        if isinstance(bp[0], str):
+            bp = [bp]
+        return self._send_command('add_breakpoint', {'objects':bp}, block)
 
     def del_breakpoint(self, bp, block=True):
         """delete the breakpoint"""
-        return self._send_command('breakpoint_del', {'objects':bp}, block)
+        if isinstance(bp[0], str):
+            bp = [bp]
+        return self._send_command('del_breakpoint', {'objects':bp}, block)
+
+    def get_breakpoint(self, block=True):
+        """get all the breakpoints"""
+        return self._send_command('get_breakpoint', block=block)
 
     def global_object_name(self, obj):
         """generate the global name for simulation object (num.name)"""
@@ -979,6 +1026,9 @@ class SimPanel(wx.Panel):
                     if grid.triggerBreakPoint(gname(bp[0]), bp[1], bp[2]):
                         dp.send(signal='frame.show_panel', panel=grid)
                         break
+                else:
+                    txt = "Breakpoint triggered: %s\n"%(json.dumps(bp))
+                    dp.send(signal='shell.write_out', text=txt)
             elif command == 'write_out':
                 dp.send(signal='shell.write_out', text=value)
         except:
@@ -1040,7 +1090,6 @@ class sim:
 
     @classmethod
     def OnPaneClosing(cls, pane, force):
-        print pane
         if isinstance(pane, SimPanel):
             if force:
                 pane.sim.stop()
@@ -1075,16 +1124,16 @@ class sim:
     @classmethod
     def OnAddProp(cls, prop):
         num, name = cls.get_object_name(prop.GetName())
-        mgr = Gcs.get_manager(num)
-        if mgr:
-            mgr.monitor_reg(name)
+        s = Gcs.get_manager(num)
+        if s:
+            s.monitor_signal(name)
 
     @classmethod
     def OnDelProp(cls, prop):
         num, name = cls.get_object_name(prop.GetName())
-        mgr = Gcs.get_manager(num)
-        if mgr:
-            mgr.unmonitor_reg(name)
+        s = Gcs.get_manager(num)
+        if s:
+            s.unmonitor_signal(name)
 
     @classmethod
     def OnDropProp(cls, index, prop, grid):
@@ -1202,7 +1251,7 @@ class sim:
         The trace will be automatically updated after each simulation step.
         """
         if not graph.initialized:
-            print "Matplotlib is not installed correctly!"
+            print("matplotlib is not installed correctly!")
             return
         if y is None:
             return

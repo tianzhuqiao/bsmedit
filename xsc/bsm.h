@@ -3,11 +3,11 @@
 #include "systemc.h"
 
 #ifdef WIN32
-    #define BSMEDIT_EXPORT __declspec( dllexport )
+#define BSMEDIT_EXPORT __declspec( dllexport )
 #else
-    #define BSMEDIT_EXPORT
+#define BSMEDIT_EXPORT
 #endif
-#define MAX_NAME_LEN 255
+#define MAX_NAME_LEN 256
 class bsm_buffer_impl : public bsm_buf_read_inf, public bsm_buf_write_inf
 {
 public:
@@ -35,11 +35,10 @@ typedef struct sim_object {
     char name[MAX_NAME_LEN];
     char basename[MAX_NAME_LEN];
     char kind[MAX_NAME_LEN];
-    char value[MAX_NAME_LEN];
+    bsm_sim_object::bsm_object_value value;
     bool writable;
     bool readable;
     bool numeric;
-
     bsm_sim_object* m_obj;
 }sim_object;
 

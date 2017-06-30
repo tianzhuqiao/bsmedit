@@ -2,7 +2,7 @@
 #define _BSM_SIM_CONTEXT_IMPL_H_
 using namespace sc_core;
 #include "bsm_sim_context.h"
-class bsm_sim_object_impl :public bsm_object_impl<bsm_sim_object>
+class bsm_sim_object_impl: public bsm_object_impl<bsm_sim_object>
 {
     enum {
         BSM_REG_UNKNOWN, BSM_REG_DOUBLE, BSM_REG_FLOAT, BSM_REG_BOOL,
@@ -19,8 +19,8 @@ public:
     virtual const char* name();
     virtual const char* basename();
     virtual const char* kind();
-    virtual const char* read();
-    virtual bool write(const char*);
+    virtual bool read(bsm_object_value* v);
+    virtual bool write(const bsm_object_value *v);
     virtual bool is_writable();
     virtual bool is_readable();
     virtual bool is_number();
@@ -31,19 +31,18 @@ protected:
     void CheckSignalType();
     void CheckInputType();
     void CheckOutputType();
-    void Read_Signal();
-    void Read_Port();
-    void Read_Port2();
-    bool Write_Signal(const char* val);
-    bool Write_Port2(const char* val);
+    bool ReadSignal(bsm_object_value *);
+    bool ReadInPort(bsm_object_value *);
+    bool ReadInoutPort(bsm_object_value *);
+    bool WriteSignal(const bsm_object_value *);
+    bool WriteInoutPort(const bsm_object_value *);
 public:
     sc_object* m_obj;
-    std::string m_value;
-    std::string m_disp;
     bool m_bInitialized;
     int m_nKind;
     std::string m_strBSMType;
     int m_nRegType;
+    int m_nDataType;
     int m_nSCType;
 };
 class bsm_sim_trace_file_impl :public bsm_object_impl<bsm_sim_trace_file>

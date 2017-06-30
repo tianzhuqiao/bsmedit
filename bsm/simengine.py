@@ -1,4 +1,4 @@
-from ctypes import Structure, c_char, c_double, c_int, c_voidp, c_bool, POINTER
+from ctypes import Structure, c_char, c_double, c_int, c_voidp, c_bool, POINTER, c_ulonglong, c_longlong
 from ctypes import create_string_buffer, cdll, CFUNCTYPE
 import traceback
 import sys
@@ -29,34 +29,44 @@ BSM_NONEEDGE = 3
 BSM_TRACE_VCD = 0
 BSM_TRACE_SIMPLE = 1
 
+BSM_DATA_STRING = 0
+BSM_DATA_FLOAT = 1
+BSM_DATA_INT = 2
+BSM_DATA_UINT = 3
+class SimObjValue(Structure):
+    _fields_ = [('sValue', c_char*256),
+                ('fValue', c_double),
+                ('uValue', c_ulonglong),
+                ('iValue', c_longlong),
+                ('type', c_int)]
 class SimObj(Structure):
-    _fields_ = [('name', c_char*255),
-                ('basename', c_char*255),
-                ('kind', c_char*255),
-                ('value', c_char*255),
+    _fields_ = [('name', c_char*256),
+                ('basename', c_char*256),
+                ('kind', c_char*256),
+                ('value', SimObjValue),
                 ('writable', c_bool),
                 ('readable', c_bool),
                 ('numeric', c_bool),
                 ('obj', c_voidp),
-                ('parent', c_char*255),
+                ('parent', c_char*256),
                 ('nkind', c_int),
                 ('register', c_bool)]
 
 class SimTraceFile(Structure):
-    _fields_ = [('name', c_char*255),
+    _fields_ = [('name', c_char*256),
                 ('type', c_int),
                 ('obj', c_voidp)]
 
 class SimTraceBuf(Structure):
-    _fields_ = [('name', c_char*255),
+    _fields_ = [('name', c_char*256),
                 ('buffer', POINTER(c_double)),
                 ('size', c_int),
                 ('obj', c_voidp),
                 ('buf', c_voidp)]
 
 class SimContext(Structure):
-    _fields_ = [('version', c_char*255),
-                ('copyright', c_char*255),
+    _fields_ = [('version', c_char*256),
+                ('copyright', c_char*256),
                ]
 #
 
@@ -181,8 +191,17 @@ class SimEngine(object):
             return ""
         if not obj or (not isinstance(obj, SimObj)):
             return ""
+        if not obj.readable:
+            return ""
         if self.ctx_read_helper(obj):
-            return obj.value
+            if obj.value.type == BSM_DATA_STRING:
+                return unicode(obj.value.sValue, errors='replace')
+            elif obj.value.type == BSM_DATA_FLOAT:
+                return obj.value.fValue
+            elif obj.value.type == BSM_DATA_INT:
+                return obj.value.iValue
+            elif obj.value.type == BSM_DATA_UINT:
+                return obj.value.uValue
         return ""
 
     def ctx_write(self, obj, value):
@@ -190,7 +209,17 @@ class SimEngine(object):
             return False
         if not obj or (not isinstance(obj, SimObj)):
             return False
-        obj.value = str(value)
+        if not obj.writable:
+            return ""
+        if self.ctx_read_helper(obj):
+            if obj.value.type == BSM_DATA_STRING:
+                obj.value.sValue = str(value)
+            elif obj.value.type == BSM_DATA_FLOAT:
+                obj.value.fValue = float(value)
+            elif obj.value.type == BSM_DATA_INT:
+                obj.value.iValue = int(value)
+            elif obj.value.type == BSM_DATA_UINT:
+                obj.value.uValue = int(value)
         return self.ctx_write_helper(obj)
 
     def ctx_time_str(self):
