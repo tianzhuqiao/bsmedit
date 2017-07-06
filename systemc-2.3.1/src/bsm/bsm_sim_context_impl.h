@@ -24,7 +24,6 @@ public:
     virtual bool is_writable();
     virtual bool is_readable();
     virtual bool is_number();
-    virtual const char* get_fx_disp(bool, int, int, int, int, int);
 protected:
     void check_kind();
     void Initialize();

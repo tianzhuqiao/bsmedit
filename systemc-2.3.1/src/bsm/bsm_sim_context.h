@@ -24,7 +24,6 @@ public:
     virtual bool is_writable() = 0;
     virtual bool is_readable() = 0;
     virtual bool is_number() = 0;
-    virtual const char* get_fx_disp(bool, int, int, int, int, int) = 0;
 };
 class bsm_sim_trace_file : public bsm_object_base
 {

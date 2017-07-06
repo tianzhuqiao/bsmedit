@@ -1477,8 +1477,9 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
         sscanf(value.c_str(), "%g", &v);
         if(v != old_value) {
             if((bsm_trigger_type == BSM_TRIGGER_VAL_BOTH) ||
-                (bsm_trigger_type == BSM_TRIGGER_VAL_POS&&v > old_value) ||
-                (bsm_trigger_type == BSM_TRIGGER_VAL_NEG&&v < old_value)) {
+                (bsm_trigger_type == BSM_TRIGGER_VAL_POS && v > old_value) ||
+                (bsm_trigger_type == BSM_TRIGGER_VAL_NEG && v < old_value)) 
+            {
                 return true;
             } else {
                 write(NULL);
