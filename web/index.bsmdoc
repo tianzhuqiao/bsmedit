@@ -1,0 +1,16 @@
+\config{title|bsmedit -- another C++/SystemC Simulation Controller}
+\config{heading_numbering|1}
+\config{image_numbering|1}
+\config{table_numbering|1}
+\config{bsmdoc_conf|bsmdoc.cfg}
+{!div|menu||
+#makecontent
+!}
+{!div|main||
+{!div|toptitle||
+bsmedit -- another C/C++/SystemC simulation controller
+!}
+{!div|content||
+#include index_content.bsmdoc
+!}
+!}

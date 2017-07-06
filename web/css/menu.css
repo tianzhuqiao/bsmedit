@@ -1,0 +1,143 @@
+/*the code mainly comes from the purecss example
+ * https://purecss.io/layouts/side-menu/*/
+/*
+Add transition to containers so they can push in and out.
+*/
+#layout,
+.menu {
+    -webkit-transition: all 0.2s ease-out;
+    -moz-transition: all 0.2s ease-out;
+    -ms-transition: all 0.2s ease-out;
+    -o-transition: all 0.2s ease-out;
+    transition: all 0.2s ease-out;
+}
+
+/*
+This is the parent `<div>` that contains the menu and the content area.
+*/
+#layout {
+    position: relative;
+    left: 0;
+    padding-left: 0;
+}
+#layout.active .menu {
+    left: 300px;
+    width: 300px;
+}
+
+ /*
+ The `.menu` `<div>` appears on the left side of the page.
+*/
+.menu {
+    margin-left: -300px; /* ".menu" width */
+    width: 300px;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    z-index: 99; /* so the menu or its navicon stays above all content */
+    background: #fff;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    font-size: 18px;
+}
+/*
+All anchors inside the menu should be styled like this.
+ */
+ .menu a {
+        color: #aaa;
+        border: none;
+        padding: 0.6em 0 0.6em 0.6em;
+    }
+
+/*
+Remove all background/borders, since we are applying them to .menu.
+ */
+.menu {
+    border: none;
+    background: transparent;
+}
+.menu ul {
+    border: none;
+    background: transparent;
+    list-style: none;
+    position: relative;
+    display: inline-block;
+    margin: 0;
+    padding: 0;
+    list-style-type: None
+}
+.menu  ul ul {
+    border: none;
+    background: transparent;
+    list-style: none;
+    position: relative;
+    display: inline-block;
+    margin: 0;
+    padding-left: 1.5em;
+    padding-top: 0;
+    list-style-type: None
+}
+.menu a {
+    display: block;
+    text-decoration: none;
+    white-space: nowrap;
+    padding-left: .5em;
+}
+.menu a: after {
+    padding-left: 0.5em;
+    content: "\25B8";
+    font-size: small;
+}
+/*
+Add that light border to separate items into groups.
+*/
+.menu ul,
+.menu .menu-item-divided {
+    padding-top: 2em;
+}
+/*
+Change color of the anchor links on hover/focus.
+ */
+
+.menu li a.active,
+.menu li a:hover,
+.menu li a:focus {
+    background: #eee;
+}
+.menu li a.active {
+    color: #777;
+}
+/* -- Responsive Styles (Media Queries) ------------------------------------- */
+/*
+Hides the menu at `48em`, but modify this based on your app's needs.
+*/
+@media (min-width: 80em) {
+    .header,
+    .content {
+        padding-left: 2em;
+        padding-right: 2em;
+    }
+    #layout {
+        padding-left: 300px; /* left col width ".menu" */
+        left: 0;
+    }
+    .menu {
+        left: 300px;
+    }
+}
+
+@media (max-width: 80em) {
+    /* Only apply this when the window is small. Otherwise, the following
+    case results in extra padding on the left:
+        * Make the window small.
+        * Tap the menu to trigger the active state.
+        * Make the window large again.
+    */
+    #layout.active {
+        position: relative;
+        left: 300px;
+    }
+}
+
+

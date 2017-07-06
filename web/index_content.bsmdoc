@@ -1,0 +1,1036 @@
+{!exec|firstRunOnly||{%
+def bsmdoc_example(data, args, **kwargs):
+    return bsmdoc_div(data, ['bs-example'])
+def bsmdoc_example_src(data, args, **kwargs):
+    return bsmdoc_div(data, ['bs-example-src'])
+def bsmdoc_ccodesnippet(data, args, **kwargs):
+    with open(data, 'r') as f:
+        return ''.join(f.readlines())
+    return data
+%}!}
+
+= What is bsmedit
+bsmedit is a tool to control C++/[http://accellera.org/community/systemc|SystemC] simulation.
+It is open source, and cross platform. Long time ago, when I first used the Systemc library to simulate some communication algorithms, I was quickly bored with the following debugging procedure:
+* update the source code;
+* re-compile the program;
+* check the results.
+
+And occasionally, I would need to add some debugging code. For example, printing some value (e.g., printf) to the terminal or dumping the data to a file, so that I can use another tools (e.g., Matlab) to visualize and analyze it (e.g., plot).
+
+bsmedit aims to \tag{b|simplify} this procedure. With bsmedit, we can
+    -control the simulation
+    -monitor the signals in real-time
+    -plot/dump the signals
+    -......
+
+= Get started
+To use bsmedit, the first step is to build a simulation. In the following example, we will make a toy SystemC simulation that outputs a synchronized sin and cos waveforms.
+
+*\tag{b|Create a simulation project.} You can use your preferred platform and compiler. In this demo, we will use [https://www.visualstudio.com|Visual C++ express] as an example.
+*{\tag{b|Add SystemC support to your project.} To make the simulation work with bsmedit, you need a modified SystemC, which can be got [https://github.com/tianzhuqiao/bsmedit/tree/master/systemc-2.3.1|here].
+{!div|info||
+Please refer to the file [https://github.com/tianzhuqiao/bsmedit/blob/master/systemc-2.3.1/INSTALL|INSTALL] in the SystemC package if you are not familiar with adding SystemC support to your project.
+!}
+}
+* \tag{b|Implement the simulation.}
+*- {Create a top level SystemC module \tag{code|top}, where \tag{code|top.h} may look like
+{!example_src||highlight|c++||ccodesnippet||
+../examples/start/top.h
+!}
+The top module is derived from \tag{code|sc_module}. It defines several signals used in the module
+- \tag{b|clock}: the module is triggered by the positive edge of the clock, whose period is $10ns$ with 50\% duty cycle. One thing to notice is that the signal \tag{clock} is given a name \tag{code|CLOCK}. bsmedit will use this name to have access to this signal. At shown in the example, the name of the signal (i.e., CLOCK) may not be same as the variable name (i.e., clock), although in practice they are often same for convenience.
+- \tag{b|sig_sin}: the signal for the sine waveform, whose name is \tag{code|sig_sin}.
+- \tag{b|sig_cos}: the signal for the cos waveform, whose name is \tag{code|sig_cos}.
+- \tag{b|sig_steps}: the phase step for each clock, which is increased by $\frac{\pi}{\textrm{sig_steps}}$. The phase is initialized to be zero.
+The module also defines a process method (i.e., \tag{code|Action}). It is triggered at rising edge (also called positive edge), where all calculations are conducted.
+}
+*-{The \tag{code|top.cpp} may look like
+{!example_src||highlight|c++||ccodesnippet||
+../examples/start/top.cpp
+!}
+In the process method (\tag{code|Action}), we simply update the sin/cos signals based on the current phase. Then, update the phase for the next step. In this demo, the maximum step is assumed to be $\frac{\pi}{256}$, which is kind of arbitrary.
+}
+*-{The \tag{code|main} function may look like
+{!example_src||highlight|c++||{%
+#include "systemc.h"
+#include "bsm.h"
+#include "top.h"
+
+// define the interfaces to bsmedit
+BSMEDIT_IMPLEMENT_MODULE(top,"top");
+%}!}
+
+Besides the SystemC library, it also needs to include the \tag{code|bsm.h/cpp} in the project. They define some useful interfaces to work with bsmedit
+-\tag{b|BSMEDIT_IMPLEMENT_MODULE(top,"top")} creates the top level module with name 'top'.
+We will discuss the macro in detail in the following sections.
+
+{!div|info||
+The demo project can be download [https://github.com/tianzhuqiao/bsmedit/tree/master/examples/start|here].
+!}
+}
+* \tag{b|Compile the project to get simulation} (e.g., \tag{code|start.dll})
+
+== Open with bsmedit
+bsmedit can be download [https://github.com/tianzhuqiao/bsmedit|here]. Besides bsmedit, you may also need
+- [http://www.python.org|Python 2.x]
+- [http://www.wxpython.org|wxPython 3]
+- [http://www.numpy.org| Numpy]
+- [http://www.matplotlib.org | Matplotlib]
+
+{!div|info||
+Make sure your simulation architecture match with python. For example, if your simulation is \tag{b|x64}, you should also install the \tag{b|x64} version python. Otherwise, bsmedit will fail to load the simulation.
+!}
+bsmedit uses wxPython for the GUI, and currently its stable release only supports Python 2.x. It's the main reason currently bsmedit only supports python 2.x.
+
+Click \tag{b|bsmedit.py} to start bsmedit, and create the simulation\footnote{Here we slightly abuse the notation \tag{b|simulation}. It may be indicated as either the binary from the simulation project or the simulation instance in bsmedit.} by
+{!image||
+./images/start_open_project.png
+!}
+
+It will show a open file dialog. In the open file dialog, select the \tag{code|start.dll} from the above step. bsmedit will automatically load the simulation.
+{!image||
+./images/start_sim_main.png
+!}
+The main window consists of 4 sections:
+*{\tag{b|Simulation control toolbar}. The window in red rectangle \tag{code|1} shows the simulation control toolbar. From left to right:
+-\tag{b|step}: run the simulation in one step. You can arbitrarily define the duration of simulation step as we will show shortly, and it is not related to the \tag{b|delta} cycle concept in SystemC simulation.
+-\tag{b|run}: run the simulation until you pause it or the preset total simulation duration is reached.
+-\tag{b|pause}: pause the simulation.
+-\tag{b|step duration}: the duration of each simulation step. At the end of each simulation step, bsmedit will retrieve the data from the simulation and update the GUI (e.g., the current time-stamp). when \tag{b|run} the simulation, bsmedit may adjust the step duration so that the simulation does not generate to many updating events.
+-\tag{b|step unit}: the time unit of each simulation step
+-\tag{b|total duration}: the total simulation duration. bsmedit will pause the simulation if the current simulation time  passes the total simulation time. \tag{code|-1} means running the simulation infinitely.
+-\tag{b|total unit}: the time unit of the total simulation duration.
+}
+*{\tag{b|Simulation objects}\footnote{Sometimes they will be referred as \tag{b|objects} (as they are all derived from \tag{b|sc_object}) or \tag{b|signals} (as \tag{b|sc_signal} is the most common object to control the simulation). We will use both interchangeably.}.
+The window in red rectangle \tag{code|2} lists all the \tag{code|objects} defined in the simulation. As shown in previous steps, the simulation has one top module (i.e., \tag{code|top}) and it has 4 signals: \tag{code|CLOCK}, \tag{code|sig_cos}, \tag{code|sig_sin}, and \tag{code|sig_steps}. The tree hierarchy represents their structure in the simulation.
+}
+*\tag{b|Console window}. The window in red rectangle \tag{code|3} is the console window. You can execute commands and output will be shown in the same window. We will show more details later.
+*\tag{b|Simulation status}. The window in red rectangle \tag{code|4} shows the status (e.g., the current simulation time-stamp).
+
+To run the simulation, click the \tag{code|step} or \tag{code|run} button. The simulation will proceed until you pause it or the total simulation duration is reached. The current simulation time will be shown in the status bar.
+
+It is not very interesting if bsmedit can only control the simulation running. bsmedit also allows you to monitor the signal values in real-time. For example, select the signal(s) to be monitored, and right click on it
+{!image||
+./images/start_sim_add2reg.png
+!}
+
+bsmedit will create a \tag{code|propgrid} window and add the selected signals to it.
+{!image||
+./images/start_sim_reg.png
+!}
+
+Click the \tag{code|run} button to start the simulation. The values of the signal will be automatically updated.
+{!video||
+./images/start_run.mp4
+!}
+
+You can also modify the signal values, for example, by typing the following commands in the console window (no need to worry about the commands now, we will discuss them in detail in the following sections)
+{!example_src||highlight|shell||{%
+>>> # get the simulation handle
+>>> s = simulation(1)
+>>> # set the number of steps
+>>> s['top.sig_steps'] = 8192
+%}!}
+The first command gets the handle of the simulation. Then, the second command sets the value of signal \tag{code|top.sig_steps} to 8192.
+
+You can also plot the trace to see the signal trend,
+{!example_src||highlight|shell||{%
+>>> # trace the cos waveform to a buffer with size 4096
+>>> s.trace_buf('top.sig_cos', 4096)
+>>> # trace the sine waveform to a buffer with size 4096 too
+>>> s.trace_buf('top.sig_sin', 4096)
+>>> # plot the trace
+>>> plot_trace('top.sig_cos', 'top.sig_sin', False)
+>>> xlim([-1,1])
+>>> ylim([-1,1])
+%}!}
+
+The first command tells bsmedit to start tracing the signal \tag{code|top.sig_cos}; and the buffer length is 4096. In other words, its latest 4096 values will be traced to a numpy array. Similarly, the second command traces the signal \tag{code|top.sig_sin}. The third command creates a figure to plot \tag{code|top.sig_cos} as $x$ axis value and \tag{code|top.sig_sin} as $y$ axis. The last two lines set the limits of $x$ axis and $y$ axis, respectively. The created figure looks like
+{!image||
+./images/start_sim_plot.png
+!}
+It does not really show anything visible. However, it is not surprising, since we just create the buffer and it has not be filled with anything yet. When you run the simulation, the buffer will be filled and the plot will be updated accordingly
+{!video||
+./images/start_run_plot.mp4
+!}
+
+You can following the above steps to start the simulation and monitor the signals each time. However, it is too tedious to repeat each step again and again. In bsmedit, you can write a python script to do all the steps. The script may look like
+{!example_src||highlight|python||ccodesnippet||{%
+../examples/start.py
+%}!}
+
+Save the script to a file (e.g., [https://github.com/tianzhuqiao/bsmedit/blob/master/examples/start.py|start.py]).
+Then, it can be open the script in bsmedit
+{!image||
+./images/start_sim_open.png
+!}
+
+And it will look like the one shown in the following image. Click the \image{./images/run_script.png} button to run the script
+{!image||
+./images/start_open_script.png
+!}
+
+bsmedit will automatically load the simulation, create a propgrid window, monitor the signals, and create a figure to plot the signals.
+{!image||
+./images/start_run_script.png
+!}
+
+= How it works
+bsmedit was initially written in C++. The previous version can be found [https://sourceforge.net/projects/bsmedit/|here]. It looks like an ideal choice since the simulation is written in C/C++/SystemC. It supports multiple platforms (e.g., windows, linux), whose GUI is based on [http://www.wxwidget.org|wxWidget]. It is highly extensible thanks to the plugin system. Actually most functions as you seen above are implemented with the plugin system. For example, one plugin is used to control the simulation (e.g., start, pause, stop, resume), which also supports breakpoints (e.g., pause the simulation when some conditions are satisfied; thus, you can check the status of your algorithm at that time.). One plugin is to plot the data captured from the simulation, which mimics some features in Matlab \tag{code|plot} function. With that plugin, you can visualize the data in real-time and check its trend dynamically. One plugin adds some basic DSP functions (e.g., max, min, median, addition, subtraction, multiplication (dot product), square, square root, log/exp, sin/cos, acos/asin, tan, FFT etc.). It also had a console window so that you can type python command to execute (e.g., to control the simulation)...
+
+Following this way, we could build bsmedit block by block. At that time, I though it would work. However, such method has some significant drawbacks. One big problem is that we need to re-inverting many many \tag{code|wheels}. For example, after implement some functions, bsmedit also needs to wrap all these functions in python, so that you can call it in python script or in the console window. No need to say how tedious and error-prone such process is. How about if you want to add a DSP function that does not exist in bsmedit (e.g., a moving average)? Basically, you will have to create a plugin project following the template, and write code to implement the processing.
+We try hard to make the interface as simple as possible; but it still requires some significant effort to make such plugin work. Furthermore, how about adding some features to the plot library? It will be a real nightmare to go through all the code to find the right position to add some additional code...
+
+To solve these issues, from version 3, bsmedit is totally rewritten with python (wxPython for GUI). It does not mean you need to write your simulation in python. The simulation is still written in C/C++/SystemC, and bsmedit will load and run the simulation as usual. As it is in python, all functions can be directly called by your python script and no need to wrap the interfaces any more. No need to provide a custom plot library, since you can just use the existing python libraries (e.g., matplotlib). No need to write many basic DSP function, which can be easily fulfilled by calling function in numpy or scipy...
+
+== Console window
+In version 3, the python console window is replaced with a 'native' interactive interpreter (wx.py.shell). It allows you to run any python command. Since everything is in python (except the simulation itself), there is no need to write the wrap function any more.
+
+It is not fun to remember all the commands. When typing a '\tag{code|.}', bsmedit will show an auto-complete list for you to select from, if there is any
+{!image||
+./images/console_autocomplete.png
+!}
+
+Similarly, it will also show the calltips of a function if possible when it sees '\tag{code|(}'
+{!image||
+./images/console_calltip.png
+!}
+
+And you can always use the \tag{code|help} command to get the doc of a command, for example
+{!example_src||highlight|shell||{%
+>>> help run
+Help on function run in module bsm.pysim:
+
+run(*args, **kwargs)
+    run(to=None, more=None)
+
+    keep running the simulation
+
+    The simulation is executed step by step. After each step, the simulation
+    'server' will notify the 'client' to update the GUI.
+%}!}
+
+It also supports executing external command. The external command should be prepended by \tag{code|\!}. For example, to list the contents in the current folder by calling '\tag{code|ls}' command (see [http://unxutils.sourceforge.net/|here] for windows system)
+{!example_src||highlight|shell||{%
+>>> !ls
+%}!}
+You can also pass arguments to the external command
+{!example_src||highlight|shell||{%
+>>> !ls -l
+%}!}
+
+By default, when executing the external command, bsmedit will wait for it to finish, then show its output in the console window. Command can also be executed in background by appending a "\tag{code|&}". For example, the following command will open a gvim window and return (without "\tag{code|&}", it will not return until the gvim window is closed)
+{!example_src||highlight|shell||{%
+>>> !gvim &
+%}!}
+
+You can add an \tag{code|alias} to an external command to save some typing. For example, the following command will add an alias "\tag{code|ll}"
+{!example_src||highlight|shell||{%
+>>> alias ll ls -l
+%}!}
+where the first parameter is the alias name (e.g., "\tag{code|ll}"), and the remaining parameters are the destination (e.g. "\tag{code|ls -l}").
+Now, when the console sees input "\tag{code|ll}", it will automatically replace it with "\tag{code|!ls -l}", and execute it. If an alias definition does not include a destination, bsmedit will delete the \tag{code|alias} if exists. For example, the following code will delete the alias \tag{code|ll}
+{!example_src||highlight|shell||{%
+>>> alias ll
+%}!}
+
+There are some pre-defined commands (by wx.py.shell), which are frequently used. Thus, you still can used it even if these external commands are not installed.
+{!example_src||highlight|shell||{%
+>>> cd DIR # go the DIR folder
+>>> pwd # show the current working directory
+>>> ls # list the current working directory
+>>> clear # clear the console window
+%}!}
+
+It is also able to run the command silently. In other words, to execute the command without showing any output in the console window.
+{!example_src||highlight|shell||{%
+>>> # define a function foo
+>>> def foo():
+...    print 'foo'
+...    return 42
+...
+>>> # call a function with output
+>>> a = foo()
+foo
+>>> # call a function silently
+>>> a = foo();
+>>>
+%}!}
+
+One major constraint of version 3 is that it executes the command in the main GUI thread. Thus, if a dead loop is feed into the interpreter, it will never return and can not be interrupted, for example:
+
+{!example_src||highlight|python||{%
+while True:
+    pass
+%}!}
+
+One reason we do not execute the command in a separate process or thread is that some command may create GUI window. If the GUI window is created in separate process/thread, it will potentially cause many problems and significantly increase the complexity to handle the GUI window. However, in bsmedit, most time consuming task should be the simulation itself, not the command or processing. Thus, the console command should not occupy too much time to block the GUI updating.
+
+Another concern is that we may totally separate the simulation control and GUI, such that you can use the simulation control function with any other interactive shell.
+
+== Figure
+The interactive interpreter can run any python command, which greatly simplifies bsmedit. For example, in version 3, the plot library is discarded. Instead, you can use [http://www.matplotlib.org|matplotlib] to visualize the data. By default, all the functions defined in "\tag{code|matplotlib.pyplot}" are pre-loaded, so you can call them directly in the console window. The detailed description can be found [http://matplotlib.org/api/pyplot_api.html|here]. To create a new figure and plot a straight line
+{!example_src||highlight|python||{%
+>>> figure();
+>>> plot(range(100))
+%}!}
+and the figure will look like
+{!image||
+./images/plot_range100.png
+!}
+
+Like Matlab, you can add label, legend, and grid
+{!example_src||highlight|python||{%
+>>> xlabel('x')
+>>> ylabel('y')
+>>> grid(ls='dotted')
+>>> legend(['line1'], loc='best')
+%}!}
+{!image||
+./images/plot_range100more.png
+!}
+
+The figure window has two sections: \tag{code|toolbar} and \tag{code|plot}, as illustrated in the following diagram
+{!image||
+./images/figure.png
+!}
+
+The buttons on the toolbar are (from left to right)
+- \tag{b|home}: it will bring the plot to the initial status (e.g., zoom and position)
+- \tag{b|back}: go to the previous status if available
+- \tag{b|forward}: go to the next status if available
+- \tag{b|move}: move the plot with the mouse
+- \tag{b|zoom}: zoom in the plot by clicking, moving and release mouse, or with the mouse wheel. Double click on the plot will bring the plot to the original view.
+- {\tag{b|datatip}: add datatip to the curve.
+{!image||{%
+./images/figure_datatip.png
+%}!}
+# todo: export the datatip coordinate to a numary array
+
+When Click on a datatip, it will be activated and its background will be in orange. In this case, you can drag the datatip around to align it in different position.
+}
+- \tag{b|save}: export the plot (without the toolbar section) to a file (e.g., with format eps, ps, pgf, png, pdf, raw, rgba, svg, svga)
+- \tag{b|copy}: copy the plot (not the toolbar section) to clipboard
+
+The \tag{code|plot} function will add the curve to the \tag{b|active} figure window. Generally, the \tag{b|active} figure window is the latest activated figure window. For example, you can click on a figure window to make it active. And it will keep active until you click on another figure window or create a new one. If you are not sure about the active figure window, you may click on it before calling any plot functions. Or, the following command will activate the figure window with number \tag{code|1} (its window name may look like '\tag{code|Figure 1}')
+{!example_src||highlight|python||{%
+>>> figure(1)
+%}!}
+
+You can also get the handle of the current figure with
+{!example_src||highlight|python||{%
+>>> # get a reference to the current figure
+>>> gcf()
+>>> # get the current axes on the current figure
+>>> gca()
+%}!}
+Refer to the [http://matplotlib.org/api/pyplot_api.html|Matplotlib doc] for more details.
+
+== Simulation
+One problem in version 2 is that the [http://www.systemc.org|SystemC]
+simulation runs in a thread, and it may crash (e.g., when the simulation
+exits), which may in turn crashes bsmedit. In version 3, the simulation runs in
+a separate process, which receives command from the main process (e.g.,
+interactive interpreter), executes it and sends the response back. In this way,
+the simulation can gracefully exit without affecting the main process.
+
+As you have seen above, bsmedit defines functions to control the simulation
+- {\tag{b|Create a simulation.}
+{!example_src||highlight|python||{%
+s = simulation(num=None, filename=None, silent=False, create=True, activate=False)
+%}!}
+where
+{{
+    argument| description||+
+    num|the simulation id. If a simulation with \tag{code|num} is found, its handler will be returned||-
+    filename| the simulation path||-
+    silent|
+    -False: open a file dialog to select a simulation if \tag{code|filename} is not given
+    -True: do not show a file dialog||-
+    create|create a simulation if can not find a simulation||-
+    activate| activate the simulation window if it is \tag{b|True}||-
+}}
+If the function is executed successfully, it will return the handler \tag{code|s} to the simulation, which can be used to control the simulation or have access to its objects.
+For example
+{!example_src||highlight|python||{%
+# create a simulation and load 'mysimulation.dll'
+s = simulation(filename='./mysimulation.dll')
+# return the handler of the simulation #1 if it is available
+s = simulation(1)
+%}!}
+}
+-{\tag{b|Load the simulation.} The syntax is
+{!example_src||highlight|python||{%
+s.load(filename)
+%}!}
+where the parameter \tag{code|filename} is the path to the simulation. If a simulation has already been loaded, \tag{code|load} will unload it first.
+
+You can also tell bsmedit to open a file-dialog to select the simulation by calling the following function
+{!example_src||highlight|python||{%
+s.load_interactive()
+%}!}
+}
+-{\tag{b|Set simulation parameters.}
+{!example_src||highlight|python||{%
+s.set_parameter(step=None, total=None, more=False)
+%}!}
+{{
+argument|description||+
+step| the time duration of each step, e.g., "\tag{code|100us}". The pre-defined time units include \tag{code|fs} (femtosecond), \tag{code|ps} (picosecond), \tag{code|ns} (nanosecond), \tag{code|us} (microsecond), \tag{code|ms} (millisecond), and \tag{code|s} (second).||-
+total| the total simulation duration.||-
+more | if \tag{code|more} is \tag{code|False}, \tag{code|total} parameter has its usual meaning. In this case, \tag{code|\-1} means to run infinitely; otherwise, \tag{code|total} means the additional simulation duration from the current simulation time.||-
+}}
+For example
+{!example_src||highlight|python||{%
+# set the step to be 1000us, and run infinitely
+s.set_parameter(step='1000us', total='-1')
+# set the step to be 1000. Here unit is not given, so the current one will be used. The default unit is 'ns'
+s.set_parameter(step='1000', total='-1')
+# When 'run' the simulation, it will stop at 100ms
+s.set_parameter(total='100ms')
+# When 'run' the simulation, it will stop at 100ms from the current simulation time-stamp
+s.set_parameter(total='100ms', more=True)
+%}!}
+}
+- {\tag{b|Run the simulation.} There are several functions to start the simulation
+{!example_src||highlight|python||{%
+# run the simulation for a single step with current settings (step, total)
+s.step()
+# run the simulation for a single step with step size 1000us
+s.step(step='1000us')
+# run the simulation with the current settings (step, total)
+s.run()
+# run the simulation until 1ms
+s.run(to='1ms')
+# run the simulation for additional 1ms
+s.run(more='1ms')
+%}!}
+
+Sometime, you may want to wait until the simulation paused. For example, you may want to check the signal value after the simulation has paused. There is a function to do that
+{!example_src||highlight|python||{%
+s.wait_until_simulation_paused()
+s.read['top.sig_sin']
+%}!}
+It will return only if the simulation is valid and has paused (in this case, it will return \tag{code|True}), or the simulation is invalid (return \tag{code|False}). And the second line \tag{code|s.read} will not be called until \tag{code|s.wait_until_simulation_paused} return. You can also set the timeout. For example, the following command will wait for a maximum period of \tag{b|10s}
+{!example_src||highlight|python||{%
+s.wait_until_simulation_paused(10)
+%}!}
+}
+Here \tag{b|10s} is the 'real time', not the simulation time.
+
+- {\tag{b|Pause the simulation.}
+{!example_src||highlight|python||{%
+s.pause()
+%}!}
+It will pause the simulation, but not destroy it. In other words, you can resume the simulation by calling \tag{code|step} or \tag{code|run} mentioned above. To permanently destroy the simulation, you can call
+{!example_src||highlight|python||{%
+s.stop()
+%}!}
+}
+- {\tag{b|Reset the simulation.}
+{!example_src||highlight|python||{%
+s.reset()
+%}!}
+It will close the current simulation, and reload it. Thus, when it is executed successfully, the simulation time will be reset to \tag{code|0}.
+}
+- {\tag{b|Read the signals.} bsmedit defines function to have access to the signals in the simulation, for example
+{!example_src||highlight|python||{%
+>>> # read a single signal
+>>> s.read("top.sig_cos")
+0.7958369046061
+%}!}
+Besides calling the \tag{code|read} function explicitly, you can also use a shortcut
+{!example_src||highlight|python||{%
+>>> # same as the previous command
+>>> s["top.sig_cos"]
+0.7958369046061
+%}!}
+
+You can also read multiple signals with one command. In this case, the return value will be a \tag{code|dict}, whose key is the signal name.
+{!example_src||highlight|python||{%
+>>> # read multiple signals
+>>> s.read(['top.sig_cos', 'top.sig_sin'])
+{'top.sig_sin': 0.60551104140799, 'top.sig_cos': 0.7958369046061}
+>>> # equivalent to the command above
+>>> s[['top.sig_cos', 'top.sig_sin']]
+{'top.sig_sin': 0.60551104140799, 'top.sig_cos': 0.7958369046061}
+>>> # equivalent to the command above
+>>> s['top.sig_cos', 'top.sig_sin']
+{'top.sig_sin': 0.60551104140799, 'top.sig_cos': 0.7958369046061}
+%}!}
+
+For SystemC simulation, bsmedit supports the following data types. The right column shows the corresponding data type in python.
+{{
+SystemC type | Python type ||+
+-float, double | float||-
+-bool,
+-char, unsigned char,
+-short, unsigned short,
+-int, unsigned int,
+-long, unsigned long,
+-long long, unsigned long long,
+-sc_logic, sc_bit| long||-
+-sc_lv, sc_bv
+-sc_int, sc_uint
+-sc_bigint, sc_biguint
+-sc_fixed
+-sc_fixed_fast
+-sc_ufixed
+-std::string\footnote{only support \tag{b|sc_signal.}}|string||-
+}}
+And you can use the above function to read all the \tag{code|sc_signal}, \tag{code|sc_out}, \tag{code|sc_inout}, and \tag{code|sc_in} objects.
+}
+- {\tag{b|Write the signals.} To update the signal value, you should call
+{!example_src||highlight|python||{%
+s.write(objects)
+%}!}
+where \tag{code|objects} is a \tag{code|dic} with the signal name as its key. bsmedit supports writing all the \tag{code|sc_signal}, \tag{code|sc_out}, and \tag{code|sc_inout}\footnote{\tag{b|sc_in} is not writable.}.
+
+Due to the two-step mechanism in SystemC, in some case, the value will be updated after the next delta cycle. That is, if a \tag{code|read} is called after \tag{code|write} immediately, it may return the previous value.
+
+{!example_src||highlight|python||{%
+>>> s.read('top.sig_steps')
+256L
+>>> s.write({'top.sig_steps': 8192})
+>>> s.read('top.sig_steps')
+256L
+%}!}
+
+Like \tag{code|read}, there is also a shortcut to write the signal
+{!example_src||highlight|python||{%
+>>> # same as the command above
+>>> s['top.sig_steps'] = 8292
+%}!}
+
+Similarly, you can also write to the multiple signals by calling \tag{code|write} once
+{!example_src||highlight|python||{%
+>>> # write multiple signals
+>>> s.write({'top.sig_steps': 8192, 'top.sig_sin': 0.1})
+>>> # same as the command above
+>>> s[['top.sig_steps', 'top.sig_sin']] = [8292, 0.1]
+>>> # or
+>>> s['top.sig_steps', 'top.sig_sin'] = [8292, 0.1]
+%}!}
+}
+
+- { \tag{b|Dump signal to numpy array.} For example, by calling the following command
+{!example_src||highlight|python||{%
+>>> s.trace_buf('top.sig_cos', size=10)
+%}!}
+bsmedit will dump the values of \tag{code|top.sig_cos} to a numpy array, so you can manipulate it easily. In the above example, the buffer size is \tag{code|10}. If the size is not set, the default size will be 256. Then, the buffer can be accessed by
+{!example_src||highlight|python||{%
+>>> buf = s.read_buf('top.sig_cos')
+>>> type(buf)
+<type 'numpy.ndarray'>
+%}!}
+The buffer will be filled with the most recent 10 samples, where $\textrm{buf}[9]$ is current one and $\textrm{buf}[0]$ is oldest. One thing we haven't talked about is how these samples are saved. By default, a samples is saved to the buffer only when the value is changed, for example, either \tag{b|rising edge} or \tag{b|falling edge}. For \tag{b|rising edge}, it means the current value is larger than the last value; while for \tag{b|falling edge}, the current value is smaller than the last value.
+{!exec|firstRunOnly||{%
+import os.path
+import matplotlib
+import matplotlib.pyplot as plt
+import numpy as np
+filename = "images/dump1.svg"
+if not os.path.isfile(filename):
+    plt.clf()
+    plt.figure(figsize=[4,2])
+    plt.step(range(11), [0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0], where='post')
+    plt.xlim([0,10])
+    plt.xlabel('t')
+    plt.tight_layout()
+    plt.savefig(filename)
+filename = "images/dump2.svg"
+if not os.path.isfile(filename):
+    plt.clf()
+    plt.figure(figsize=[4,2])
+    plt.step(range(11), [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0], where='post')
+    plt.xlim([0, 10])
+    plt.xlabel('t')
+    plt.tight_layout()
+    plt.savefig(filename)
+filename = "images/dump3.svg"
+if not os.path.isfile(filename):
+    plt.clf()
+    plt.figure(figsize=[4,2.2])
+    plt.step(range(11), [2+x for x in [0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0]], where='post')
+    plt.step([0.5*x for x in range(22)], [0, 1]*11, where='post')
+    plt.xlim([0, 10])
+    plt.xlabel('t')
+    plt.tight_layout()
+    plt.savefig(filename)
+
+%}!}
+In some application, it may work well. For example, if the output of the signal is shown as the following figure,
+{!image||
+./images/dump1.svg
+!}
+then at time $t=9$, the buffer will be $[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]$, as expected. However, if the signal output is as the one shown in the figure below. The data in buffer may look like $[x, x, x, x, x, x, x, 0, 1, 0]$, where $x$ is the value either from the buffer initialization or previous samples, rather than $[0, 1, 0, 0, 0, 0, 0, 0, 0, 0]$. The result is not surprising since the simulation will only push the data to the buffer whenever the data is changed. However, the value does not changed within $t=[2,3,...10]$
+{!image||
+./images/dump2.svg
+!}
+You may want to only dump the data at the rising (or falling) edge. In this case, replace the above \tag{code|trace_buf} with
+{!example_src||highlight|python||{%
+>>> s.trace_buf('top.sig_cos', size=10, trigger='pos')
+%}!}
+Then the buffer will only be filled when the signal value is increased (compared to the last value). In particular, for the above figure, at $t=9$, the buffer will be $[x,x,x,x,x,x,x,x,x,1]$.
+
+Similarly, you can also dump the signal only at its falling edge
+{!example_src||highlight|python||{%
+>>> s.trace_buf('top.sig_cos', size=10, trigger='neg')
+%}!}
+
+In some case, you may want to dump the signal at a fixed sampling clock. How could we do that with bsmedit? Actually it is also straightforward. What we talked so far is to only use the signal itself to dump the value. bsmedit also provide a way to trigger the dumpling with a \tag{strong|valid} signal; that is, the dumping can be triggered by the rising and/or falling edge of a valid signal
+{!example_src||highlight|shell||{%
+>>> s.trace_buf('top.sig_cos', size=10, valid='top.CLOCK', trigger='pos')
+ %}!}
+It tells bsmedit to allocate a buffer with size 10 and dump the value to it at each of the rising edge of the signal \tag{b|top.CLOCK}.
+{!image||
+./images/dump3.svg
+!}
+For example, for the signals shown in above figure, at $t=10$, the buffer will be $[2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2]$.
+
+Since the value is dumped to a numpy, you can process the data with all the functions available (e.g., signal processing with [https://docs.scipy.org/doc/scipy/reference/signal.html|scipy.signal] or plot with [http://www.matoplotlib.org|matplotlib]) . And bsmedit also provides a function to plot the trace dynamically
+{!example_src||highlight|python||{%
+ plot_trace(x=None, y=None, autorelim=True, *args, **kwargs)
+%}!}
+where
+{{
+    argument| description||+
+    x| signal name for x-axis (e.g., '1.top.sig_cos')||-
+    y| signal name for y-axis (e.g., '1.top.sig_sin')||-
+    autorelim| automatically calculate the x &y limits||-
+    \*args, **kwargs| additional arguments to the plot function||-
+}}
+For example,
+{!div|bs-example-src||highlight|python||{%
+>>> plot_trace('1.top.sig_cos', '1.top.sig_sin')
+%}!}
+The when you run the simulation, the plot will be automatically updated accordingly
+{!video||{%
+./images/start_run_plot.mp4
+%}!}
+}
+- {\tag{b|Dump signal to a file.}
+{!example_src||highlight|python||{%
+ s.trace_file(signal, ttype='bsm', valid=None, trigger='posneg')
+%}!}
+ where
+ {{
+     argument| description||+
+     signal | the signal name (e.g., 'top.sig_cos')||-
+     ttype  |
+            -'bsm': only output the register value, one per line (Default)
+            -'vcd': output the SystemC VCD format data||-
+     valid| the trigger signal. If it is \tag{code|None}, the write-operation will be triggered by the register itself||-
+    trigger|
+            -'posneg': trigger on both rising and falling edges
+            -'pos': trigger on rising edge
+            -'neg': trigger on falling edge
+            -'none': no triggering||-
+ }}
+}
+-{ \tag{b|Monitor signal in a propgrid window.}
+{!example_src||highlight|python||{%
+s.monitor(signal, propgrid=None, index=-1):
+%}!}
+If \tag{code|progprid} is \tag{code|None} and no \tag{code|propgrid} window (see Sec. [#sec_propgrid] for details) has been created, bsmedit will create one and add the signal to it.
+}
+- {\tag{b|Breakpoints}. With the simulation control functions mentioned above, you can easily pause the simulation at particular simulation time. However, in some cases, you may want to pause the simulation when some conditions meet. The breakpoint is here to rescue.
+To set a breakpoint,
+{!example_src||highlight|python||{%
+s.add_breakpoint(['top.sig_cos', None, None])
+%}!}
+Each breakpoint contains three sections
+- the signal name (e.g., \tag{code|top.sig_cos})
+- the breakpoint condition (optional)
+- the hit count condition (optional)
+
+In the above example, both the breakpoint and hit count conditions are \tag{code|None}. In this case, bsmedit will check the \tag{code|top.sig_cos} at each SystemC \tag{code|delta} cycle. Once the signal value is changed, it will pause the simulation.
+
+The breakpoint condition can be any valid python statement, for example
+{!example_src||highlight|python||{%
+s.add_breakpoint(['top.sig_cos', '$>=0.9', None])
+%}!}
+Here \tag{code|\$} will be replaced with the signal value. Then, bsmedit will pause the simulation whenever its value is not less than \tag{code|0.9}.
+
+When hit count is set, for example, \tag{code|\#==4},
+{!example_src||highlight|python||{%
+s.add_breakpoint(['top.sig_cos', '$>=0.9', '#==4'])
+%}!}
+Again, \tag{code|\#} will be replaced with the hit count. The breakpoint will only be triggered if the breakpoint condition has be met for 4 delta cycles. In other words, the breakpoint has been hit for 4 times.
+
+You can also retrieve all the breakpoints by
+{!example_src||highlight|shell||{%
+>>> s.get_breakpoint()
+[['top.sig_cos', None, None]]
+%}!}
+
+To delete a breakpoint,
+{!example_src||highlight|python||{%
+s.del_breakpoint(['top.sig_cos', None, None])
+%}!}
+Here you also need to provide the full definition of the breakpoint, since multiple breakpoints may share the same signal, and/or breakpoint condition, and/or hit-count condition.
+
+The breakpoint here is different from the one when you debug the C/C++/SystemC source code. For example, if you add the same breakpoint 5 times, it will not be cleared until you delete all its 5 instance.
+{!example_src||highlight|shell||{%
+>>> bp = ['top.sig_cos', None, None]
+>>> # add one
+>>> s.add_breakpoint(bp)
+>>> s.get_breakpoint()
+[['top.sig_cos', None, None]]
+>>> # add it again
+>>> s.add_breakpoint(bp)
+>>> s.get_breakpoint()
+[['top.sig_cos', None, None], ['top.sig_cos', None, None]]
+>>> # delete one
+>>> s.del_breakpoint(bp)
+>>> s.get_breakpoint()
+[['top.sig_cos', None, None]]
+%}!}
+After all these steps, there is still a \tag{code|bp} instance in the breakpoint list. You can use the \tag{code|get_breakpoint} command to confirm. Thus, it will still pause the simulation once its condition is met. At first sight, such behavior seems annoying, useless and confusing (as in most debugger, you may only set one breakpoint at each single line). However, since a signal can be added to propgrid window multiple times, and you may enable the breakpoint by clicking the radio button (as shown in the section below), it may cause confusion if bsmedit only keeps one instance of each distinct breakpoint. Otherwise bsmedit may have deleted the breakpoint, but the propgrid window shows it is still valid. So each \tag{code|add_breakpoint} needs to be explicitly canceled by one \tag{code|del_breakpoint}.
+}
+-{\tag{b|Multiple simulations.} Version 2 only supports running one simulation. So to run multiple simulations, you need to run multiple bsmedit. It is not very convenient to compare the results from multiple simulations. For example, it is impossible to show results from different simulations in a single plot (actually you may be able to do so by dumping the data to files). In version 3, bsmedit supports running multiple simulations simultaneously (each in its separate process). In this way, you can even run the same simulation core (e.g., dll) in multiple processes; and each one is independent to the others. For example, the following commands will run the same simulation core in two separate processes. With that, you can configure the simulation differently to compare the result.
+{!example_src||highlight|shell||{%
+>>> s1 = simulation(None, './examples/start.dll')
+>>> s2 = simulation(None, './examples/start.dll')
+%}!}
+{!image||
+./images/start_run_script_multi.png
+!}
+
+To differentiate the simulations, each simulation will automatically be assigned an \tag{code|Id} (e.g., 1,2,3...).
+
+With that \tag{code|Id}, you can retrieve the simulation handler later by
+{!example_src||highlight|shell||{%
+>>> s1 = simulation(1)
+%}!}
+which will return the handler to \tag{code|Simulation-1}.
+}
+== Propgrid window \config{label|sec_propgrid}
+As you see before, each signal in the \tag{code|propgrid} has two sections: name and value. #The value section shows its current value. When click on the \tag{code|value} section, if the signal is writable, the signal will be in edit mode; by default, an editbox will be shown so that you can type the value. By typing  "\tag{code|Enter}" after modifying the value, bsmedit will send the change to the simulation.
+{!image||
+./images/prop_signal.png
+!}
+
+\tag{b|Order the signals}. In general, the signals are shown in a propgrid window according to the order they are added. However, you can easily re-order the signals. There are two ways to do so
+* drag the signal to the new destination
+* select the signal (the selected signal will be highlighted)
+*- {right click on the signal to show the context menu
+{!image||
+./images/prop_move.png
+!}
+}
+*- or press \tag{code|Ctrl+Up}/\tag{code|Ctrl+Down} to more the signals up/down.
+
+\tag{b|Group multiple signals together}. Right click on a signal to show the context menu, and click the \tag{code|Increase Indent}
+{!image||
+./images/prop_indent.png
+!}
+Then bsmedit will increase the indent of the signal, and the signal will effectively becomes the child of the previous signal (with smaller indent level).
+{!image||
+./images/prop_group.png
+!}
+You can also use script to change the indent level
+{!example_src||highlight|python||{%
+# get the propgrid window with id=1
+grid = propgrid(1)
+# get the handle of the property (assume it has already been added to the
+# propgrid window. Since the properties in each propgrid window may monitor
+# signals from multiple simulations, and they may have same name, here the
+# signal name is the global name. In other words, the original signal name is
+# prepended with its simulation id.
+p = grid.GetProperty("1.top.sig_sin")
+# to increase the indent by one level
+p.SetIndent(p.GetIndent()+1)
+# to decrease the indent by one level; the minimal indent level is 0
+p.SetIndent(p.GetIndent()-1)
+%}!}
+
+You can click the \tag{code|+}/\tag{code|-} button to show/hide these signals.
+{!example_src||highlight|python||{%
+p = grid.GetProperty("1.top.sig_steps")
+# show the children signals
+p.SetExpand(True)
+# hide the children signals
+p.SetExpand(False)
+%}!}
+
+\tag{b|Use the control to set the signal}. As you see before, each signal in the \tag{code|propgrid} has two sections: name and value. The value section shows its current value. When click on the \tag{code|value} section, if the signal is writable, the signal will be in \tag{code|edit} mode; by default, an editbox will be shown so that you can type the value. By typing  \tag{code|Enter} after modifying the value, bsmedit will send the change to the simulation.
+{!image||
+./images/prop_editbox.png
+!}
+
+Besides the editbox, bsmedit can also show the following types of windows to update the signal values
+-{Combobox
+{!image||
+./images/prop_combobox.png
+!}
+
+You can right click on the signal and select 'Properties' from the context menu to change the window type in edit mode. Besides that, it can also be changed by python script:
+{!example_src||highlight|python||{%
+p = grid.GetProperty('1.top.sig_steps')
+p.SetChoice([256, 1024, 2048, 8192, 16384])
+p.SetControlStyle('combobox')
+%}!}
+}
+-{Slider
+{!image||
+./images/prop_slider.png
+!}
+{!example_src||highlight|python||{%
+p = grid.GetProperty('1.top.sig_steps')
+p.SetRange(256, 16384)
+p.SetControlStyle('slider')
+%}!}
+}
+-{Spin
+{!image||
+./images/prop_spin.png
+!}
+{!example_src||highlight|python||{%
+p = grid.GetProperty('top.sig_steps')
+p.SetRange(256, 16384)
+p.SetControlStyle('spin')
+%}!}
+}
+-{Checkbox
+{!image||
+./images/prop_checkbox.png
+!}
+{!example_src||highlight|python||{%
+p = grid.GetProperty('1.top.sig_sc_bit')
+p.SetControlStyle('checkbox')
+%}!}
+}
+-{Radio box
+{!image||
+./images/prop_radiobox.png
+!}
+{!example_src||highlight|python||{%
+p = grid.GetProperty('1.top.sig_steps')
+p.SetChoice({'1':1, '0':0, 'Z':'Z', 'X':'X'})
+p.SetControlStyle('radiobox')
+%}!}
+}
+-Color picker
+-Select File/Folder button
+
+#-supported format:String,Dec,Hex,Oct,Bin
+
+As shown above, you can set the breakpoint with script. You can also set the breakpoint in \tag{propgrid} window by clicking the radio button next to the signal name:
+{!image||
+./images/prop_breakpoint.png
+!}
+bsmedit will check the breakpoint at each SystemC \tag{code|delta} cycle. Once the condition is true, it will pause the simulation.
+The breakpoint can also be enabled by python script:
+{!example_src||highlight|python||{%
+p = grid.GetProperty('1.top.sig_sin')
+p.SetRadioChecked(True)
+%}!}
+
+Then, if you run the simulation, it will be paused once the signal value is changed or the simulation time is reached. You can also set the breakpoint conditions here. Right clock on the signal and click '\tag{code|Breakpoint Condition}' (the menu item is not clickable unless the radio button is checked)
+{!image||
+./images/prop_bpcondition.png
+!}
+When the "\tag{code|Is true}" radio button is checked, the condition editbox will be enabled for input. For example, "\tag{code|\$>0.1}" will pause the simulation when the signal value is greater than 0.1, where "\tag{code|\$}" will be replaced by the signal value. Breakpoint condition can also be set by
+{!example_src||highlight|python||{%
+p.SetBPCondition(['$>0.1',''])
+%}!}
+
+When hit count is set (e.g. \tag{code|\#==4}), the breakpoint will only be triggered if the breakpoint condition has be met for certain amount of delta cycles (e.g., 4 delta cycles).
+
+{!example_src||highlight|python||{%
+p.SetBPCondition(['$>0.1','#==4'])
+%}!}
+== SystemC Simulation
+From version 3, bsmedit supports SystemC 2.3. Once a simulation is loaded, bsmedit will have access to the following data types
+-bool
+-float, double
+-char, unsigned char
+-short, unsigned short
+-int, unsigned int
+-long, unsigned long
+-long long, unsigned long long
+-sc_logic, sc_bit
+-sc_lv, sc_bv
+-sc_int, sc_uint
+-sc_bigint, sc_biguint
+-sc_fixed
+-sc_fixed_fast
+-sc_ufixed
+-std::string
+
+And you can use the above function to read/write all the \tag{code|sc_signal}/\tag{code|sc_out}/\tag{code|sc_inout} objects, and read all the \tag{code|sc_in} objects.
+
+To make bsmedit work, the simulation needs to implement and export some interfaces.
+\tag{code|bsm.h/cpp} is the bridge between bsmedit and SystemC simulation. It implements the interfaces such that bsmedit can have access to all the objects and also control the simulation.
+-{ create the top level module
+{!example_src||highlight|c++||{%
+sim_context* bsm_sim_top()
+%}!}
+It is a first function bsmedit will call to create a simulation. \tag{code|sim_context} is a struct, but its actual definition is not not very important, as long as the simulation and bsmedit use the same definition. For SystemC simulation, it is defined by the macro "BSMEDIT_IMPLEMENT_MODULE"
+{!example_src||highlight|c++||{%
+typedef struct sim_context {
+    char version[MAX_NAME_LEN];
+    char copyright[MAX_NAME_LEN];
+
+    bsm_sim_context* m_sim;
+}sim_context;
+
+extern sim_context context;
+
+#define BSMEDIT_IMPLEMENT_MODULE(T, name) extern "C"\
+{\
+    BSMEDIT_EXPORT sim_context* bsm_sim_top(); \
+}\
+sim_context* bsm_sim_top()\
+{\
+    context.m_sim = new bsm_sim_context_impl(new T(name));\
+    strcpy(context.copyright, context.m_sim->sc_copyright());\
+    strcpy(context.version, context.m_sim->sc_version());\
+    return &context;\
+}
+%}!}
+
+\tag{code|bsm_sim_top} returns the handler to the simulation context. Later, bsmedit will control the simulation through that handler. We do not need to worry about the 'sim_context context', which is defined in bsm.cpp. And ignore the '\tag{code|bsm_sim_context* m_sim}' for now. Actually bsmedit does not need to know anything about it. It is only visible to the simulation itself. \tag{code|bsm_sim_context} is where the actual implementation goes, which is included in the modified SystemC library.
+}
+-{ enumerate the objects
+{!example_src||highlight|c++||{%
+bool ctx_first_object(sim_object* obj);
+bool ctx_next_object(sim_object* obj);
+bool ctx_free_object(sim_object* obj);
+%}!}
+Once bsmedit creates a simulation successfully, it will try to load all the objects defined in the simulation with the above functions.
+If there is any objects accessible by bsmedit, the first function will return \tag{code|true} and fill the \tag{code|sim_object} struct. Again, the actual definition of \tag{code|sim_object} is not very important. Similarly, the second function will return the next accessible object, if available. The last function is used to clear the memory once bsmedit finishes using the object, for example, when the simulation exits.
+}
+-{function to read/write the objects.
+{!example_src||highlight|c++||{%
+bool ctx_read(sim_object* obj);
+bool ctx_write(sim_object* obj);
+%}!}
+}
+- { control the simulation
+{!example_src||highlight|c++||{%
+void ctx_start(double duration, int unit);
+void ctx_stop();
+%}!}
+\tag{code|ctx_start} runs the simulation for a period indicated by \tag{strong|duration} and \tag{strong|unit}. In particular, the simulation will pause after that duration until another call. One exception is the breakpoint callback. When the simulation is running, it will keep check the breakpoint condition. If any breakpoint condition satisfies, the simulation will pause immediately.
+
+\tag{ctx_stop} will destroy the simulation. After calling this function, the simulation will be released and all objects may not be available.
+}
+- { time stamp
+{!example_src||highlight|c++||{%
+double ctx_time();
+bool ctx_time_str(char* time);
+%}!}
+The first function returns the current time-stamp of the simulation in seconds. The second function returns a string, which may contain the time-stamp unit. bsmedit will use such time-stamp to determine whether the simulation should be paused or not.
+}
+- { set the callback
+{!example_src||highlight|c++||{%
+void ctx_set_callback(bsm_sim_context::bsm_callback fun);
+%}!}
+It is used for achieve the breakpoint feature. At each 'delta' cycle, the simulation should call the callback function. And if the callback function returns \tag{code|1}, the simulation should pause immediately. Here the 'delta' cycle means the minimum simulation unit.
+}
+- { dump the object to a file
+{!example_src||highlight|c++||{%
+bool ctx_create_trace_file(sim_trace_file* t);
+bool ctx_trace_file(sim_trace_file* t, sim_object* obj, sim_object* val, int trigger);
+bool ctx_stop_trace_file(sim_trace_file* t);
+%}!}
+The first function creates a tracefile. It should always be called first. The second function adds a actual object to the tracefile created through the first function. Finally, the last function stops the tracefile, so that no more object values will be dumped to the tracefile.
+}
+- { dump the object to a buffer
+{!example_src||highlight|c++||{%
+bool ctx_create_trace_buf(sim_trace_buf* t);
+bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj, sim_object* val, int trigger);
+bool ctx_stop_trace_buf(sim_trace_buf* t);
+bool ctx_read_trace_buf(sim_trace_buf* t);
+bool ctx_resize_trace_buf(sim_trace_buf* t);
+%}!}
+Same as the functions to dump the object to a file, these functions are used to dump the object to a buffer. Two more functions are defined to read and resize the buffer, respectively.
+}
+
+
+
+== Miscellaneous
+=== xsc_property
+With SystemC's '\tag{code|sc_signal}', it is very easy to simulate a 'register' in the simulation. For example, you can configure the simulation by changing the values of some \tag{code|sc_signal}s without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the \tag{code|xsc_property} from \tag{code|sc_signal}.
+
+Its usage is almost exactly same as sc_signal. It supports all the data type supported by sc_signal.
+{!example_src||highlight|c++||{%
+class MyModule:public sc_module
+{
+public:
+    MyModule(sc_module_name name_):
+            tx_module(name_)
+            ,xsc_prop_double("xsc_prop_double", this, xsc_callback_fun)
+    {
+        //set the value and don't call the callback function
+    }
+    xsc_property<double> xsc_prop_double;
+    static void xsc_callback_fun(sc_module* pThis, double value);
+};
+%}!}
+In this example, we define a double type \tag{code|xsc_property}. During its initialization, three parameters are passed into its constructor function. The first one is its name derived from \tag{code|sc_signal}. The second one is the pointer to the current \tag{code|sc_module}. And the third one is the pointer to a static function. Now, when bsmedit sends the following command to the simulation (here assume the name/path of the \tag{code|xsc_property} is "\tag{b|top.mymodule.xsc_prop_double}")
+{!example_src||highlight|shell||{%
+>>> # s is the simulation handle
+>>> s.write("top.mymodule.xsc_prop_double", 1.0)
+%}!}
+The callback function \tag{code|xsc_callback_fun} will be called, where its first parameter will be the pointer of the \tag{code|sc_module} that defined the \tag{code|xsc_property}, and the second parameter will be '1.0'.
+
+The callback function should have the following format
+{!example_src||highlight|c++||{%
+typedef  void(*xsc_callback)(sc_module* pThis, T value);
+%}!}
+
+Sometime, you may want to only execute the callback function when it is updated externally (e.g., by bsmedit), but not internally (e.g., by the simulation itself). In this case, in your simulation code (e.g., C++), you may
+{!example_src||highlight|c++||{%
+xscprop_double.write_nc(128.0);
+%}!}
+In this way, \tag{code|xsc_property} behaves exactly same as \tag{code|sc_signal}, and no callback function will be called.
+=== xsc_array
+\tag{code|xsc_array} is a natural extension of \tag{code|xsc_property}. It is actually an array of the \tag{code|xsc_property}
+{!example_src||highlight|c++||{%
+class MyModule:public sc_module
+{
+public:
+     MyModule(sc_module_name name_)
+     : sc_module(name_)
+     , xscarray_int("xsc_array_int")
+     {
+         //set the value
+         xsc_array_int[0] = 1;
+         xsc_array_int[1].write(1);
+         //get the value
+         int a = xsc_array_int[0];
+         int b = xsc_array_int[1].read();
+     }
+     xsc_array<int, 5> xsc_array_int;
+  };
+ %}!}
+
+The above example show to use \tag{code|xsc_array} in a \tag{code|sc_module}. It define an integer \tag{code|xsc_array} with size 5. In the module's constructor, the \tag{code|xsc_arrary} is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of \tag{code|xsc_property}. You can use the \tag{code|\[i\]} to have access to the $i^{th}$ item in the array.
+
+Same as \tag{code|xsc_property}, \tag{code|xsc_array} also supports a callback function. For example
+{!example_src||highlight|c++||{%
+class MyModule:public sc_module
+{
+public:
+     MyModule(sc_module_name name_)
+     : sc_module(name_)
+     , xscarray_int("xsc_array_int", this, xsc_callback_fun)
+     {
+     }
+     xsc_array<int, 5> xsc_array_int;
+     static void xsc_callback_fun(sc_module* pThis, double value);
+  };
+%}!}
+
+In bsmedit, the item of the array can be accessed by its name. For example, if in the simulation, the above \tag{code|MyModule} is a top level module with name "\tag{b|top}", the first item of the xsc_array_int can be accessed by
+{!example_src||highlight|shell||{%
+>>> s.read('top.xsc_array_int[0]')
+%}!}
+
+#= Python script window and debugger
+#= Plugin
+
