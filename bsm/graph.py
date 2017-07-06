@@ -38,8 +38,11 @@ class DataCursor(object):
         self.create_annotation()
 
     def __call__(self, event):
-        if not self.enable or self.active is None:
+        if not self.enable:
             return
+        if self.active is None:
+            self.create_annotation()
+
         if not event.mouseevent.xdata or not event.mouseevent.ydata:
             return
         if not event.artist:
@@ -253,8 +256,8 @@ class Toolbar(NavigationToolbar):
             (None, None, None, None),
             ('Save', 'Save the figure', save_xpm, 'save_figure'),
             ('Copy', 'Copy to clipboard', copy_xpm, 'copy_figure'),
-            (None, None, None, None),
-            ('Print', 'Print the figure', print_xpm, 'print_figure'),
+            #(None, None, None, None),
+            #('Print', 'Print the figure', print_xpm, 'print_figure'),
             )
 
         self._parent = self.canvas.GetParent()
@@ -371,9 +374,11 @@ class MatplotPanel(wx.Panel):
 
     def OnContextMenu(self, event):
         menu = wx.Menu()
-        menu.Append(wx.ID_NEW, "Create datatip")
-        menu.AppendSeparator()
-        menu.Append(wx.ID_DELETE, "Delete current datatip")
+        #menu.Append(wx.ID_NEW, "Create datatip")
+        #menu.AppendSeparator()
+        delMenu = menu.Append(wx.ID_DELETE, "Delete current datatip")
+        note = self.toolbar.datacursor.active
+        delMenu.Enable(note and note.get_visible())
         menu.Append(wx.ID_CLEAR, "Delete all datatips")
         self.PopupMenu(menu)
         menu.Destroy()
