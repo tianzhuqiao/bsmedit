@@ -677,8 +677,6 @@ class bsmProperty(object):
             if self.GetShowRadio() and ht == self.PROP_HIT_RADIO:
                 checked = self.IsRadioChecked()
                 self.SetRadioChecked(not checked)
-                #if not self.SendPropEvent(wxEVT_BSM_PROP_CLICK_RADIO):
-                #    self.SetRadioChecked(checked)
         return ht
 
     def OnMouseDoubleClick(self, pt):
@@ -961,9 +959,9 @@ class bsmProperty(object):
 
     def SetValue(self, value, silent=False):
         """set the value"""
-        if self.value != value:
+        if self.value != str(value):
             self.DestroyControl()
-            self.value = value
+            self.value = str(value)
             self.UpdateDescription()
             if not silent and self.GetVisible():
                 self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)

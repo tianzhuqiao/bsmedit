@@ -174,7 +174,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
 
     def InsertProperty(self, name, label="", value="", index=-1, update=True):
         # add the prop window to the grid
-        prop = bsmProperty(self, name, label, value)
+        prop = bsmProperty(self, name, label, str(value))
         return self._InsertProperty(prop, index, update)
 
     def CopyProperty(self, prop, index=-1, update=True):
@@ -192,7 +192,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
     #remove property
     def RemoveProperty(self, prop, update=True):
         if isinstance(prop, str) or isinstance(prop, bsmProperty):
-            index = self.FindProperty(prop)
+            index = self.FindPropertyIndex(prop)
         elif isinstance(prop, int):
             index = prop
         else:
@@ -226,7 +226,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
         else:
             return False
 
-    def FindProperty(self, prop):
+    def FindPropertyIndex(self, prop):
         """return the index of prop, or -1 if not found"""
         p = self.GetProperty(prop)
         if not p:
@@ -287,7 +287,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
 
     def GetActivated(self):
         """get the index of the selected property"""
-        return self.FindProperty(self.PropSelected)
+        return self.FindPropertyIndex(self.PropSelected)
 
     def GetSelectedProperty(self):
         """return the selected property"""
@@ -315,7 +315,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
 
     def MoveProperty(self, prop, step):
         """move the property"""
-        index = self.FindProperty(prop)
+        index = self.FindPropertyIndex(prop)
         if index == -1:
             return
 
@@ -820,7 +820,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
             # something is wrong
             return
 
-        index = bsmPropGrid.dragGrid.FindProperty(bsmPropGrid.dragProperty)
+        index = bsmPropGrid.dragGrid.FindPropertyIndex(bsmPropGrid.dragProperty)
         if index == -1:
             # if not find the dragged property, do nothing
             return
@@ -1089,9 +1089,9 @@ class dlgSettings(wx.Dialog):
         self.propgrid = bsmPropGridBase(self)
         self.prop = prop
         if prop.GetSeparator():
-            self.items = (('label', 'label', PROP_CTRL_EDIT),
-                          ('indent', 'indent', PROP_CTRL_SPIN),
-                          ('italic', 'italic', PROP_CTRL_CHECK))
+            self.items = (('label', 'Label', '', PROP_CTRL_EDIT),
+                          ('indent', 'Indent level', '', PROP_CTRL_SPIN),
+                          ('italic', 'Italic', '', PROP_CTRL_CHECK))
         else:
             self.items = (('name', 'Name', '', PROP_CTRL_EDIT),
                           ('label', 'Label', '', PROP_CTRL_EDIT),
@@ -1178,7 +1178,7 @@ class dlgSettings(wx.Dialog):
     def OnBtnOk(self, event):
         if self.propgrid.PropSelected:
             self.propgrid.PropSelected.OnTextEnter()
-        for (name, label,labeltip, ctrl) in self.items:
+        for (name, label, labeltip, ctrl) in self.items:
             v = self.propgrid.GetProperty(name)
             if name in ['choiceList', 'valueList']:
                 setattr(self.prop, name, v.GetValue().split(';'))
