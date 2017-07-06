@@ -313,7 +313,7 @@ class Simulation(object):
                         'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE}
         traceType = tTypeDict.get(ttype, None)
         traceTrigger = tTriggerDict.get(trigger, None)
-        if not traceType:
+        if traceType is None:
             raise ValueError("Not supported trace type: " + str(ttype))
         if not traceTrigger:
             raise ValueError("Not supported trigger type: " + str(trigger))
@@ -330,7 +330,7 @@ class Simulation(object):
         tTriggerDict = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
                         'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE}
         traceTrigger = tTriggerDict.get(trigger, None)
-        if not traceTrigger:
+        if traceTrigger is None:
             raise ValueError("Not supported trigger type: " + str(traceTrigger))
 
         args = {'name':obj, 'size':size, 'valid':valid, 'trigger':traceTrigger}
@@ -427,8 +427,9 @@ class Simulation(object):
             prop = grid.InsertProperty(self.global_object_name(obj['name']),
                                        obj['basename'], obj['value'], index)
             prop.SetGripperColor(self.frame.color)
-            if not obj['readable'] and not obj['writable']:
+            if not obj['writable']:
                 prop.SetReadOnly(True)
+            if not obj['readable']:
                 prop.SetShowRadio(False)
 
             props.append(prop)
@@ -447,7 +448,7 @@ class Simulation(object):
             if command == 'load':
                 self.objects = value
                 self.filename = args['filename']
-            elif command in ['read', 'read_buf']:
+            elif command in ['read', 'read_buf', 'write']:
                 # single value, return the value, not the dict
                 if len(value) == 1:
                     value = value.values()[0]

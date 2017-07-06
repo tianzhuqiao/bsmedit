@@ -110,7 +110,7 @@ class SimEngine(object):
                       ['write', '_helper', (PTOBJ,), c_bool],
                      ]
         try:
-            self.cdll = cdll.LoadLibrary(dll)
+            self.cdll = cdll.LoadLibrary(str(dll))
             # create the simulation
             sim_top = self.interface("bsm_sim_top", None, POINTER(SimContext))
             self.ctx = sim_top().contents
