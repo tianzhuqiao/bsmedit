@@ -6,7 +6,9 @@ from _editorxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm,\
                        folder_xpm, vert_xpm, horz_xpm
 import inspect
 import wx.py.dispatcher as dispatcher
-
+import pprint
+import traceback                        #for formatting errors
+import sys
 class BreakpointSettingsDlg(wx.Dialog):
     def __init__(self, parent, condition='', hitcount='', curhitcount=0):
         wx.Dialog.__init__(self, parent, title="Breakpoint Condition",
@@ -127,7 +129,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         wx.py.editwindow.EditWindow.__init__(self, parent, id=id, pos=pos,
                                              size=size, style=style)
         self.SetUpEditor()
-        self.callTipInsert = True
+        self.callTipInsert = False
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
         self.filename = ""
@@ -142,6 +144,9 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.highlightStr = ""
         stc.EVT_STC_MARGINCLICK(self, id, self.OnMarginClick)
         stc.EVT_STC_DOUBLECLICK(self, id, self.OnDoubleClick)
+        self.Bind(stc.EVT_STC_DWELLSTART, self.OnMouseDwellStart)
+        self.Bind(stc.EVT_STC_DWELLEND, self.OnMouseDwellEnd)
+        self.SetMouseDwellTime(500)
         # Assign handler for the context menu
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCommandUI)
@@ -333,6 +338,40 @@ class PyEditor(wx.py.editwindow.EditWindow):
                             self.Expand(lineClicked, True, True, 100, level)
                     else:
                         self.ToggleFold(lineClicked)
+
+    def OnMouseDwellStart(self, event):
+        resp = dispatcher.send(signal='debugger.get_status')
+        if not resp or not resp[0][1]:
+            return
+
+        pos = event.GetPosition()
+        line = self.LineFromPosition(pos) # 0, 1, 2
+        if pos == -1:
+            return
+        c = self.GetWordChars()
+        self.SetWordChars(c + '.')
+        WordStart = self.WordStartPosition(pos, True)
+        WordEnd = self.WordEndPosition(pos, True)
+        text = self.GetTextRange(WordStart, WordEnd)
+        self.SetWordChars(c)
+        try:
+            status = resp[0][1]
+            frames = status['frames']
+            level = status['active_scope']
+            frame = frames[level]
+            f_globals = frame.f_globals
+            f_locals = frame.f_locals
+
+            tip = pprint.pformat(eval(text, f_globals, f_locals))
+            self.CallTipShow(pos, "%s = %s"%(text, tip))
+        except:
+            #traceback.print_exc(file=sys.stdout)
+            pass
+
+    def OnMouseDwellEnd(self, event):
+        if self.CallTipActive():
+            self.CallTipCancel()
+
     def FoldAll(self):
         """open all margin folders"""
         line_count = self.GetLineCount()
@@ -485,7 +524,13 @@ class PyEditor(wx.py.editwindow.EditWindow):
             self.AddText(argspec + ')')
             endpos = self.GetCurrentPos()
             self.SetSelection(startpos, endpos)
-
+        if tip:
+            tippos = startpos
+            fallback = startpos - self.GetColumn(startpos)
+            # In case there isn't enough room, only go back to the
+            # fallback.
+            tippos = max(tippos, fallback)
+            self.CallTipShow(tippos, tip)
     # Some methods to make it compatible with how the wxTextCtrl is used
     def SetValue(self, value):
         if wx.USE_UNICODE:
@@ -911,6 +956,7 @@ class PyEditorPanel(wx.Panel):
         self.replaceStr = ""
         self.findFlags = 1
         self.stcFindFlags = 0
+        self.wrapped = 0
         # This can't be done with the eventManager unfortunately ;-(
         wx.EVT_COMMAND_FIND(self, -1, self.OnFind)
         wx.EVT_COMMAND_FIND_NEXT(self, -1, self.OnFind)
@@ -1012,6 +1058,7 @@ class PyEditorPanel(wx.Panel):
     def Destroy(self, *args, **kwargs):
         """destroy the panel"""
         self.editor.ClearBreakpoint()
+        self.CheckModified()
         return super(PyEditorPanel, self).Destroy(*args, **kwargs)
 
     def update_bp(self):
@@ -1080,6 +1127,11 @@ class PyEditorPanel(wx.Panel):
         if lineno >= 0 and marker >= 0:
             self.debug_curline = self.editor.MarkerAdd(lineno - 1, marker)
             self.editor.EnsureVisibleEnforcePolicy(lineno-1)
+            #self.JumpToLine(lineno-1)
+            #self.editor.GotoLine(lineno-1)
+            #self.editor.EnsureVisible(lineno-1)
+            #self.editor.EnsureCaretVisible()
+
             if active:
                 show = self.IsShown()
                 parent = self.GetParent()
@@ -1141,8 +1193,7 @@ class PyEditorPanel(wx.Panel):
             self.LoadFile(path)
         dlg.Destroy()
 
-    def OnBtnSave(self, event):
-        """save the script"""
+    def saveFile(self):
         if self.fileName == "":
             defaultDir = os.path.dirname(self.fileName)
             dlg = wx.FileDialog(self, 'Save As', defaultDir=defaultDir,
@@ -1156,6 +1207,10 @@ class PyEditorPanel(wx.Panel):
         (path, file) = os.path.split(self.fileName)
         dispatcher.send(signal='frame.set_panel_title', pane=self, title=file)
         self.update_bp()
+
+    def OnBtnSave(self, event):
+        """save the script"""
+        self.saveFile()
 
     def OnBtnSaveAs(self, event):
         """save the script with different filename"""
@@ -1223,9 +1278,13 @@ class PyEditorPanel(wx.Panel):
     def CheckModified(self):
         """check whether it is modified"""
         if self.editor.GetModify():
-            msg = 'The file has been modified. Save it first and try it again!'
-            wx.MessageBox(msg, 'BSMEditor')
-            return True
+            msg = 'The file has been modified. Save it first?'
+            dlg = wx.MessageDialog(self, msg, 'bsmedit', wx.YES_NO)
+            result = dlg.ShowModal() == wx.ID_YES
+            dlg.Destroy()
+            if result:
+                self.saveFile()
+            return self.editor.GetModify()
         return False
 
     def OnBtnCheck(self, event):
