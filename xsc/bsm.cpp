@@ -178,7 +178,7 @@ extern "C" {
         return false;
     }
 
-    BSMEDIT_EXPORT bool ctx_stop_trace_file(sim_trace_file* t)
+    BSMEDIT_EXPORT bool ctx_close_trace_file(sim_trace_file* t)
     {
         if(context.m_sim->remove_trace(t->m_obj)) {
             return true;
@@ -215,7 +215,7 @@ extern "C" {
         return false;
     }
 
-    BSMEDIT_EXPORT bool ctx_stop_trace_buf(sim_trace_buf* t)
+    BSMEDIT_EXPORT bool ctx_close_trace_buf(sim_trace_buf* t)
     {
         return context.m_sim->remove_trace_buf(t->m_obj);
     }
