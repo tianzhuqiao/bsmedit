@@ -1,4 +1,4 @@
-from bsm.pysim import *
+from bsmedit.bsm.pysim import *
 # create a simulation
 s = simulation(None, './examples/start.dll')
 
@@ -23,3 +23,5 @@ xlim([-1,1])
 ylim([-1,1])
 grid(ls='dotted')
 s.run(to='1000us')
+s.wait_until_simulation_paused()
+

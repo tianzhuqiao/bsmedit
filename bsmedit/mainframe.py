@@ -76,12 +76,9 @@ class bsmMainFrame(framePlus):
         self.addon = {}
         try:
             # check if the __init__ module defines all the modules to be loaded
-            from bsmedit import bsm
             mod = importlib.import_module('bsmedit.bsm.__init__')
             bsmpackages = mod.auto_load_module
         except ImportError:
-            import os
-            print os.getcwd()
             bsmpackages = self._package_contents('bsm')
         for pkg in bsmpackages:
             mod = importlib.import_module('bsmedit.bsm.%s' % pkg)
@@ -188,7 +185,7 @@ class bsmMainFrame(framePlus):
             force = self.closing
             if hasattr(pane, 'bsm_destroyonclose'):
                 force = pane.bsm_destroyonclose
-            resp = dispatcher.send('frame.closing_pane', pane = pane, force = force)
+            resp = dispatcher.send('frame.closing_pane', pane=pane, force=force)
             if resp:
                 status = resp[0][1]
                 if isinstance(status, dict):
@@ -211,7 +208,6 @@ class bsmMainFrame(framePlus):
             return
         # close a page or a panel
         wnd = evt.pane.window
-        print 'bbb', wnd
         if PaneClosingVeto(wnd):
             evt.Veto()
             if evt.pane.IsNotebookPage():
@@ -277,8 +273,9 @@ class bsmMainFrame(framePlus):
     def _package_contents(self, package_name):
         """return a list of the modules"""
         MOD_EXT = ('.py')
-        (file, pathname, description) = imp.find_module(package_name)
-        if file:
+        mod = imp.find_module('bsmedit')
+        (f, pathname, _) = imp.find_module(package_name, [mod[1]])
+        if f:
             raise ImportError('Not a package: %r', package_name)
 
         # Use a set because some may be both source and compiled.
@@ -369,9 +366,9 @@ class bsmAboutDialog(wx.Dialog):
 
         szVersion.Add(self.stVerion, 0, wx.ALL, 5)
 
-        copyright = '(c) 2008-2016 %s'%('Tianzhu Qiao. All rights reserved.')
+        strCopyright = '(c) 2017 %s'%('Tianzhu Qiao. All rights reserved.')
 
-        self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, copyright)
+        self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, strCopyright)
         self.stCopyright.Wrap(-1)
         self.stCopyright.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
 

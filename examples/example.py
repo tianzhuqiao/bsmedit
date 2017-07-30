@@ -1,4 +1,4 @@
-from bsm.pysim import *
+from bsmedit.bsm.pysim import *
 # create a simulation
 s = simulation(None, './examples/tb_dll.dll')
 
