@@ -2,7 +2,7 @@ import Queue
 import ctypes
 import traceback
 import numpy as np
-from bsm.simengine import *
+from bsmedit.bsm.simengine import *
 
 class BpCond(object):
     """

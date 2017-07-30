@@ -6,10 +6,10 @@ import importlib
 import wx
 import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dispatcher
-from frameplus import framePlus
-from bsmshell import bsmShell
-from mainframexpm import about_xpm, bsmedit_xpm, header_xpm
-from version import *
+from bsmedit.frameplus import framePlus
+from bsmedit.bsmshell import bsmShell
+from bsmedit.mainframexpm import about_xpm, bsmedit_xpm, header_xpm
+from bsmedit.version import *
 
 # Define File Drop Target class
 class FileDropTarget(wx.FileDropTarget):
@@ -76,12 +76,15 @@ class bsmMainFrame(framePlus):
         self.addon = {}
         try:
             # check if the __init__ module defines all the modules to be loaded
-            mod = importlib.import_module('bsm.__init__')
+            from bsmedit import bsm
+            mod = importlib.import_module('bsmedit.bsm.__init__')
             bsmpackages = mod.auto_load_module
         except ImportError:
+            import os
+            print os.getcwd()
             bsmpackages = self._package_contents('bsm')
         for pkg in bsmpackages:
-            mod = importlib.import_module('bsm.%s' % pkg)
+            mod = importlib.import_module('bsmedit.bsm.%s' % pkg)
             if hasattr(mod, 'bsm_Initialize'):
                 mod.bsm_Initialize(self)
                 self.addon[pkg] = True

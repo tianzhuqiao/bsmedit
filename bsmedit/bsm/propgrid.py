@@ -2,8 +2,8 @@ import sys
 import traceback
 import wx
 import wx.py.dispatcher as dispatcher
-from prop import *
-from _pymgr_helpers import Gcm
+from bsmedit.bsm.prop import *
+from bsmedit.bsm._pymgr_helpers import Gcm
 
 
 class bsmPropDropTarget(wx.PyDropTarget):

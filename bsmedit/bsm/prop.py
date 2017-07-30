@@ -1,5 +1,5 @@
 import wx
-from _propxpm import radio_xpm, tree_xpm
+from bsmedit.bsm._propxpm import radio_xpm, tree_xpm
 
 wxEVT_BSM_PROP_SELECTED = wx.NewEventType()
 EVT_BSM_PROP_SELECTED = wx.PyEventBinder(wxEVT_BSM_PROP_SELECTED, 1)

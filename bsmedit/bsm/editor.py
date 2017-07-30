@@ -1,7 +1,7 @@
 import os
 import wx
 import wx.stc as stc
-from _editorxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm,\
+from bsmedit.bsm._editorxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm,\
                        dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm,\
                        folder_xpm, vert_xpm, horz_xpm
 import inspect

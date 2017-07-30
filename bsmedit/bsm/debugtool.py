@@ -4,7 +4,7 @@ import wx
 import wx.py.dispatcher as dispatcher
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.agw.aui as aui
-from _debugtoolxpm import run_xpm, step_xpm, step_into_xpm, step_out_xpm,\
+from bsmedit.bsm._debugtoolxpm import run_xpm, step_xpm, step_into_xpm, step_out_xpm,\
                           stop_xpm
 
 class StackListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,

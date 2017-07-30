@@ -7,14 +7,14 @@ import wx
 import wx.py.dispatcher as dp
 from wx.lib.masked import NumCtrl
 
-import bsm.graph as graph
-from bsm._simxpm import *
-from bsm.simprocess import sim_process
-from bsm.propgrid import bsmPropGrid
-from bsm.simengine import *
-from bsm._pymgr_helpers import Gcm
-from bsm.autocomplete import AutocompleteTextCtrl
-from bsm._utility import MakeBitmap
+import bsmedit.bsm.graph as graph
+from bsmedit.bsm._simxpm import *
+from bsmedit.bsm.simprocess import sim_process
+from bsmedit.bsm.propgrid import bsmPropGrid
+from bsmedit.bsm.simengine import *
+from bsmedit.bsm._pymgr_helpers import Gcm
+from bsmedit.bsm.autocomplete import AutocompleteTextCtrl
+from bsmedit.bsm._utility import MakeBitmap
 
 Gcs = Gcm()
 class Simulation(object):
@@ -1272,6 +1272,6 @@ class sim:
 
 def bsm_Initialize(frame):
     sim.Initialize(frame)
-    dp.send(signal='shell.run', command='from bsm.pysim import *',
+    dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
             prompt=False, verbose=False, history=False)
 

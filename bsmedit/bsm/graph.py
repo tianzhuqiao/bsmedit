@@ -5,7 +5,7 @@ initialized = False
 try:
     import numpy
     import matplotlib
-    matplotlib.use('module://bsm._bsmbackend')
+    matplotlib.use('module://bsmedit.bsm._bsmbackend')
     from matplotlib.figure import Figure
     from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
     from matplotlib.backends.backend_wxagg import NavigationToolbar2Wx as NavigationToolbar
@@ -21,7 +21,7 @@ except:
 import wx
 import wx.aui
 import wx.py.dispatcher as dispatcher
-from _graphxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm,\
+from bsmedit.bsm._graphxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm,\
                       save_xpm, copy_xpm, print_xpm, cursor_xpm
 
 class DataCursor(object):

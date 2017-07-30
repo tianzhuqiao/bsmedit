@@ -1,5 +1,5 @@
 from sim import sim, Gcs
-from propgrid import bsmPropGrid
+from bsmedit.bsm.propgrid import bsmPropGrid
 from _docstring import copy_docstring
 
 def gcp():

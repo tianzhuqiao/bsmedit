@@ -4,9 +4,9 @@ import time
 import wx
 import wx.py.dispatcher as dispatcher
 import wx.html2 as html
-from dirtreectrl import DirTreeCtrl, Directory
-from _misctoolsxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
-from bsm.autocomplete import AutocompleteTextCtrl
+from bsmedit.bsm.dirtreectrl import DirTreeCtrl, Directory
+from bsmedit.bsm._misctoolsxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
+from bsmedit.bsm.autocomplete import AutocompleteTextCtrl
 
 html_template = '''
 <html>

@@ -7,7 +7,7 @@ import keyword
 import wx
 from wx.py.shell import USE_MAGIC, Shell
 import wx.py.dispatcher as dispatcher
-from debugger import EngineDebugger
+from bsmedit.debugger import EngineDebugger
 
 aliasDict = {}
 def magicSingle(command):

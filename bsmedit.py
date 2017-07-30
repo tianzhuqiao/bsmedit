@@ -1,3 +1,4 @@
+#!python2
 import wx
 import os, sys
 from bsmedit.mainframe import bsmMainFrame

@@ -125,7 +125,6 @@ class DirTreeCtrl(wx.TreeCtrl):
         self.SetItemImage(root, self.iconentries['directoryopen'],
                           wx.TreeItemIcon_Expanded)
         #self.Expand(root)
-
         # load items
         self._loadDir(root, directory)
 
@@ -223,6 +222,7 @@ class DirTreeCtrl(wx.TreeCtrl):
 
                                 # return new key
                                 return iconkey
+                    return self.iconentries['default']
                 except:
                     return self.iconentries['default']
 
