@@ -556,7 +556,7 @@ class bsmShell(Shell):
             self.write(argspec + ')')
             endpos = self.GetCurrentPos()
             self.SetSelection(startpos, endpos)
-        if tip:
+        if argspec:
             tippos = startpos
             fallback = startpos - self.GetColumn(startpos)
             # In case there isn't enough room, only go back to the

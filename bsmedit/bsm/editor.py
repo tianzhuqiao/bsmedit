@@ -524,13 +524,13 @@ class PyEditor(wx.py.editwindow.EditWindow):
             self.AddText(argspec + ')')
             endpos = self.GetCurrentPos()
             self.SetSelection(startpos, endpos)
-        if tip:
+        if argspec:
             tippos = startpos
             fallback = startpos - self.GetColumn(startpos)
             # In case there isn't enough room, only go back to the
             # fallback.
             tippos = max(tippos, fallback)
-            self.CallTipShow(tippos, tip)
+            self.CallTipShow(tippos, argspec)
     # Some methods to make it compatible with how the wxTextCtrl is used
     def SetValue(self, value):
         if wx.USE_UNICODE:
