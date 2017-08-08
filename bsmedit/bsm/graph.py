@@ -1,6 +1,11 @@
 import traceback
 import sys
 import math
+import wx
+import wx.aui
+import wx.py.dispatcher as dispatcher
+from bsmedit.bsm._graphxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm,\
+                      save_xpm, copy_xpm, print_xpm, cursor_xpm
 initialized = False
 try:
     import numpy
@@ -18,46 +23,44 @@ try:
 except:
     traceback.print_exc(file=sys.stdout)
 
-import wx
-import wx.aui
-import wx.py.dispatcher as dispatcher
-from bsmedit.bsm._graphxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm,\
-                      save_xpm, copy_xpm, print_xpm, cursor_xpm
-
 class DataCursor(object):
-    x, y = 0.0, 0.0
     xoffset, yoffset = -20, 20
     text_template = 'x: %0.2f\ny: %0.2f'
 
-    def __init__(self, ax):
-        self.ax = ax
+    def __init__(self):
         self.annotations = []
         self.enable = False
         self.active = None
         self.mx, self.my = None, None
-        self.create_annotation()
+        self.pickEvent = False
 
     def __call__(self, event):
         if not self.enable:
             return
-        if self.active is None:
-            self.create_annotation()
-
         if not event.mouseevent.xdata or not event.mouseevent.ydata:
             return
         if not event.artist:
             return
         line = event.artist
+        if self.active and self.active.get_visible():
+            # Check whether the axes of active annotation is same as line,
+            # which may happen in a figure with subplots. If not, create one
+            # with the axes of line
+            if self.active.axes != line.axes:
+                slef.active = None
+        if self.active is None:
+            self.create_annotation(line.axes)
+        # find the closest point on the line
         x, y = line.get_xdata(), line.get_ydata()
-        self.x, self.y = event.mouseevent.xdata, event.mouseevent.ydata
-        idx = (numpy.square(x-self.x) + numpy.square(y-self.y)).argmin()
-        self.x, self.y = x[idx], y[idx]
-        if self.x is not None:
-            self.active.xy = self.x, self.y
-            self.active.set_text(self.text_template % (self.x, self.y))
+        xc, yc = event.mouseevent.xdata, event.mouseevent.ydata
+        idx = (numpy.square(x-xc) + numpy.square(y-yc)).argmin()
+        xn, yn = x[idx], y[idx]
+        if xn is not None:
+            self.active.xy = xn, yn
+            self.active.set_text(self.text_template % (xn, yn))
             self.active.set_visible(True)
             event.canvas.draw()
-
+        self.pickEvent = True
     def set_enable(self, enable):
         self.enable = enable
         if self.active:
@@ -93,6 +96,10 @@ class DataCursor(object):
         """
         select the active annotation which is closest to the mouse position
         """
+        # ignore the event triggered immediately after pick_event
+        if self.pickEvent:
+            self.pickEvent = False
+            return
         # just created the new annotation, do not move to others
         if self.active and (not self.active.get_visible()):
             return False
@@ -102,7 +109,7 @@ class DataCursor(object):
         active = None
         for ant in self.annotations:
             box = ant.get_bbox_patch().get_extents()
-            if box.contains(x,y):
+            if box.contains(x, y):
                 active = ant
                 break
         self.set_active(active)
@@ -121,7 +128,7 @@ class DataCursor(object):
         """set the active annotation"""
         if ant and (ant not in self.annotations):
             return False
-        if self.active== ant:
+        if self.active == ant:
             return True
         if self.active:
             self.active.get_bbox_patch().set_facecolor('white')
@@ -134,15 +141,13 @@ class DataCursor(object):
         """return all the annotations"""
         return self.annotations
 
-    def create_annotation(self):
+    def create_annotation(self, ax):
         """create the annotation and set it active"""
-        ax = self.ax
-        ant = ax.annotate(self.text_template,
-                xy=(self.x, self.y), xytext=(self.xoffset, self.yoffset),
+        ant = ax.annotate(self.text_template, xy=(0, 0),
+                xytext=(self.xoffset, self.yoffset),
                 textcoords='offset points', ha='right', va='bottom',
                 bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0')
-                )
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
         ant.set_visible(False)
         self.annotations.append(ant)
         self.set_active(ant)
@@ -161,10 +166,7 @@ class DataCursor(object):
             for ant in self.annotations:
                 ant.remove()
             self.annotations = []
-            self.create_annotation()
-            return True
-        elif cmd == wx.ID_NEW:
-            self.create_annotation()
+            self.active = None
             return True
         return False
 
@@ -173,12 +175,13 @@ class Toolbar(NavigationToolbar):
         NavigationToolbar.__init__(self, canvas)
         self.SetWindowStyle(wx.TB_HORIZONTAL | wx.TB_FLAT)
         self.figure = figure
-        self.datacursor = DataCursor(self.figure.gca())
+        self.datacursor = DataCursor()
         self.canvas.mpl_connect('pick_event', self.datacursor)
         self.canvas.mpl_connect('motion_notify_event', self.OnMove)
         self.canvas.mpl_connect('button_press_event', self.OnPressed)
         self.canvas.mpl_connect('button_release_event', self.OnReleased)
         self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
+
     def OnPressed(self, event):
         if self.mode != 'datatip':
             return
@@ -212,21 +215,20 @@ class Toolbar(NavigationToolbar):
 
         xdata = event.xdata # get event x location
         ydata = event.ydata # get event y location
-        if(xdata is None):
-            return()
-        if(ydata is None):
-            return()
+        if xdata is None:
+            return
+        if ydata is None:
+            return
 
         if event.button == 'down':
             # deal with zoom in
-            scale_factor = 1 / base_scale
+            scale_factor = 1.0 / base_scale
         elif event.button == 'up':
             # deal with zoom out
             scale_factor = base_scale
         else:
             # deal with something that should never happen
-            scale_factor = 1
-            print(event.button)
+            scale_factor = 1.0
 
         new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
         new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
@@ -238,9 +240,9 @@ class Toolbar(NavigationToolbar):
             yzoom = False
         elif wx.GetKeyState(wx.WXK_CONTROL_Y):
             xzoom = False
-        if(xzoom) and new_width * (1-relx)>0:
+        if(xzoom) and new_width * (1-relx) > 0:
             ax.set_xlim([xdata - new_width * (1-relx), xdata + new_width * (relx)])
-        if(yzoom) and  new_height * (1-rely)>0:
+        if(yzoom) and  new_height * (1-rely) > 0:
             ax.set_ylim([ydata - new_height * (1-rely), ydata + new_height * (rely)])
         self.canvas.draw()
 
@@ -373,16 +375,14 @@ class MatplotPanel(wx.Panel):
             self.canvas.draw()
 
     def OnContextMenu(self, event):
-        menu = wx.Menu()
-        #menu.Append(wx.ID_NEW, "Create datatip")
-        #menu.AppendSeparator()
-        delMenu = menu.Append(wx.ID_DELETE, "Delete current datatip")
-        note = self.toolbar.datacursor.active
-        delMenu.Enable(note and note.get_visible())
-        menu.Append(wx.ID_CLEAR, "Delete all datatips")
-        self.PopupMenu(menu)
-        menu.Destroy()
-        # event.Skip()
+        if self.toolbar.mode == 'datatip':
+            menu = wx.Menu()
+            delMenu = menu.Append(wx.ID_DELETE, "Delete current datatip")
+            note = self.toolbar.datacursor.active
+            delMenu.Enable((note is not None) and note.get_visible())
+            menu.Append(wx.ID_CLEAR, "Delete all datatips")
+            self.PopupMenu(menu)
+            menu.Destroy()
 
     def _onClose(self, evt):
         self.canvas.close_event()
