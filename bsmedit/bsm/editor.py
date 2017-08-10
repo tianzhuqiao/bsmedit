@@ -848,9 +848,10 @@ class PyEditor(wx.py.editwindow.EditWindow):
             self.PopupMenu(menu)
         elif p.x > self.GetMarginWidth(0):
             # in breakpoint area
+            cline = self.LineFromPosition(self.PositionFromPoint(p))
             for key in self.breakpointlist:
                 line = self.MarkerLineFromHandle(key)
-                if line == p.y/self.TextHeight(0):
+                if line == cline:
                     self.GotoLine(line)
                     break
             else:
@@ -1196,8 +1197,10 @@ class PyEditorPanel(wx.Panel):
     def saveFile(self):
         if self.fileName == "":
             defaultDir = os.path.dirname(self.fileName)
-            dlg = wx.FileDialog(self, 'Save As', defaultDir=defaultDir,
-                                wildcard=self.wildcard,
+            # use top level frame as parent, otherwise it may crash when
+            # it is called in Destroy()
+            dlg = wx.FileDialog(self.GetTopLevelParent(), 'Save As',
+                                defaultDir=defaultDir, wildcard=self.wildcard,
                                 style=wx.SAVE | wx.OVERWRITE_PROMPT | wx.CHANGE_DIR)
             if dlg.ShowModal() == wx.ID_OK:
                 path = dlg.GetPaths()[0]
@@ -1279,7 +1282,10 @@ class PyEditorPanel(wx.Panel):
         """check whether it is modified"""
         if self.editor.GetModify():
             msg = 'The file has been modified. Save it first?'
-            dlg = wx.MessageDialog(self, msg, 'bsmedit', wx.YES_NO)
+            # use top level frame as parent, otherwise it may crash when
+            # it is called in Destroy()
+            dlg = wx.MessageDialog(self.GetTopLevelParent(), msg,
+                                   'bsmedit', wx.YES_NO)
             result = dlg.ShowModal() == wx.ID_YES
             dlg.Destroy()
             if result:

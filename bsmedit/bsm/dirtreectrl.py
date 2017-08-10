@@ -29,6 +29,7 @@
 
 import os
 import wx
+import traceback
 
 class Directory(object):
     """Simple class for using as the data object in the DirTreeCtrl"""
@@ -68,6 +69,7 @@ class DirTreeCtrl(wx.TreeCtrl):
                        wx.ART_OTHER, (16, 16)), 'directoryopen')
         self.addBitmap(wx.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE,
                        wx.ART_OTHER, (16, 16)), 'default')
+        self.SetImageList(self.imagelist)
         # # you should replace this with your own code or put the relevant
         # # images in the correct path # set directory image
         # self.addIcon('images/folder.png', wx.BITMAP_TYPE_PNG, 'directory')
@@ -79,8 +81,8 @@ class DirTreeCtrl(wx.TreeCtrl):
             if bitmap:
                 key = self.imagelist.Add(bitmap)
                 self.iconentries[name] = key
-        except Exception, e:
-            print e
+        except:
+            traceback.print_exc()
 
     def addIcon(self, filepath, wxBitmapType, name):
         """Adds an icon to the imagelist and registers it with the iconentries dict
@@ -95,8 +97,8 @@ class DirTreeCtrl(wx.TreeCtrl):
             if os.path.exists(filepath):
                 key = self.imagelist.Add(wx.Bitmap(filepath, wxBitmapType))
                 self.iconentries[name] = key
-        except Exception, e:
-            print e
+        except:
+            traceback.print_exc()
 
     def SetDeleteOnCollapse(self, selection):
         """Sets the tree option to delete leaf items when the node is
@@ -216,7 +218,6 @@ class DirTreeCtrl(wx.TreeCtrl):
                                 # add to imagelist and store returned key
                                 iconkey = self.imagelist.AddIcon(icon)
                                 self.iconentries[ext] = iconkey
-
                                 # update tree with new imagelist - inefficient
                                 self.SetImageList(self.imagelist)
 
