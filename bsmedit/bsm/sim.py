@@ -3,6 +3,8 @@ import json
 import multiprocessing as mp
 import Queue
 import time
+import traceback
+import sys
 import wx
 import wx.py.dispatcher as dp
 from wx.lib.masked import NumCtrl
@@ -105,7 +107,7 @@ class Simulation(object):
                 return True
             wx.YieldIfNeeded()
             time.sleep(0.1)
-            if start>0 and time.time()-start>timeout:
+            if start > 0 and time.time()-start > timeout:
                 return False
 
     def get_status(self):
@@ -729,10 +731,7 @@ class SimPanel(wx.Panel):
 
         self.colour = wx.Colour(178, 34, 34)
         # the variable used to update the UI in idle()
-        self.ui_timestamp = None
-        self.ui_objs = None
-        self.ui_buffers = None
-        self.ui_update = 0
+        self.gridList = []
         self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|wx.TB_NODIVIDER)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
         xpm2bmp = wx.BitmapFromXPMData

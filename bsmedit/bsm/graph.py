@@ -3,9 +3,8 @@ import sys
 import math
 import wx
 import wx.aui
-import wx.py.dispatcher as dispatcher
-from bsmedit.bsm._graphxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm,\
-                      save_xpm, copy_xpm, print_xpm, cursor_xpm
+import wx.py.dispatcher as dp
+from bsmedit.bsm._graphxpm import *
 initialized = False
 try:
     import numpy
@@ -47,7 +46,7 @@ class DataCursor(object):
             # which may happen in a figure with subplots. If not, create one
             # with the axes of line
             if self.active.axes != line.axes:
-                slef.active = None
+                self.active = None
         if self.active is None:
             self.create_annotation(line.axes)
         # find the closest point on the line
@@ -164,7 +163,15 @@ class DataCursor(object):
             return True
         elif cmd == wx.ID_CLEAR:
             for ant in self.annotations:
-                ant.remove()
+                try:
+                    # the call may fail. For example,
+                    # 1) create a figure and plot some curve
+                    # 2) create a datatip
+                    # 3) call clf() to clear the figure, the datatip will be
+                    #    cleared, but we will not know
+                    ant.remove()
+                except:
+                    pass
             self.annotations = []
             self.active = None
             return True
@@ -319,8 +326,7 @@ class Toolbar(NavigationToolbar):
 
     def set_message(self, s):
         """show the status message"""
-        dispatcher.send(signal='frame.show_status_text', text=s, index=1,
-                        width=160)
+        dp.send(signal='frame.show_status_text', text=s, index=1, width=160)
 
 class MatplotPanel(wx.Panel):
 
@@ -352,7 +358,7 @@ class MatplotPanel(wx.Panel):
         self.Bind(wx.EVT_CLOSE, self._onClose)
 
         self.canvas.mpl_connect('button_press_event', self._onClick)
-        dispatcher.connect(self.simLoad, signal='sim.loaded')
+        dp.connect(self.simLoad, 'sim.loaded')
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_DELETE)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_CLEAR)
@@ -391,7 +397,7 @@ class MatplotPanel(wx.Panel):
 
     def destroy(self, *args):
         if self.isdestory is False:
-            dispatcher.send(signal='frame.close_panel', panel=self)
+            dp.send('frame.close_panel', panel=self)
             wx.WakeUpIdle()
 
     def Destroy(self, *args, **kwargs):
@@ -410,13 +416,13 @@ class MatplotPanel(wx.Panel):
         if title == self.title:
             return
         self.title = title
-        dispatcher.send(signal='frame.update_panel_title', pane=self,
-                        title=self.title)
+        dp.send('frame.update_panel_title', pane=self, title=self.title)
+
     def show(self):
         """show figure"""
         if self.IsShown() is False:
             self.canvas.draw()
-            dispatcher.send(signal='frame.show_panel', panel=self)
+            dp.send('frame.show_panel', panel=self)
 
     def update_buffer(self, bufs):
         """update the data used in plot_trace"""
@@ -477,8 +483,8 @@ class MatplotPanel(wx.Panel):
     @classmethod
     def addFigure(cls, title=None, num=None, thisFig=None):
         panelFigure = cls(cls.clsFrame, title=title, num=num, thisFig=thisFig)
-        dispatcher.send(signal='frame.add_panel', panel=panelFigure,
-                        title=panelFigure.GetTitle(), target=Gcf.get_active())
+        dp.send('frame.add_panel', panel=panelFigure,
+                title=panelFigure.GetTitle(), target=Gcf.get_active())
         return panelFigure
 
     @classmethod
@@ -487,18 +493,16 @@ class MatplotPanel(wx.Panel):
             return
         cls.isInitialized = True
         cls.clsFrame = frame
-        resp = dispatcher.send(signal='frame.add_menu', path='File:New:Figure',
-                               rxsignal='bsm.figure')
+        resp = dp.send('frame.add_menu', path='File:New:Figure',
+                       rxsignal='bsm.figure')
         if resp:
             cls.clsID_new_figure = resp[0][1]
 
         if cls.clsID_new_figure is not wx.NOT_FOUND:
-            dispatcher.connect(cls.ProcessCommand, signal='bsm.figure')
-        dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
-        dispatcher.connect(receiver=cls.setactive,
-                           signal='frame.activate_panel')
-        dispatcher.connect(receiver=cls.OnBufferChanged,
-                           signal='sim.buffer_changed')
+            dp.connect(cls.ProcessCommand, 'bsm.figure')
+        dp.connect(cls.Uninitialize, 'frame.exit')
+        dp.connect(cls.setactive, 'frame.activate_panel')
+        dp.connect(cls.OnBufferChanged, 'sim.buffer_changed')
 
     @classmethod
     def OnBufferChanged(cls, bufs):
@@ -521,6 +525,5 @@ def bsm_Initialize(frame):
     """module initialization"""
     if initialized:
         MatplotPanel.Initialize(frame)
-        dispatcher.send(signal='shell.run',
-                        command='from matplotlib.pyplot import *',
-                        prompt=False, verbose=False, history=False)
+        dp.send('shell.run', command='from matplotlib.pyplot import *',
+                prompt=False, verbose=False, history=False)

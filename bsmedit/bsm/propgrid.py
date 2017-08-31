@@ -1,7 +1,7 @@
 import sys
 import traceback
 import wx
-import wx.py.dispatcher as dispatcher
+import wx.py.dispatcher as dp
 from bsmedit.bsm.prop import *
 from bsmedit.bsm._pymgr_helpers import Gcm
 
@@ -100,9 +100,9 @@ class bsmPropGridBase(wx.ScrolledWindow):
         self.Bind(EVT_BSM_PROP_BEGIN_DRAG, self.OnPropEventsHandler, id=wx.ID_ANY)
         self.Bind(EVT_BSM_PROP_CLICK_RADIO, self.OnPropEventsHandler, id=wx.ID_ANY)
         self.Bind(wx.EVT_TEXT_ENTER, self.OnPropTextEnter, id=bsmProperty.IDC_BSM_PROP_CONTROL)
-        dispatcher.connect(self.UpdateProp, signal='grid.updateprop')
-        dispatcher.connect(self.simLoad, signal='sim.loaded')
-        dispatcher.connect(self.simUnload, signal='sim.unloaded')
+        dp.connect(self.UpdateProp, 'grid.updateprop')
+        dp.connect(self.simLoad, 'sim.loaded')
+        dp.connect(self.simUnload, 'sim.unloaded')
 
     def simLoad(self, num):
         """try to reconnect the register when the simulation is loaded."""
@@ -110,7 +110,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
         s = str(num)+'.'
         objs = [name for name in self.PropDict.keys() if name.startswith(s)]
         if objs:
-            resp = dispatcher.send(signal='sim.monitor_reg', objects=objs)
+            resp = dp.send('sim.monitor_reg', objects=objs)
             if not resp:
                 return
             status = resp[0][1]
@@ -169,7 +169,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
         if index != -1 and (not update):
             self.CheckProp()
         self.UpdateGrid(update, update)
-        dispatcher.send(signal='prop.insert', prop=prop)
+        dp.send('prop.insert', prop=prop)
         return prop
 
     def InsertProperty(self, name, label="", value="", index=-1, update=True):
@@ -221,7 +221,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
 
     def DeleteProperty(self, prop, update=True):
         if self.SendPropEvent(wxEVT_BSM_PROP_DELETE, prop):
-            dispatcher.send(signal='prop.delete', prop=prop)
+            dp.send('prop.delete', prop=prop)
             return self.RemoveProperty(prop, update)
         else:
             return False
@@ -813,7 +813,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
         prop = self.GetProperty(index2)
         # insert a property? Let the parent to determine what to do
         if bsmPropGrid.dragProperty == None:
-            dispatcher.send(signal='prop.drop', index=index2, prop=name, grid=self)
+            dp.send('prop.drop', index=index2, prop=name, grid=self)
             return
 
         if name != bsmPropGrid.dragProperty.GetName():
@@ -912,12 +912,12 @@ class bsmPropGrid(bsmPropGridBase):
         elif eid == wxEVT_BSM_PROP_CLICK_RADIO:
             # turn on/off breakpoint
             if prop.IsRadioChecked():
-                dispatcher.send(signal='prop.bp_add', prop=prop)
+                dp.send('prop.bp_add', prop=prop)
             else:
-                dispatcher.send(signal='prop.bp_del', prop=prop)
+                dp.send('prop.bp_del', prop=prop)
         elif eid == wxEVT_BSM_PROP_CHANGED:
             # the value changed, notify the parent
-            dispatcher.send(signal='prop.changed', prop=prop)
+            dp.send('prop.changed', prop=prop)
 
     def OnProcessCommand(self, evt):
         """process the context menu command"""

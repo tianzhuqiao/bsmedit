@@ -1,20 +1,16 @@
 """
-Engine debugger
-- Handles all the debugger functions for the engine.
-- Can set block files where tracing stops to prevent locks in communications thread
-- Can set breakpoints to pause code.
-- Can manually pause in traced code.
+The code is based on PythonTookit (http://pythontoolkit.sourceforge.net/)
 """
 import time
-import inspect                          #for debugger frame inpsection
-import sys                              #for set_trace etc
-import thread                           #for keyboard interrupt
-import os.path                          #for absolute filename conversions
-import ctypes                           #for pythonapi calls
+import inspect #for debugger frame inpsection
+import sys #for set_trace etc
+import thread #for keyboard interrupt
+import os.path #for absolute filename conversions
+import ctypes #for pythonapi calls
 from codeop import _maybe_compile, Compile
-import traceback                        #for formatting errors
+import traceback #for formatting errors
 import wx
-import wx.py.dispatcher as dispatcher
+import wx.py.dispatcher as dp
 
 help_msg = """
 \"\"\"
@@ -70,16 +66,16 @@ class EngineDebugger():
     def __init__(self):
         self.compiler = EngineCompiler()
         #debugger state
-        self._paused     = False #is paused.
+        self._paused = False #is paused.
         self._can_stepin = False #debugger is about to enter a new scope
-        self._can_stepout= False #debugger can be stepped out of a scope
+        self._can_stepout = False #debugger can be stepped out of a scope
 
         #debugger command flags
-        self._resume     = False #debugging was resumed.
-        self._end        = False #stop debugging, finish running code
-        self._stop       = False #stop running code
-        self._stepin     = False #debugger step in to scope
-        self._stepout    = False #debugger step out of scope
+        self._resume = False #debugging was resumed.
+        self._end = False #stop debugging, finish running code
+        self._stop = False #stop running code
+        self._stepin = False #debugger step in to scope
+        self._stepout = False #debugger step out of scope
 
         #event used to wake the trace function when paused
         self._resume_event = PseudoEvent()
@@ -90,16 +86,16 @@ class EngineDebugger():
 
         #debugger scopes:
         #keep track of the different scopes available for tools to query
-        self._scopes    = []        #list of scope (function) names
-        self._frames    = []        #list of scope frames
+        self._scopes = [] #list of scope (function) names
+        self._frames = [] #list of scope frames
         self._active_scope = 0 #the current scope level used for exec/eval/commands
         self._paused_active_scope = 0
         #internal variable used to keep track of where wer started debugging
         self._bottom_frame = None
 
         #files to look for when tracing...
-        self._fncache = {}      #absolute filename cache
-        self._block_files = []  #list of filepaths not to trace in (or any further)
+        self._fncache = {} #absolute filename cache
+        self._block_files = [] #list of filepaths not to trace in (or any further)
 
         #prevent trace in all engine module files to avoid locks blocking comms threads.
         self.set_block_file(os.path.dirname(__file__)+os.sep+'*.*')
@@ -113,32 +109,32 @@ class EngineDebugger():
         self._bp_tcount = {} # trigger counter {id: tcount}
 
         #Register message handlers for the debugger
-        dispatcher.connect(self.pause,        'debugger.pause')
-        dispatcher.connect(self.resume,        'debugger.resume')
-        dispatcher.connect(self.stop_code,     'debugger.stop')
-        dispatcher.connect(self.end,           'debugger.end')
-        dispatcher.connect(self.step,          'debugger.step')
-        dispatcher.connect(self.step_in,       'debugger.step_into')
-        dispatcher.connect(self.step_out,      'debugger.step_out')
-        dispatcher.connect(self.set_scope,     'debugger.set_scope')
-        dispatcher.connect(self.set_breakpoint,      'debugger.set_breakpoint')
-        dispatcher.connect(self.clear_breakpoint,    'debugger.clear_breakpoint')
-        dispatcher.connect(self.edit_breakpoint,     'debugger.edit_breakpoint')
-        dispatcher.connect(self.get_breakpoint,      'debugger.get_breakpoint')
-        dispatcher.connect(self.get_status,      'debugger.get_status')
+        dp.connect(self.pause, 'debugger.pause')
+        dp.connect(self.resume, 'debugger.resume')
+        dp.connect(self.stop_code, 'debugger.stop')
+        dp.connect(self.end, 'debugger.end')
+        dp.connect(self.step, 'debugger.step')
+        dp.connect(self.step_in, 'debugger.step_into')
+        dp.connect(self.step_out, 'debugger.step_out')
+        dp.connect(self.set_scope, 'debugger.set_scope')
+        dp.connect(self.set_breakpoint, 'debugger.set_breakpoint')
+        dp.connect(self.clear_breakpoint, 'debugger.clear_breakpoint')
+        dp.connect(self.edit_breakpoint, 'debugger.edit_breakpoint')
+        dp.connect(self.get_breakpoint, 'debugger.get_breakpoint')
+        dp.connect(self.get_status, 'debugger.get_status')
 
     # Interface methods
     def reset(self):
         """Reset the debugger internal state"""
-        self._paused     = False
+        self._paused = False
         self._can_stepin = False
-        self._can_stepout= False
+        self._can_stepout = False
 
-        self._resume     = False
-        self._end        = False
-        self._stop       = False
-        self._stepin     = False
-        self._stepout    = False
+        self._resume = False
+        self._end = False
+        self._stop = False
+        self._stepin = False
+        self._stepout = False
 
         self._resume_event.clear()
 
@@ -157,9 +153,9 @@ class EngineDebugger():
         Attempt to stop the running code by raising a keyboard interrupt in
         the main thread
         """
-        self._stop = True       #stops the code if paused
+        self._stop = True #stops the code if paused
         if self._paused is True:
-             self.prompt()
+            self.prompt()
 
         self._resume_event.set()
 
@@ -172,7 +168,7 @@ class EngineDebugger():
             pass
 
         # send the notification, the debugger may stop after the notification
-        dispatcher.send(signal='debugger.ended')
+        dp.send('debugger.ended')
 
     def end(self):
         """ End the debugging and finish running the code """
@@ -183,7 +179,7 @@ class EngineDebugger():
         self._resume_event.set()
 
         # send the notification, the debugger may stop after the notification
-        dispatcher.send(signal='debugger.ended')
+        dp.send('debugger.ended')
         return True
 
     def pause(self, flag=True):
@@ -261,7 +257,7 @@ class EngineDebugger():
     def set_breakpoint(self, bpdata):
         """
         Set a break point
-        bpdata =  {id, filename, lineno, condition, ignore_count, trigger_count}
+        bpdata = {id, filename, lineno, condition, ignore_count, trigger_count}
         where id should be a unique identifier for this breakpoint
         """
         #check if the id to use already exists.
@@ -287,7 +283,7 @@ class EngineDebugger():
         #create new breakpoint
         bpdata['filename'] = self._abs_filename(bpdata['filename'])
         self.bpoints.append(bpdata)
-        dispatcher.send(signal='debugger.breakpoint_added', bpdata=bpdata)
+        dp.send('debugger.breakpoint_added', bpdata=bpdata)
         return True
 
     def get_breakpoint(self, filename, lineno):
@@ -318,7 +314,7 @@ class EngineDebugger():
         #remove the breakpoint
         bp = bps[0]
         self.bpoints.remove(bp)
-        dispatcher.send(signal='debugger.breakpoint_cleared', bpdata=bp)
+        dp.send('debugger.breakpoint_cleared', bpdata=bp)
         return True
 
     def edit_breakpoint(self, id, **kwargs):
@@ -363,7 +359,7 @@ class EngineDebugger():
         #
         #2)Or using the python c api call that is called after the trace function
         #returns to make the changes stick immediately. This is done in the
-        #function  _update_frame_locals(frame)
+        #function _update_frame_locals(frame)
         if level is None:
             level = self._active_scope
         if level > len(self._scopes) or level < 0:
@@ -392,7 +388,7 @@ class EngineDebugger():
         self._active_scope = level
 
         #send scope change message
-        dispatcher.send(signal='debugger.update_scopes')
+        dp.send('debugger.update_scopes')
         return True
 
     def get_status(self):
@@ -662,7 +658,7 @@ class EngineDebugger():
         if event == 'call':
             self._can_stepout = False
             self._can_stepin = True
-        elif len(self._scopes)>1:
+        elif len(self._scopes) > 1:
             self._can_stepout = True
             self._can_stepin = True
         else:
@@ -673,7 +669,7 @@ class EngineDebugger():
         #send a paused message to the console
         #(it will publish an ENGINE_DEBUG_PAUSED message after updating internal
         #state)
-        dispatcher.send(signal='debugger.paused')
+        dp.send('debugger.paused')
         #The user can then select whether to resume, step, step-in, step-out
         #cancel the code or stop debugging.
 
@@ -837,7 +833,7 @@ class EngineDebugger():
         if self._active_scope != level:
             self.set_scope(level)
         else:
-            dispatcher.send(signal='debugger.update_scopes')
+            dp.send('debugger.update_scopes')
 
     def _update_frame_locals(self, frame):
         """
@@ -1024,7 +1020,7 @@ class EngineDebugger():
 
         ##Finsihed running the code - prompt for a new command
         # add the command to history
-        dispatcher.send(signal='shell.addToHistory', command=line)
+        dp.send('shell.addToHistory', command=line)
         self.prompt()
     def write_debug(self, string):
         """
@@ -1033,7 +1029,7 @@ class EngineDebugger():
         print string
 
     def prompt(self, ismore=False, iserr=False):
-        dispatcher.send(signal='shell.prompt', ismore=ismore, iserr=iserr)
+        dp.send('shell.prompt', ismore=ismore, iserr=iserr)
 
 """
 Engine misc.
@@ -1211,7 +1207,7 @@ class EngineCompiler(Compile):
         self._buffer = ''
 
         #register message handlers
-        dispatcher.connect(self.future_flag, 'debugger.futureflag')
+        dp.connect(self.future_flag, 'debugger.futureflag')
 
     # Interface methods
     def set_compiler_flag(self, flag, set=True):

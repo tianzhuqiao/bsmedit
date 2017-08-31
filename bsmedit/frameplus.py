@@ -1,6 +1,6 @@
 import wx
 import wx.lib.agw.aui as aui
-import wx.py.dispatcher as dispatcher
+import wx.py.dispatcher as dp
 from wx.lib.agw.aui import AuiPaneButton, AuiPaneInfo
 from wx.lib.agw.aui.aui_constants import AUI_BUTTON_MINIMIZE,\
                                  AUI_BUTTON_MAXIMIZE_RESTORE, AUI_BUTTON_CLOSE
@@ -388,13 +388,13 @@ class framePlus(wx.Frame):
         self._mgr.SetManagedWindow(self)
         self.menuaddon = {}
         self.paneaddon = {}
-        dispatcher.connect(receiver=self.addMenu, signal='frame.add_menu')
-        dispatcher.connect(receiver=self.delMenu, signal='frame.del_menu')
-        dispatcher.connect(receiver=self.addPanel, signal='frame.add_panel')
-        dispatcher.connect(receiver=self.closePanel, signal='frame.close_panel')
-        dispatcher.connect(receiver=self.showPanel, signal='frame.show_panel')
-        dispatcher.connect(receiver=self.togglePanel, signal='frame.check_menu')
-        dispatcher.connect(receiver=self.togglePanelUI, signal='frame.update_menu')
+        dp.connect(self.addMenu, 'frame.add_menu')
+        dp.connect(self.delMenu, 'frame.del_menu')
+        dp.connect(self.addPanel, 'frame.add_panel')
+        dp.connect(self.closePanel, 'frame.close_panel')
+        dp.connect(self.showPanel, 'frame.show_panel')
+        dp.connect(self.togglePanel, 'frame.check_menu')
+        dp.connect(self.togglePanelUI, 'frame.update_menu')
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
     def OnClose(self, event):
@@ -485,14 +485,14 @@ class framePlus(wx.Frame):
         signal = self.menuaddon.get(idx, None)
         if signal:
             signal = signal[0]
-            dispatcher.send(signal=signal, command=idx)
+            dp.send(signal=signal, command=idx)
 
     def OnMenuCmdUI(self, event):
         idx = event.GetId()
         signal = self.menuaddon.get(idx, None)
         if signal:
             signal = signal[1]
-            dispatcher.send(signal=signal, event=event)
+            dp.send(signal=signal, event=event)
         else:
             event.Enable(True)
 

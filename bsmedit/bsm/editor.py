@@ -1,11 +1,9 @@
 import os
 import wx
 import wx.stc as stc
-from bsmedit.bsm._editorxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm,\
-                       dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm,\
-                       folder_xpm, vert_xpm, horz_xpm
+from bsmedit.bsm._editorxpm import *
 import inspect
-import wx.py.dispatcher as dispatcher
+import wx.py.dispatcher as dp
 import pprint
 import traceback                        #for formatting errors
 import sys
@@ -137,7 +135,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.Bind(wx.EVT_CHAR, self.OnChar)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
         self.autoCompleteKeys = [ord('.')]
-        rsp = dispatcher.send(signal='shell.auto_complete_keys')
+        rsp = dp.send('shell.auto_complete_keys')
         if rsp:
             self.autoCompleteKeys = rsp[0][1]
         self.breakpointlist = {}
@@ -165,8 +163,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
     def ClearBreakpoint(self):
         """clear all the breakpoint"""
         for key in self.breakpointlist.keys():
-            id = self.breakpointlist[key]['id']
-            dispatcher.send('debugger.clear_breakpoint', id=id)
+            ids = self.breakpointlist[key]['id']
+            dp.send('debugger.clear_breakpoint', id=ids)
 
     def SaveFile(self, filename, filetype=wx.TEXT_TYPE_ANY):
         """save file"""
@@ -289,16 +287,15 @@ class PyEditor(wx.py.editwindow.EditWindow):
             # check if a breakpoint marker is at this line
             bpset = self.MarkerGet(lineClicked) & 1
             bpdata = None
-            resp = dispatcher.send(signal='debugger.get_breakpoint',
-                                   filename=self.filename,
-                                   lineno=lineClicked + 1)
+            resp = dp.send('debugger.get_breakpoint', filename=self.filename,
+                           lineno=lineClicked + 1)
             if resp:
                 bpdata = resp[0][1]
             if not bpdata:
                 # No breakpoint at this line, add one
                 # bpdata =  {id, filename, lineno, condition, ignore_count, trigger_count}
                 bp = {'filename': self.filename, 'lineno': lineClicked + 1}
-                dispatcher.send('debugger.set_breakpoint', bpdata=bp)
+                dp.send('debugger.set_breakpoint', bpdata=bp)
             else:
                 if ctrldown:
                     condition = """"""
@@ -310,11 +307,10 @@ class PyEditor(wx.py.editwindow.EditWindow):
                                              defaultValue="""""",
                                              style=wx.OK)
                     if dlg.ShowModal() == wx.ID_OK:
-                        dispatcher.send('debugger.edit_breakpoint',
-                                        id=bpdata['id'],
-                                        condition=dlg.GetValue())
+                        dp.send('debugger.edit_breakpoint', id=bpdata['id'],
+                                condition=dlg.GetValue())
                 else:
-                    dispatcher.send('debugger.clear_breakpoint', id=bpdata['id'])
+                    dp.send('debugger.clear_breakpoint', id=bpdata['id'])
         # fold and unfold as needed
         if evt.GetMargin() == FOLD_MARGIN:
             if evt.GetShift() and evt.GetControl():
@@ -340,7 +336,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                         self.ToggleFold(lineClicked)
 
     def OnMouseDwellStart(self, event):
-        resp = dispatcher.send(signal='debugger.get_status')
+        resp = dp.send(signal='debugger.get_status')
         if not resp or not resp[0][1]:
             return
 
@@ -497,8 +493,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
 
         list = []
         # retrieve the auto complete list from bsmshell
-        response = dispatcher.send(signal='shell.auto_complete_list',
-                                   command=command)
+        response = dp.send('shell.auto_complete_list', command=command)
         if response:
             list = response[0][1]
         if list:
@@ -511,12 +506,11 @@ class PyEditor(wx.py.editwindow.EditWindow):
             self.CallTipCancel()
         (name, argspec, tip) = (None, None, None)
         # retrieve the all tip from bsmshell
-        response = dispatcher.send(signal='shell.auto_call_tip',
-                                   command=command)
+        response = dp.send('shell.auto_call_tip', command=command)
         if response:
             (name, argspec, tip) = response[0][1]
         if tip:
-            dispatcher.send(signal='Shell.calltip', sender=self, calltip=tip)
+            dp.send('Shell.calltip', sender=self, calltip=tip)
         if not self.autoCallTip and not forceCallTip:
             return
         startpos = self.GetCurrentPos()
@@ -553,8 +547,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
         caretPos = self.GetCurrentPos()
         col = self.GetColumn(caretPos) + 1
         line = self.LineFromPosition(caretPos) + 1
-        dispatcher.send(signal='frame.show_status_text', text='%d, %d'%(line, col),
-                        index=1, width=100)
+        dp.send('frame.show_status_text', text='%d, %d'%(line, col), index=1,
+                width=100)
 
     def OnUpdateUI(self, event):
         super(PyEditor, self).OnUpdateUI(event)
@@ -910,7 +904,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                     break
             else:
                 return
-            dispatcher.send('debugger.clear_breakpoint', id=bp['id'])
+            dp.send('debugger.clear_breakpoint', id=bp['id'])
         elif id == self.ID_EDIT_BREAKPOINT:
             bp = None
             for key in self.breakpointlist:
@@ -925,8 +919,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
             if dlg.ShowModal() == wx.ID_OK:
                 cond = dlg.GetCondition()
                 ids = bp['id']
-                dispatcher.send('debugger.edit_breakpoint', id=ids,
-                                condition=cond[0], hitcount=cond[1])
+                dp.send('debugger.edit_breakpoint', id=ids, condition=cond[0],
+                        hitcount=cond[1])
 
 class PyEditorPanel(wx.Panel):
     Gce = []
@@ -1037,15 +1031,15 @@ class PyEditorPanel(wx.Panel):
                  (wx.ACCEL_NORMAL, wx.WXK_F3, self.ID_FIND_NEXT),
                  (wx.ACCEL_SHIFT, wx.WXK_F3, self.ID_FIND_PREV),
                  (wx.ACCEL_CTRL, ord('H'), self.ID_FIND_REPLACE),
-                 (wx.ACCEL_CTRL, wx.WXK_RETURN, self.ID_RUN_SCRIPT),
+                 (wx.ACCEL_CTRL, wx.WXK_RETURN, self.ID_RUN_LINE),
                  (wx.ACCEL_CTRL, ord('S'), wx.ID_SAVE),
                 ]
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
-        #dispatcher.connect(self.debug_paused, 'debugger.paused')
-        dispatcher.connect(self.debug_ended, 'debugger.ended')
-        dispatcher.connect(self.debug_bpadded, 'debugger.breakpoint_added')
-        dispatcher.connect(self.debug_bpcleared, 'debugger.breakpoint_cleared')
+        #dp.connect(self.debug_paused, 'debugger.paused')
+        dp.connect(self.debug_ended, 'debugger.ended')
+        dp.connect(self.debug_bpadded, 'debugger.breakpoint_added')
+        dp.connect(self.debug_bpcleared, 'debugger.breakpoint_cleared')
         self.debug_curline = None
         PyEditorPanel.Gce.append(self)
     def __del__(self):
@@ -1068,7 +1062,7 @@ class PyEditorPanel(wx.Panel):
             line = self.editor.MarkerLineFromHandle(key) + 1
             if line != self.editor.breakpointlist[key]['lineno']:
                 ids = self.editor.breakpointlist[key]['id']
-                dispatcher.send('debugger.edit_breakpoint', id=ids, lineno=line)
+                dp.send('debugger.edit_breakpoint', id=ids, lineno=line)
 
     def debug_bpadded(self, bpdata):
         """the breakpoint is added"""
@@ -1140,7 +1134,7 @@ class PyEditorPanel(wx.Panel):
                     show = parent.IsShown()
                     parent = parent.GetParent()
                 if not show:
-                    dispatcher.send(signal='frame.show_panel', panel=self)
+                    dp.send('frame.show_panel', panel=self)
             return True
         return False
 
@@ -1174,14 +1168,14 @@ class PyEditorPanel(wx.Panel):
             filename = file
         if self.editor.GetModify():
             filename = filename + '*'
-        dispatcher.send(signal='frame.set_panel_title', pane=self, title=filename)
+        dp.send('frame.set_panel_title', pane=self, title=filename)
 
     def LoadFile(self, path):
         """open file"""
         self.editor.LoadFile(path)
         self.fileName = path
         (path, file) = os.path.split(self.fileName)
-        dispatcher.send(signal='frame.set_panel_title', pane=self, title=file)
+        dp.send('frame.set_panel_title', pane=self, title=file)
 
     def OnBtnOpen(self, event):
         """open the script"""
@@ -1208,7 +1202,7 @@ class PyEditorPanel(wx.Panel):
             dlg.Destroy()
         self.editor.SaveFile(self.fileName)
         (path, file) = os.path.split(self.fileName)
-        dispatcher.send(signal='frame.set_panel_title', pane=self, title=file)
+        dp.send('frame.set_panel_title', pane=self, title=file)
         self.update_bp()
 
     def OnBtnSave(self, event):
@@ -1227,7 +1221,7 @@ class PyEditorPanel(wx.Panel):
             dlg.Destroy()
         self.editor.SaveFile(self.fileName)
         (path, file) = os.path.split(self.fileName)
-        dispatcher.send(signal='frame.set_panel_title', pane=self, title=file)
+        dp.send('frame.set_panel_title', pane=self, title=file)
         self.update_bp()
 
     def OnUpdateBtn(self, event):
@@ -1236,7 +1230,7 @@ class PyEditorPanel(wx.Panel):
         if eid == wx.ID_SAVE:
             event.Enable(self.editor.GetModify())
         elif eid == self.ID_DEBUG_SCRIPT:
-            resp = dispatcher.send(signal='debugger.debugging')
+            resp = dp.send('debugger.debugging')
             if resp:
                 event.Enable(not resp[0][1])
     def OnShowFindReplace(self, event):
@@ -1265,8 +1259,8 @@ class PyEditorPanel(wx.Panel):
 
     def RunCommand(self, command, prompt=False, verbose=True, debug=False):
         """run command in shell"""
-        dispatcher.send(signal='shell.run', command=command, prompt=prompt,
-                        verbose=verbose, debug=debug)
+        dp.send('shell.run', command=command, prompt=prompt, verbose=verbose,
+                debug=debug)
 
     def OnBtnRun(self, event):
         """execute the selection or current line"""
@@ -1337,12 +1331,12 @@ class PyEditorPanel(wx.Panel):
                         verbose=True, debug=True)
         self.RunCommand('del sys.path[0]', verbose=False)
 
-        #dispatcher.send('debugger.ended')
+        #dp.send('debugger.ended')
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, True)
 
     def message(self, text):
         """show the message on statusbar"""
-        dispatcher.send(signal='frame.show_status_text', text=text)
+        dp.send('frame.show_status_text', text=text)
 
     def doFind(self, strFind, forward=True, message=1):
         """search the string"""
@@ -1508,27 +1502,24 @@ class PyEditorPanel(wx.Panel):
             # if it has already initialized, simply return
             return
         cls.frame = frame
-        resp = dispatcher.send(signal='frame.add_menu',
-                               path='File:New:Python script\tCtrl+N',
-                               rxsignal='bsm.editor.menu')
+        resp = dp.send('frame.add_menu', path='File:New:Python script\tCtrl+N',
+                       rxsignal='bsm.editor.menu')
         if resp:
             cls.ID_EDITOR_NEW = resp[0][1]
-        resp = dispatcher.send(signal='frame.add_menu',
-                               path='File:Open:Python script\tctrl+O',
-                               rxsignal='bsm.editor.menu')
+        resp = dp.send('frame.add_menu', path='File:Open:Python script\tctrl+O',
+                       rxsignal='bsm.editor.menu')
         if resp:
             cls.ID_EDITOR_OPEN = resp[0][1]
-        dispatcher.connect(receiver=cls.ProcessCommand, signal='bsm.editor.menu')
-        dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
-        dispatcher.connect(receiver=cls.OpenScript, signal='bsm.editor.openfile')
-        dispatcher.connect(receiver=cls.debugPaused, signal='debugger.paused')
-        dispatcher.connect(receiver=cls.debugUpdateScope,
-                           signal='debugger.update_scopes')
+        dp.connect(cls.ProcessCommand, 'bsm.editor.menu')
+        dp.connect(cls.Uninitialize, 'frame.exit')
+        dp.connect(cls.OpenScript, 'bsm.editor.openfile')
+        dp.connect(cls.debugPaused, 'debugger.paused')
+        dp.connect(cls.debugUpdateScope, 'debugger.update_scopes')
 
     @classmethod
     def debugPaused(cls):
         """the debugger has paused, update the editor margin marker"""
-        resp = dispatcher.send(signal='debugger.get_status')
+        resp = dp.send('debugger.get_status')
         if not resp or not resp[0][1]:
             return
         status = resp[0][1]
@@ -1545,7 +1536,7 @@ class PyEditorPanel(wx.Panel):
         """
         the debugger scope has been changed, update the editor margin marker
         """
-        resp = dispatcher.send(signal='debugger.get_status')
+        resp = dp.send('debugger.get_status')
         if not resp or not resp[0][1]:
             return
         status = resp[0][1]
@@ -1576,8 +1567,8 @@ class PyEditorPanel(wx.Panel):
     def AddEditor(cls, title='untitle', activated=True):
         """create a editor panel"""
         panelEditor = PyEditorPanel(cls.frame)
-        dispatcher.send(signal="frame.add_panel", panel=panelEditor,
-                        title=title, active=activated)
+        dp.send("frame.add_panel", panel=panelEditor, title=title,
+                active=activated)
         return panelEditor
 
     @classmethod
@@ -1593,10 +1584,10 @@ class PyEditorPanel(wx.Panel):
         if editor is None:
             editor = cls.AddEditor()
             editor.LoadFile(filename)
-            dispatcher.send(signal='frame.add_file_history', filename=filename)
+            dp.send('frame.add_file_history', filename=filename)
 
         if editor and activated and not editor.IsShown():
-            dispatcher.send(signal='frame.show_panel', panel=editor, focus=True)
+            dp.send('frame.show_panel', panel=editor, focus=True)
         if lineno > 0:
             editor.JumpToLine(lineno-1, True)
         return editor

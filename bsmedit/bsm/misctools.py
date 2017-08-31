@@ -1,8 +1,10 @@
 import pydoc
 import os
 import time
+import traceback
+import sys
 import wx
-import wx.py.dispatcher as dispatcher
+import wx.py.dispatcher as dp
 import wx.html2 as html
 from bsmedit.bsm.dirtreectrl import DirTreeCtrl, Directory
 from bsmedit.bsm._misctoolsxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
@@ -107,8 +109,7 @@ class HelpPanel(wx.Panel):
         self.html.Find(self.findStr, self.findFlags)
 
     def completer(self, query):
-        response = dispatcher.send(signal='shell.auto_complete_list',
-                                   command=query)
+        response = dp.send(signal='shell.auto_complete_list', command=query)
         if response:
             root = query[0:query.rfind('.')+1]
             remain = query[query.rfind('.')+1:]
@@ -122,14 +123,17 @@ class HelpPanel(wx.Panel):
             self.history_index = -1
 
     def show_help(self, command, addhistory=True):
-        strhelp = pydoc.plain(pydoc.render_doc(str(command), "Help on %s"))
-        htmlpage = html_template%({'title':'', 'message':strhelp})
-        self.html.SetPage(htmlpage, '')
-        # do not use SetValue since it will trigger the text update event, which
-        # will popup the auto complete list window
-        self.search.ChangeValue(command)
-        if addhistory:
-            self.add_history(command)
+        try:
+            strhelp = pydoc.plain(pydoc.render_doc(str(command), "Help on %s"))
+            htmlpage = html_template%({'title':'', 'message':strhelp})
+            self.html.SetPage(htmlpage, '')
+            # do not use SetValue since it will trigger the text update event, which
+            # will popup the auto complete list window
+            self.search.ChangeValue(command)
+            if addhistory:
+                self.add_history(command)
+        except:
+            traceback.print_exc(file=sys.stdout)
         return
 
     def OnDoSearch(self, evt):
@@ -180,9 +184,9 @@ class HistoryPanel(wx.Panel):
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 5)
         self.SetSizer(sizer)
-        dispatcher.connect(receiver=self.addHistory, signal='Shell.addHistory')
-        dispatcher.connect(receiver=self.LoadHistory, signal='frame.load_config')
-        dispatcher.connect(receiver=self.SaveHistory, signal='frame.save_config')
+        dp.connect(receiver=self.addHistory, signal='Shell.addHistory')
+        dp.connect(receiver=self.LoadHistory, signal='frame.load_config')
+        dp.connect(receiver=self.SaveHistory, signal='frame.save_config')
         self.root = self.tree.AddRoot('The Root Item')
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnActivate, self.tree)
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnRightClick, self.tree)
@@ -256,7 +260,7 @@ class HistoryPanel(wx.Panel):
         item = event.GetItem()
         if not self.tree.ItemHasChildren(item):
             command = self.tree.GetItemText(item)
-            dispatcher.send(signal='shell.run', command=command)
+            dp.send(signal='shell.run', command=command)
 
     def OnRightClick(self, event):
         menu = wx.Menu()
@@ -290,7 +294,7 @@ class HistoryPanel(wx.Panel):
                     self.tree.Delete(item)
         elif evtId == wx.ID_EXECUTE:
             for c in cmd:
-                dispatcher.send(signal='shell.run', command=c)
+                dp.send(signal='shell.run', command=c)
         elif evtId == wx.ID_DELETE:
             for item in items:
                 if self.tree.ItemHasChildren(item):
@@ -360,7 +364,7 @@ class DirPanel(wx.Panel):
             return
         (path, fileExtension) = os.path.splitext(filename)
         if fileExtension == '.py':
-            dispatcher.send(signal='bsm.editor.openfile', filename=filepath)
+            dp.send(signal='bsm.editor.openfile', filename=filepath)
         else:
             os.system("start "+ filepath)
 
@@ -392,21 +396,18 @@ class MiscTools(object):
             return
         # history panel
         cls.panelHistory = HistoryPanel(frame)
-        dispatcher.send(signal='frame.add_panel', panel=cls.panelHistory,
-                        title="History",
-                        showhidemenu='View:Panels:Command History')
+        dp.send(signal='frame.add_panel', panel=cls.panelHistory,
+                title="History", showhidemenu='View:Panels:Command History')
         # help panel
         cls.panelHelp = HelpPanel(frame)
-        dispatcher.send(signal='frame.add_panel', panel=cls.panelHelp,
-                        title="Help", target='History',
-                        showhidemenu='View:Panels:Command Help')
+        dp.send(signal='frame.add_panel', panel=cls.panelHelp, title="Help",
+                target='History', showhidemenu='View:Panels:Command Help')
         # directory panel
         cls.panelDir = DirPanel(frame)
-        dispatcher.send(signal='frame.add_panel', panel=cls.panelDir,
-                        title="Browsing", target="History",
-                        showhidemenu='View:Panels:Browsing')
+        dp.send(signal='frame.add_panel', panel=cls.panelDir, title="Browsing",
+                target="History", showhidemenu='View:Panels:Browsing')
 
-        dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
+        dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
 
     @classmethod
     def Uninitialize(cls):

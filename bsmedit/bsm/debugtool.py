@@ -1,7 +1,7 @@
 import sys
 import inspect
 import wx
-import wx.py.dispatcher as dispatcher
+import wx.py.dispatcher as dp
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.agw.aui as aui
 from bsmedit.bsm._debugtoolxpm import run_xpm, step_xpm, step_into_xpm, step_out_xpm,\
@@ -35,8 +35,8 @@ class StackPanel(wx.Panel):
         self.SetSizer(sizer)
         self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnItemActivated,
                   self.listctrl)
-        dispatcher.connect(self.OnDebugEnded, 'debugger.ended')
-        dispatcher.connect(self.OnDebugUpdateScopes, 'debugger.update_scopes')
+        dp.connect(self.OnDebugEnded, 'debugger.ended')
+        dp.connect(self.OnDebugUpdateScopes, 'debugger.update_scopes')
 
     def OnDebugEnded(self):
         """debugger is ended"""
@@ -46,7 +46,7 @@ class StackPanel(wx.Panel):
     def OnDebugUpdateScopes(self):
         """debugger changes the scope"""
         self.listctrl.DeleteAllItems()
-        resp = dispatcher.send(signal='debugger.get_status')
+        resp = dp.send(signal='debugger.get_status')
         if not resp or not resp[0][1]:
             return
         status = resp[0][1]
@@ -69,14 +69,15 @@ class StackPanel(wx.Panel):
         filename = self.listctrl.GetItem(currentItem, 2).GetText()
         lineno = self.listctrl.GetItem(currentItem, 1).GetText()
         # open the script first
-        dispatcher.send(signal='bsm.editor.openfile', filename=filename,
-                        lineno=int(lineno))
+        dp.send(signal='bsm.editor.openfile', filename=filename,
+                lineno=int(lineno))
         # ask the debugger to trigger the update scope event to set mark
-        dispatcher.send(signal='debugger.set_scope', level=currentItem)
+        dp.send(signal='debugger.set_scope', level=currentItem)
 
 class DebugTool(object):
     isInitialized = False
     frame = None
+    showStackPanel = True
     @classmethod
     def Initialize(cls, frame):
         if cls.isInitialized:
@@ -85,14 +86,12 @@ class DebugTool(object):
         cls.frame = frame
         # stack panel
         cls.panelStack = StackPanel(frame)
-        dispatcher.send(signal='frame.add_panel', panel=cls.panelStack,
-                        title="Call Stack",
-                        active=False,
-                        showhidemenu='View:Panels:Call Stack')
+        dp.send('frame.add_panel', panel=cls.panelStack, title="Call Stack",
+                active=False, showhidemenu='View:Panels:Call Stack')
 
         # debugger toolbar
-        dispatcher.send(signal='frame.add_menu', path='Tools:Debug',
-                        rxsignal='', kind='Popup')
+        dp.send('frame.add_menu', path='Tools:Debug', rxsignal='',
+                kind='Popup')
         cls.tbDebug = aui.AuiToolBar(frame, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
         items = (('Run\tF5', 'resume', run_xpm, 'paused'),
                  ('Stop\tShift-F5', 'stop', stop_xpm, 'paused'),
@@ -102,10 +101,9 @@ class DebugTool(object):
                 )
         cls.menus = {}
         for label, signal, xpm, status in items:
-            resp = dispatcher.send(signal='frame.add_menu',
-                                   path='Tools:Debug:'+label,
-                                   rxsignal='debugger.'+signal,
-                                   updatesignal='debugtool.updateui')
+            resp = dp.send('frame.add_menu', path='Tools:Debug:'+label,
+                           rxsignal='debugger.'+signal,
+                           updatesignal='debugtool.updateui')
             if not resp:
                 continue
             cls.menus[resp[0][1]] = status
@@ -113,16 +111,14 @@ class DebugTool(object):
                                       wx.BitmapFromXPMData(xpm), label)
         cls.tbDebug.Realize()
 
-        dispatcher.send(signal='frame.add_panel', panel=cls.tbDebug,
-                        title='Debugger', active=False,
-                        paneInfo=aui.AuiPaneInfo().Name('debugger')
-                        .Caption('Debugger').ToolbarPane().Top(),
-                        showhidemenu='View:Toolbars:Debugger')
-        dispatcher.connect(receiver=cls.OnUpdateMenuUI, signal='debugtool.updateui')
-        dispatcher.connect(cls.OnDebugPaused, 'debugger.paused')
-        dispatcher.connect(cls.OnDebugEnded, 'debugger.ended')
-
-        dispatcher.connect(receiver=cls.Uninitialize, signal='frame.exit')
+        dp.send('frame.add_panel', panel=cls.tbDebug, title='Debugger',
+                active=False, paneInfo=aui.AuiPaneInfo().Name('debugger')
+                .Caption('Debugger').ToolbarPane().Top(),
+                showhidemenu='View:Toolbars:Debugger')
+        dp.connect(cls.OnUpdateMenuUI, 'debugtool.updateui')
+        dp.connect(cls.OnDebugPaused, 'debugger.paused')
+        dp.connect(cls.OnDebugEnded, 'debugger.ended')
+        dp.connect(cls.Uninitialize, 'frame.exit')
     @classmethod
     def Uninitialize(cls):
         """destroy the module"""
@@ -130,7 +126,7 @@ class DebugTool(object):
     @classmethod
     def OnDebugPaused(cls):
         """update the debug toolbar status"""
-        resp = dispatcher.send(signal='debugger.get_status')
+        resp = dp.send('debugger.get_status')
         if not resp or not resp[0][1]:
             return
         status = resp[0][1]
@@ -139,10 +135,12 @@ class DebugTool(object):
             cls.tbDebug.EnableTool(k, paused and status.get(s, False))
         cls.tbDebug.Refresh(False)
         if paused and not cls.tbDebug.IsShown():
-            dispatcher.send(signal='frame.show_panel', panel=cls.tbDebug)
+            dp.send('frame.show_panel', panel=cls.tbDebug)
 
-        if paused and not cls.panelStack.IsShown():
-            dispatcher.send(signal='frame.show_panel', panel=cls.panelStack)
+        if cls.showStackPanel and paused and not cls.panelStack.IsShown():
+            dp.send('frame.show_panel', panel=cls.panelStack)
+            # allow the use to hide the Stack panel
+            cls.showStackPanel = False
     @classmethod
     def OnDebugEnded(cls):
         """debugger is ended"""
@@ -151,15 +149,16 @@ class DebugTool(object):
             cls.tbDebug.EnableTool(k, False)
         cls.tbDebug.Refresh(False)
 
-        dispatcher.send(signal='frame.show_panel', panel=cls.tbDebug,
-                        show=False)
-        dispatcher.send(signal='frame.show_panel', panel=cls.panelStack,
-                        show=False)
+        # hide the debugger toolbar and Stack panel
+        dp.send('frame.show_panel', panel=cls.tbDebug, show=False)
+        dp.send('frame.show_panel', panel=cls.panelStack, show=False)
+        # show the Stack panel next time
+        cls.showStackPanel = True
     @classmethod
     def OnUpdateMenuUI(cls, event):
         """update the debugger toolbar"""
         eid = event.GetId()
-        resp = dispatcher.send(signal='debugger.get_status')
+        resp = dp.send('debugger.get_status')
         enable = False
         if resp and resp[0][1]:
             status = resp[0][1]

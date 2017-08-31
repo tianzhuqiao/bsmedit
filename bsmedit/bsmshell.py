@@ -6,7 +6,7 @@ import subprocess as sp
 import keyword
 import wx
 from wx.py.shell import USE_MAGIC, Shell
-import wx.py.dispatcher as dispatcher
+import wx.py.dispatcher as dp
 from bsmedit.debugger import EngineDebugger
 
 aliasDict = {}
@@ -39,8 +39,8 @@ def magicSingle(command):
         c = command[5:].lstrip().split(' ')
         if len(c) < 2:
             # delete the alias if exists
-            if len(c)==1:
-                aliasDict.pop(c[0],None)
+            if len(c) == 1:
+                aliasDict.pop(c[0], None)
             command = ''
         else:
             n, v = c[0], ' '.join(c[1:])
@@ -112,7 +112,7 @@ def sx(cmd, *args, **kwds):
         if wait:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo,
                          stdout=sp.PIPE, stderr=sp.PIPE)
-            dispatcher.send(signal='shell.write_out', text=p.stdout.read())
+            dp.send('shell.write_out', text=p.stdout.read())
         else:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo)
         return
@@ -123,7 +123,7 @@ def sx(cmd, *args, **kwds):
         if wait:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True,
                          stdout=sp.PIPE, stderr=sp.PIPE)
-            dispatcher.send(signal='shell.write_out', text=p.stdout.read())
+            dp.send('shell.write_out', text=p.stdout.read())
         else:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True)
         return
@@ -161,22 +161,22 @@ class bsmShell(Shell):
         self.interp.locals['clear'] = self.clear
         self.interp.locals['on'] = True
         self.interp.locals['off'] = False
-        dispatcher.connect(receiver=self.writeOut, signal='shell.write_out')
-        dispatcher.connect(receiver=self.runCommand, signal='shell.run')
-        dispatcher.connect(receiver=self.debugPrompt, signal='shell.prompt')
-        dispatcher.connect(receiver=self.addHistory, signal='shell.addToHistory')
-        dispatcher.connect(receiver=self.LoadHistory, signal='frame.load_config')
-        dispatcher.connect(receiver=self.OnFrameExit, signal='frame.exit')
-        dispatcher.connect(receiver=self.IsDebuggerOn, signal='debugger.debugging')
-        dispatcher.connect(receiver=self.getAutoCompleteList, signal='shell.auto_complete_list')
-        dispatcher.connect(receiver=self.getAutoCompleteKeys, signal='shell.auto_complete_keys')
-        dispatcher.connect(receiver=self.getAutoCallTip, signal='shell.auto_call_tip')
+        dp.connect(self.writeOut, 'shell.write_out')
+        dp.connect(self.runCommand, 'shell.run')
+        dp.connect(self.debugPrompt, 'shell.prompt')
+        dp.connect(self.addHistory, 'shell.addToHistory')
+        dp.connect(self.LoadHistory, 'frame.load_config')
+        dp.connect(self.OnFrameExit, 'frame.exit')
+        dp.connect(self.IsDebuggerOn, 'debugger.debugging')
+        dp.connect(self.getAutoCompleteList, 'shell.auto_complete_list')
+        dp.connect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
+        dp.connect(self.getAutoCallTip, 'shell.auto_call_tip')
 
     def OnFrameExit(self):
         """the frame is exiting"""
         # stop the debugger if it is on
         if self.IsDebuggerOn():
-            dispatcher.send(signal='debugger.stop')
+            dp.send('debugger.stop')
 
     def evaluate(self, word):
         if word in self.interp.locals.keys():
@@ -186,7 +186,7 @@ class bsmShell(Shell):
             return self.interp.locals[word]
         except:
             try:
-                self.get('AutoCompleteIgnore').index(word)
+                getattr(self, 'AutoCompleteIgnore').index(word)
                 return None
             except:
                 try:
@@ -286,7 +286,7 @@ class bsmShell(Shell):
         # If it is a letter or digit and the cursor is in readonly section,
         # move the cursor to the end of file
         if not canEdit and (not shiftDown) and (not controlDown) and (not altDown)\
-            and (not rawControlDown) and key<256 and (chr(key).isalnum() or\
+            and (not rawControlDown) and key < 256 and (chr(key).isalnum() or\
                (key == wx.WXK_SPACE)):
             endpos = self.GetTextLength()
             self.GotoPos(endpos)
@@ -336,8 +336,8 @@ class bsmShell(Shell):
                 linenum = int((linenum[0])[5:])
             else:
                 linenum = 1
-            dispatcher.send(signal='bsm.editor.openfile', filename=path,
-                            activated=True, lineno=linenum)
+            dp.send('bsm.editor.openfile', filename=path, activated=True,
+                    lineno=linenum)
         event.Skip()
 
     def GoToHistory(self, up=True):
@@ -458,7 +458,7 @@ class bsmShell(Shell):
         finally:
             # make sure debugger.ended is always sent; more does not hurt
             if self.enable_debugger:
-                dispatcher.send('debugger.ended')
+                dp.send('debugger.ended')
                 self.debugger.reset()
                 self.enable_debugger = False
 
@@ -548,7 +548,7 @@ class bsmShell(Shell):
             self.CallTipCancel()
         (name, argspec, tip) = self.interp.getCallTip(command)
         if tip:
-            dispatcher.send(signal='Shell.calltip', sender=self, calltip=tip)
+            dp.send('Shell.calltip', sender=self, calltip=tip)
         if not self.autoCallTip and not forceCallTip:
             return
         startpos = self.GetCurrentPos()
