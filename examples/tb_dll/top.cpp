@@ -126,7 +126,7 @@ void top::Action()
     sig_ulong.write(sig_ulong.read() + 1);
     sig_longlong.write(sig_longlong.read() + 1);
     sig_ulonglong.write(sig_ulonglong.read() + 1);
-    char * str[] = { "hello","benben","merry xmas","happy new year","helen" };
+    const char * str[] = { "hello","benben","merry xmas","happy new year","helen" };
 
     sig_std_string.write(str[sig_uint.read() % 5]);
 
