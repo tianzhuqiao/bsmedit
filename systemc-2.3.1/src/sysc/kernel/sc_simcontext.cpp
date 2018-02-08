@@ -57,7 +57,7 @@
 #include "sysc/utils/sc_mempool.h"
 #include "sysc/utils/sc_list.h"
 #include "sysc/utils/sc_utils_ids.h"
-#include "bsm/sc_bsm_trace_buf.h"
+#include "sysc/bsm/sc_bsm_trace_buf.h"
 
 // DEBUGGING MACROS:
 //

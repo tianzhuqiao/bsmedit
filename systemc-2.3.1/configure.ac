@@ -121,7 +121,7 @@ case "$target" in
                 AC_MSG_ERROR("sorry...compiler not supported")
         fi
         ;;
-    sparc-sun-solaris*) 
+    sparc-sun-solaris*)
         QT_ARCH="sparc-os2"
         if test x$GXX = xyes ; then
                 TARGET_ARCH="gccsparcOS5"
@@ -560,22 +560,23 @@ dnl
 dnl Create the Makefiles.
 dnl
 AC_OUTPUT(
- Makefile 
- src/Makefile 
- src/sysc/Makefile 
+ Makefile
+ src/Makefile
+ src/sysc/Makefile
  src/sysc/systemc.pc
- src/sysc/communication/Makefile 
- src/sysc/datatypes/Makefile 
- src/sysc/kernel/Makefile 
- src/sysc/tracing/Makefile 
- src/sysc/qt/Makefile 
- src/sysc/utils/Makefile 
- src/sysc/packages/boost/Makefile 
+ src/sysc/communication/Makefile
+ src/sysc/datatypes/Makefile
+ src/sysc/kernel/Makefile
+ src/sysc/tracing/Makefile
+ src/sysc/qt/Makefile
+ src/sysc/utils/Makefile
+ src/sysc/packages/boost/Makefile
+ src/sysc/bsm/Makefile
  src/tlm_core/Makefile
  src/tlm_core/tlm.pc
  src/tlm_utils/Makefile
- examples/Makefile 
- examples/sysc/Makefile 
+ examples/Makefile
+ examples/sysc/Makefile
  examples/tlm/Makefile
  examples/tlm/common/Makefile
  docs/Makefile

@@ -3,8 +3,8 @@
 #include <stdio.h>
 
 #include "sysc/kernel/sc_object.h"
-#include "bsm/sc_bsm_trace.h"
-#include "bsm/sc_bsm_trace_buf.h"
+#include "sysc/bsm/sc_bsm_trace.h"
+#include "sysc/bsm/sc_bsm_trace_buf.h"
 #include "sysc/kernel/sc_module.h"
 #include "sysc/communication/sc_signal.h"
 #include "sysc/communication/sc_signal_ports.h"
@@ -901,7 +901,7 @@ bool bsm_sim_context_impl::trace(bsm_sim_trace_file*tf, bsm_sim_object*obj)
 bsm_sim_trace_buf* bsm_sim_context_impl::add_trace_buf(const char* name)
 {
     if(m_sim == NULL) return NULL;
-    // the caller is responsible to release the memory by calling 
+    // the caller is responsible to release the memory by calling
     // remove_trace_buf
     bsm_sim_trace_buf_impl* tf_impl = new bsm_sim_trace_buf_impl(name);
     m_sim->add_trace_buf(tf_impl->m_trace);

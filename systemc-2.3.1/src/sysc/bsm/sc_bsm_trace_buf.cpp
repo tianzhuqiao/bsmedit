@@ -12,7 +12,7 @@
 #include "sysc/datatypes/int/sc_int_base.h"
 #include "sysc/datatypes/int/sc_uint_base.h"
 #include "sysc/datatypes/fx/fx.h"
-#include "bsm/sc_bsm_trace_buf.h"
+#include "sysc/bsm/sc_bsm_trace_buf.h"
 #include "sysc/utils/sc_string.h"
 #include "sysc/communication/sc_interface.h"
 #include "sysc/communication/sc_port.h"
@@ -21,7 +21,7 @@
 #include "sysc/datatypes/bit/sc_logic.h"
 #include "sysc/datatypes/bit/sc_bit.h"
 #include "sysc/tracing/sc_trace_file_base.h"
-#include "bsm/bsm_buffer_intf.h"
+#include "sysc/bsm/bsm_buffer_intf.h"
 namespace sc_core {
 
     static bool running_regression = false;
@@ -1346,7 +1346,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
             return;
         }
 
-        // Now do the actual printing 
+        // Now do the actual printing
         bool time_printed = true;
         buf_trace* const* const l_traces = traces.raw_data();
         for(int i = 0; i < (int)traces.size(); i++) {
@@ -1411,7 +1411,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
     //
     //    switch(in_char){
     //        case 'U':
-    //        case 'X': 
+    //        case 'X':
     //        case 'W':
     //        case 'D':
     //            out_char = 'x';
@@ -1421,10 +1421,10 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
     //            out_char = '0';
     //            break;
     //        case  '1':
-    //        case  'H': 
+    //        case  'H':
     //            out_char = '1';
     //            break;
-    //        case  'Z': 
+    //        case  'Z':
     //            out_char = 'z';
     //            break;
     //        default:
@@ -1478,7 +1478,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
         if(v != old_value) {
             if((bsm_trigger_type == BSM_TRIGGER_VAL_BOTH) ||
                 (bsm_trigger_type == BSM_TRIGGER_VAL_POS && v > old_value) ||
-                (bsm_trigger_type == BSM_TRIGGER_VAL_NEG && v < old_value)) 
+                (bsm_trigger_type == BSM_TRIGGER_VAL_NEG && v < old_value))
             {
                 return true;
             } else {
@@ -1627,7 +1627,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
             }
             //  else if(BSM_CHECK_TYPE(std::string))
             //  {//std::string
-            //      sc_signal<std::string > *dyObj = 
+            //      sc_signal<std::string > *dyObj =
             //          dynamic_cast< sc_signal<std::string >* >(scObj);
             //      ASSERT(dyObj);
             //      sc_trace_buf(tf,*dyObj);
@@ -1701,7 +1701,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
             }
             //  else if(BSM_CHECK_TYPE(std::string))
             //  {//std::string
-            //      sc_signal<std::string > *dyObj = 
+            //      sc_signal<std::string > *dyObj =
             //          dynamic_cast< sc_signal<std::string >* >(scObj);
             //      ASSERT(dyObj);
             //      sc_trace_buf(tf,*dyObj);
@@ -1774,7 +1774,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
             }
             //  else if(BSM_CHECK_TYPE(std::string))
             //  {//std::string
-            //      sc_signal<std::string > *dyObj = 
+            //      sc_signal<std::string > *dyObj =
             //          dynamic_cast< sc_signal<std::string >* >(scObj);
             //      ASSERT(dyObj);
             //      sc_trace_buf(tf,*dyObj);

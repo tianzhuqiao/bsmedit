@@ -210,8 +210,8 @@ private:
 public:
     //wait for the child class to override this function
     virtual const std::string bsm_string()const{ return std::string("");};
-    virtual bool bsm_to_string(char *buf, int&nLen)const{return false;};
-    virtual bool bsm_from_string(const char *buf){return false;};
+    virtual bool bsm_to_string(char* /*buf*/, int& /*nLen*/)const{return false;};
+    virtual bool bsm_from_string(const char* /*buf*/){return false;};
 };
 
 
@@ -689,7 +689,7 @@ public: \
     m_change_event_p(0),\
     m_cur_val(TYPE()),\
     m_change_stamp(~sc_dt::UINT64_ONE),\
-    m_new_val(TYPE()),\
+    m_new_val(TYPE())\
 	{}\
     explicit sc_signal( const char* name_ )\
 	: sc_prim_channel( name_ ),\
@@ -822,7 +822,7 @@ SC_SIGNAL_IMPLEMENT("sc_bigint", sc_dt::sc_bigint<W>, int W);
 SC_SIGNAL_IMPLEMENT("sc_biguint", sc_dt::sc_biguint<W>, int W);
 
 #ifdef SC_INCLUDE_FX
-#define COMMA , 
+#define COMMA ,
 SC_SIGNAL_IMPLEMENT("sc_fixed", sc_dt::sc_fixed<W COMMA I COMMA Q COMMA O COMMA N>, int W, int I, sc_dt::sc_q_mode Q, sc_dt::sc_o_mode O, int N);
 SC_SIGNAL_IMPLEMENT("sc_fixed_fast", sc_dt::sc_fixed_fast<W COMMA I COMMA Q COMMA O COMMA N>, int W, int I, sc_dt::sc_q_mode Q, sc_dt::sc_o_mode O, int N);
 SC_SIGNAL_IMPLEMENT("sc_ufixed", sc_dt::sc_ufixed<W COMMA I COMMA Q COMMA O COMMA N>, int W, int I, sc_dt::sc_q_mode Q, sc_dt::sc_o_mode O, int N);

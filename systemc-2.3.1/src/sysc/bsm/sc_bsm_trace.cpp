@@ -12,7 +12,7 @@
 #include "sysc/datatypes/int/sc_int_base.h"
 #include "sysc/datatypes/int/sc_uint_base.h"
 #include "sysc/datatypes/fx/fx.h"
-#include "bsm/sc_bsm_trace.h"
+#include "sysc/bsm/sc_bsm_trace.h"
 #include "sysc/utils/sc_string.h"
 #include "sysc/communication/sc_interface.h"
 #include "sysc/communication/sc_port.h"
@@ -200,7 +200,7 @@ namespace sc_core {
         //    bzzzzz1     -> bz1
         //    bxxxz10     -> xz10
         // - For leading 0's followed by 1, remove all leading 0's
-        //    b0000010101 -> b10101  
+        //    b0000010101 -> b10101
 
         const char* position = originalbuf;
 
@@ -2236,7 +2236,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
             return;
         }
 
-        // Now do the actual printing 
+        // Now do the actual printing
         bool time_printed = false;
         bsm_trace* const* const l_traces = traces.raw_data();
         for(int i = 0; i < (int)traces.size(); i++) {
@@ -2681,7 +2681,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
                         }
                         //  else if(BSM_CHECK_TYPE(std::string))
                         //  {//std::string
-                        //      sc_signal<std::string > *dyObj = 
+                        //      sc_signal<std::string > *dyObj =
                         //          dynamic_cast< sc_signal<std::string >* >(scObj);
                         //      ASSERT(dyObj);
                         //      sc_trace(tf,*dyObj,dyObj->name());
@@ -2809,7 +2809,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
             }
             //  else if(BSM_CHECK_TYPE(std::string))
             //  {//std::string
-            //      sc_signal<std::string > *dyObj = 
+            //      sc_signal<std::string > *dyObj =
             //          dynamic_cast< sc_signal<std::string >* >(scObj);
             //      ASSERT(dyObj);
             //      sc_trace(tf,*dyObj,dyObj->name());
@@ -2937,7 +2937,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
             }
             //  else if(BSM_CHECK_TYPE(std::string))
             //  {//std::string
-            //      sc_signal<std::string > *dyObj = 
+            //      sc_signal<std::string > *dyObj =
             //          dynamic_cast< sc_signal<std::string >* >(scObj);
             //      ASSERT(dyObj);
             //      sc_trace(tf,*dyObj,dyObj->name());

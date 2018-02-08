@@ -80,8 +80,8 @@ public:
     //wait for the child class to override this function
     virtual const char* bsm_type() const { return "Generic"; }
     virtual const std::string bsm_string()const{ return std::string("");};
-    virtual bool bsm_to_string(char *buf, int&nLen)const {return false;};
-    virtual bool bsm_from_string(const char *buf){return false;};
+    virtual bool bsm_to_string(char* /*buf*/, int& /*nLen*/)const {return false;};
+    virtual bool bsm_from_string(const char* /*buf*/){return false;};
 };
 
 } // namespace sc_core

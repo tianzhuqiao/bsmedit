@@ -44,9 +44,10 @@ SUBDIRS = \
 	tracing \
 	utils \
 	packages/boost \
-	datatypes
+	datatypes\
+	bsm
 
-H_FILES = 
+H_FILES =
 
 CXX_FILES =
 
@@ -70,8 +71,9 @@ libsystemc_la_LIBADD = \
        $(QT_LIB) \
        communication/libcommunication.la \
        tracing/libtracing.la \
-       utils/libutils.la \
-       datatypes/libdatatypes.la
+       utils/libutils.la\
+	   datatypes/libdatatypes.la\
+	   bsm/libbsm.la
 
 # either for async_update locking or pthread processes
 if USES_PTHREADS_LIB

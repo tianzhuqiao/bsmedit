@@ -166,9 +166,9 @@
     </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\src\bsm\bsm_sim_context_impl.cpp" />
-    <ClCompile Include="..\..\src\bsm\sc_bsm_trace.cpp" />
-    <ClCompile Include="..\..\src\bsm\sc_bsm_trace_buf.cpp" />
+    <ClCompile Include="..\..\src\sysc\bsm\bsm_sim_context_impl.cpp" />
+    <ClCompile Include="..\..\src\sysc\bsm\sc_bsm_trace.cpp" />
+    <ClCompile Include="..\..\src\sysc\bsm\sc_bsm_trace_buf.cpp" />
     <ClCompile Include="..\..\src\sysc\kernel\sc_attribute.cpp" />
     <ClCompile Include="..\..\src\sysc\datatypes\bit\sc_bit.cpp" />
     <ClCompile Include="..\..\src\sysc\datatypes\bit\sc_bv_base.cpp" />
@@ -252,14 +252,14 @@
     <ClCompile Include="..\..\src\sysc\datatypes\fx\scfx_utils.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\src\bsm\bsm_buffer_intf.h" />
-    <ClInclude Include="..\..\src\bsm\bsm_object.h" />
-    <ClInclude Include="..\..\src\bsm\bsm_sim_context.h" />
-    <ClInclude Include="..\..\src\bsm\bsm_sim_context_impl.h" />
-    <ClInclude Include="..\..\src\bsm\bsm_sysc.h" />
-    <ClInclude Include="..\..\src\bsm\reg_type.h" />
-    <ClInclude Include="..\..\src\bsm\sc_bsm_trace.h" />
-    <ClInclude Include="..\..\src\bsm\sc_bsm_trace_buf.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_buffer_intf.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_object.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_sim_context.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_sim_context_impl.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_sysc.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\reg_type.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\sc_bsm_trace.h" />
+    <ClInclude Include="..\..\src\sysc\bsm\sc_bsm_trace_buf.h" />
     <ClInclude Include="..\..\src\sysc\packages\boost\bind.hpp" />
     <ClInclude Include="..\..\src\sysc\packages\boost\config.hpp" />
     <ClInclude Include="..\..\src\sysc\datatypes\fx\fx.h" />

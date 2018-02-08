@@ -261,13 +261,13 @@
     <ClCompile Include="..\..\src\sysc\datatypes\fx\scfx_utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\bsm\bsm_sim_context_impl.cpp">
+    <ClCompile Include="..\..\src\sysc\bsm\bsm_sim_context_impl.cpp">
       <Filter>bsm_interface</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\bsm\sc_bsm_trace.cpp">
+    <ClCompile Include="..\..\src\sysc\bsm\sc_bsm_trace.cpp">
       <Filter>bsm_interface</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\src\bsm\sc_bsm_trace_buf.cpp">
+    <ClCompile Include="..\..\src\sysc\bsm\sc_bsm_trace_buf.cpp">
       <Filter>bsm_interface</Filter>
     </ClCompile>
   </ItemGroup>
@@ -689,28 +689,28 @@
     <ClInclude Include="..\..\src\systemc.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\bsm_buffer_intf.h">
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_buffer_intf.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\bsm_object.h">
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_object.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\bsm_sim_context.h">
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_sim_context.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\bsm_sim_context_impl.h">
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_sim_context_impl.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\bsm_sysc.h">
+    <ClInclude Include="..\..\src\sysc\bsm\bsm_sysc.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\reg_type.h">
+    <ClInclude Include="..\..\src\sysc\bsm\reg_type.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\sc_bsm_trace.h">
+    <ClInclude Include="..\..\src\sysc\bsm\sc_bsm_trace.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\bsm\sc_bsm_trace_buf.h">
+    <ClInclude Include="..\..\src\sysc\bsm\sc_bsm_trace_buf.h">
       <Filter>bsm_interface</Filter>
     </ClInclude>
   </ItemGroup>
