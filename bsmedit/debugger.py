@@ -4,13 +4,14 @@ The code is based on PythonTookit (http://pythontoolkit.sourceforge.net/)
 import time
 import inspect #for debugger frame inpsection
 import sys #for set_trace etc
-import thread #for keyboard interrupt
+import six.moves._thread as thread #for keyboard interrupt
 import os.path #for absolute filename conversions
 import ctypes #for pythonapi calls
 from codeop import _maybe_compile, Compile
 import traceback #for formatting errors
 import wx
 import wx.py.dispatcher as dp
+from . import c2p
 
 help_msg = """
 \"\"\"
@@ -34,7 +35,7 @@ help_msg = """
     - interrupt the execution
 \"\"\"
 """
-class PseudoEvent():
+class PseudoEvent(object):
     """
     An object with the same interface as a threading.Event for the internal
     engine. This prevents the readline/readlines and debugger from blocking
@@ -58,10 +59,13 @@ class PseudoEvent():
             wx.YieldIfNeeded()
             # send the EVT_UPDATE_UI events so the UI status has a chance to
             # update (e.g., menubar, toolbar)
-            wx.GetApp().ProcessIdle()
+            if c2p.bsm_is_phoenix:
+                wx.EventLoop.GetActive().ProcessIdle()
+            else:
+                wx.GetApp().ProcessIdle()
             time.sleep(0.05)
 
-class EngineDebugger():
+class EngineDebugger(object):
     bpnum = 0
     def __init__(self):
         self.compiler = EngineCompiler()
@@ -261,11 +265,11 @@ class EngineDebugger():
         where id should be a unique identifier for this breakpoint
         """
         #check if the id to use already exists.
-        if len(self.bpoints.filter(('id',), (id,))) != 0:
+        if self.bpoints.filter(('id',), (id,)):
             return False
 
         #check bpdata
-        keys = bpdata.keys()
+        keys = list(bpdata.keys())
         if 'id' not in keys:
             bpdata['id'] = EngineDebugger.bpnum
             EngineDebugger.bpnum += 1
@@ -308,7 +312,7 @@ class EngineDebugger():
 
         #check if the id to clear exists.
         bps = self.bpoints.filter(('id',), (id,))
-        if len(bps) == 0:
+        if not bps:
             return False
 
         #remove the breakpoint
@@ -329,11 +333,11 @@ class EngineDebugger():
         """
         #check if the id to clear exists.
         bps = self.bpoints.filter(('id',), (id,))
-        if len(bps) == 0:
+        if not bps:
             return False
 
         bpdata = bps[0]
-        if kwargs.has_key('filename'):
+        if 'filename' in kwargs:
             kwargs['filename'] = self._abs_filename(kwargs['filename'])
         bpdata.update(kwargs)
         return True
@@ -349,7 +353,7 @@ class EngineDebugger():
         """
         #Note see http://utcc.utoronto.ca/~cks/space/blog/python/FLocalsAndTraceFunctions for possible problem!
         #Confirmed this issue - making a change to an existing variable will not
-        #'stick' if the locals/globals are retreived again before the next line
+        #'stick' if the locals/globals are retrieved again before the next line
         #is executed.
 
         #To get round this either:
@@ -367,9 +371,7 @@ class EngineDebugger():
         #get the scope name
         name = self._scopes[level]
         frame = self._frames[level]
-        globals = frame.f_globals
-        locals = frame.f_locals
-        return name, frame, globals, locals
+        return name, frame, frame.f_globals, frame.f_locals
 
     def set_scope(self, level):
         """
@@ -450,11 +452,11 @@ class EngineDebugger():
         Returns None on errors
         """
         #get the scope locals/globals
-        name, frame, globals, locals = self.get_scope(level)
+        _, frame, g, l = self.get_scope(level)
 
         #try to evaluate the expression
         try:
-            result = eval(expression, globals, locals)
+            result = eval(expression, g, l)
         except:
             result = None
 
@@ -475,11 +477,11 @@ class EngineDebugger():
         scope (the usernamespace).
         """
         #get the scope locals/globals
-        name, frame, globals, locals = self.get_scope(level)
+        _, frame, g, l = self.get_scope(level)
 
         #execute the expression
         try:
-            exec(expression, globals, locals)
+            exec(expression, g, l)
         except:
             pass
 
@@ -647,10 +649,6 @@ class EngineDebugger():
         """
         A function called from within the local trace function to handle a pauses at this event
         """
-        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-        name = frame.f_code.co_name
-        lineno = frame.f_lineno
-
         #update the scope list
         self._update_scopes(frame)
         #if self._paused_active_scope != self._active_scope:
@@ -726,7 +724,6 @@ class EngineDebugger():
         Decide whether to break at the bpdata given.
         The frame is used to evaluate any conditons.
         """
-        bpid = bpdata['id']
         trigger = False
         #check if there is an expression to evaluate
         condition = bpdata['condition']
@@ -764,7 +761,6 @@ class EngineDebugger():
         _hit_bp (this method) will check, update counters and pause if necessary
         _check_bp will only check - not pause or update counters.
         """
-        bpid = bpdata['id']
         trigger = False
         #checkif there is an expression to evaluate
         condition = bpdata['condition']
@@ -998,9 +994,9 @@ class EngineDebugger():
             return
 
         ##run the code in the active scope
-        name, frame, globals, locals = self.get_scope(self._active_scope)
+        _, frame, g, l = self.get_scope(self._active_scope)
         try:
-            exec code in globals, locals
+            exec(code, g, l)
         except SystemExit:
             self.write_debug('Blocking system exit')
         except KeyboardInterrupt:
@@ -1026,7 +1022,7 @@ class EngineDebugger():
         """
         Write a debugger message to the controlling console
         """
-        print string
+        print(string)
 
     def prompt(self, ismore=False, iserr=False):
         dp.send('shell.prompt', ismore=ismore, iserr=iserr)
@@ -1040,8 +1036,8 @@ Various engine utility functions/classes
 # then be filtered by key.
 # Used to store breakpoints in both the engine debugger (engine process) and
 # engine manager(gui process) where breakpoints are stored as dictionaries
-class DictList():
-    def __init__(self, dicts=(), default={}):
+class DictList(object):
+    def __init__(self, dicts=None, default=None):
         """
         Create a list like container object for dictionaries with the ability to
         look up dicts by key value or by index.
@@ -1070,6 +1066,10 @@ class DictList():
         >>> dlist.new()
         {'Age': 0, 'Name': ''}
         """
+        if dicts is None:
+            dicts = []
+        if default is None:
+            default = {}
         self._dicts = []
         for d in dicts:
             self._dicts.append(d)
@@ -1099,7 +1099,7 @@ class DictList():
         #get the key values
         dicts = []
         for d in self._dicts:
-            if d.has_key(key):
+            if key in d:
                 dicts.append(d[key])
         return dicts
 
@@ -1113,7 +1113,7 @@ class DictList():
         for key, value in zip(keys, values):
             self._fkey = key
             self._fvalue = value
-            dicts = filter(self._filter, dicts)
+            dicts = list(filter(self._filter, dicts))
             self._fkey = None
             self._fvalue = None
         return dicts
@@ -1163,10 +1163,9 @@ class DictList():
         #d is the dictionary to check for a match
         #self._fkey, self._fvalue are stored before calling this function and
         #are the key:value to match
-        if d.has_key(self._fkey):
+        if self._fkey in d:
             return d[self._fkey] == self._fvalue
-        else:
-            return False
+        return False
 
     def __len__(self):
         return len(self._dicts)
@@ -1210,11 +1209,11 @@ class EngineCompiler(Compile):
         dp.connect(self.future_flag, 'debugger.futureflag')
 
     # Interface methods
-    def set_compiler_flag(self, flag, set=True):
+    def set_compiler_flag(self, flag, is_set=True):
         """
         Set or unset a __future__ compiler flag
         """
-        if set is True:
+        if is_set:
             self.flags |= flag
         else:
             self.flags &= ~flag
@@ -1310,8 +1309,8 @@ class EngineCompiler(Compile):
             else:
                 value = errtype(msg, (dummy_filename, lineno, offset, line))
             sys.last_value = value
-        list = traceback.format_exception_only(errtype, value)
-        map(sys.stderr.write, list)
+        err = traceback.format_exception_only(errtype, value)
+        map(sys.stderr.write, err)
 
     def show_traceback(self):
         """
@@ -1342,5 +1341,5 @@ class EngineCompiler(Compile):
     # Message handlers
     def future_flag(self, msg):
         """enable or disable a __future__ feature using flags"""
-        flag, set = msg.get_data()
-        self.set_compiler_flag(flag, set)
+        flag, is_set = msg.get_data()
+        self.set_compiler_flag(flag, is_set)
