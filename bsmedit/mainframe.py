@@ -6,12 +6,13 @@ import imp
 import importlib
 import wx
 import wx.lib.agw.aui as aui
+import wx.py
 import wx.py.dispatcher as dp
-from bsmedit.frameplus import framePlus
-from bsmedit.bsmshell import bsmShell
-from bsmedit.mainframexpm import about_xpm, bsmedit_xpm, header_xpm
-from bsmedit.version import *
-
+from .frameplus import framePlus
+from .bsmshell import bsmShell
+from .mainframexpm import about_xpm, bsmedit_xpm, header_xpm
+from .version import *
+from . import c2p
 # Define File Drop Target class
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):
@@ -36,8 +37,8 @@ class bsmMainFrame(framePlus):
                               | aui.AUI_MGR_USE_NATIVE_MINIFRAMES
                               | aui.AUI_MGR_LIVE_RESIZE)
         # set mainframe icon
-        icon = wx.EmptyIcon()
-        icon.CopyFromBitmap(wx.BitmapFromXPMData(bsmedit_xpm))
+        icon = c2p.EmptyIcon()
+        icon.CopyFromBitmap(c2p.BitmapFromXPM(bsmedit_xpm))
         self.SetIcon(icon)
         # status bar
         self.statusbar = wx.StatusBar(self)
@@ -60,8 +61,9 @@ class bsmMainFrame(framePlus):
         ns['wx'] = wx
         ns['app'] = wx.GetApp()
         ns['frame'] = self
-        intro = 'Welcome To bsmedit 3'
+        intro = 'Welcome To bsmedit ' + BSM_VERSION
         self.panelShell = bsmShell(self, 1, introText=intro, locals=ns)
+        #self.panelShell = wx.py.shell.Shell(self, 1, introText=intro)
         self._mgr.AddPane(self.panelShell,
                           aui.AuiPaneInfo().Name('shell').Caption('Console')
                           .CenterPane().CloseButton(False).Layer(1)
@@ -107,7 +109,6 @@ class bsmMainFrame(framePlus):
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnPaneClose)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_VM_RENAME)
-
     def InitMenu(self):
         """initialize the menubar"""
         menubar = wx.MenuBar(0)
@@ -127,7 +128,7 @@ class bsmMainFrame(framePlus):
 
         menuQuit = wx.MenuItem(menuFile, wx.ID_CLOSE, u"&Quit",
                                wx.EmptyString, wx.ITEM_NORMAL)
-        menuFile.AppendItem(menuQuit)
+        c2p.menuAppend(menuFile, menuQuit)
 
         menubar.Append(menuFile, u"&File")
 
@@ -149,18 +150,18 @@ class bsmMainFrame(framePlus):
         menuHelp = wx.Menu()
         menuHome = wx.MenuItem(menuHelp, wx.ID_ANY, u"&Home", wx.EmptyString,
                                wx.ITEM_NORMAL)
-        menuHelp.AppendItem(menuHome)
+        c2p.menuAppend(menuHelp, menuHome)
 
         menuContact = wx.MenuItem(menuHelp, wx.ID_ANY, u"&Contact",
                                   wx.EmptyString, wx.ITEM_NORMAL)
-        menuHelp.AppendItem(menuContact)
+        c2p.menuAppend(menuHelp, menuContact)
 
         menuHelp.AppendSeparator()
 
         menuAbout = wx.MenuItem(menuHelp, wx.ID_ABOUT, u"&About",
                                 wx.EmptyString, wx.ITEM_NORMAL)
-        menuAbout.SetBitmap(wx.BitmapFromXPMData(about_xpm))
-        menuHelp.AppendItem(menuAbout)
+        menuAbout.SetBitmap(c2p.BitmapFromXPM(about_xpm))
+        c2p.menuAppend(menuHelp, menuAbout)
 
         menubar.Append(menuHelp, u"&Help")
 
@@ -187,11 +188,11 @@ class bsmMainFrame(framePlus):
             force = self.closing
             if hasattr(pane, 'bsm_destroyonclose'):
                 force = pane.bsm_destroyonclose
-            resp = dp.send('frame.closing_pane', pane=pane, force=force)
-            if resp:
-                status = resp[0][1]
-                if isinstance(status, dict):
-                    return status.get('veto', False)
+            #resp = dp.send('frame.closing_pane', pane=pane, force=force)
+            #if resp:
+            #    status = resp[0][1]
+            #    if isinstance(status, dict):
+            #        return status.get('veto', False)
             return not force
         # close the notebook
         if evt.pane.IsNotebookControl():
@@ -254,12 +255,13 @@ class bsmMainFrame(framePlus):
         self.activeTabCtrl = None
         self.activeTabCtrlIndex = -1
 
-    def OnClose(self, evt):
+    def OnClose(self, event):
         """close the main program"""
         self.closing = True
         dp.send('frame.save_config', config=self.config)
+        self.config.Flush()
         dp.send('frame.exit')
-        super(bsmMainFrame, self).OnClose(evt)
+        super(bsmMainFrame, self).OnClose(event)
 
     def ShowStatusText(self, text, index=0, width=-1):
         """set the status text"""
@@ -350,23 +352,23 @@ class bsmAboutDialog(wx.Dialog):
         szVersion = wx.BoxSizer(wx.VERTICAL)
 
         self.header = wx.StaticBitmap(self.panel)
-        self.header.SetBitmap(wx.BitmapFromXPMData(header_xpm))
+        self.header.SetBitmap(c2p.BitmapFromXPM(header_xpm))
         szVersion.Add(self.header, 0, wx.ALL|wx.EXPAND, 0)
-        caption = 'BSMEdit %s.%s'%(BSM_VERSION_MAJOR, BSM_VERSION_MIDDLE)
+        caption = 'BSMEdit %s'%BSM_VERSION
         self.stCaption = wx.StaticText(self.panel, wx.ID_ANY, caption)
         self.stCaption.Wrap(-1)
-        self.stCaption.SetFont(wx.Font(28, 74, 90, 92, False, "Arial"))
-        self.stCaption.SetForegroundColour(wx.Colour(255, 128, 64))
+        self.stCaption.SetFont(wx.Font(16, 74, 90, 92, False, "Arial"))
+        #self.stCaption.SetForegroundColour(wx.Colour(255, 128, 64))
 
         szVersion.Add(self.stCaption, 0, wx.ALL, 5)
 
-        version = ' Build %s' % (BSM_VERSION_MINOR)
-        self.stVerion = wx.StaticText(self.panel, wx.ID_ANY, version)
-        self.stVerion.Wrap(-1)
-        self.stVerion.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
-        self.stVerion.SetForegroundColour(wx.Colour(120, 120, 120))
+        #version = ' Build %s' % (BSM_VERSION_MINOR)
+        #self.stVerion = wx.StaticText(self.panel, wx.ID_ANY, version)
+        #self.stVerion.Wrap(-1)
+        #self.stVerion.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
+        #self.stVerion.SetForegroundColour(wx.Colour(120, 120, 120))
 
-        szVersion.Add(self.stVerion, 0, wx.ALL, 5)
+        #szVersion.Add(self.stVerion, 0, wx.ALL, 5)
 
         strCopyright = '(c) 2017 %s'%('Tianzhu Qiao. All rights reserved.')
 
@@ -403,4 +405,3 @@ class bsmAboutDialog(wx.Dialog):
         self.SetSizer(szAll)
         self.Layout()
         szAll.Fit(self)
-

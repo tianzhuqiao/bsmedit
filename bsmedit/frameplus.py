@@ -1,9 +1,12 @@
+import six
 import wx
 import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
 from wx.lib.agw.aui import AuiPaneButton, AuiPaneInfo
 from wx.lib.agw.aui.aui_constants import AUI_BUTTON_MINIMIZE,\
                                  AUI_BUTTON_MAXIMIZE_RESTORE, AUI_BUTTON_CLOSE
+from . import c2p
+
 class AuiFloatingFramePlus(aui.AuiFloatingFrame):
     def __init__(self, parent, owner_mgr, pane=None, id=wx.ID_ANY, title='',
                  style=wx.FRAME_TOOL_WINDOW | wx.FRAME_NO_TASKBAR |
@@ -167,7 +170,7 @@ class AuiManagerPlus(aui.AuiManager):
         extra_notebook = len(self._notebooks)
         max_notebook += 1
 
-        for i in xrange(extra_notebook, max_notebook):
+        for i in six.moves.range(extra_notebook, max_notebook):
             self.CreateNotebook()
 
         # Remove pages from notebooks that no-longer belong there ...
@@ -176,7 +179,7 @@ class AuiManagerPlus(aui.AuiManager):
             pageCounter, allPages = 0, pages
 
             # Check each tab ...
-            for page in xrange(pages):
+            for page in six.moves.range(pages):
 
                 if page >= allPages:
                     break
@@ -272,7 +275,7 @@ class AuiManagerPlus(aui.AuiManager):
                 pages_and_panes = []
                 dock_pos = -1
                 needUpdate = False
-                for idx in reversed(range(pages)):
+                for idx in reversed(six.moves.range(pages)):
                     page = notebook.GetPage(idx)
                     pane = self.GetPane(page)
                     pages_and_panes.append((page, pane))
@@ -288,7 +291,7 @@ class AuiManagerPlus(aui.AuiManager):
 
                 if needUpdate:
                     sorted_pnp = sorted(pages_and_panes, key=lambda tup: tup[1].dock_pos)
-                    for idx in reversed(range(pages)):
+                    for idx in reversed(six.moves.range(pages)):
                         notebook.RemovePage(idx)
                     # Grab the attributes from the panes which are ordered
                     # correctly, and copy those attributes to the original
@@ -328,7 +331,7 @@ class AuiManagerPlus(aui.AuiManager):
             want_close = True
 
             pages = notebook.GetPageCount()
-            for page in xrange(pages):
+            for page in six.moves.range(pages):
 
                 win = notebook.GetPage(page)
                 pane = self.GetPane(win)
@@ -413,7 +416,7 @@ class framePlus(wx.Frame):
         if menuitem is None:
             return None
         for p in pathlist[1:]:
-            for m in range(menuitem.GetMenuItemCount()):
+            for m in six.moves.range(menuitem.GetMenuItemCount()):
                 stritem = menuitem.FindItemByPosition(m).GetItemLabelText()
                 stritem = stritem.split('\t')[0]
                 if stritem == p:
@@ -449,7 +452,10 @@ class framePlus(wx.Frame):
                 newitem = wx.MenuItem(menuitem, newid, pathlist[-1],
                                       pathlist[-1], kind=wx.ITEM_RADIO)
             self.menuaddon[newid] = (rxsignal, updatesignal)
-            menuitem.AppendItem(newitem)
+            if c2p.bsm_is_phoenix:
+                menuitem.Append(newitem)
+            else:
+                menuitem.AppendItem(newitem)
             self.Bind(wx.EVT_MENU, self.OnMenuAddOn, id=newid)
             if updatesignal:
                 self.Bind(wx.EVT_UPDATE_UI, self.OnMenuCmdUI, id=newid)
@@ -463,18 +469,18 @@ class framePlus(wx.Frame):
         if menuitem is None:
             return wx.NOT_FOUND
         if id is None:
-            for m in range(menuitem.GetMenuItemCount()):
+            for m in six.moves.range(menuitem.GetMenuItemCount()):
                 item = menuitem.FindItemByPosition(m)
                 stritem = item.GetItemLabelText()
                 stritem = stritem.split('\t')[0]
                 if stritem == pathlist[-1] and item.IsSubMenu():
-                    menuitem.DeleteItem(item)
+                    menuitem.DestroyItem(item)
                     return True
         else:
             item = menuitem.FindItemById(id)
             if item is None:
                 return wx.NOT_FOUND
-            menuitem.DeleteItem(item)
+            menuitem.DestroyItem(item)
             self.Unbind(wx.EVT_MENU, id=id)
             del self.menuaddon[id]
 
@@ -510,7 +516,7 @@ class framePlus(wx.Frame):
                 if isinstance(pane.window, type(panel)):
                     target = pane.window
                     break
-        elif isinstance(target, str):
+        elif isinstance(target, six.string_types):
             # find the target panel with caption
             for pane in self._mgr.GetAllPanes():
                 if pane.caption == target:
@@ -561,10 +567,10 @@ class framePlus(wx.Frame):
     def closePanel(self, panel):
         """hide and destroy the panel"""
         # delete the show hide menu
-        for (id, pane) in self.paneaddon.items():
+        for (pid, pane) in six.iteritems(self.paneaddon):
             if panel == pane['panel']:
-                self.delMenu(pane['path'], id)
-                del self.paneaddon[id]
+                self.delMenu(pane['path'], pid)
+                del self.paneaddon[pid]
                 break
 
         # delete the pane from the manager
