@@ -4,10 +4,19 @@ import re
 import traceback
 import subprocess as sp
 import keyword
+import pydoc
+import six
 import wx
 from wx.py.shell import USE_MAGIC, Shell
 import wx.py.dispatcher as dp
-from bsmedit.debugger import EngineDebugger
+from wx.py.pseudo import PseudoFile
+from .debugger import EngineDebugger
+
+# in linux, the multiprocessing/process.py/_bootstrap will call
+# sys.stdin.close(), which is missing in wx.py.pseudo.PseudoFile
+def PseudoFile_close(self):
+    pass
+PseudoFile.close = PseudoFile_close
 
 aliasDict = {}
 def magicSingle(command):
@@ -28,6 +37,8 @@ def magicSingle(command):
     elif command[:3] in ('ls ', 'cd '):
         # when using the 'ls ' or 'cd ' constructs, fill in both parentheses and quotes
         command = command[:2]+'("'+command[3:]+'")'
+    elif command[:5] in ('help '):
+        command = command[:4]+'("'+command[5:]+'")'
     elif command[:6] == 'close ':
         arg = command[6:]
         if arg.strip() == 'all':
@@ -46,7 +57,7 @@ def magicSingle(command):
             n, v = c[0], ' '.join(c[1:])
             aliasDict[n] = v
             command = ''
-    elif command.split(' ')[0] in aliasDict.keys():
+    elif command.split(' ')[0] in six.iterkeys(aliasDict):
         c = command.split(' ')
         if len(c) < 2:
             command = 'sx("'+aliasDict[c[0]]+'")'
@@ -74,6 +85,12 @@ def magicSingle(command):
                     command = wd1+'('+command[(first_space+1):]+')'
     return command
 
+def _help(command):
+    try:
+        print(pydoc.plain(pydoc.render_doc(str(command), "Help on %s")))
+    except:
+        print('No help found on "%s"'%command)
+        #traceback.print_exc(file=sys.stdout)
 def magic(command):
     continuations = wx.py.parse.testForContinuations(command)
     if len(continuations) == 2: # Error case...
@@ -143,12 +160,12 @@ class bsmShell(Shell):
         Shell.__init__(self, parent, id, pos, size, style, introText, locals,
                        InterpClass, startupScript, execStartupScript,
                        *args, **kwds)
-        #self.redirectStdout()
-        #self.redirectStderr()
-        #self.redirectStdin()
+        #self.redirectStdout(True)
+        #self.redirectStderr(True)
+        #self.redirectStdin(True)
         # the default sx function (!cmd to run external command) does not work
         # on windows
-        import __builtin__
+        import six.moves.builtins as __builtin__
         __builtin__.sx = sx
         self.callTipInsert = False
         self.searchHistory = True
@@ -159,6 +176,7 @@ class bsmShell(Shell):
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
         self.interp.locals['clear'] = self.clear
+        self.interp.locals['help'] = _help
         self.interp.locals['on'] = True
         self.interp.locals['off'] = False
         dp.connect(self.writeOut, 'shell.write_out')
@@ -179,7 +197,7 @@ class bsmShell(Shell):
             dp.send('debugger.stop')
 
     def evaluate(self, word):
-        if word in self.interp.locals.keys():
+        if word in six.iterkeys(self.interp.locals):
             return self.interp.locals[word]
         try:
             self.interp.locals[word] = eval(word, self.interp.locals)
@@ -245,7 +263,7 @@ class bsmShell(Shell):
     def LoadHistory(self, config):
         self.clearHistory()
         config.SetPath('/CommandHistory')
-        for i in range(0, config.GetNumberOfEntries()):
+        for i in six.moves.range(0, config.GetNumberOfEntries()):
             value = config.Read("item%d"%i)
             if value.find("#==bsm==") == -1:
                 self.history.insert(0, value)
@@ -253,8 +271,9 @@ class bsmShell(Shell):
     def OnKillFocus(self, event):
         if self.CallTipActive():
             self.CallTipCancel()
-        if self.AutoCompActive():
-            self.AutoCompCancel()
+        # crash on mac
+        #if self.AutoCompActive():
+        #    self.AutoCompCancel()
         event.Skip()
 
     def OnUpdateUI(self, event):
@@ -307,12 +326,12 @@ class bsmShell(Shell):
             cmd = cmd[cmd.rfind('.')+1:]
             # if failed, search the locals()
             if not k:
-                k = self.interp.locals.keys()
-                for i in range(len(cmd)-1, -1, -1):
+                for i in six.moves.range(len(cmd)-1, -1, -1):
                     if cmd[i].isalnum() or cmd[i] == '_':
                         continue
                     cmd = cmd[i+1:]
                     break
+                k = six.iterkeys(self.interp.locals)
                 k = [s for s in k if s.startswith(cmd)]
                 k.sort()
             if k:
@@ -357,9 +376,9 @@ class bsmShell(Shell):
         # Search upwards from the current history position and loop
         # back to the beginning if we don't find anything.
         if up:
-            searchOrder = range(self.historyIndex + 1, len(self.history))
+            searchOrder = six.moves.range(self.historyIndex + 1, len(self.history))
         else:
-            searchOrder = range(self.historyIndex - 1, -1, -1)
+            searchOrder = six.moves.range(self.historyIndex - 1, -1, -1)
         for i in searchOrder:
             command = self.history[i]
             if command[:len(searchText)] == searchText:
@@ -617,7 +636,7 @@ class bsmShell(Shell):
                 self.write(os.linesep)
             else:
                 self.push(command)
-                wx.FutureCall(1, self.EnsureCaretVisible)
+                wx.CallAfter(self.EnsureCaretVisible)
         # Or replace the current command with the other command.
         else:
             # If the line contains a command (even an invalid one).
