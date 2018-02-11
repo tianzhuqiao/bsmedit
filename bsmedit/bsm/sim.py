@@ -1,27 +1,29 @@
 import re
 import json
 import multiprocessing as mp
-import Queue
 import time
 import traceback
 import sys
+import six
+import six.moves.queue as Queue
 import wx
 import wx.py.dispatcher as dp
 from wx.lib.masked import NumCtrl
 
-import bsmedit.bsm.graph as graph
-from bsmedit.bsm._simxpm import *
-from bsmedit.bsm.simprocess import sim_process
-from bsmedit.bsm.propgrid import bsmPropGrid
-from bsmedit.bsm.simengine import *
-from bsmedit.bsm._pymgr_helpers import Gcm
-from bsmedit.bsm.autocomplete import AutocompleteTextCtrl
-from bsmedit.bsm._utility import MakeBitmap
+from . import graph
+from ._simxpm import *
+from .simprocess import sim_process
+from .propgrid import bsmPropGrid
+from .simengine import *
+from ._pymgr_helpers import Gcm
+from .autocomplete import AutocompleteTextCtrl
+from ._utility import MakeBitmap
+from .. import c2p
 
 Gcs = Gcm()
 class Simulation(object):
     def __init__(self, parent, num=None):
-        if num is not None and isinstance(num, int):
+        if num is not None and isinstance(num, int) and num not in Gcs.get_all_managers():
             self.num = num
         else:
             self.num = Gcs.get_next_num()
@@ -32,10 +34,11 @@ class Simulation(object):
         # the dict holds all the objects from the simulation
         self.objects = None
         # create the simulation kernel
-        self._cmdId = 0
+        self._cmd_id = 0
         self.qResp = None
         self.qCmd = None
         self.simProcess = None
+
     def release(self):
         self.frame = None
         self._stop()
@@ -47,7 +50,7 @@ class Simulation(object):
 
     def __setitem__(self, obj, value):
         """write the value to the object"""
-        if isinstance(obj, str):
+        if isinstance(obj, six.string_types):
             return self.write({obj:value})
         elif isinstance(obj, list) or isinstance(obj, tuple):
             return self.write(dict(zip(obj, value)))
@@ -62,8 +65,8 @@ class Simulation(object):
         """
         try:
             # always increase the command ID
-            cid = self._cmdId
-            self._cmdId += 1
+            cid = self._cmd_id
+            self._cmd_id += 1
 
             # return, if the previous call has not finished
             # it may happen when the previous command is waiting for response,
@@ -73,7 +76,8 @@ class Simulation(object):
                 raise KeyboardInterrupt
             if args and not isinstance(args, dict):
                 return False
-            if not args: args = {}
+            if not args:
+                args = {}
             self.qCmd.put({'id':cid, 'block':block, 'cmd':cmd, 'arguments':args})
             if block is True:
                 # wait for the command to finish
@@ -109,6 +113,7 @@ class Simulation(object):
             time.sleep(0.1)
             if start > 0 and time.time()-start > timeout:
                 return False
+        return False
 
     def get_status(self):
         """
@@ -159,13 +164,17 @@ class Simulation(object):
 
     def load_interactive(self):
         """show a file open dialog to select and open the simulation"""
-        dlg = wx.FileDialog(self.frame, "Choose a file", "", "", "*.*", wx.OPEN)
+        if c2p.bsm_is_phoenix:
+            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
+        else:
+            style = wx.OPEN | wx.FILE_MUST_EXIST
+        dlg = wx.FileDialog(self.frame, "Choose a file", "", "", "*.*", style)
         if dlg.ShowModal() == wx.ID_OK:
             filename = dlg.GetPath()
             self.load(filename)
         dlg.Destroy()
 
-    def _parse_time(self, time):
+    def _parse_time(self, t):
         """
         parse the time in time+unit format
 
@@ -174,22 +183,21 @@ class Simulation(object):
             2) 100 will return (100, None), where unit is None (current one will
                be used)
         """
-        if time:
-            pattern = r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:\s)*(fs|ps|ns|us|ms|s|)"
-            x = re.match(pattern, str(time))
-            if x:
-                if x.group(2):
-                    units = {'fs':BSM_FS, 'ps':BSM_PS, 'ns':BSM_NS, 'us':BSM_US,
-                             'ms':BSM_MS, 's':BSM_SEC}
-                    unit = units.get(x.group(2), None)
-                    if unit is None:
-                        raise ValueError("unknown time format: " + str(time))
-                    return float(x.group(1)), unit
-                else:
-                    return float(x.group(1)), None
+        pattern = r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:\s)*(fs|ps|ns|us|ms|s|)"
+        x = re.match(pattern, str(t))
+        if x:
+            if x.group(2):
+                units = {'fs':BSM_FS, 'ps':BSM_PS, 'ns':BSM_NS, 'us':BSM_US,
+                         'ms':BSM_MS, 's':BSM_SEC}
+                unit = units.get(x.group(2), None)
+                if unit is None:
+                    raise ValueError("unknown time format: " + str(time))
+                return float(x.group(1)), unit
+            else:
+                return float(x.group(1)), None
         return None, None
 
-    def step(self, step=None, block=True):
+    def step(self, step=None, block=False):
         """
         proceed the simulation with one step
 
@@ -201,7 +209,7 @@ class Simulation(object):
         self.set_parameter(step=step, block=False)
         return self._send_command('step', {'running': False}, block)
 
-    def run(self, to=None, more=None, block=True):
+    def run(self, to=None, more=None, block=False):
         """
         keep running the simulation
 
@@ -230,10 +238,12 @@ class Simulation(object):
         # stop the simulation kernel. No block operation allowed since
         # no response from the subprocess
         self._send_command('exit', {}, False)
-        # stop the client
-        self.qResp.put({'cmd':'exit'})
+        while not self.qResp.empty():
+            self.qResp.get_nowait()
         self.simProcess.join()
         self.simProcess = None
+        # stop the client
+        self.qResp.put({'cmd':'exit'})
 
     def stop(self):
         """destroy the simulation process and update the GUI"""
@@ -244,6 +254,7 @@ class Simulation(object):
         if self.filename:
             return self.load(self.filename)
         return False
+
     def time_stamp(self, inSecond=False, block=True):
         """return the simulation time elapsed as a string"""
         args = {}
@@ -268,14 +279,14 @@ class Simulation(object):
         Example: read multiple registers from the same simulation
         >>> read(['top.sig_bool', 'top.sig_cos']
         """
-        objList = self._object_list(objs)
-        return self._send_command('read', {'objects':objList}, block)
+        objs = self._object_list(objs)
+        return self._send_command('read', {'objects':objs}, block)
 
     def write(self, objDict, block=True):
         """
         write the value to the registers
 
-        ObjDict should be a dictionary where the keys are the register name.
+        objDict should be a dictionary where the keys are the register name.
         Due to the two-step mechanism in SystemC, the value will be updated
         after the next delta cycle. That is, if a read() is called after
         write(), it will return the previous value.
@@ -287,16 +298,18 @@ class Simulation(object):
         >>> step()
         >>> c = read('top.sig_int', True)
         """
+        if not isinstance(objDict, dict):
+            raise ValueError("Not supported objDict type, expect a dict")
         return self._send_command('write', {'objects':objDict}, block)
 
-    def trace_file(self, obj, ttype='bsm', valid=None,
-                   trigger='posneg', block=True):
+    def trace_file(self, obj, fmt='bsm', valid=None, trigger='posneg',
+                   block=True):
         """
         dump object values to a file
 
         obj:
             register name
-        ttype:
+        fmt:
             'bsm': only output the register value, one per line (Default)
             'vcd': output the SystemC VCD format data
         valid:
@@ -310,18 +323,19 @@ class Simulation(object):
         """
         if isinstance(obj, list):
             obj = obj[0]
-        tTypeDict = {'bsm': BSM_TRACE_SIMPLE, 'vcd': BSM_TRACE_VCD}
-        tTriggerDict = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
-                        'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE}
-        traceType = tTypeDict.get(ttype, None)
-        traceTrigger = tTriggerDict.get(trigger, None)
-        if traceType is None:
-            raise ValueError("Not supported trace type: " + str(ttype))
-        if not traceTrigger:
+        tFmts = {'bsm': BSM_TRACE_SIMPLE, 'vcd': BSM_TRACE_VCD}
+        tTriggers = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
+                     'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE,
+                     BSM_BOTHEDGE:BSM_BOTHEDGE, BSM_POSEDGE:BSM_PS,
+                     BSM_NEGEDGE:BSM_NEGEDGE, BSM_NONEEDGE:BSM_NONEEDGE}
+        tfmt = tFmts.get(fmt, None)
+        ttrigger = tTriggers.get(trigger, None)
+        if tfmt is None:
+            raise ValueError("Not supported trace type: " + fmt)
+        if ttrigger is None:
             raise ValueError("Not supported trigger type: " + str(trigger))
 
-        args = {'name':obj, 'type':traceType, 'valid':valid,
-                'trigger':traceTrigger}
+        args = {'name':obj, 'type':tfmt, 'valid':valid, 'trigger':ttrigger}
         return self._send_command('trace_file', args, block)
 
     def trace_buf(self, obj, size=256, valid=None, trigger='posneg',
@@ -329,18 +343,20 @@ class Simulation(object):
         """start dumping the register to a numpy array"""
         if isinstance(obj, list):
             obj = obj[0]
-        tTriggerDict = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
-                        'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE}
-        traceTrigger = tTriggerDict.get(trigger, None)
-        if traceTrigger is None:
-            raise ValueError("Not supported trigger type: " + str(traceTrigger))
+        tTriggers = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
+                     'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE,
+                     BSM_BOTHEDGE:BSM_BOTHEDGE, BSM_POSEDGE:BSM_PS,
+                     BSM_NEGEDGE:BSM_NEGEDGE, BSM_NONEEDGE:BSM_NONEEDGE}
+        tTrigger = tTriggers.get(trigger, None)
+        if tTrigger is None:
+            raise ValueError("Not supported trigger type: " + str(trigger))
 
-        args = {'name':obj, 'size':size, 'valid':valid, 'trigger':traceTrigger}
+        args = {'name':obj, 'size':size, 'valid':valid, 'trigger':tTrigger}
         return self._send_command('trace_buf', args, block)
 
     def _object_list(self, objs):
         """help function to generate object list"""
-        if isinstance(objs, str):
+        if isinstance(objs, six.string_types):
             return [objs]
         elif isinstance(objs, list) or isinstance(objs, tuple):
             return objs
@@ -355,22 +371,22 @@ class Simulation(object):
         previous defined size will return; otherwise the trace_buf will be
         called with default arguments first.
         """
-        objList = self._object_list(objects)
-        return self._send_command('read_buf', {'objects':objList}, block)
+        objs = self._object_list(objects)
+        return self._send_command('read_buf', {'objects':objs}, block)
 
-    def monitor_signal(self, objs, block=True):
+    def monitor_signal(self, objects, block=True):
         """
         monitor the register value
 
         At end of each step, the simulation process will report the value
         """
-        objList = self._object_list(objs)
-        return self._send_command('monitor_signal', {'objects':objList}, block)
+        objs = self._object_list(objects)
+        return self._send_command('monitor_signal', {'objects':objs}, block)
 
-    def unmonitor_signal(self, objs, block=True):
+    def unmonitor_signal(self, objects, block=True):
         """stop monitoring the register"""
-        objList = self._object_list(objs)
-        return self._send_command('unmonitor_signal', {'objects':objList}, block)
+        objs = self._object_list(objects)
+        return self._send_command('unmonitor_signal', {'objects':objs}, block)
 
     def get_monitored_signal(self, block=True):
         """get the list of the monitored signals"""
@@ -380,16 +396,16 @@ class Simulation(object):
         """
         add the breakpoint
 
-        bp = (name, condition, hitcount)
+        bp = (name, condition, hitcount) or name
         """
-        if isinstance(bp[0], str):
-            bp = [bp]
+        if isinstance(bp[0], six.string_types):
+            bp = [bp, None, None]
         return self._send_command('add_breakpoint', {'objects':bp}, block)
 
     def del_breakpoint(self, bp, block=True):
         """delete the breakpoint"""
-        if isinstance(bp[0], str):
-            bp = [bp]
+        if isinstance(bp[0], six.string_types):
+            bp = [bp, None, None]
         return self._send_command('del_breakpoint', {'objects':bp}, block)
 
     def get_breakpoint(self, block=True):
@@ -398,10 +414,9 @@ class Simulation(object):
 
     def global_object_name(self, obj):
         """generate the global name for simulation object (num.name)"""
-        num, _ = sim.get_object_name(obj)
-        if num is not None:
-            return obj
-        return "%d."%self.num + obj
+        if obj in self.objects:
+            return "%d."%self.num + obj
+        return None
 
     def monitor(self, objects, grid=None, index=-1):
         """
@@ -420,22 +435,21 @@ class Simulation(object):
             grid = sim.propgrid()
         if not grid:
             return None
-        objList = self._object_list(objects)
         props = []
-        for name in objList:
+        for name in self._object_list(objects):
             obj = self.objects.get(name, None)
             # ignore the invalid object
-            if obj is None: continue
+            if obj is None:
+                print("invalid object: ", obj)
+                continue
             prop = grid.InsertProperty(self.global_object_name(obj['name']),
                                        obj['basename'], obj['value'], index)
-            prop.SetGripperColor(self.frame.color)
-            if not obj['writable']:
-                prop.SetReadOnly(True)
-            if not obj['readable']:
-                prop.SetShowRadio(False)
-
+            prop.SetGripperColor(self.frame.GetColor())
+            prop.SetReadOnly(not obj['writable'])
+            prop.SetShowRadio(obj['readable'])
             props.append(prop)
-            if index != -1: index += 1
+            if index != -1:
+                index += 1
         if len(props) == 1:
             return props[0]
         return props
@@ -453,7 +467,7 @@ class Simulation(object):
             elif command in ['read', 'read_buf', 'write']:
                 # single value, return the value, not the dict
                 if len(value) == 1:
-                    value = value.values()[0]
+                    value = list(value.values())[0]
             return value
         except:
             traceback.print_exc(file=sys.stdout)
@@ -465,14 +479,14 @@ class ModuleTree(wx.TreeCtrl):
     ID_MP_ADD_TO_NEW_VIEWER = wx.NewId()
     ID_MP_ADD_TO_VIEWER_START = wx.NewId()
     def __init__(self, parent, style=wx.TR_DEFAULT_STYLE):
-        style = style | wx.TR_DEFAULT_STYLE | wx.TR_HAS_VARIABLE_ROW_HEIGHT | \
-                wx.TR_HIDE_ROOT| wx.TR_MULTIPLE
+        style = style | wx.TR_HAS_VARIABLE_ROW_HEIGHT | \
+                wx.TR_HIDE_ROOT| wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
         wx.TreeCtrl.__init__(self, parent, style=style)
         imglist = wx.ImageList(16, 16, True, 10)
         for xpm in [module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,
                     module_grey_xpm, switch_grey_xpm, in_grey_xpm,
                     out_grey_xpm, inout_grey_xpm]:
-            imglist.Add(wx.BitmapFromXPMData(xpm))
+            imglist.Add(c2p.BitmapFromXPM(xpm))
         self.AssignImageList(imglist)
         self.objects = None
         self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
@@ -486,27 +500,28 @@ class ModuleTree(wx.TreeCtrl):
 
     def OnCompareItems(self, item1, item2):
         """compare the two items for sorting"""
+        def SortByName(item1, item2):
+            """compare the two items based on its type and name"""
+            if c2p.bsm_is_phoenix:
+                (obj1, type1) = item1
+                (obj2, type2) = item2
+            else:
+                (obj1, type1) = item1.GetData()
+                (obj2, type2) = item2.GetData()
+            if type1 == type2:
+                if obj1['name'] > obj2['name']:
+                    return 1
+                return -1
+            elif type1 > type2:
+                return 1
+            return -1
+
         data1 = self.GetItemData(item1)
         data2 = self.GetItemData(item2)
         rtn = -2
         if data1 and data2:
-            return self._SortByName(data1, data2)
+            return SortByName(data1, data2)
         return rtn
-
-    @staticmethod
-    def _SortByName(item1, item2):
-        """compare the two items based on its type and name"""
-        (obj1, type1) = item1.GetData()
-        (obj2, type2) = item2.GetData()
-        if type1 == type2:
-            if obj1['name'] > obj2['name']:
-                return 1
-            else:
-                return -1
-        elif type1 > type2:
-            return 1
-        else:
-            return -1
 
     def FillNodes(self, item):
         """fill the node with children"""
@@ -518,7 +533,7 @@ class ModuleTree(wx.TreeCtrl):
         # delete the '...'
         self.DeleteChildren(item)
         ext = self.GetExtendObj(item)
-        for key, obj in self.objects.iteritems():
+        for _, obj in six.iteritems(self.objects):
             # find all the children
             if obj['nkind'] != SC_OBJ_UNKNOWN and obj['parent'] == ext['name']:
                 self.InsertScObj(item, obj)
@@ -543,7 +558,7 @@ class ModuleTree(wx.TreeCtrl):
         # go through all the objects, and only add the top level items for
         # speed. The items of other level will be populated once their parents
         # are expanded
-        for key, obj in self.objects.iteritems():
+        for _, obj in six.iteritems(self.objects):
             if obj['nkind'] != SC_OBJ_UNKNOWN and obj['parent'] == "":
                 self.InsertScObj(item, obj)
 
@@ -551,8 +566,7 @@ class ModuleTree(wx.TreeCtrl):
         item, _ = self.GetFirstChild(item)
         if item.IsOk():
             self.Expand(item)
-
-        self.SortChildren(item)
+            self.SortChildren(item)
         return True
 
     def InsertScObj(self, item, obj):
@@ -570,18 +584,23 @@ class ModuleTree(wx.TreeCtrl):
             img = [3, 3]
         elif nkind == SC_OBJ_INOUT:
             img = [4, 4]
-        idx = self.AppendItem(item, obj['basename'], img[0], img[1],
-                              wx.TreeItemData((obj, img)))
+        else:
+            raise ValueError('Invalid object type')
+        idx = c2p.treeAppendItem(self, item, obj['basename'], img[0], img[1],
+                                 (obj, img))
         # add the sign to append the children later
         if nkind in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]:
-            self.AppendItem(idx, '...', img[0], img[1], None)
+            c2p.treeAppendItem(self, idx, '...', img[0], img[1], None)
         return idx
 
     def GetExtendObj(self, item):
         """return the extend object"""
         data = self.GetItemData(item)
         if data:
-            obj, _ = data.GetData()
+            if c2p.bsm_is_phoenix:
+                obj, _ = data
+            else:
+                obj, _ = data.GetData()
             return obj
         return None
 
@@ -684,13 +703,32 @@ class DumpDlg(wx.Dialog):
 
     def Completer(self, query):
         """return all the simulation object for auto complete"""
-        objs = [n for n in self.objects if query in n]
-        return objs, objs
+        root = query
+        if query.find('.'):
+            root = query[0:query.rfind('.')+1]
+        # only report the direct children of 'query', for example
+        # query = 'top.si'
+        # will return all the children of top, whose name starts with 'si'
+        objs = []
+        for obj in self.objects:
+            if obj.startswith(query):
+                item = obj[len(root):]
+                if item.find('.') != -1:
+                    item = item[:item.find('.')]
+                objs.append(item)
+        if objs:
+            objs = list(set(objs))
+            objs.sort()
+        return objs, objs, len(query)-len(root)
 
     def OnBtnSelectFile(self, event):
-        strWild = "BSM Files (*.bsm)|*.bsm|All Files (*.*)|*.*"
-        dlg = wx.FileDialog(self, "Select BSM dump file", '', '', strWild,
-                            style=wx.FD_OPEN)
+        if c2p.bsm_is_phoenix:
+            style = wx.FD_OPEN
+        else:
+            style = wx.OPEN
+        wildcard = "BSM Files (*.bsm)|*.bsm|All Files (*.*)|*.*"
+        dlg = wx.FileDialog(self, "Select BSM dump file", '', '', wildcard,
+                            style=style)
         if dlg.ShowModal() == wx.ID_OK:
             self.tcFile.SetValue(dlg.GetPath())
 
@@ -700,15 +738,16 @@ class DumpDlg(wx.Dialog):
     def OnBtnOK(self, event):
         self.trace = {}
         if self.traceFile:
+            # trace file
             self.trace['filename'] = self.tcFile.GetValue()
             self.trace['format'] = self.rbFormat.GetSelection()
         else:
+            # trace buffer
             self.trace['size'] = self.spinSize.GetValue()
         self.trace['signal'] = self.tcSignal.GetValue()
+        self.trace['valid'] = None
         if self.cbTrigger.GetValue():
             self.trace['valid'] = self.tcValid.GetValue()
-        else:
-            self.trace['valid'] = None
         self.trace['trigger'] = self.rbTrigger.GetSelection()
         event.Skip()
 
@@ -729,21 +768,22 @@ class SimPanel(wx.Panel):
     def __init__(self, parent, num=None, filename=None, silent=False):
         wx.Panel.__init__(self, parent)
 
-        self.colour = wx.Colour(178, 34, 34)
+        self.is_destroying = False
+        self._color = wx.Colour(178, 34, 34)
         # the variable used to update the UI in idle()
         self.gridList = []
         self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|wx.TB_NODIVIDER)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
-        xpm2bmp = wx.BitmapFromXPMData
-        self.tb.AddLabelTool(self.ID_SIM_STEP, "", xpm2bmp(step_xpm),
-                             xpm2bmp(step_grey_xpm), wx.ITEM_NORMAL,
-                             "Step", "Step the simulation")
-        self.tb.AddLabelTool(self.ID_SIM_RUN, "", xpm2bmp(run_xpm),
-                             xpm2bmp(run_grey_xpm), wx.ITEM_NORMAL,
-                             "Run", "Run the simulation")
-        self.tb.AddLabelTool(self.ID_SIM_PAUSE, "", xpm2bmp(pause_xpm),
-                             xpm2bmp(pause_grey_xpm), wx.ITEM_NORMAL,
-                             "Pause", "Pause the simulation")
+        xpm2bmp = c2p.BitmapFromXPM
+        c2p.tbAddTool(self.tb, self.ID_SIM_STEP, "", xpm2bmp(step_xpm),
+                      xpm2bmp(step_grey_xpm), wx.ITEM_NORMAL,
+                      "Step", "Step the simulation")
+        c2p.tbAddTool(self.tb, self.ID_SIM_RUN, "", xpm2bmp(run_xpm),
+                      xpm2bmp(run_grey_xpm), wx.ITEM_NORMAL,
+                      "Run", "Run the simulation")
+        c2p.tbAddTool(self.tb, self.ID_SIM_PAUSE, "", xpm2bmp(pause_xpm),
+                       xpm2bmp(pause_grey_xpm), wx.ITEM_NORMAL,
+                       "Pause", "Pause the simulation")
         fStep = 1000.0
         fDuration = -1.0
         self.tb.AddSeparator()
@@ -752,30 +792,32 @@ class SimPanel(wx.Panel):
                               allowNegative=False, fractionWidth=0)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Step "))
         self.tb.AddControl(self.tcStep)
-        self.cmbUnitStep = wx.ComboBox(self.tb, wx.ID_ANY, 'ns', size=(50, 20),
-                                       choices=['fs', 'ps', 'ns', 'us', 'ms', 's'],
+        units = ['fs', 'ps', 'ns', 'us', 'ms', 's']
+        self.cmbUnitStep = wx.ComboBox(self.tb, wx.ID_ANY, 'ns',
+                                       size=(50, 20), choices=units,
                                        style=wx.CB_READONLY)
         self.tb.AddControl(self.cmbUnitStep)
         self.tb.AddSeparator()
 
-        self.tcTotal = NumCtrl(self.tb, wx.ID_ANY, "%g"%fDuration)
+        self.tcTotal = NumCtrl(self.tb, wx.ID_ANY, "%g"%fDuration,
+                               allowNegative=True, fractionWidth=0)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Total "))
         self.tb.AddControl(self.tcTotal)
-        self.cmbUnitTotal = wx.ComboBox(self.tb, wx.ID_ANY, 'ns', size=(50, 20),
-                                        choices=['fs', 'ps', 'ns', 'us', 'ms', 's'],
+        self.cmbUnitTotal = wx.ComboBox(self.tb, wx.ID_ANY, 'ns',
+                                        size=(50, 20), choices=units,
                                         style=wx.CB_READONLY)
         self.tb.AddControl(self.cmbUnitTotal)
         self.tb.AddSeparator()
         self.tb.AddStretchableSpace()
-        self.tb.AddLabelTool(self.ID_SIM_SET, "", xpm2bmp(setting_xpm),
-                             xpm2bmp(setting_grey_xpm),
-                             wx.ITEM_DROPDOWN,
-                             "Setting", "Configure the simulation")
+        c2p.tbAddTool(self.tb, self.ID_SIM_SET, "", xpm2bmp(setting_xpm),
+                      xpm2bmp(setting_grey_xpm), wx.ITEM_DROPDOWN,
+                      "Setting", "Configure the simulation")
         menu = wx.Menu()
         menu.Append(wx.ID_RESET, "&Reset")
         menu.AppendSeparator()
         menu.Append(wx.ID_EXIT, "&Exit")
-        self.tb.SetDropdownMenu(self.ID_SIM_SET, menu)
+        self.tb_set_menu = menu
+        self.tb.SetDropdownMenu(self.ID_SIM_SET, self.tb_set_menu)
         self.tb.Realize()
 
         self.tree = ModuleTree(self)
@@ -802,7 +844,7 @@ class SimPanel(wx.Panel):
 
         self.waiting = 0
         self.sim = Simulation(self, num)
-        if isinstance(filename, str) and filename is not None:
+        if isinstance(filename, six.string_types):
             self.sim.load(filename)
         elif not silent:
             self.sim.load_interactive()
@@ -810,19 +852,18 @@ class SimPanel(wx.Panel):
 
     def Destroy(self):
         """
-        the mainframe will call this function to close the pane.
-
-        Destroy the simulation properly.
+        Destroy the simulation properly before close the pane.
         """
+        self.is_destroying = True
         self.sim.release()
         self.sim = None
         super(SimPanel, self).Destroy()
 
     def SetColor(self, clr):
-        self.color = clr
+        self._color = clr
 
     def GetColor(self):
-        return self.color
+        return self._color
 
     def SetParameter(self, block=True):
         """set the simulation parameters with the values from GUI"""
@@ -875,8 +916,8 @@ class SimPanel(wx.Panel):
         ids = self.tree.GetSelections()
         objs = []
         objs_name = []
-        for i in range(0, len(ids)):
-            item = ids[i]
+        gname = self.sim.global_object_name
+        for item in ids:
             if item == self.tree.GetRootItem():
                 continue
             if not item.IsOk():
@@ -892,16 +933,16 @@ class SimPanel(wx.Panel):
                 objchild = []
                 while child.IsOk():
                     ext2 = self.tree.GetExtendObj(child)
-                    objchild.append(self.sim.global_object_name(ext2['name']))
+                    objchild.append(gname(ext2['name']))
                     objs_name.append(ext2['name'])
                     (child, cookie) = self.tree.GetNextChild(item, cookie)
-                objs.append({'reg':self.sim.global_object_name(ext['name']), 'child':objchild})
+                objs.append({'reg':gname(ext['name']), 'child':objchild})
             else:
-                objs.append({'reg':self.sim.global_object_name(ext['name'])})
+                objs.append({'reg':gname(ext['name'])})
             objs_name.append(ext['name'])
         # need to explicitly allow drag
         # start drag operation
-        data = wx.PyTextDataObject(json.dumps(objs))
+        data = c2p.PyTextDataObject(json.dumps(objs))
         source = wx.DropSource(self.tree)
         source.SetData(data)
         rtn = source.DoDragDrop(True)
@@ -922,7 +963,7 @@ class SimPanel(wx.Panel):
         eid = event.GetId()
         viewer = None
         if eid in [self.ID_MP_DUMP, self.ID_MP_TRACE_BUF]:
-            objs = [o for o, v in self.sim.objects.iteritems() if v['numeric'] and v['readable']]
+            objs = [o for o, v in six.iteritems(self.sim.objects) if v['numeric'] and v['readable']]
             objs.sort()
             active = ''
             items = self.tree.GetSelections()
@@ -947,8 +988,7 @@ class SimPanel(wx.Panel):
         if viewer:
             ids = self.tree.GetSelections()
             objs = []
-            for i in range(0, len(ids)):
-                item = ids[i]
+            for item in ids:
                 if item == self.tree.GetRootItem():
                     continue
                 if not item.IsOk():
@@ -971,6 +1011,8 @@ class SimPanel(wx.Panel):
             self.sim.read(objs, False)
 
     def ProcessResponse(self, resp):
+        if self.is_destroying:
+            return
         try:
             command = resp.get('cmd', '')
             value = resp.get('value', False)
@@ -987,7 +1029,8 @@ class SimPanel(wx.Panel):
                 if value:
                     if self.waiting > 200:
                         self.waiting = 0
-                        self.sim.set_parameter(step=self.tcStep.GetValue()*10, block=False)
+                        step = int(self.tcStep.GetValue())
+                        self.sim.set_parameter(step=step*10, block=False)
                     # simulation proceeds one step, update the values
                     #if not args.get('running', False) or self.waiting < 20:
                     self.sim.time_stamp(False, False)
@@ -995,29 +1038,29 @@ class SimPanel(wx.Panel):
                     self.sim.read([], False)
                     self.sim.read_buf([], False)
             elif command == 'monitor_add':
-                objs = [name for name, v in value.iteritems() if v]
+                objs = [name for name, v in six.iteritems(value) if v]
                 self.sim.read(objs, False)
             elif command == 'set_parameter':
                 if value:
                     args = resp['arguments']
                     step = self.tcStep.GetValue()
-                    self.tcStep.SetValue(str(args.get('step', step)))
+                    self.tcStep.SetValue(args.get('step', step))
                     unitStep = self.cmbUnitStep.GetSelection()
                     self.cmbUnitStep.SetSelection(args.get('unitStep', unitStep))
                     total = self.tcTotal.GetValue()
-                    self.tcTotal.SetValue(str(args.get('total', total)))
+                    self.tcTotal.SetValue(args.get('total', total))
                     unitTotal = self.cmbUnitTotal.GetSelection()
                     self.cmbUnitTotal.SetSelection(args.get('unitTotal', unitTotal))
             elif command == 'read':
                 gname = self.sim.global_object_name
-                ui_objs = {gname(name):v for name, v in value.iteritems()}
+                ui_objs = {gname(name):v for name, v in six.iteritems(value)}
                 dp.send(signal="grid.updateprop", objs=ui_objs)
             elif command == 'read_buf':
                 gname = self.sim.global_object_name
-                ui_buffers = {gname(name):v for name, v in value.iteritems()}
+                ui_buffers = {gname(name):v for name, v in six.iteritems(value)}
                 dp.send(signal="sim.buffer_changed", bufs=ui_buffers)
             elif command == 'time_stamp':
-                if isinstance(value, str):
+                if isinstance(value, six.string_types):
                     dp.send(signal="frame.show_status_text", text=value)
             elif command == 'breakpoint_triggered':
                 bp = value #[name, condition, hitcount, hitsofar]
@@ -1064,133 +1107,129 @@ class sim:
     ID_SIM_NEW = wx.NOT_FOUND
     ID_PROP_NEW = wx.NOT_FOUND
     @classmethod
-    def Initialize(cls, frame):
+    def initialize(cls, frame):
         cls.frame = frame
 
         dp.send('frame.add_menu', path="View:Simulations", rxsignal='',
                 kind='Popup')
         resp = dp.send(signal='frame.add_menu', path='File:New:Simulation',
                        rxsignal='bsm.simulation')
-        if resp: cls.ID_SIM_NEW = resp[0][1]
+        if resp:
+            cls.ID_SIM_NEW = resp[0][1]
         resp = dp.send(signal='frame.add_menu', path='File:New:PropGrid',
                        rxsignal='bsm.simulation')
-        if resp: cls.ID_PROP_NEW = resp[0][1]
+        if resp:
+            cls.ID_PROP_NEW = resp[0][1]
 
-        dp.connect(cls.ProcessCommand, signal='bsm.simulation')
-        dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
-        dp.connect(receiver=cls.set_active, signal='frame.activate_panel')
+        dp.connect(cls._process_command, signal='bsm.simulation')
+        dp.connect(receiver=cls._frame_set_active, signal='frame.activate_panel')
+        dp.connect(receiver=cls._frame_uninitialize, signal='frame.exit')
 
-        dp.connect(receiver=cls.OnAddProp, signal='prop.insert')
-        dp.connect(receiver=cls.OnDelProp, signal='prop.delete')
-        dp.connect(receiver=cls.OnDropProp, signal='prop.drop')
-        dp.connect(receiver=cls.OnBPAdd, signal='prop.bp_add')
-        dp.connect(receiver=cls.OnBPDel, signal='prop.bp_del')
-        dp.connect(receiver=cls.OnValChanged, signal='prop.changed')
-        dp.connect(receiver=cls.OnPaneClosing, signal='frame.closing_pane')
+        dp.connect(receiver=cls._prop_insert, signal='prop.insert')
+        dp.connect(receiver=cls._prop_delete, signal='prop.delete')
+        dp.connect(receiver=cls._prop_drop, signal='prop.drop')
+        dp.connect(receiver=cls._prop_bp_add, signal='prop.bp_add')
+        dp.connect(receiver=cls._prop_bp_del, signal='prop.bp_del')
+        dp.connect(receiver=cls._prop_changed, signal='prop.changed')
 
     @classmethod
-    def OnPaneClosing(cls, pane, force):
-        if isinstance(pane, SimPanel):
-            if force:
-                pane.sim.stop()
-                return {'veto': False}
-            for mgr in Gcs.get_all_managers():
-                if mgr.frame == pane:
-                    return {'veto': True}
-            return {'veto': False}
-    @classmethod
-    def OnValChanged(cls, prop):
-        num, name = cls.get_object_name(prop.GetName())
-        mgr = Gcs.get_manager(num)
+    def _prop_changed(cls, prop):
+        mgr, name = cls._find_object(prop.GetName())
         if mgr:
             mgr.write({name: prop.GetValue()})
 
     @classmethod
-    def OnBPAdd(cls, prop):
-        num, name = cls.get_object_name(prop.GetName())
-        mgr = Gcs.get_manager(num)
+    def _prop_bp_add(cls, prop):
+        mgr, name = cls._find_object(prop.GetName())
         if mgr:
             cnd = prop.GetBPCondition()
             mgr.add_breakpoint([[name, cnd[0], cnd[1]]])
 
     @classmethod
-    def OnBPDel(cls, prop):
-        num, name = cls.get_object_name(prop.GetName())
-        mgr = Gcs.get_manager(num)
+    def _prop_bp_del(cls, prop):
+        mgr, name = cls._find_object(prop.GetName())
         if mgr:
             cnd = prop.GetBPCondition()
             mgr.del_breakpoint([[name, cnd[0], cnd[1]]])
 
     @classmethod
-    def OnAddProp(cls, prop):
-        num, name = cls.get_object_name(prop.GetName())
-        s = Gcs.get_manager(num)
-        if s:
-            s.monitor_signal(name)
+    def _prop_insert(cls, prop):
+        mgr, name = cls._find_object(prop.GetName())
+        if mgr:
+            mgr.monitor_signal(name)
 
     @classmethod
-    def OnDelProp(cls, prop):
-        num, name = cls.get_object_name(prop.GetName())
-        s = Gcs.get_manager(num)
-        if s:
-            s.unmonitor_signal(name)
+    def _prop_delete(cls, prop):
+        mgr, name = cls._find_object(prop.GetName())
+        if mgr:
+            mgr.unmonitor_signal(name)
 
     @classmethod
-    def OnDropProp(cls, index, prop, grid):
+    def _prop_drop(cls, index, prop, grid):
         objs = json.loads(prop)
         for obj in objs:
             reg = obj['reg']
-            num, name = cls.get_object_name(str(reg))
-            mgr = Gcs.get_manager(num)
-            if mgr is None:
+            mgr, name = cls._find_object(str(reg))
+            if not mgr:
                 continue
             p = mgr.monitor(name, grid, index)
             if index != -1:
                 index = index + 1
             for c in obj.get('child', []):
-                num, name = cls.get_object_name(str(c))
-                mgr = Gcs.get_manager(num)
-                if mgr is None: continue
+                mgr, name = cls._find_object(str(c))
+                if not mgr:
+                    continue
                 p = mgr.monitor(name, grid, index)
                 p.SetIndent(1)
                 if index != -1:
                     index = index + 1
 
     @classmethod
-    def set_active(cls, pane):
+    def _frame_set_active(cls, pane):
         if pane and isinstance(pane, SimPanel):
             Gcs.set_active(pane.sim)
         if pane and isinstance(pane, bsmPropGrid):
             bsmPropGrid.GCM.set_active(pane)
 
     @classmethod
-    def Uninitialize(cls):
+    def _frame_uninitialize(cls):
         for mgr in Gcs.get_all_managers():
             mgr.stop()
             dp.send('frame.close_panel', panel=mgr.frame)
         dp.send('frame.del_menu', path="View:Simulations")
         dp.send('frame.del_menu', path="File:New:Simulation", id=cls.ID_SIM_NEW)
         dp.send('frame.del_menu', path="File:New:PropGrid", id=cls.ID_PROP_NEW)
+
     @classmethod
-    def ProcessCommand(cls, command):
+    def _process_command(cls, command):
         if command == cls.ID_SIM_NEW:
             cls.simulation()
         if command == cls.ID_PROP_NEW:
             cls.propgrid()
 
     @classmethod
-    def get_object_name(cls, name):
-        """return the object name"""
+    def _find_object(cls, name):
+        """
+        Find the object in simulations by its name, for example
+            '1.top.sig_cos' -> find the object with name 'top.sig_cos' in
+                               simulation 1
+            'top.sig_cos' -> find the object with name 'top.sig_cos' in
+                             the active simulation, the active simulation is
+                             the simulation that is currently active or most
+                             recently active.
+        """
         x = re.match(r'^(\d)+\.(.*)', name)
-        if x is None:
-            return (None, name)
+        if x:
+            num, obj = (int(x.group(1)), x.group(2))
         else:
-            return (int(x.group(1)), x.group(2))
-
-    @classmethod
-    def GetColorByNum(cls, num):
-        color = ['green', 'red', 'blue', 'black', 'cyan', 'yellow', 'magenta', 'cyan']
-        return wx.NamedColour(color[num%len(color)])
+            num, obj = None, name
+        if num is None:
+            mgr = Gcs.get_active()
+        else:
+            mgr = Gcs.get_manager(num)
+        if not mgr or obj not in mgr.objects:
+            return None, None
+        return mgr, obj
 
     @classmethod
     def simulation(cls, num=None, filename=None, silent=False, create=True,
@@ -1201,10 +1240,14 @@ class sim:
         If the simulation exists, return its handler; otherwise, create it if
         create == True.
         """
+        def GetColorByNum(num):
+            color = ['green', 'red', 'blue', 'black', 'cyan', 'yellow',
+                     'magenta', 'cyan']
+            return c2p.NamedColour(color[num%len(color)])
         manager = Gcs.get_manager(num)
         if manager is None and create:
             manager = SimPanel(sim.frame, num, filename, silent)
-            clr = cls.GetColorByNum(manager.sim.num)
+            clr = GetColorByNum(manager.sim.num)
             clr.Set(clr.red, clr.green, clr.blue, 128)
             manager.SetColor(clr)
             page_bmp = MakeBitmap(clr.red, clr.green, clr.blue)#178,  34,  34)
@@ -1237,14 +1280,7 @@ class sim:
         return mgr
 
     @classmethod
-    def get_sim_from_signal(cls, name):
-        num, _ = cls.get_object_name(name)
-        if not num:
-            return Gcs.get_active()
-        return Gcs.get_manager(num)
-
-    @classmethod
-    def plot_trace(cls, x=None, y=None, autorelim=True, *args, **kwargs):
+    def plot_trace(cls, *args, **kwargs):
         """
         plot the trace
 
@@ -1253,24 +1289,32 @@ class sim:
         if not graph.initialized:
             print("matplotlib is not installed correctly!")
             return
-        if y is None:
-            return
-        s = cls.get_sim_from_signal(y)
-        if s is None:
-            return
-        dy = s.read_buf(cls.get_object_name(y)[1], True)
-        y = {s.global_object_name(y):dy}
-        if x is not None:
-            s = cls.get_sim_from_signal(x)
-            if s is None:
+        if len(args) > 0 and isinstance(args[0], six.string_types):
+            s1, obj1 = cls._find_object(args[0])
+            if not s1 or not obj1:
+                print("unknown sim object:", args[0])
                 return
-            dx = s.read_buf(cls.get_object_name(x)[1], True)
-            x = {s.global_object_name(x):dx}
+            s2, obj2 = None, None
+            if len(args) > 1 and isinstance(args[1], six.string_types):
+               s2, obj2 = cls._find_object(args[1])
+
+        if obj2:
+            args = args[2:]
+            sx, x, sy, y = s1, obj1, s2, obj2
+        else:
+            args = args[1:]
+            sx, x, sy, y = None, None, s1, obj1
+
+        dy = sy.read_buf(y, True)
+        y = {sy.global_object_name(y):dy}
+        if sx:
+            dx = sx.read_buf(x, True)
+            x = {sx.global_object_name(x):dx}
         mgr = graph.plt.get_current_fig_manager()
+        autorelim = kwargs.pop("relim", True)
         mgr.plot_trace(x, y, autorelim, *args, **kwargs)
 
 def bsm_Initialize(frame):
-    sim.Initialize(frame)
+    sim.initialize(frame)
     dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
             prompt=False, verbose=False, history=False)
-

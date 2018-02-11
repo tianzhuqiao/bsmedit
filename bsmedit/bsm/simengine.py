@@ -1,7 +1,8 @@
+import sys
+import traceback
+import six
 from ctypes import Structure, c_char, c_double, c_int, c_voidp, c_bool, POINTER, c_ulonglong, c_longlong
 from ctypes import create_string_buffer, cdll, CFUNCTYPE
-import traceback
-import sys
 
 SC_OBJ_UNKNOWN = 0
 SC_OBJ_SIGNAL = 1
@@ -33,13 +34,34 @@ BSM_DATA_STRING = 0
 BSM_DATA_FLOAT = 1
 BSM_DATA_INT = 2
 BSM_DATA_UINT = 3
-class SimObjValue(Structure):
+
+class SimStructure(Structure):
+    def __getitem__(self, item):
+        if isinstance(item, six.string_types):
+            if hasattr(self, item):
+                v = getattr(self, item)
+                if isinstance(v, bytes):
+                    return v.decode('utf-8')
+                return v
+        return None
+    def __setitem__(self, item, val):
+        if isinstance(item, six.string_types):
+            if hasattr(self, item):
+                v = getattr(self, item)
+                if isinstance(v, bytes):
+                    setattr(self, item, val.encode('utf-8'))
+                else:
+                    setattr(self, item, val)
+                return True
+        return False
+
+class SimObjValue(SimStructure):
     _fields_ = [('sValue', c_char*256),
                 ('fValue', c_double),
                 ('uValue', c_ulonglong),
                 ('iValue', c_longlong),
                 ('type', c_int)]
-class SimObj(Structure):
+class SimObj(SimStructure):
     _fields_ = [('name', c_char*256),
                 ('basename', c_char*256),
                 ('kind', c_char*256),
@@ -52,19 +74,19 @@ class SimObj(Structure):
                 ('nkind', c_int),
                 ('register', c_bool)]
 
-class SimTraceFile(Structure):
+class SimTraceFile(SimStructure):
     _fields_ = [('name', c_char*256),
                 ('type', c_int),
                 ('obj', c_voidp)]
 
-class SimTraceBuf(Structure):
+class SimTraceBuf(SimStructure):
     _fields_ = [('name', c_char*256),
                 ('buffer', POINTER(c_double)),
                 ('size', c_int),
                 ('obj', c_voidp),
                 ('buf', c_voidp)]
 
-class SimContext(Structure):
+class SimContext(SimStructure):
     _fields_ = [('version', c_char*256),
                 ('copyright', c_char*256),
                ]
@@ -129,9 +151,9 @@ class SimEngine(object):
             self.sim_objects = {}
             while rtn:
                 self.check_object(obj)
-                if obj.readable:
+                if obj['readable']:
                     self.ctx_read(obj)
-                self.sim_objects[obj.name] = obj
+                self.sim_objects[obj['name']] = obj
                 obj = SimObj()
                 rtn = next_object(obj)
         except:
@@ -152,7 +174,7 @@ class SimEngine(object):
         assert obj
         if not obj or (not isinstance(obj, SimObj)):
             return
-        kindstr = obj.kind
+        kindstr = obj['kind']
         kind = SC_OBJ_UNKNOWN
         if kindstr == "sc_signal":
             kind = SC_OBJ_SIGNAL
@@ -166,36 +188,36 @@ class SimEngine(object):
             kind = SC_OBJ_CLOCK
         elif kindstr == "xsc_property":
             kind = SC_OBJ_XSC_PROP
-            if obj.name.find("[") != -1 and  obj.name.find("]") != -1:
+            if obj['name'].find("[") != -1 and  obj['name'].find("]") != -1:
                 kind = SC_OBJ_XSC_ARRAY_ITEM
         elif kindstr == "sc_module":
             kind = SC_OBJ_MODULE
         elif kindstr == "xsc_array":
             kind = SC_OBJ_XSC_ARRAY
 
-        obj.nkind = kind
-        obj.register = (kind in [SC_OBJ_SIGNAL, SC_OBJ_INPUT,
+        obj['nkind'] = kind
+        obj['register'] = (kind in [SC_OBJ_SIGNAL, SC_OBJ_INPUT,
                                  SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK,
                                  SC_OBJ_XSC_PROP, SC_OBJ_XSC_ARRAY_ITEM])
-        name = obj.name
+        name = obj['name']
         idx = name.rfind('.')
         if kind == SC_OBJ_XSC_ARRAY_ITEM:
             idx = name.rfind('[')
-        obj.parent = ""
+        obj['parent'] = ""
         if idx != -1:
             name = name[0:idx]
-            obj.parent = name
+            obj['parent'] = name
 
     def ctx_read(self, obj):
         if not self.is_valid():
             return ""
         if not obj or (not isinstance(obj, SimObj)):
             return ""
-        if not obj.readable:
+        if not obj['readable']:
             return ""
         if self.ctx_read_helper(obj):
             if obj.value.type == BSM_DATA_STRING:
-                return unicode(obj.value.sValue, errors='replace')
+                return obj.value.sValue.decode('utf-8')
             elif obj.value.type == BSM_DATA_FLOAT:
                 return obj.value.fValue
             elif obj.value.type == BSM_DATA_INT:
@@ -209,11 +231,11 @@ class SimEngine(object):
             return False
         if not obj or (not isinstance(obj, SimObj)):
             return False
-        if not obj.writable:
+        if not obj['writable']:
             return ""
         if self.ctx_read_helper(obj):
             if obj.value.type == BSM_DATA_STRING:
-                obj.value.sValue = str(value)
+                obj.value['sValue'] = str(value)
             elif obj.value.type == BSM_DATA_FLOAT:
                 obj.value.fValue = float(value)
             elif obj.value.type == BSM_DATA_INT:
@@ -227,7 +249,7 @@ class SimEngine(object):
             return ""
         buf = create_string_buffer(255)
         self.ctx_time_str_helper(buf)
-        return buf.value
+        return buf.value.decode('utf-8')
 
     def ctx_set_callback(self, fun):
         # the callback fun should take an integer arguments and return an

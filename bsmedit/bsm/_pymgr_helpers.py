@@ -1,6 +1,7 @@
 """
 Manage windows (originated from matplotlib).
 """
+import six
 import gc
 
 class Gcm(object):
@@ -59,7 +60,7 @@ class Gcm(object):
     def destroy_mgr(self, mgr):
         "*mgr* is a manager instance"
         num = None
-        for manager in self.mgrs.values():
+        for manager in six.itervalues(self.mgrs):
             if manager == mgr:
                 num = manager.num
                 break
@@ -88,7 +89,7 @@ class Gcm(object):
         """
         Return the number of manager being managed.
         """
-        return len(self.mgrs.values())
+        return len(self.mgrs)
 
     def get_active(self):
         """
@@ -112,7 +113,7 @@ class Gcm(object):
 
     def get_nums(self):
         """return all the occupied nums"""
-        return self.mgrs.keys()
+        return list(self.mgrs.keys())
 
     def get_next_num(self):
         """return the next available num"""

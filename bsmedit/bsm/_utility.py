@@ -1,9 +1,11 @@
 """define some utility functions"""
+import six
 import wx
+from bsmedit.c2p import *
 def MakeBitmap(red, green, blue, alpha=128):
     # Create the bitmap that we will stuff pixel values into using
     # the raw bitmap access classes.
-    bmp = wx.EmptyBitmap(16, 16, 32)
+    bmp = EmptyBitmap(16, 16, 32)
 
     # Create an object that facilitates access to the bitmap's
     # pixel buffer
@@ -20,12 +22,12 @@ def MakeBitmap(red, green, blue, alpha=128):
     # Next we'll use the pixel accessor to set the border pixels
     # to be fully opaque
     pixels = pixelData.GetPixels()
-    for x in xrange(16):
+    for x in six.moves.range(16):
         pixels.MoveTo(pixelData, x, 0)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
         pixels.MoveTo(pixelData, x, 16-1)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
-    for y in xrange(16):
+    for y in six.moves.range(16):
         pixels.MoveTo(pixelData, 0, y)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
         pixels.MoveTo(pixelData, 16-1, y)

@@ -1,8 +1,9 @@
-import Queue
+import six
+import six.moves.queue as Queue
 import ctypes
 import traceback
 import numpy as np
-from bsmedit.bsm.simengine import *
+from .simengine import *
 
 class BpCond(object):
     """
@@ -118,9 +119,9 @@ class BpList(object):
         resp = {}
         for name, cond, hitcount in objs:
             resp[name] = False
-            if name not in objectsdict.keys():
+            if name not in six.iterkeys(objectsdict):
                 continue
-            if name in self.data.keys():
+            if name in six.iterkeys(self.data):
                 self.data[name].add_cond(cond, hitcount)
             else:
                 self.data[name] = Breakpoint(name)
@@ -133,9 +134,9 @@ class BpList(object):
         resp = {}
         for name, cond, hitcount in objs:
             resp[name] = False
-            if name not in objectsdict.keys():
+            if name not in six.iterkeys(objectsdict):
                 continue
-            if name not in self.data.keys():
+            if name not in six.iterkeys(self.data):
                 continue
             self.data[name].del_cond(cond, hitcount)
             if len(self.data[name]) <= 0:
@@ -156,7 +157,7 @@ class MonitorList(object):
     def add(self, objs, objsdict):
         resp = {o:False for o in objs}
         if objsdict:
-            objs = [o for o in objs if o in objsdict.keys()]
+            objs = [o for o in objs if o in six.iterkeys(objsdict)]
         for obj in objs:
             self.data[obj] = self.data.get(obj, 0) + 1
             resp[obj] = True
@@ -165,9 +166,9 @@ class MonitorList(object):
     def delete(self, objs, objsdict):
         resp = {o:False for o in objs}
         if objsdict:
-            objs = [o for o in objs if o in objsdict.keys()]
+            objs = [o for o in objs if o in six.iterkeys(objsdict)]
         for obj in objs:
-            if obj in self.data.keys():
+            if obj in six.iterkeys(self.data):
                 resp[obj] = True
                 self.data[obj] -= 1
                 if self.data[obj] <= 0:
@@ -176,9 +177,10 @@ class MonitorList(object):
         return resp
     def update_monitor(self, objsdict=None):
         if objsdict:
-            self.monitor = [k for k in self.data.keys() if k in objsdict.keys()]
+            regs = list(objsdict.keys())
+            self.monitor = [k for k in six.iterkeys(self.data) if k in regs]
         else:
-            self.monitor = self.data.keys()
+            self.monitor = list(self.data.keys())
     def get_monitor(self):
         return self.monitor
 
@@ -206,7 +208,7 @@ class ProcessCommand(object):
             self.simengine.ctx_stop()
 
     def IsValidObj(self, name):
-        return name and name in self.simengine.sim_objects.keys()
+        return name and name in six.iterkeys(self.simengine.sim_objects)
 
     def response(self, resp):
         self.qResp.put(resp)
@@ -214,16 +216,17 @@ class ProcessCommand(object):
     def load(self, filename):
         self.simengine = SimEngine(filename)
         if self.simengine.valid:
-            print self.simengine.ctx.version
-            print self.simengine.ctx.copyright
+            print(self.simengine.ctx['version'])
+            print(self.simengine.ctx['copyright'])
             self.simengine.ctx_set_callback(self.check_bp)
             objs = {}
-            for name, obj in self.simengine.sim_objects.iteritems():
-                objs[obj.name] = {'name':obj.name, 'basename':obj.basename,
-                                  'kind':obj.kind, 'value':obj.value,
-                                  'writable':obj.writable, 'readable':obj.readable,
-                                  'numeric':obj.numeric, 'parent':obj.parent,
-                                  'nkind':obj.nkind, 'register':obj.register}
+            for name, obj in six.iteritems(self.simengine.sim_objects):
+                objs[obj['name']] = {'name':obj['name'], 'basename':obj['basename'],
+                                     'kind':obj['kind'], 'value':obj['value'],
+                                     'writable':obj['writable'],
+                                     'readable':obj['readable'],
+                                     'numeric':obj['numeric'], 'parent':obj['parent'],
+                                     'nkind':obj['nkind'], 'register':obj['register']}
             return objs
         return None
 
@@ -231,9 +234,9 @@ class ProcessCommand(object):
         """check the breakpoints"""
         bps = self.breakpoint.get_bp()
         if len(bps) <= 0: return 0
-        objs = bps.keys()
+        objs = list(bps.keys())
         values = self.read(objs)
-        for name, bp in bps.iteritems():
+        for name, bp in six.iteritems(bps):
             t = bp.triggered(values[name], self.bp_values_prev[name])
             if t is not None:
                 # set the important filed to be True, so the client will
@@ -299,7 +302,7 @@ class ProcessCommand(object):
     def write(self, objects):
         """write the register value"""
         resp = {}
-        for name, value in objects.iteritems():
+        for name, value in six.iteritems(objects):
             resp[name] = False
             if name not in self.simengine.sim_objects:
                 continue
@@ -333,8 +336,8 @@ class ProcessCommand(object):
             valid = self.simengine.sim_objects[name]
 
         trace = SimTraceFile()
-        trace.name = name
-        trace.type = ntype
+        trace['name'] = name
+        trace['type'] = ntype
         if self.simengine.ctx_create_trace_file(trace):
             self.simengine.ctx_trace_file(trace, self.simengine.sim_objects[name], valid, trigger)
             self.tfile[name] = trace
@@ -357,7 +360,7 @@ class ProcessCommand(object):
         if valid:
             valid = self.simengine.sim_objects[valid]
 
-        if name in self.tbuf.keys():
+        if name in six.iterkeys(self.tbuf):
             # remove the existing trace
             trace = self.tbuf[name]['trace']
             self.simengine.ctx_remove_trace_buf(trace)
@@ -365,8 +368,8 @@ class ProcessCommand(object):
             del self.tbuf_raw[name]
 
         trace = SimTraceBuf()
-        trace.name = name
-        trace.size = size
+        trace['name'] = name
+        trace['size'] = size
         data = np.zeros((size))
         trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         if self.simengine.ctx_create_trace_buf(trace):
@@ -378,12 +381,12 @@ class ProcessCommand(object):
 
     def read_buf(self, objects):
         if objects == []:
-            objects = self.tbuf.keys()
+            objects = list(self.tbuf.keys())
         resp = {}
         for obj in objects:
-            if obj not in self.tbuf.keys():
+            if obj not in six.iterkeys(self.tbuf):
                 self.trace_buf({'name':obj})
-            if obj in self.tbuf.keys():
+            else:
                 self.simengine.ctx_read_trace_buf(self.tbuf[obj]['trace'])
                 resp[obj] = self.tbuf[obj]['data']
         return resp
@@ -416,9 +419,9 @@ class ProcessCommand(object):
                     if command == 'exit':
                         return False
                     if not args.get('silent', True):
-                        print cmd
+                        print(cmd)
                     if not command and not args:
-                        print "unknown command"
+                        print("unknown command")
                         self.response([resp])
                         continue
 
@@ -447,7 +450,7 @@ class ProcessCommand(object):
                         bps = self.breakpoint.get_bp()
                         # update the current breakpoint values before they are
                         # checked next time
-                        self.bp_values_prev = self.read(bps.keys())
+                        self.bp_values_prev = self.read(list(bps.keys()))
                         resp['value'] = objs
 
                     elif command == 'del_breakpoint':
@@ -492,7 +495,7 @@ class ProcessCommand(object):
                         resp['value'] = {'running': self.running,
                                          'valid': self.simengine and self.simengine.valid}
                     else:
-                        print 'Unknown command: ', cmd
+                        print('Unknown command: ' + cmd)
                     if resp:
                         self.response(resp)
         except Queue.Empty:

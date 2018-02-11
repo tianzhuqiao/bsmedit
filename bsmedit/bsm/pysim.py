@@ -1,6 +1,5 @@
-from sim import sim, Gcs
-from bsmedit.bsm.propgrid import bsmPropGrid
-from _docstring import copy_docstring
+from .sim import sim
+from .propgrid import bsmPropGrid
 
 def gcp():
     """
@@ -8,21 +7,10 @@ def gcp():
     """
     mgr = bsmPropGrid.GCM.get_active()
     if not mgr:
-        mgr = propgrid()
+        mgr = sim.propgrid()
     return mgr
 
-def propgrid(*args, **kwargs):
-    """
-    get the propgrid manager by its number
-
-    If the manager exists, return its handler; otherwise, it will be created.
-    """
-    return sim.propgrid(*args, **kwargs)
-
-@copy_docstring(sim.simulation)
-def simulation(*args, **kwargs):
-    return sim.simulation(*args, **kwargs)
-
-@copy_docstring(sim.plot_trace)
-def plot_trace(*args, **kwargs):
-    return sim.plot_trace(*args, **kwargs)
+# add some shortcuts
+progrid = sim.propgrid
+simulation = sim.simulation
+plot_trace = sim.plot_trace

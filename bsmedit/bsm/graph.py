@@ -4,7 +4,9 @@ import math
 import wx
 import wx.aui
 import wx.py.dispatcher as dp
-from bsmedit.bsm._graphxpm import *
+from ._graphxpm import *
+from .. import c2p
+
 initialized = False
 try:
     import numpy
@@ -278,13 +280,12 @@ class Toolbar(NavigationToolbar):
                 continue
             self.wx_ids[text] = wx.NewId()
             if text in ['Pan', 'Zoom', 'Datatip']:
-                self.AddCheckTool(self.wx_ids[text],
-                                  wx.BitmapFromXPMData(image_file),
-                                  shortHelp=text, longHelp=tooltip_text)
+                c2p.tbAddCheckTool(self, self.wx_ids[text], text,
+                                   c2p.BitmapFromXPM(image_file),
+                                   shortHelp=text, longHelp=tooltip_text)
             else:
-                self.AddSimpleTool(self.wx_ids[text],
-                                   wx.BitmapFromXPMData(image_file),
-                                   text, tooltip_text)
+                c2p.tbAddTool(self, self.wx_ids[text], text,
+                              c2p.BitmapFromXPM(image_file), tooltip_text)
             self.Bind(wx.EVT_TOOL, getattr(self, callback),
                       id=self.wx_ids[text])
 
@@ -431,14 +432,14 @@ class MatplotPanel(wx.Panel):
                 x = l.trace[0]
                 y = l.trace[1]
                 if x is None:
-                    if y in bufs.keys():
+                    if y in bufs:
                         l.set_data(numpy.arange(len(bufs[y])), bufs[y])
-                elif x in bufs.keys() or y in bufs.keys():
+                elif x in bufs or y in bufs:
                     xd = l.get_xdata()
                     yd = l.get_ydata()
-                    if y in bufs.keys():
+                    if y in bufs:
                         yd = bufs[y]
-                    if x in bufs.keys():
+                    if x in bufs:
                         xd = bufs[x]
                     if len(xd) != len(yd):
                         sz = min(len(xd), len(yd))
@@ -456,11 +457,11 @@ class MatplotPanel(wx.Panel):
         if y is None:
             return
         if x is None:
-            l, = self.figure.gca().plot(y.values()[0], *args, **kwargs)
-            l.trace = [None, y.keys()[0]]
+            l, = self.figure.gca().plot(list(y.values())[0], *args, **kwargs)
+            l.trace = [None, list(y.keys())[0]]
         else:
-            xd = x.values()[0]
-            yd = y.values()[0]
+            xd = list(x.values())[0]
+            yd = list(y.values())[0]
             if len(xd) != len(yd):
                 sz = min(len(xd), len(yd))
                 if sz > 0:
@@ -470,7 +471,7 @@ class MatplotPanel(wx.Panel):
                     xd = 0
                     yd = 0
             l, = self.figure.gca().plot(xd, yd, *args, **kwargs)
-            l.trace = [x.keys()[0], y.keys()[0]]
+            l.trace = [list(x.keys())[0], list(y.keys())[0]]
         l.autorelim = autorelim
         self.canvas.draw()
 

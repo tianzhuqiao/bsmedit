@@ -1,5 +1,7 @@
+import six
 import wx
-from bsmedit.bsm._propxpm import radio_xpm, tree_xpm
+from ._propxpm import radio_xpm, tree_xpm
+from .. import c2p
 
 wxEVT_BSM_PROP_SELECTED = wx.NewEventType()
 EVT_BSM_PROP_SELECTED = wx.PyEventBinder(wxEVT_BSM_PROP_SELECTED, 1)
@@ -120,8 +122,8 @@ class bsmProperty(object):
         if type(self).imgRadio is None or type(self).imgExpColp is None:
             type(self).imgRadio = wx.ImageList(16, 16, True, 4)
             type(self).imgExpColp = wx.ImageList(12, 12, True, 2)
-            type(self).imgRadio.Add(wx.BitmapFromXPMData(radio_xpm))
-            type(self).imgExpColp.Add(wx.BitmapFromXPMData(tree_xpm))
+            type(self).imgRadio.Add(c2p.BitmapFromXPM(radio_xpm))
+            type(self).imgExpColp.Add(c2p.BitmapFromXPM(tree_xpm))
 
     def duplicate(self):
         """
@@ -213,7 +215,7 @@ class bsmProperty(object):
                      'slider': PROP_CTRL_SLIDER, 'spin': PROP_CTRL_SPIN,
                      'checkbox': PROP_CTRL_CHECK, 'radiobox': PROP_CTRL_RADIO,
                      'color': PROP_CTRL_COLOR}
-        if isinstance(style, str):
+        if isinstance(style, six.string_types):
             style = str_style.get(style, None)
         if not isinstance(style, int):
             return False
@@ -235,8 +237,8 @@ class bsmProperty(object):
         """
         # dict, split the key and value
         if value is None and isinstance(choice, dict):
-            value = choice.values()
-            choice = choice.keys()
+            value = list(choice.values())
+            choice = list(choice.keys())
         # both choice and value are valid, but with different length
         if not choice or (value and len(choice) != len(value)):
             return
@@ -488,8 +490,8 @@ class bsmProperty(object):
             dc.SetBrush(brush)
             dc.DrawRectangle(rc.x, rc.y, rc.width, rc.height)
 
+        c2p.SetClippingRect(dc, self.titleRectColumn)
 
-        dc.SetClippingRect(self.titleRectColumn)
         if self.HasChildren():
             if type(self).imgExpColp.GetImageCount() == 2:
                 (imagex, imagey) = type(self).imgExpColp.GetSize(0)
@@ -586,7 +588,7 @@ class bsmProperty(object):
             if self.description != "":
                 value += " (" + self.description + ")"
             (w, h) = dc.GetTextExtent(value)
-            dc.SetClippingRect(self.valueRect)
+            c2p.SetClippingRect(dc, self.valueRect)
             dc.DrawText(value, self.valueRect.GetX() + 1,
                         self.valueRect.top + (self.valueRect.height - h)/2)
             self.showValueTips = self.valueRect.width < w
