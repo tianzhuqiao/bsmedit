@@ -25,19 +25,22 @@ POSSIBILITY OF SUCH DAMAGE."""
 __author__ = u"Toni Ruža <gmr.gaf@gmail.com>"
 __url__ = "http://bitbucket.org/raz/wxautocompletectrl"
 
+import six
 import wx
+from .. import c2p
 
 class SuggestionsPopup(wx.Frame):
     def __init__(self, parent):
         wx.Frame.__init__(
             self, parent,
-            style=wx.FRAME_NO_TASKBAR|wx.FRAME_FLOAT_ON_PARENT|wx.STAY_ON_TOP
+            style=wx.NO_BORDER|wx.FRAME_TOOL_WINDOW|wx.FRAME_NO_TASKBAR|
+                  wx.FRAME_FLOAT_ON_PARENT|wx.STAY_ON_TOP
         )
         self._suggestions = self._listbox(self)
         self._suggestions.SetItemCount(0)
         self._unformated_suggestions = None
 
-    class _listbox(wx.HtmlListBox):
+    class _listbox(c2p.HtmlListBox):
         items = None
 
         def OnGetItem(self, n):
@@ -136,13 +139,16 @@ class AutocompleteTextCtrl(wx.TextCtrl):
     def AutoComplete(self, *args, **kwargs):
         self.queued_popup = False
         if self.Value != "":
-            formated, unformated = self.completer(self.Value)
-            if len(formated) > 0:
+            formated, unformated, offset = self.completer(self.Value)
+            if formated:
+                self.auto_comp_offset = offset
                 self.popup.SetSuggestions(formated, unformated)
                 self.AdjustPopupPosition()
                 self.Unbind(wx.EVT_KILL_FOCUS)
                 self.popup.ShowWithoutActivating()
                 self.SetFocus()
+                # in linux, SetFocus may select the whole string, de-select it
+                self.SelectNone()
                 self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
             else:
                 self.popup.Hide()
@@ -166,7 +172,12 @@ class AutocompleteTextCtrl(wx.TextCtrl):
 
         elif key in (wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER) and self.popup.Shown:
             self.skip_event = True
-            self.SetValue(self.popup.GetSelectedSuggestion())
+
+            txt = self.popup.GetSelectedSuggestion()
+            start = end = self.GetLastPosition()
+            if self.auto_comp_offset:
+                start -= self.auto_comp_offset
+            self.Replace(start, end, txt)
             self.SetInsertionPointEnd()
             self.popup.Hide()
             return
@@ -177,7 +188,7 @@ class AutocompleteTextCtrl(wx.TextCtrl):
         elif key == wx.WXK_END:
             self.popup.CursorEnd()
 
-        elif event.ControlDown() and unichr(key).lower() == "a":
+        elif event.ControlDown() and six.unichr(key).lower() == "a":
             self.SelectAll()
 
         elif key == wx.WXK_ESCAPE:

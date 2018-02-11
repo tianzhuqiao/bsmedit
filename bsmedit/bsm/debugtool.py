@@ -1,11 +1,13 @@
 import sys
 import inspect
+import six
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.agw.aui as aui
-from bsmedit.bsm._debugtoolxpm import run_xpm, step_xpm, step_into_xpm, step_out_xpm,\
+from ._debugtoolxpm import run_xpm, step_xpm, step_into_xpm, step_out_xpm,\
                           stop_xpm
+from .. import c2p
 
 class StackListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
                     listmix.ListRowHighlighter):
@@ -57,7 +59,7 @@ class StackPanel(wx.Panel):
                 name = frame.f_code.co_name
                 filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
                 lineno = frame.f_lineno
-                index = self.listctrl.InsertStringItem(sys.maxint, name)
+                index = self.listctrl.InsertStringItem(six.MAXSIZE, name)
                 self.listctrl.SetStringItem(index, 2, filename)
                 self.listctrl.SetStringItem(index, 1, '%d' % lineno)
         if level >= 0 and level < self.listctrl.GetItemCount():
@@ -108,7 +110,7 @@ class DebugTool(object):
                 continue
             cls.menus[resp[0][1]] = status
             cls.tbDebug.AddSimpleTool(resp[0][1], label,
-                                      wx.BitmapFromXPMData(xpm), label)
+                                      c2p.BitmapFromXPM(xpm), label)
         cls.tbDebug.Realize()
 
         dp.send('frame.add_panel', panel=cls.tbDebug, title='Debugger',
@@ -131,7 +133,7 @@ class DebugTool(object):
             return
         status = resp[0][1]
         paused = status['paused']
-        for k, s in cls.menus.iteritems():
+        for k, s in six.iteritems(cls.menus):
             cls.tbDebug.EnableTool(k, paused and status.get(s, False))
         cls.tbDebug.Refresh(False)
         if paused and not cls.tbDebug.IsShown():
@@ -145,7 +147,7 @@ class DebugTool(object):
     def OnDebugEnded(cls):
         """debugger is ended"""
         # disable and hide the debugger toolbar
-        for k in cls.menus.keys():
+        for k in six.iterkeys(cls.menus):
             cls.tbDebug.EnableTool(k, False)
         cls.tbDebug.Refresh(False)
 

@@ -6,7 +6,7 @@ def copy(source, dropSelf=True):
     def do_copy(target):
         """do the real copy"""
         if source.__doc__:
-            argspec = apply(inspect.formatargspec, inspect.getargspec(source))
+            argspec = inspect.formatargspec(*inspect.getargspec(source))
             if dropSelf:
                 # The first parameter to a method is a reference to an
                 # instance, usually coded as "self", and is usually passed
@@ -34,7 +34,7 @@ def copy_docstring(source, dropSelf=True):
 def copy_docstring_raw(source, target, dropSelf=True):
     """copy the docstring to target"""
     if source.__doc__:
-        argspec = apply(inspect.formatargspec, inspect.getargspec(source))
+        argspec = inspect.formatargspec(*inspect.getargspec(source))
         if dropSelf:
             # The first parameter to a method is a reference to an
             # instance, usually coded as "self", and is usually passed

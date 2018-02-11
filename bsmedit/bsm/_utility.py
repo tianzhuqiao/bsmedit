@@ -1,11 +1,11 @@
 """define some utility functions"""
 import six
 import wx
-from bsmedit.c2p import *
+from .. import c2p
 def MakeBitmap(red, green, blue, alpha=128):
     # Create the bitmap that we will stuff pixel values into using
     # the raw bitmap access classes.
-    bmp = EmptyBitmap(16, 16, 32)
+    bmp = c2p.EmptyBitmap(16, 16, 32)
 
     # Create an object that facilitates access to the bitmap's
     # pixel buffer
@@ -35,3 +35,46 @@ def MakeBitmap(red, green, blue, alpha=128):
 
     return bmp
 
+
+class FastLoadTreeCtrl(wx.TreeCtrl):
+    """
+    When a treectrl tries to load a large amount of items, it will be slow.
+    This class will not load the children item until the parent is expanded (
+    e.g., by a click).
+    """
+    def __init__(self, parent, getchildren=None, style=wx.TR_DEFAULT_STYLE):
+        wx.TreeCtrl.__init__(self, parent, style=style)
+        self._get_children = getchildren
+        assert(self._get_children)
+        self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
+
+    def OnTreeItemExpanding(self, event):
+        """expand the item with children"""
+        item = event.GetItem()
+        if not item.IsOk():
+            return
+        self.FillChildren(item)
+
+    def FillChildren(self, item):
+        """fill the node with children"""
+        if not ((self.GetWindowStyle() & wx.TR_HIDE_ROOT) and item == self.GetRootItem()):
+            child, _ = self.GetFirstChild(item)
+            if not child.IsOk():
+                return False
+            if self.GetItemText(child) != "...":
+                return False
+        # delete the '...'
+        self.DeleteChildren(item)
+        children = self._get_children(item)
+        for obj in children:
+            # fill all the children
+            child = c2p.treeAppendItem(self, item, obj['label'], obj['img'], obj['imgsel'],
+                                       obj['data'])
+            # add the place holder for children
+            if obj['is_folder']:
+                c2p.treeAppendItem(self, child, '...', -1, -1, None)
+            clr = obj.get('color', None)
+            if clr:
+                self.SetItemTextColour(child, wx.Colour(100, 174, 100))
+        self.SortChildren(item)
+        return True

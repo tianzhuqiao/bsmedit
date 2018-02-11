@@ -28,8 +28,10 @@
 """
 
 import os
+import six
 import wx
 import traceback
+from .. import c2p
 
 class Directory(object):
     """Simple class for using as the data object in the DirTreeCtrl"""
@@ -63,11 +65,11 @@ class DirTreeCtrl(wx.TreeCtrl):
         self.iconentries['default'] = -1
         self.iconentries['directory'] = -1
         self.iconentries['directoryopen'] = -1
-        self.addBitmap(wx.ArtProvider_GetBitmap(wx.ART_FOLDER,
+        self.addBitmap(c2p.ArtProvider_GetBitmap(wx.ART_FOLDER,
                        wx.ART_OTHER, (16, 16)), 'directory')
-        self.addBitmap(wx.ArtProvider_GetBitmap(wx.ART_FOLDER_OPEN,
+        self.addBitmap(c2p.ArtProvider_GetBitmap(wx.ART_FOLDER_OPEN,
                        wx.ART_OTHER, (16, 16)), 'directoryopen')
-        self.addBitmap(wx.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE,
+        self.addBitmap(c2p.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE,
                        wx.ART_OTHER, (16, 16)), 'default')
         self.SetImageList(self.imagelist)
         # # you should replace this with your own code or put the relevant
@@ -121,7 +123,10 @@ class DirTreeCtrl(wx.TreeCtrl):
 
         # add directory as root
         root = self.AddRoot(directory)
-        self.SetPyData(root, Directory(directory))
+        if c2p.bsm_is_phoenix:
+            self.SetItemData(root, Directory(directory))
+        else:
+            self.SetPyData(root, Directory(directory))
         self.SetItemImage(root, self.iconentries['directory'],
                           wx.TreeItemIcon_Normal)
         self.SetItemImage(root, self.iconentries['directoryopen'],
@@ -169,7 +174,10 @@ class DirTreeCtrl(wx.TreeCtrl):
                 self.SetItemHasChildren(child, True)
 
                 # save item path for expanding later
-                self.SetPyData(child, Directory(os.path.join(directory, f)))
+                if c2p.bsm_is_phoenix:
+                    self.SetItemData(child, Directory(os.path.join(directory, f)))
+                else:
+                    self.SetPyData(child, Directory(os.path.join(directory, f)))
 
             # add file nodes to tree
             for f in files_all:
@@ -201,7 +209,7 @@ class DirTreeCtrl(wx.TreeCtrl):
         if ext not in excluded:
 
             # only add if we dont already have an entry for this item
-            if ext not in self.iconentries.keys():
+            if ext not in self.iconentries:
 
                 # sometimes it just crashes
                 try:
@@ -243,8 +251,8 @@ class DirTreeCtrl(wx.TreeCtrl):
                 if icon.IsOk():
                     return self.imagelist.AddIcon(icon)
 
-            except Exception, e:
-                print e
+            except:
+                traceback.print_exc()
                 return self.iconentries['default']
 
         # if no key returned already, return default

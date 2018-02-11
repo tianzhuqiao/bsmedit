@@ -3,12 +3,15 @@ import os
 import time
 import traceback
 import sys
+import six
 import wx
 import wx.py.dispatcher as dp
 import wx.html2 as html
-from bsmedit.bsm.dirtreectrl import DirTreeCtrl, Directory
-from bsmedit.bsm._misctoolsxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
-from bsmedit.bsm.autocomplete import AutocompleteTextCtrl
+from .dirtreectrl import DirTreeCtrl, Directory
+from ._misctoolsxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
+from .autocomplete import AutocompleteTextCtrl
+from ._utility import FastLoadTreeCtrl
+from .. import c2p
 
 html_template = '''
 <html>
@@ -34,24 +37,12 @@ class HelpPanel(wx.Panel):
 
         self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|
                              wx.NO_BORDER|wx.TB_NODIVIDER)
-        self.tb.AddLabelTool(
-            wx.ID_BACKWARD,
-            'Back',
-            wx.BitmapFromXPMData(backward_xpm),
-            wx.NullBitmap,
-            wx.ITEM_NORMAL,
-            'Go the previous page',
-            wx.EmptyString,
-            )
-        self.tb.AddLabelTool(
-            wx.ID_FORWARD,
-            'Forward',
-            wx.BitmapFromXPMData(forward_xpm),
-            wx.NullBitmap,
-            wx.ITEM_NORMAL,
-            'Go to the next page',
-            wx.EmptyString,
-            )
+        c2p.tbAddTool(self.tb, wx.ID_BACKWARD, 'Back',
+                      c2p.BitmapFromXPM(backward_xpm), wx.NullBitmap,
+                      wx.ITEM_NORMAL, 'Go the previous page', wx.EmptyString)
+        c2p.tbAddTool(self.tb, wx.ID_FORWARD, 'Forward',
+                      c2p.BitmapFromXPM(forward_xpm), wx.NullBitmap,
+                      wx.ITEM_NORMAL, 'Go to the next page', wx.EmptyString)
         self.tb.Realize()
 
         # Setup the layout
@@ -114,9 +105,9 @@ class HelpPanel(wx.Panel):
             root = query[0:query.rfind('.')+1]
             remain = query[query.rfind('.')+1:]
             remain = remain.lower()
-            objs = [root + o for o in response[0][1] if o.lower().startswith(remain)]
-            return objs, objs
-
+            objs = [o for o in response[0][1] if o.lower().startswith(remain)]
+            return objs, objs, len(query) - len(root)
+        return [], [], 0
     def add_history(self, command):
         if len(self.history) == 0 or self.history[-1] != command:
             self.history.append(command)
@@ -174,85 +165,131 @@ class HelpPanel(wx.Panel):
         self.show_help(command, False)
 
 class HistoryPanel(wx.Panel):
-
+    ID_CUT = wx.NewId()
+    ID_COPY = wx.NewId()
+    ID_EXECUTE = wx.NewId()
+    ID_CLEAR = wx.NewId()
+    ID_DELETE = wx.NewId()
+    TIME_STAMP_HEADER = "#bsm"
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
-        self.tree = wx.TreeCtrl(self, -1, style=wx.TR_DEFAULT_STYLE
-                                | wx.TR_HIDE_ROOT |wx.TR_MULTIPLE)
-        # wx.TR_HAS_BUTTONS | wx.TR_EDIT_LABELS
-
+        style = wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT |wx.TR_MULTIPLE |\
+                wx.TR_HAS_VARIABLE_ROW_HEIGHT
+        self.tree = FastLoadTreeCtrl(self, getchildren=self.get_children, style=style)
+        self.history = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 5)
         self.SetSizer(sizer)
-        dp.connect(receiver=self.addHistory, signal='Shell.addHistory')
+        dp.connect(receiver=self.AddHistory, signal='Shell.addHistory')
         dp.connect(receiver=self.LoadHistory, signal='frame.load_config')
         dp.connect(receiver=self.SaveHistory, signal='frame.save_config')
         self.root = self.tree.AddRoot('The Root Item')
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnActivate, self.tree)
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnRightClick, self.tree)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_COPY)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CUT)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_EXECUTE)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_COPY)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_CUT)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_EXECUTE)
         #self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_SELECTALL)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_DELETE)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CLEAR)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_DELETE)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_CLEAR)
 
-        accel = [(wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
-                 (wx.ACCEL_CTRL, ord('X'), wx.ID_CUT),
+        accel = [(wx.ACCEL_CTRL, ord('C'), self.ID_COPY),
+                 (wx.ACCEL_CTRL, ord('X'), self.ID_CUT),
                  #(wx.ACCEL_CTRL, ord('A'), wx.ID_SELECTALL),
-                 (wx.ACCEL_NORMAL, wx.WXK_DELETE, wx.ID_DELETE),
+                 (wx.ACCEL_NORMAL, wx.WXK_DELETE, self.ID_DELETE),
                 ]
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
 
+    def get_children(self, item):
+        """ callback function to return the children of item """
+        if item == self.tree.GetRootItem():
+            childlist = list(six.iterkeys(self.history))
+            childlist.sort(reverse=True)
+            is_folder = True
+            clr = wx.Colour(100, 174, 100)
+        else:
+            stamp = self.tree.GetItemText(item)
+            childlist = self.history.get(stamp, [])
+            is_folder = False
+            clr = None
+            # free the list
+            self.history.pop(stamp, None)
+        children = []
+        for obj in childlist:
+            child = {'label': obj, 'img':-1, 'imgsel': -1, 'data':'',
+                     'color': clr}
+            child['is_folder'] = is_folder
+            children.append(child)
+        return children
+
     def LoadHistory(self, config):
         config.SetPath('/CommandHistory')
-        stamp = ""
-        for i in range(0, config.GetNumberOfEntries()):
+        stamp = time.strftime('#%Y/%m/%d')
+        for i in six.moves.range(0, config.GetNumberOfEntries()):
             value = config.Read("item%d"%i)
-            if value.find("#==bsm==") == 0:
-                stamp = value[8:]
-            else:
-                self.addHistory(value, stamp)
+            if value.startswith(self.TIME_STAMP_HEADER):
+                stamp = value[len(self.TIME_STAMP_HEADER):]
+                self.history[stamp] = self.history.get(stamp, [])
+            elif self.history.get(stamp, None) is not None:
+                self.history[stamp].append(value)
+
+        self.tree.FillChildren(self.root)
+        item = self.tree.GetLastChild(self.root)
+        if item.IsOk():
+            self.tree.Expand(item)
 
     def SaveHistory(self, config):
+        """save the history"""
         config.DeleteGroup('/CommandHistory')
         config.SetPath('/CommandHistory')
         (item, cookie) = self.tree.GetFirstChild(self.root)
         pos = 0
         while item.IsOk():
-            config.Write("item%d"%pos, "#==bsm=="+self.tree.GetItemText(item))
-            pos = pos + 1
+            stamp = self.tree.GetItemText(item)
+            config.Write("item%d"%pos, self.TIME_STAMP_HEADER + stamp)
+            pos += 1
 
-            (childitem, childcookie) = self.tree.GetFirstChild(item)
-            while childitem.IsOk():
-                config.Write("item%d"%pos, self.tree.GetItemText(childitem))
-                (childitem, childcookie) = self.tree.GetNextChild(item, childcookie)
+            childitem, childcookie = self.tree.GetFirstChild(item)
+            if childitem.IsOk() and self.tree.GetItemText(childitem) != "...":
+                while childitem.IsOk():
+                    config.Write("item%d"%pos, self.tree.GetItemText(childitem))
+                    childitem, childcookie = self.tree.GetNextChild(item, childcookie)
+                    pos = pos + 1
+            # save the unexpanded folder
+            for child in self.history.get(stamp, []):
+                config.Write("item%d"%pos, child)
                 pos = pos + 1
+
             (item, cookie) = self.tree.GetNextChild(self.root, cookie)
 
-    def addHistory(self, command, stamp=""):
+    def AddHistory(self, command, stamp=""):
+        """ add history to treectrl """
         command = command.strip()
-        if stamp:
-            day = stamp
-        else:
-            day = time.strftime('#%Y/%m/%d')
+        if not command:
+            return
+        if not stamp:
+            stamp = time.strftime('#%Y/%m/%d')
 
-        (item, cookie) = self.tree.GetFirstChild(self.root)
+        # search the time stamp
         pos = 0
+        item, cookie = self.tree.GetFirstChild(self.root)
         while item.IsOk():
-            if self.tree.GetItemText(item) == day:
+            if self.tree.GetItemText(item) == stamp:
                 break
-            elif self.tree.GetItemText(item) > day:
-                item = self.tree.InsertItemBefore(self.root, pos, day)
+            elif self.tree.GetItemText(item) > stamp:
+                item = self.tree.InsertItemBefore(self.root, pos, stamp)
                 self.tree.SetItemTextColour(item, wx.Colour(100, 174, 100))
                 break
             pos = pos + 1
             (item, cookie) = self.tree.GetNextChild(self.root, cookie)
+        # not find the time stamp, create one
         if not item.IsOk():
-            item = self.tree.AppendItem(self.root, day)
+            item = self.tree.AppendItem(self.root, stamp)
             self.tree.SetItemTextColour(item, wx.Colour(100, 174, 100))
+        # append the history
         if item.IsOk():
+            self.tree.Expand(item)
             child = self.tree.AppendItem(item, command)
             self.tree.EnsureVisible(child)
 
@@ -264,14 +301,14 @@ class HistoryPanel(wx.Panel):
 
     def OnRightClick(self, event):
         menu = wx.Menu()
-        menu.Append(wx.ID_COPY, "Copy")
-        menu.Append(wx.ID_CUT, "Cut")
-        menu.Append(wx.ID_EXECUTE, "Evaluate")
+        menu.Append(self.ID_COPY, "Copy")
+        menu.Append(self.ID_CUT, "Cut")
+        menu.Append(self.ID_EXECUTE, "Evaluate")
         menu.AppendSeparator()
         #menu.Append(wx.ID_SELECTALL, "Select all")
         menu.AppendSeparator()
-        menu.Append(wx.ID_DELETE, "Delete")
-        menu.Append(wx.ID_CLEAR, "Clear history")
+        menu.Append(self.ID_DELETE, "Delete")
+        menu.Append(self.ID_CLEAR, "Clear history")
         self.PopupMenu(menu)
         menu.Destroy()
 
@@ -281,26 +318,26 @@ class HistoryPanel(wx.Panel):
         for item in items:
             cmd.append(self.tree.GetItemText(item))
         evtId = event.GetId()
-        if evtId == wx.ID_COPY or evtId == wx.ID_CUT:
+        if evtId == self.ID_COPY or evtId == self.ID_CUT:
             clipData = wx.TextDataObject()
             clipData.SetText("\n".join(cmd))
             wx.TheClipboard.Open()
             wx.TheClipboard.SetData(clipData)
             wx.TheClipboard.Close()
-            if evtId == wx.ID_CUT:
+            if evtId == self.ID_CUT:
                 for item in items:
                     if self.tree.ItemHasChildren(item):
                         self.tree.DeleteChildren(item)
                     self.tree.Delete(item)
-        elif evtId == wx.ID_EXECUTE:
+        elif evtId == self.ID_EXECUTE:
             for c in cmd:
                 dp.send(signal='shell.run', command=c)
-        elif evtId == wx.ID_DELETE:
+        elif evtId == self.ID_DELETE:
             for item in items:
                 if self.tree.ItemHasChildren(item):
                     self.tree.DeleteChildren(item)
                 self.tree.Delete(item)
-        elif evtId == wx.ID_CLEAR:
+        elif evtId == self.ID_CLEAR:
             self.tree.DeleteAllItems()
 
 class DirPanel(wx.Panel):
@@ -312,24 +349,12 @@ class DirPanel(wx.Panel):
         wx.Panel.__init__(self, parent)
 
         self.tb = wx.ToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
-        self.tb.AddLabelTool(
-            self.ID_GOTO_PARENT,
-            'Parent',
-            wx.BitmapFromXPMData(goup_xpm),
-            wx.NullBitmap,
-            wx.ITEM_NORMAL,
-            'Parent folder',
-            wx.EmptyString,
-            )
-        self.tb.AddLabelTool(
-            self.ID_GOTO_HOME,
-            'Home',
-            wx.BitmapFromXPMData(home_xpm),
-            wx.NullBitmap,
-            wx.ITEM_NORMAL,
-            'Current folder',
-            wx.EmptyString,
-            )
+        c2p.tbAddTool(self.tb, self.ID_GOTO_PARENT, 'Parent',
+                      c2p.BitmapFromXPM(goup_xpm), wx.NullBitmap,
+                      wx.ITEM_NORMAL, 'Parent folder', wx.EmptyString)
+        c2p.tbAddTool(self.tb, self.ID_GOTO_HOME, 'Home',
+                      c2p.BitmapFromXPM(home_xpm), wx.NullBitmap,
+                      wx.ITEM_NORMAL, 'Current folder', wx.EmptyString)
         self.tb.Realize()
         self.dirtree = DirTreeCtrl(self, style=wx.TR_DEFAULT_STYLE |
                                    wx.TR_HAS_VARIABLE_ROW_HEIGHT |
@@ -354,8 +379,8 @@ class DirPanel(wx.Panel):
         currentItem = event.GetItem()
         filename = self.dirtree.GetItemText(currentItem)
         parentItem = self.dirtree.GetItemParent(currentItem)
-        if isinstance(self.dirtree.GetPyData(parentItem), Directory):
-            d = self.dirtree.GetPyData(parentItem)
+        d = c2p.treeGetData(self.dirtree, parentItem)
+        if isinstance(d, Directory):
             filepath = os.path.join(d.directory, filename)
         else:
             return
@@ -370,16 +395,20 @@ class DirPanel(wx.Panel):
 
     def OnGotoHome(self, event):
         root = self.dirtree.GetRootItem()
-        if root and isinstance(self.dirtree.GetPyData(root), Directory):
-            d = self.dirtree.GetPyData(root)
+        if not root:
+            return
+        d = c2p.treeGetData(self.dirtree, root)
+        if isinstance(d, Directory):
             if d.directory == os.getcwd():
                 return
         self.dirtree.SetRootDir(os.getcwd())
 
     def OnGotoParent(self, event):
         root = self.dirtree.GetRootItem()
-        if root and isinstance(self.dirtree.GetPyData(root), Directory):
-            d = self.dirtree.GetPyData(root)
+        if not root:
+            return
+        d = c2p.treeGetData(self.dirtree, root)
+        if isinstance(d, Directory):
             path = os.path.abspath(os.path.join(d.directory, os.path.pardir))
             if path == d.directory:
                 return
