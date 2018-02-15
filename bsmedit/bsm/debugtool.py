@@ -39,6 +39,7 @@ class StackPanel(wx.Panel):
                   self.listctrl)
         dp.connect(self.OnDebugEnded, 'debugger.ended')
         dp.connect(self.OnDebugUpdateScopes, 'debugger.update_scopes')
+        dp.connect(self.OnDebugUpdateScopes, 'debugger.paused')
 
     def OnDebugEnded(self):
         """debugger is ended"""

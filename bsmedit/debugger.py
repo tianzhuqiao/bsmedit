@@ -373,7 +373,7 @@ class EngineDebugger(object):
         frame = self._frames[level]
         return name, frame, frame.f_globals, frame.f_locals
 
-    def set_scope(self, level):
+    def set_scope(self, level, silent=False):
         """
         Set the scope level to use for interogration when paused. This will be
         reset at the next pause (i.e. after stepping).
@@ -390,7 +390,8 @@ class EngineDebugger(object):
         self._active_scope = level
 
         #send scope change message
-        dp.send('debugger.update_scopes')
+        if not silent:
+            dp.send('debugger.update_scopes')
         return True
 
     def get_status(self):
@@ -647,7 +648,8 @@ class EngineDebugger(object):
 
     def _trace_pause(self, frame, event, arg):
         """
-        A function called from within the local trace function to handle a pauses at this event
+        A function called from within the local trace
+        function to handle a pauses at this event
         """
         #update the scope list
         self._update_scopes(frame)
@@ -664,6 +666,13 @@ class EngineDebugger(object):
             self._can_stepin = True
         if event == 'call' and not self._stepin:
             return
+
+        # do not stop inside the system files
+        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        for f in sys.path+['<input>', '<string>']:
+            if filename.startswith(f):
+                return
+
         #send a paused message to the console
         #(it will publish an ENGINE_DEBUG_PAUSED message after updating internal
         #state)
@@ -827,9 +836,7 @@ class EngineDebugger(object):
         #set current scope
         level = len(self._scopes)-1
         if self._active_scope != level:
-            self.set_scope(level)
-        else:
-            dp.send('debugger.update_scopes')
+            self.set_scope(level, True)
 
     def _update_frame_locals(self, frame):
         """
@@ -931,7 +938,7 @@ class EngineDebugger(object):
                 level = args[0]
             res = self.set_scope(level)
             if res is False:
-                msg = 'Usage: #setscope level (0 to %d)'%(str(len(self._scopes)-1))
+                msg = 'Usage: #setscope level (0 to %d)'%(len(self._scopes)-1)
                 self.write_debug(msg)
         #resume
         elif cmd in ['#resume', '#r']:
@@ -1192,8 +1199,6 @@ Engine Compiler
 Handles the compilation of source and formating exceptions and tracebacks for
 the engine.
 """
-
-
 class EngineCompiler(Compile):
     def __init__(self):
         Compile.__init__(self)

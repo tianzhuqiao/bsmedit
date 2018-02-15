@@ -1276,13 +1276,9 @@ class PyEditorPanel(wx.Panel):
         if not self.fileName:
             return
         (path, _) = os.path.split(self.fileName)
-        self.RunCommand('import sys', verbose=False)
-        self.RunCommand('import imp', verbose=False)
-        self.RunCommand('sys.path.insert(0,r\'%s\')' % path, verbose=False)
-        cmd = "compile(open('{0}', 'rb').read(), '{0}', 'exec')".format(self.fileName)
-        self.RunCommand('six.exec_(%s)' % cmd, prompt=True,
-                        verbose=True, debug=False)
-        self.RunCommand('del sys.path[0]', verbose=False)
+        cmd = "compile(open(r'{0}', 'rb').read(), r'{0}', 'exec')".format(self.fileName)
+        self.RunCommand('six.exec_(%s)'%cmd, prompt=True, verbose=True,
+                        debug=False)
 
     def OnBtnDebugScript(self, event):
         """execute the script in debug mode"""
@@ -1294,13 +1290,9 @@ class PyEditorPanel(wx.Panel):
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, False)
 
         (path, _) = os.path.split(self.fileName)
-        self.RunCommand('import sys', verbose=False)
-        self.RunCommand('import imp', verbose=False)
-        self.RunCommand('sys.path.insert(0,r\'%s\')'%path, verbose=False)
-        cmd = "compile(open('{0}', 'rb').read(), '{0}', 'exec')".format(self.fileName)
-        self.RunCommand('six.exec_(%s)'%cmd, prompt=True,
-                        verbose=True, debug=True)
-        self.RunCommand('del sys.path[0]', verbose=False)
+        cmd = "compile(open(r'{0}', 'rb').read(), r'{0}', 'exec')".format(self.fileName)
+        self.RunCommand('six.exec_(%s)'%cmd, prompt=True, verbose=True,
+                        debug=True)
 
         #dp.send('debugger.ended')
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, True)
