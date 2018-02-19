@@ -285,7 +285,8 @@ class Toolbar(NavigationToolbar):
                                    shortHelp=text, longHelp=tooltip_text)
             else:
                 c2p.tbAddTool(self, self.wx_ids[text], text,
-                              c2p.BitmapFromXPM(image_file), tooltip_text)
+                              c2p.BitmapFromXPM(image_file), wx.NullBitmap,
+                              wx.ITEM_NORMAL, tooltip_text)
             self.Bind(wx.EVT_TOOL, getattr(self, callback),
                       id=self.wx_ids[text])
 

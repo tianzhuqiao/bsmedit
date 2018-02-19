@@ -17,7 +17,7 @@ from .propgrid import bsmPropGrid
 from .simengine import *
 from ._pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
-from ._utility import MakeBitmap
+from ._utility import MakeBitmap, FastLoadTreeCtrl
 from .. import c2p
 
 Gcs = Gcm()
@@ -472,7 +472,7 @@ class Simulation(object):
         except:
             traceback.print_exc(file=sys.stdout)
 
-class ModuleTree(wx.TreeCtrl):
+class ModuleTree(FastLoadTreeCtrl):
     """the tree control shows the hierarchy of the objects in the simulation"""
     ID_MP_DUMP = wx.NewId()
     ID_MP_TRACE_BUF = wx.NewId()
@@ -481,7 +481,7 @@ class ModuleTree(wx.TreeCtrl):
     def __init__(self, parent, style=wx.TR_DEFAULT_STYLE):
         style = style | wx.TR_HAS_VARIABLE_ROW_HEIGHT | \
                 wx.TR_HIDE_ROOT| wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
-        wx.TreeCtrl.__init__(self, parent, style=style)
+        FastLoadTreeCtrl.__init__(self, parent, self.get_children, style=style)
         imglist = wx.ImageList(16, 16, True, 10)
         for xpm in [module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,
                     module_grey_xpm, switch_grey_xpm, in_grey_xpm,
@@ -489,56 +489,60 @@ class ModuleTree(wx.TreeCtrl):
             imglist.Add(c2p.BitmapFromXPM(xpm))
         self.AssignImageList(imglist)
         self.objects = None
-        self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
 
-    def OnTreeItemExpanding(self, event):
-        """expand the item with children"""
-        item = event.GetItem()
-        if not item.IsOk():
-            return
-        self.FillNodes(item)
+    def get_children(self, item):
+        """ callback function to return the children of item """
+        if item == self.GetRootItem():
+            parent = ""
+        else:
+            ext = self.GetExtendObj(item)
+            parent = ext['name']
+        children = []
+        for key, obj in six.iteritems(self.objects):
+            if obj['nkind'] != SC_OBJ_UNKNOWN and obj['parent'] == parent:
+                child = {'label':obj['basename']}
+                nkind = obj['nkind']
+                img = [-1, -1]
+                if nkind == SC_OBJ_MODULE:
+                    img = [0, 0]
+                elif nkind in [SC_OBJ_SIGNAL, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,
+                               SC_OBJ_XSC_ARRAY, SC_OBJ_XSC_ARRAY_ITEM]:
+                    img = [1, 1]
+                elif nkind == SC_OBJ_INPUT:
+                    img = [2, 2]
+                elif nkind == SC_OBJ_OUTPUT:
+                    img = [3, 3]
+                elif nkind == SC_OBJ_INOUT:
+                    img = [4, 4]
+                else:
+                    raise ValueError('Invalid object type')
+                child['img'] = img[0]
+                child['imgsel'] = img[1]
+                child['data'] = key
+                # add the sign to append the children later
+                child['is_folder'] = nkind in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]
+                children.append(child)
+        return children
 
     def OnCompareItems(self, item1, item2):
         """compare the two items for sorting"""
-        def SortByName(item1, item2):
+        def SortByName(obj1, obj2):
             """compare the two items based on its type and name"""
-            if c2p.bsm_is_phoenix:
-                (obj1, type1) = item1
-                (obj2, type2) = item2
-            else:
-                (obj1, type1) = item1.GetData()
-                (obj2, type2) = item2.GetData()
+            type1 = obj1['nkind'] in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]
+            type2 = obj2['nkind'] in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]
             if type1 == type2:
                 if obj1['name'] > obj2['name']:
                     return 1
-                return -1
-            elif type1 > type2:
+            elif type1 < type2:
                 return 1
             return -1
 
-        data1 = self.GetItemData(item1)
-        data2 = self.GetItemData(item2)
+        data1 = self.GetExtendObj(item1)
+        data2 = self.GetExtendObj(item2)
         rtn = -2
         if data1 and data2:
             return SortByName(data1, data2)
         return rtn
-
-    def FillNodes(self, item):
-        """fill the node with children"""
-        child, _ = self.GetFirstChild(item)
-        if not child.IsOk():
-            return False
-        if self.GetItemText(child) != "...":
-            return False
-        # delete the '...'
-        self.DeleteChildren(item)
-        ext = self.GetExtendObj(item)
-        for _, obj in six.iteritems(self.objects):
-            # find all the children
-            if obj['nkind'] != SC_OBJ_UNKNOWN and obj['parent'] == ext['name']:
-                self.InsertScObj(item, obj)
-        self.SortChildren(item)
-        return True
 
     def Load(self, objects):
         """load the new simulation"""
@@ -550,58 +554,24 @@ class ModuleTree(wx.TreeCtrl):
         #clear the tree control
         self.DeleteAllItems()
         if self.objects is None:
-            return False
+            return
 
         # add the root item
         item = self.AddRoot("bsmedit")
-
-        # go through all the objects, and only add the top level items for
-        # speed. The items of other level will be populated once their parents
-        # are expanded
-        for _, obj in six.iteritems(self.objects):
-            if obj['nkind'] != SC_OBJ_UNKNOWN and obj['parent'] == "":
-                self.InsertScObj(item, obj)
-
+        # fill the top level item
+        self.FillChildren(item)
         # any item? expand it
         item, _ = self.GetFirstChild(item)
         if item.IsOk():
             self.Expand(item)
-            self.SortChildren(item)
-        return True
-
-    def InsertScObj(self, item, obj):
-        """insert a item with proper icon"""
-        nkind = obj['nkind']
-        img = [-1, -1]
-        if nkind == SC_OBJ_MODULE:
-            img = [0, 0]
-        elif nkind in [SC_OBJ_SIGNAL, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,
-                       SC_OBJ_XSC_ARRAY, SC_OBJ_XSC_ARRAY_ITEM]:
-            img = [1, 1]
-        elif nkind == SC_OBJ_INPUT:
-            img = [2, 2]
-        elif nkind == SC_OBJ_OUTPUT:
-            img = [3, 3]
-        elif nkind == SC_OBJ_INOUT:
-            img = [4, 4]
-        else:
-            raise ValueError('Invalid object type')
-        idx = c2p.treeAppendItem(self, item, obj['basename'], img[0], img[1],
-                                 (obj, img))
-        # add the sign to append the children later
-        if nkind in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]:
-            c2p.treeAppendItem(self, idx, '...', img[0], img[1], None)
-        return idx
 
     def GetExtendObj(self, item):
         """return the extend object"""
         data = self.GetItemData(item)
         if data:
-            if c2p.bsm_is_phoenix:
-                obj, _ = data
-            else:
-                obj, _ = data.GetData()
-            return obj
+            if not c2p.bsm_is_phoenix:
+                data = data.GetData()
+            return self.objects.get(data, None)
         return None
 
     def FindItem(self, parent, name):
@@ -819,7 +789,6 @@ class SimPanel(wx.Panel):
         self.tb_set_menu = menu
         self.tb.SetDropdownMenu(self.ID_SIM_SET, self.tb_set_menu)
         self.tb.Realize()
-
         self.tree = ModuleTree(self)
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)
@@ -842,7 +811,6 @@ class SimPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_RESET)
         self.Bind(wx.EVT_IDLE, self.OnIdle)
 
-        self.waiting = 0
         self.sim = Simulation(self, num)
         if isinstance(filename, six.string_types):
             self.sim.load(filename)
@@ -1027,16 +995,10 @@ class SimPanel(wx.Panel):
                 dp.send('sim.unloaded', num=self.sim.num)
             elif command == 'step':
                 if value:
-                    if self.waiting > 200:
-                        self.waiting = 0
-                        step = int(self.tcStep.GetValue())
-                        self.sim.set_parameter(step=step*10, block=False)
-                    # simulation proceeds one step, update the values
-                    #if not args.get('running', False) or self.waiting < 20:
-                    self.sim.time_stamp(False, False)
-                    #if not args.get('running', False) or self.waiting < 100:
-                    self.sim.read([], False)
-                    self.sim.read_buf([], False)
+                    if not args.get('running', False) or self.sim.qResp.qsize() < 20:
+                        self.sim.time_stamp(False, False)
+                        self.sim.read([], False)
+                        self.sim.read_buf([], False)
             elif command == 'monitor_add':
                 objs = [name for name, v in six.iteritems(value) if v]
                 self.sim.read(objs, False)
@@ -1089,7 +1051,6 @@ class SimPanel(wx.Panel):
                 event.RequestMore()
         except Queue.Empty:
             pass
-        self.waiting = self.waiting*0.95 + 0.05*delta
 
     def OnStep(self, event):
         self.SetParameter(False)
