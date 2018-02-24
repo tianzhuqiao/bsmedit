@@ -1267,9 +1267,15 @@ class sim:
             sx, x, sy, y = None, None, s1, obj1
 
         dy = sy.read_buf(y, True)
+        if not dy:
+            print("invalid y data")
+            return
         y = {sy.global_object_name(y):dy}
         if sx:
             dx = sx.read_buf(x, True)
+            if not dx:
+                print("invalid x data")
+                return
             x = {sx.global_object_name(x):dx}
         mgr = graph.plt.get_current_fig_manager()
         autorelim = kwargs.pop("relim", True)
