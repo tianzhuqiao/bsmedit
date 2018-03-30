@@ -4,25 +4,19 @@ import math
 import wx
 import wx.aui
 import wx.py.dispatcher as dp
+import numpy
+import matplotlib
+matplotlib.use('module://bsmedit.bsm._bsmbackend')
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
+from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToolbar
+from matplotlib._pylab_helpers import Gcf
+import matplotlib.pyplot as plt
+from matplotlib import rcParams
 from ._graphxpm import *
 from .. import c2p
-
-initialized = False
-try:
-    import numpy
-    import matplotlib
-    matplotlib.use('module://bsmedit.bsm._bsmbackend')
-    from matplotlib.figure import Figure
-    from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-    from matplotlib.backends.backend_wxagg import NavigationToolbar2Wx as NavigationToolbar
-    from matplotlib._pylab_helpers import Gcf
-    import matplotlib.pyplot as plt
-    from matplotlib import rcParams
-    rcParams.update({'figure.autolayout': True})
-    matplotlib.interactive(True)
-    initialized = True
-except:
-    traceback.print_exc(file=sys.stdout)
+rcParams.update({'figure.autolayout': True})
+matplotlib.interactive(True)
 
 class DataCursor(object):
     xoffset, yoffset = -20, 20
@@ -190,7 +184,8 @@ class Toolbar(NavigationToolbar):
         self.canvas.mpl_connect('button_press_event', self.OnPressed)
         self.canvas.mpl_connect('button_release_event', self.OnReleased)
         self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
-
+        # clear the view history
+        wx.CallAfter(self._nav_stack.clear)
     def OnPressed(self, event):
         if self.mode != 'datatip':
             return
@@ -215,7 +210,7 @@ class Toolbar(NavigationToolbar):
         # get the current x and y limits
         if not self.GetToolState(self.wx_ids['Zoom']):
             return
-        if self._views.empty():
+        if self._nav_stack.empty():
             self.push_current()
         base_scale = 2.0
         ax = self.figure.gca()
@@ -331,7 +326,6 @@ class Toolbar(NavigationToolbar):
         dp.send(signal='frame.show_status_text', text=s, index=1, width=160)
 
 class MatplotPanel(wx.Panel):
-
     clsFrame = None
     clsID_new_figure = wx.NOT_FOUND
     isInitialized = False
@@ -525,7 +519,6 @@ class MatplotPanel(wx.Panel):
 
 def bsm_Initialize(frame):
     """module initialization"""
-    if initialized:
-        MatplotPanel.Initialize(frame)
-        dp.send('shell.run', command='from matplotlib.pyplot import *',
-                prompt=False, verbose=False, history=False)
+    MatplotPanel.Initialize(frame)
+    dp.send('shell.run', command='from matplotlib.pyplot import *',
+            prompt=False, verbose=False, history=False)
