@@ -156,18 +156,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # Assign handler for the context menu
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCommandUI)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_COPY)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_PASTE)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_CUT)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_UNDO)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_REDO)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_CLEAR)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_SELECTALL)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_COMMENT)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_UNCOMMENT)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_EDIT_BREAKPOINT)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_DELETE_BREAKPOINT)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_CLEAR_BREAKPOINT)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent)
 
     def ClearBreakpoint(self):
         """clear all the breakpoint"""

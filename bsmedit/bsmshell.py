@@ -10,6 +10,7 @@ import wx
 from wx.py.shell import USE_MAGIC, Shell
 import wx.py.dispatcher as dp
 from wx.py.pseudo import PseudoFile
+import six.moves.builtins as __builtin__
 from .debugger import EngineDebugger
 
 # in linux, the multiprocessing/process.py/_bootstrap will call
@@ -148,7 +149,17 @@ def sx(cmd, *args, **kwds):
         pass
 
 class bsmShell(Shell):
-
+    # mac has some special processing on the standard command IDs, so avoid
+    # using the standard ones
+    ID_UNDO = wx.NewId()
+    ID_REDO = wx.NewId()
+    ID_CUT = wx.NewId()
+    ID_COPY = wx.NewId()
+    ID_COPY_PLUS = wx.NewId()
+    ID_PASTE = wx.NewId()
+    ID_PASTE_PLUS = wx.NewId()
+    ID_CLEAR = wx.NewId()
+    ID_SELECTALL = wx.NewId()
     def __init__(self, parent, id=-1, pos=wx.DefaultPosition,
                  size=wx.DefaultSize, style=wx.CLIP_CHILDREN,
                  introText='', locals=None, InterpClass=None,
@@ -165,7 +176,6 @@ class bsmShell(Shell):
         #self.redirectStdin(True)
         # the default sx function (!cmd to run external command) does not work
         # on windows
-        import six.moves.builtins as __builtin__
         __builtin__.sx = sx
         self.callTipInsert = False
         self.searchHistory = True
@@ -175,6 +185,7 @@ class bsmShell(Shell):
         self.debugger = EngineDebugger()
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
+        self.Bind(wx.EVT_MENU, self.OnProcessMenu)
         self.interp.locals['clear'] = self.clear
         self.interp.locals['help'] = _help
         self.interp.locals['on'] = True
@@ -190,6 +201,35 @@ class bsmShell(Shell):
         dp.connect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
         dp.connect(self.getAutoCallTip, 'shell.auto_call_tip')
 
+    def OnContextMenu(self, evt):
+        menu = wx.Menu()
+        menu.Append(self.ID_UNDO, "Undo")
+        menu.Append(self.ID_REDO, "Redo")
+        menu.AppendSeparator()
+        menu.Append(self.ID_CUT, "Cut")
+        menu.Append(self.ID_COPY, "Copy")
+        menu.Append(self.ID_COPY_PLUS, "Copy with prompt")
+        menu.Append(self.ID_PASTE, "Paste")
+        menu.Append(self.ID_PASTE_PLUS, "Paste & run")
+        menu.Append(self.ID_CLEAR, "Clear")
+        menu.AppendSeparator()
+        menu.Append(self.ID_SELECTALL, "Select All")
+        self.PopupMenu(menu)
+
+    def OnProcessMenu(self, event):
+        eid = event.GetId()
+        cmd = {self.ID_CUT: self.Cut,
+               self.ID_CLEAR: self.Clear,
+               self.ID_COPY: self.Copy,
+               self.ID_COPY_PLUS: self.CopyWithPrompts,
+               self.ID_PASTE: self.Paste,
+               self.ID_PASTE_PLUS: self.PasteAndRun,
+               self.ID_UNDO: self.Undo,
+               self.ID_REDO: self.Redo,
+               self.ID_SELECTALL: self.SelectAll}
+        fun = cmd.get(eid, None)
+        if fun:
+            fun()
     def OnFrameExit(self):
         """the frame is exiting"""
         # stop the debugger if it is on
@@ -242,6 +282,13 @@ class bsmShell(Shell):
 
     def autoCompleteShow(self, command, offset=0):
         try:
+            command = command.strip()
+            # deal with the case "fun(arg.", which will return "arg."
+            for i in range(len(command)):
+                c = command[-i-1]
+                if not (c.isalnum() or c in ('_', '.')):
+                    command = command[-i:]
+                    break
             cmd = wx.py.introspect.getRoot(command, '.')
             self.evaluate(cmd)
         except:
@@ -277,6 +324,17 @@ class bsmShell(Shell):
         event.Skip()
 
     def OnUpdateUI(self, event):
+        eid = event.GetId()
+        if eid in (self.ID_CUT, self.ID_CLEAR):
+            event.Enable(self.CanCut())
+        elif eid in (self.ID_COPY, self.ID_COPY_PLUS):
+            event.Enable(self.CanCopy())
+        elif eid in (self.ID_PASTE, self.ID_PASTE_PLUS):
+            event.Enable(self.CanPaste())
+        elif eid == self.ID_UNDO:
+            event.Enable(self.CanUndo())
+        elif eid == self.ID_REDO:
+            event.Enable(self.CanRedo())
         # update the caret position so that it is always in valid area
         self.UpdateCaretPos()
         super(bsmShell, self).OnUpdateUI(event)
