@@ -1,8 +1,9 @@
 import sys
 import traceback
-import six
-from ctypes import Structure, c_char, c_double, c_int, c_voidp, c_bool, POINTER, c_ulonglong, c_longlong
+from ctypes import Structure, c_char, c_double, c_int, c_voidp, c_bool, \
+                   POINTER, c_ulonglong, c_longlong
 from ctypes import create_string_buffer, cdll, CFUNCTYPE
+import six
 
 SC_OBJ_UNKNOWN = 0
 SC_OBJ_SIGNAL = 1
@@ -196,9 +197,9 @@ class SimEngine(object):
             kind = SC_OBJ_XSC_ARRAY
 
         obj['nkind'] = kind
-        obj['register'] = (kind in [SC_OBJ_SIGNAL, SC_OBJ_INPUT,
-                                 SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK,
-                                 SC_OBJ_XSC_PROP, SC_OBJ_XSC_ARRAY_ITEM])
+        obj['register'] = (kind in (SC_OBJ_SIGNAL, SC_OBJ_INPUT,
+                                    SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK,
+                                    SC_OBJ_XSC_PROP, SC_OBJ_XSC_ARRAY_ITEM))
         name = obj['name']
         idx = name.rfind('.')
         if kind == SC_OBJ_XSC_ARRAY_ITEM:

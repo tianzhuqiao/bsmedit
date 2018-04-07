@@ -19,6 +19,8 @@ if 'phoenix' in wx.version():
     PyDropTarget = wx.DropTarget
     PyTextDataObject = wx.TextDataObject
     APP_ASSERT_DIALOG = wx.APP_ASSERT_DIALOG
+    FD_OPEN = wx.FD_OPEN
+    FD_FILE_MUST_EXIST = wx.FD_FILE_MUST_EXIST
 else:
     bsm_is_phoenix = False
     BitmapFromXPMData = wx.BitmapFromXPMData
@@ -37,6 +39,8 @@ else:
     PyDropTarget = wx.PyDropTarget
     PyTextDataObject = wx.PyTextDataObject
     APP_ASSERT_DIALOG = wx.PYAPP_ASSERT_DIALOG
+    FD_OPEN = wx.OPEN
+    FD_FILE_MUST_EXIST = wx.FILE_MUST_EXIST
 
 def SetClippingRect(dc, rc):
     if bsm_is_phoenix:
