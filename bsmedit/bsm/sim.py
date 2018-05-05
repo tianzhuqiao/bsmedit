@@ -788,8 +788,10 @@ class SimPanel(wx.Panel):
         self.box.Fit(self)
         self.SetSizer(self.box)
 
+        self.running = False
         self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand)
+        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
         self.tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnTreeSelChanged)
         self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
         self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
@@ -803,7 +805,6 @@ class SimPanel(wx.Panel):
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
-        self.running = False
         self.timer.Start(5)
 
     def OnTimer(self, event):
@@ -930,6 +931,13 @@ class SimPanel(wx.Panel):
         elif rtn == wx.DragCancel:
             pass
         self.sim.read(objs_name, False)
+
+    def OnUpdateCmdUI(self, event):
+        eid = event.GetId()
+        if eid in [self.ID_SIM_STEP, self.ID_SIM_RUN]:
+            event.Enable(not self.running)
+        elif eid == self.ID_SIM_PAUSE:
+            event.Enable(self.running)
 
     def OnProcessCommand(self, event):
         """process the menu command"""
