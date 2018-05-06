@@ -1,7 +1,7 @@
 #!python2
 import wx
 import os, sys
-from bsmedit.mainframe import bsmMainFrame
+from bsmedit.mainframe import MainFrame
 import bsmedit.c2p as c2p
 assertMode = c2p.APP_ASSERT_DIALOG
 class RunApp(wx.App):
@@ -13,7 +13,7 @@ class RunApp(wx.App):
 
         self.SetAssertMode(assertMode)
 
-        frame = bsmMainFrame(None)
+        frame = MainFrame(None)
         frame.Show(True)
         self.SetTopWindow(frame)
         self.frame = frame

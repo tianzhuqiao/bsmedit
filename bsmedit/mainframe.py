@@ -8,12 +8,12 @@ import wx
 import wx.lib.agw.aui as aui
 import wx.py
 import wx.py.dispatcher as dp
-from .frameplus import framePlus
+from .frameplus import FramePlus
 from .bsmshell import bsmShell
-from .mainframexpm import about_xpm, bsmedit_xpm, header_xpm
+from .mainframexpm import bsmedit_xpm, header_xpm
 from .version import *
 from . import c2p
-# Define File Drop Target class
+
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):
         wx.FileDropTarget.__init__(self)
@@ -23,11 +23,11 @@ class FileDropTarget(wx.FileDropTarget):
             wx.CallAfter(dp.send, signal='bsm.editor.openfile', filename=fname)
         return True
 
-class bsmMainFrame(framePlus):
+class MainFrame(FramePlus):
 
     ID_VM_RENAME = wx.NewId()
     def __init__(self, parent):
-        framePlus.__init__(self, parent, title=u"bsmedit",
+        FramePlus.__init__(self, parent, title='bsmedit',
                            size=wx.Size(800, 600),
                            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
         self.InitMenu()
@@ -40,6 +40,7 @@ class bsmMainFrame(framePlus):
         icon = c2p.EmptyIcon()
         icon.CopyFromBitmap(c2p.BitmapFromXPM(bsmedit_xpm))
         self.SetIcon(icon)
+
         # status bar
         self.statusbar = wx.StatusBar(self)
         self.SetStatusBar(self.statusbar)
@@ -63,7 +64,6 @@ class bsmMainFrame(framePlus):
         ns['frame'] = self
         intro = 'Welcome To bsmedit ' + BSM_VERSION
         self.panelShell = bsmShell(self, 1, introText=intro, locals=ns)
-        #self.panelShell = wx.py.shell.Shell(self, 1, introText=intro)
         self._mgr.AddPane(self.panelShell,
                           aui.AuiPaneInfo().Name('shell').Caption('Console')
                           .CenterPane().CloseButton(False).Layer(1)
@@ -76,7 +76,7 @@ class bsmMainFrame(framePlus):
         dp.connect(self.AddFileHistory, 'frame.add_file_history')
 
         sys.path.append('.')
-        #try:
+
         self.addon = {}
         try:
             # check if the __init__ module defines all the modules to be loaded
@@ -89,9 +89,6 @@ class bsmMainFrame(framePlus):
             if hasattr(mod, 'bsm_Initialize'):
                 mod.bsm_Initialize(self)
                 self.addon[pkg] = True
-        #except:
-        #    print 'Initializing addon failed'
-        #    pass
 
         # Create a File Drop Target object
         dt = FileDropTarget()
@@ -102,68 +99,69 @@ class bsmMainFrame(framePlus):
 
         self.panelShell.SetFocus()
 
-        self.activeTabCtrl = None
-        self.activeTabCtrlIndex = -1
+        # used to change the name of a pane in a notebook;
+        # TODO change the pane name when it does not belong to a notebook
+        self.activePaneWindow = None
 
-        self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_UP, self.OnNoteBookTabRightUp)
+        self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPaneMenu)
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnPaneClose)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_VM_RENAME)
+
     def InitMenu(self):
         """initialize the menubar"""
         menubar = wx.MenuBar(0)
         menuFile = wx.Menu()
         menuNew = wx.Menu()
-        menuFile.AppendSubMenu(menuNew, u"New")
+        menuFile.AppendSubMenu(menuNew, "New")
 
         menuOpen = wx.Menu()
-        menuFile.AppendSubMenu(menuOpen, u"Open")
+        menuFile.AppendSubMenu(menuOpen, "Open")
 
         menuFile.AppendSeparator()
 
         self.menuRecentFiles = wx.Menu()
-        menuFile.AppendSubMenu(self.menuRecentFiles, u"Recent Files")
+        menuFile.AppendSubMenu(self.menuRecentFiles, "Recent Files")
 
         menuFile.AppendSeparator()
 
-        menuQuit = wx.MenuItem(menuFile, wx.ID_CLOSE, u"&Quit",
+        menuQuit = wx.MenuItem(menuFile, wx.ID_CLOSE, "&Quit",
                                wx.EmptyString, wx.ITEM_NORMAL)
         c2p.menuAppend(menuFile, menuQuit)
 
-        menubar.Append(menuFile, u"&File")
+        menubar.Append(menuFile, "&File")
 
         menuView = wx.Menu()
         menuToolbar = wx.Menu()
-        menuView.AppendSubMenu(menuToolbar, u"&Toolbars")
+        menuView.AppendSubMenu(menuToolbar, "&Toolbars")
 
         menuView.AppendSeparator()
 
         menuPanes = wx.Menu()
-        menuView.AppendSubMenu(menuPanes, u"Panels")
+        menuView.AppendSubMenu(menuPanes, "Panels")
 
-        menubar.Append(menuView, u"&View")
+        menubar.Append(menuView, "&View")
 
         menuTool = wx.Menu()
 
-        menubar.Append(menuTool, u"&Tools")
+        menubar.Append(menuTool, "&Tools")
 
         menuHelp = wx.Menu()
-        menuHome = wx.MenuItem(menuHelp, wx.ID_ANY, u"&Home", wx.EmptyString,
+        menuHome = wx.MenuItem(menuHelp, wx.ID_HOME, "&Home", wx.EmptyString,
                                wx.ITEM_NORMAL)
         c2p.menuAppend(menuHelp, menuHome)
 
-        menuContact = wx.MenuItem(menuHelp, wx.ID_ANY, u"&Contact",
+        menuContact = wx.MenuItem(menuHelp, wx.ID_ANY, "&Contact",
                                   wx.EmptyString, wx.ITEM_NORMAL)
         c2p.menuAppend(menuHelp, menuContact)
 
         menuHelp.AppendSeparator()
 
-        menuAbout = wx.MenuItem(menuHelp, wx.ID_ABOUT, u"&About",
+        menuAbout = wx.MenuItem(menuHelp, wx.ID_ABOUT, "&About",
                                 wx.EmptyString, wx.ITEM_NORMAL)
-        menuAbout.SetBitmap(c2p.BitmapFromXPM(about_xpm))
         c2p.menuAppend(menuHelp, menuAbout)
 
-        menubar.Append(menuHelp, u"&Help")
+        menubar.Append(menuHelp, "&Help")
 
         self.SetMenuBar(menubar)
 
@@ -188,11 +186,6 @@ class bsmMainFrame(framePlus):
             force = self.closing
             if hasattr(pane, 'bsm_destroyonclose'):
                 force = pane.bsm_destroyonclose
-            #resp = dp.send('frame.closing_pane', pane=pane, force=force)
-            #if resp:
-            #    status = resp[0][1]
-            #    if isinstance(status, dict):
-            #        return status.get('veto', False)
             return not force
         # close the notebook
         if evt.pane.IsNotebookControl():
@@ -227,33 +220,35 @@ class bsmMainFrame(framePlus):
             self._mgr.ShowPane(wnd, False)
             self._mgr.Update()
 
-    def OnNoteBookTabRightUp(self, evt):
-        idx = evt.GetSelection() # this is the index inside the current tab control
+    def OnPaneMenu(self, evt):
+        # get the index inside the current tab control
+        idx = evt.GetSelection()
         tabctrl = evt.GetEventObject()
         tabctrl.SetSelection(idx)
-        self.activeTabCtrl = tabctrl
-        self.activeTabCtrlIndex = idx
+        page = tabctrl.GetPage(idx)
+        self.activePaneWindow = page
         menu = wx.Menu()
         menu.Append(self.ID_VM_RENAME, "&Rename")
         self.PopupMenu(menu)
 
     def OnProcessCommand(self, evt):
-        if not self.activeTabCtrl:
-            return
         nid = evt.GetId()
-        page = self.activeTabCtrl.GetPage(self.activeTabCtrlIndex)
         if nid == self.ID_VM_RENAME:
-            pane = self._mgr.GetPane(page)
+            if not self.activePaneWindow:
+                return
+
+            pane = self._mgr.GetPane(self.activePaneWindow)
+            if not pane:
+                return
             name = pane.caption
             name = wx.GetTextFromUser("Type in the name:", "Input Name",
                                       name, self)
-            if name:
+            if name != pane.caption:
                 pane.Caption(name)
-                page.SetLabel(name)
+                pane.window.SetLabel(name)
                 self._mgr.Update()
 
-        self.activeTabCtrl = None
-        self.activeTabCtrlIndex = -1
+            self.activePaneWindow = None
 
     def OnClose(self, event):
         """close the main program"""
@@ -261,7 +256,7 @@ class bsmMainFrame(framePlus):
         dp.send('frame.save_config', config=self.config)
         self.config.Flush()
         dp.send('frame.exit')
-        super(bsmMainFrame, self).OnClose(event)
+        super(MainFrame, self).OnClose(event)
 
     def ShowStatusText(self, text, index=0, width=-1):
         """set the status text"""
@@ -325,7 +320,7 @@ class bsmMainFrame(framePlus):
 
     def OnHelpAbout(self, event):
         """show about dialog"""
-        dlg = bsmAboutDialog(self)
+        dlg = AboutDialog(self)
         dlg.ShowModal()
         dlg.Destroy()
 
@@ -336,59 +331,44 @@ class bsmMainFrame(framePlus):
         self.filehistory.AddFileToHistory(path)
         dp.send('bsm.editor.openfile', filename=path)
 
-class bsmAboutDialog(wx.Dialog):
+class AboutDialog(wx.Dialog):
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, title=u"About", style=wx.DEFAULT_DIALOG_STYLE)
-
-        self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
+        wx.Dialog.__init__(self, parent, title="About bsmedit",
+                           style=wx.DEFAULT_DIALOG_STYLE)
 
         szAll = wx.BoxSizer(wx.VERTICAL)
 
         self.panel = wx.Panel(self, style=wx.TAB_TRAVERSAL)
-        self.panel.SetBackgroundColour(wx.Colour(255, 255, 255))
+        self.panel.SetBackgroundColour(wx.WHITE)
 
         szPanel = wx.BoxSizer(wx.VERTICAL)
 
-        szVersion = wx.BoxSizer(wx.VERTICAL)
-
         self.header = wx.StaticBitmap(self.panel)
         self.header.SetBitmap(c2p.BitmapFromXPM(header_xpm))
-        szVersion.Add(self.header, 0, wx.ALL|wx.EXPAND, 0)
-        caption = 'BSMEdit %s'%BSM_VERSION
+        szPanel.Add(self.header, 0, wx.EXPAND, 0)
+
+        caption = 'bsmedit %s'%BSM_VERSION
         self.stCaption = wx.StaticText(self.panel, wx.ID_ANY, caption)
-        self.stCaption.Wrap(-1)
         self.stCaption.SetFont(wx.Font(16, 74, 90, 92, False, "Arial"))
-        #self.stCaption.SetForegroundColour(wx.Colour(255, 128, 64))
 
-        szVersion.Add(self.stCaption, 0, wx.ALL, 5)
+        szPanel.Add(self.stCaption, 0, wx.ALL|wx.EXPAND, 5)
 
-        #version = ' Build %s' % (BSM_VERSION_MINOR)
-        #self.stVerion = wx.StaticText(self.panel, wx.ID_ANY, version)
-        #self.stVerion.Wrap(-1)
-        #self.stVerion.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
-        #self.stVerion.SetForegroundColour(wx.Colour(120, 120, 120))
-
-        #szVersion.Add(self.stVerion, 0, wx.ALL, 5)
-
-        strCopyright = '(c) 2017 %s'%('Tianzhu Qiao. All rights reserved.')
+        strCopyright = '(c) 2018 Tianzhu Qiao. All rights reserved.'
 
         self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, strCopyright)
-        self.stCopyright.Wrap(-1)
+        self.stCopyright.SetMaxSize((240, -1))
         self.stCopyright.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
-
-        szVersion.Add(self.stCopyright, 0, wx.ALL, 5)
+        szPanel.Add(self.stCopyright, 0, wx.ALL|wx.EXPAND, 5)
 
         build = wx.GetOsDescription() + '; wxWidgets ' + wx.version()
         self.stBuild = wx.StaticText(self.panel, wx.ID_ANY, build)
-        self.stBuild.Wrap(256 - 30)
+        self.stBuild.SetMaxSize((240, -1))
+        self.stBuild.Wrap(240)
         self.stBuild.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
-
-        szVersion.Add(self.stBuild, 0, wx.ALL|wx.EXPAND, 5)
-
-        szPanel.Add(szVersion, 0, wx.EXPAND, 5)
+        szPanel.Add(self.stBuild, 0, wx.ALL|wx.EXPAND, 5)
 
         stLine = wx.StaticLine(self.panel, style=wx.LI_HORIZONTAL)
-        szPanel.Add(stLine, 0, wx.EXPAND|wx.ALL, 0)
+        szPanel.Add(stLine, 1, wx.EXPAND|wx.ALL, 0)
 
         self.panel.SetSizer(szPanel)
         self.panel.Layout()

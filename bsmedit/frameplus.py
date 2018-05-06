@@ -380,7 +380,7 @@ class AuiManagerPlus(aui.AuiManager):
 
                 notebook.DoSizing()
 
-class framePlus(wx.Frame):
+class FramePlus(wx.Frame):
     PANE_NUM = 0
     def __init__(self, parent, id=wx.ID_ANY, title=u'BSMEdit',
                  pos=wx.DefaultPosition, size=wx.Size(800, 600),
@@ -542,8 +542,8 @@ class framePlus(wx.Frame):
                    .MinimizeButton(True).MaximizeButton(True).Icon(icon)
 
         # auto generate the unique panel name
-        name = "pane-%d"%framePlus.PANE_NUM
-        framePlus.PANE_NUM += 1
+        name = "pane-%d"%FramePlus.PANE_NUM
+        FramePlus.PANE_NUM += 1
         auipaneinfo.Name(name)
 
         # if showhidemenu is false, the panel will be destroy when clicking
