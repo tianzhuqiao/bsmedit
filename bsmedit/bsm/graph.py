@@ -497,8 +497,14 @@ class MatplotPanel(wx.Panel):
         if cls.clsID_new_figure is not wx.NOT_FOUND:
             dp.connect(cls.ProcessCommand, 'bsm.figure')
         dp.connect(cls.Uninitialize, 'frame.exit')
+        dp.connect(cls.Initialized, 'frame.initialized')
         dp.connect(cls.setactive, 'frame.activate_panel')
         dp.connect(cls.OnBufferChanged, 'sim.buffer_changed')
+
+    @classmethod
+    def Initialized(self):
+        dp.send('shell.run', command='from matplotlib.pyplot import *',
+            prompt=False, verbose=False, history=False)
 
     @classmethod
     def OnBufferChanged(cls, bufs):
@@ -520,5 +526,4 @@ class MatplotPanel(wx.Panel):
 def bsm_Initialize(frame):
     """module initialization"""
     MatplotPanel.Initialize(frame)
-    dp.send('shell.run', command='from matplotlib.pyplot import *',
-            prompt=False, verbose=False, history=False)
+

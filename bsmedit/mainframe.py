@@ -9,7 +9,7 @@ import wx.lib.agw.aui as aui
 import wx.py
 import wx.py.dispatcher as dp
 from .frameplus import FramePlus
-from .bsmshell import bsmShell
+#from .bsmshell import bsmShell
 from .mainframexpm import bsmedit_xpm, header_xpm
 from .version import *
 from . import c2p
@@ -57,18 +57,6 @@ class MainFrame(FramePlus):
         self.Bind(wx.EVT_MENU_RANGE, self.OnMenuFileHistory, id=wx.ID_FILE1, id2=wx.ID_FILE9)
 
         self.closing = False
-        # shell panel
-        ns = {}
-        ns['wx'] = wx
-        ns['app'] = wx.GetApp()
-        ns['frame'] = self
-        intro = 'Welcome To bsmedit ' + BSM_VERSION
-        self.panelShell = bsmShell(self, 1, introText=intro, locals=ns)
-        self._mgr.AddPane(self.panelShell,
-                          aui.AuiPaneInfo().Name('shell').Caption('Console')
-                          .CenterPane().CloseButton(False).Layer(1)
-                          .Position(1).MinimizeButton(True).MaximizeButton(True))
-        self._mgr.Update()
 
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
         dp.connect(self.SetPanelTitle, 'frame.set_panel_title')
@@ -97,11 +85,13 @@ class MainFrame(FramePlus):
 
         dp.send('frame.load_config', config=self.config)
 
-        self.panelShell.SetFocus()
-
         # used to change the name of a pane in a notebook;
         # TODO change the pane name when it does not belong to a notebook
         self.activePaneWindow = None
+
+        # initialization done, broadcasting the message so plugins can do some
+        # after initialization processing.
+        dp.send('frame.initialized')
 
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPaneMenu)
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)

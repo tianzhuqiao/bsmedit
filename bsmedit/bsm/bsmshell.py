@@ -12,6 +12,7 @@ import wx.py.dispatcher as dp
 from wx.py.pseudo import PseudoFile
 import six.moves.builtins as __builtin__
 from .debugger import EngineDebugger
+from ..version import BSM_VERSION
 
 # in linux, the multiprocessing/process.py/_bootstrap will call
 # sys.stdin.close(), which is missing in wx.py.pseudo.PseudoFile
@@ -706,4 +707,23 @@ class bsmShell(Shell):
             else:
                 self.SetCurrentPos(thepos)
                 self.SetAnchor(thepos)
+    @classmethod
+    def Initialize(cls, frame):
+        cls.frame = frame
+        dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
+        ns = {}
+        ns['wx'] = wx
+        ns['app'] = wx.GetApp()
+        ns['frame'] = cls.frame
+        intro = 'Welcome To bsmedit ' + BSM_VERSION
+        cls.panelShell = bsmShell(cls.frame, 1, introText=intro, locals=ns)
+        dp.send(signal="frame.add_panel", panel=cls.panelShell, active=True,
+                title="shell", showhidemenu='View:Panels:Console Window \tCtrl+t')
 
+    @classmethod
+    def Uninitialize(cls):
+        if cls.panelShell:
+            dp.send('frame.close_panel', panel=cls.panelShell)
+
+def bsm_Initialize(frame):
+    bsmShell.Initialize(frame)

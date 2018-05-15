@@ -1083,13 +1083,18 @@ class sim(object):
         dp.connect(cls._process_command, signal='bsm.simulation')
         dp.connect(receiver=cls._frame_set_active, signal='frame.activate_panel')
         dp.connect(receiver=cls._frame_uninitialize, signal='frame.exit')
-
+        dp.connect(receiver=cls.Initialized, signal='frame.initialized')
         dp.connect(receiver=cls._prop_insert, signal='prop.insert')
         dp.connect(receiver=cls._prop_delete, signal='prop.delete')
         dp.connect(receiver=cls._prop_drop, signal='prop.drop')
         dp.connect(receiver=cls._prop_bp_add, signal='prop.bp_add')
         dp.connect(receiver=cls._prop_bp_del, signal='prop.bp_del')
         dp.connect(receiver=cls._prop_changed, signal='prop.changed')
+
+    @classmethod
+    def Initialized(cls):
+        dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
+            prompt=False, verbose=False, history=False)
 
     @classmethod
     def _prop_changed(cls, prop):
@@ -1272,5 +1277,3 @@ class sim(object):
 
 def bsm_Initialize(frame):
     sim.initialize(frame)
-    dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
-            prompt=False, verbose=False, history=False)

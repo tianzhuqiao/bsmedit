@@ -503,7 +503,7 @@ class FramePlus(wx.Frame):
             event.Enable(True)
 
     def addPanel(self, panel, title='Untitle', active=True, paneInfo=None,
-                 target=None, showhidemenu=None, icon=None):
+                 target=None, showhidemenu=None, icon=None, maximize=False):
         """add the panel to AUI"""
         if not panel:
             return False
@@ -540,7 +540,9 @@ class FramePlus(wx.Frame):
                    .DestroyOnClose(not showhidemenu).Top().Snappable()\
                    .Dockable().Layer(1).Position(1)\
                    .MinimizeButton(True).MaximizeButton(True).Icon(icon)
-
+            if not self._mgr.GetAllPanes():
+                # set the first pane to be center pane
+                auipaneinfo = auipaneinfo.CenterPane()
         # auto generate the unique panel name
         name = "pane-%d"%FramePlus.PANE_NUM
         FramePlus.PANE_NUM += 1
@@ -550,6 +552,8 @@ class FramePlus(wx.Frame):
         # on the close button; otherwise it will be hidden
         panel.bsm_destroyonclose = not showhidemenu
         self._mgr.AddPane(panel, auipaneinfo, target=targetpane)
+        if maximize:
+            self._mgr.MaximizePane(auipaneinfo)
         if active:
             self.showPanel(panel)
         else:

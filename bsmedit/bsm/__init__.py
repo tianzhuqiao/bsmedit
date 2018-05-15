@@ -1,2 +1,2 @@
 
-auto_load_module = ['editor', 'graph', 'sim', 'misctools', 'debugtool']
+auto_load_module = ['bsmshell', 'editor', 'graph', 'sim', 'misctools', 'debugtool']

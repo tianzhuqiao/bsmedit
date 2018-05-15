@@ -11,7 +11,7 @@ from codeop import _maybe_compile, Compile
 import traceback #for formatting errors
 import wx
 import wx.py.dispatcher as dp
-from . import c2p
+from .. import c2p
 
 help_msg = """
 \"\"\"
