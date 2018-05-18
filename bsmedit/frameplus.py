@@ -153,6 +153,34 @@ class AuiManagerPlus(aui.AuiManager):
             aui.DrawResizeHint(dc, hintrect)
             self._action_rect = wx.Rect(*hintrect)
 
+    def Repaint(self, dc=None):
+        """
+        Repaints the entire frame decorations (sashes, borders, buttons and so on).
+        It renders the entire user interface.
+        :param `dc`: if not ``None``, an instance of :class:`PaintDC`.
+        """
+
+        w, h = self._frame.GetClientSize()
+
+        # Figure out which dc to use; if one
+        # has been specified, use it, otherwise
+        # make a client dc
+        if dc is None:
+            if not self._frame.IsDoubleBuffered():
+                client_dc = wx.BufferedDC(wx.ClientDC(self._frame), wx.Size(w, h))
+            else:
+                client_dc = wx.ClientDC(self._frame)
+            dc = client_dc
+
+        # If the frame has a toolbar, the client area
+        # origin will not be (0, 0).
+        pt = self._frame.GetClientAreaOrigin()
+        if pt.x != 0 or pt.y != 0:
+            dc.SetDeviceOrigin(pt.x, pt.y)
+
+        # Render all the items
+        self.Render(dc)
+
     def UpdateNotebook(self):
         """ Updates the automatic :class:`~lib.agw.aui.auibook.AuiNotebook` in
         the layout (if any exists). """
@@ -264,7 +292,6 @@ class AuiManagerPlus(aui.AuiManager):
                 # Correct page ordering. The original wxPython code
                 # for this did not work properly, and would misplace
                 # windows causing errors.
-                notebook.Freeze()
                 self._notebooks[nb_idx] = notebook
                 pages = notebook.GetPageCount()
                 selected = notebook.GetPage(notebook.GetSelection())
@@ -273,26 +300,19 @@ class AuiManagerPlus(aui.AuiManager):
                 # its current pane, and sort the list by pane.dock_pos
                 # order
                 pages_and_panes = []
-                dock_pos = -1
-                needUpdate = False
-                for idx in reversed(six.moves.range(pages)):
+                for idx in list(range(pages)):
                     page = notebook.GetPage(idx)
                     pane = self.GetPane(page)
                     pages_and_panes.append((page, pane))
-                    # notebook.RemovePage(idx)
-                    # check if the notebook needs to be updated to avoid
-                    # unnecessary remove/insert operation, especially when
-                    # resizing the window
-                    if dock_pos == -1:
-                        dock_pos = pane.dock_pos
-                    elif dock_pos < pane.dock_pos:
-                        needUpdate = True
-                        dock_pos = pane.dock_pos
-
-                if needUpdate:
-                    sorted_pnp = sorted(pages_and_panes, key=lambda tup: tup[1].dock_pos)
-                    for idx in reversed(six.moves.range(pages)):
+                sorted_pnp = sorted(pages_and_panes, key=lambda tup: tup[1].dock_pos)
+                if cmp(sorted_pnp, pages_and_panes) != 0:
+                    notebook.Freeze()
+                    for idx in reversed(list(range(pages))):
+                        page = notebook.GetPage(idx)
+                        pane = self.GetPane(page)
+                        pages_and_panes.append((page, pane))
                         notebook.RemovePage(idx)
+
                     # Grab the attributes from the panes which are ordered
                     # correctly, and copy those attributes to the original
                     # panes. (This avoids having to change the ordering
@@ -304,9 +324,10 @@ class AuiManagerPlus(aui.AuiManager):
                         self.SetAttributes(pane, attrs)
                         notebook.AddPage(pane.window, pane.caption)
 
-                notebook.SetSelection(notebook.GetPageIndex(selected), True)
-                notebook.DoSizing()
-                notebook.Thaw()
+                    notebook.SetSelection(notebook.GetPageIndex(selected), True)
+                    notebook.DoSizing()
+                    notebook.Thaw()
+
 
                 # It's a keeper.
                 remap_ids[nb] = nb_idx
@@ -381,23 +402,23 @@ class AuiManagerPlus(aui.AuiManager):
                 notebook.DoSizing()
 
 class FramePlus(wx.Frame):
-    PANE_NUM = 0
-    def __init__(self, parent, id=wx.ID_ANY, title=u'BSMEdit',
+    def __init__(self, parent, id=wx.ID_ANY, title=u'bsmedit',
                  pos=wx.DefaultPosition, size=wx.Size(800, 600),
                  style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL):
         wx.Frame.__init__(self, parent, id=id, title=title, pos=pos, size=size,
                           style=style)
         self._mgr = AuiManagerPlus()
         self._mgr.SetManagedWindow(self)
-        self.menuaddon = {}
-        self.paneaddon = {}
-        dp.connect(self.addMenu, 'frame.add_menu')
-        dp.connect(self.delMenu, 'frame.del_menu')
-        dp.connect(self.addPanel, 'frame.add_panel')
-        dp.connect(self.closePanel, 'frame.close_panel')
-        dp.connect(self.showPanel, 'frame.show_panel')
-        dp.connect(self.togglePanel, 'frame.check_menu')
-        dp.connect(self.togglePanelUI, 'frame.update_menu')
+        self.menuAddon = {}
+        self.paneAddon = {}
+        self._pane_num = 0
+        dp.connect(self.AddMenu, 'frame.add_menu')
+        dp.connect(self.DelMenu, 'frame.del_menu')
+        dp.connect(self.AddPanel, 'frame.add_panel')
+        dp.connect(self.ClosePanel, 'frame.close_panel')
+        dp.connect(self.ShowPanel, 'frame.show_panel')
+        dp.connect(self.TogglePanel, 'frame.check_menu')
+        dp.connect(self.UpdateMenu, 'frame.update_menu')
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
     def OnClose(self, event):
@@ -405,7 +426,7 @@ class FramePlus(wx.Frame):
         del self._mgr
         event.Skip()
 
-    def getMenu(self, pathlist):
+    def GetMenu(self, pathlist):
         """find the menu item"""
         # the top level menu
         menuidx = self.GetMenuBar().FindMenu(pathlist[0])
@@ -424,15 +445,15 @@ class FramePlus(wx.Frame):
                     break
         return menuitem
 
-    def addMenu(self, path, rxsignal, updatesignal=None, kind='Normal'):
+    def AddMenu(self, path, rxsignal, updatesignal=None, kind='Normal'):
         """
         add the item to menubar
 
-        Support menu kind: 'Separator', 'Normal', 'Check', 'Radio', 'Popup'
+            kind: 'Separator', 'Normal', 'Check', 'Radio', 'Popup'
         """
 
         pathlist = path.split(':')
-        menuitem = self.getMenu(pathlist[:-1])
+        menuitem = self.GetMenu(pathlist[:-1])
         if menuitem is None:
             return wx.NOT_FOUND
 
@@ -451,7 +472,7 @@ class FramePlus(wx.Frame):
             elif kind == 'Radio':
                 newitem = wx.MenuItem(menuitem, newid, pathlist[-1],
                                       pathlist[-1], kind=wx.ITEM_RADIO)
-            self.menuaddon[newid] = (rxsignal, updatesignal)
+            self.menuAddon[newid] = (rxsignal, updatesignal)
             if c2p.bsm_is_phoenix:
                 menuitem.Append(newitem)
             else:
@@ -462,10 +483,10 @@ class FramePlus(wx.Frame):
 
             return newid
 
-    def delMenu(self, path, id=None):
+    def DelMenu(self, path, id=None):
         """delete the menu item"""
         pathlist = path.split(':')
-        menuitem = self.getMenu(pathlist[:-1])
+        menuitem = self.GetMenu(pathlist[:-1])
         if menuitem is None:
             return wx.NOT_FOUND
         if id is None:
@@ -482,27 +503,27 @@ class FramePlus(wx.Frame):
                 return wx.NOT_FOUND
             menuitem.DestroyItem(item)
             self.Unbind(wx.EVT_MENU, id=id)
-            del self.menuaddon[id]
+            del self.menuAddon[id]
 
             return id
 
     def OnMenuAddOn(self, event):
         idx = event.GetId()
-        signal = self.menuaddon.get(idx, None)
+        signal = self.menuAddon.get(idx, None)
         if signal:
             signal = signal[0]
             dp.send(signal=signal, command=idx)
 
     def OnMenuCmdUI(self, event):
         idx = event.GetId()
-        signal = self.menuaddon.get(idx, None)
+        signal = self.menuAddon.get(idx, None)
         if signal:
             signal = signal[1]
             dp.send(signal=signal, event=event)
         else:
             event.Enable(True)
 
-    def addPanel(self, panel, title='Untitle', active=True, paneInfo=None,
+    def AddPanel(self, panel, title='Untitle', active=True, paneInfo=None,
                  target=None, showhidemenu=None, icon=None, maximize=False):
         """add the panel to AUI"""
         if not panel:
@@ -542,39 +563,39 @@ class FramePlus(wx.Frame):
                    .MinimizeButton(True).MaximizeButton(True).Icon(icon)
             if not self._mgr.GetAllPanes():
                 # set the first pane to be center pane
-                auipaneinfo = auipaneinfo.CenterPane()
+                auipaneinfo.CenterPane()
         # auto generate the unique panel name
-        name = "pane-%d"%FramePlus.PANE_NUM
-        FramePlus.PANE_NUM += 1
+        name = "pane-%d"%self._pane_num
+        self._pane_num += 1
         auipaneinfo.Name(name)
 
-        # if showhidemenu is false, the panel will be destroy when clicking
-        # on the close button; otherwise it will be hidden
+        # if showhidemenu is false, the panel will be destroyed when clicking
+        # the close button; otherwise it will be hidden.
         panel.bsm_destroyonclose = not showhidemenu
         self._mgr.AddPane(panel, auipaneinfo, target=targetpane)
         if maximize:
             self._mgr.MaximizePane(auipaneinfo)
         if active:
-            self.showPanel(panel)
+            self.ShowPanel(panel)
         else:
-            self.showPanel(panel, False)
+            self.ShowPanel(panel, False)
             self._mgr.Update()
 
         # add the menu item to show/hide the panel
         if showhidemenu:
-            id = self.addMenu(showhidemenu, 'frame.check_menu',
+            id = self.AddMenu(showhidemenu, 'frame.check_menu',
                               updatesignal='frame.update_menu', kind='Check')
             if id != wx.NOT_FOUND:
-                self.paneaddon[id] = {'panel':panel, 'path':showhidemenu}
+                self.paneAddon[id] = {'panel':panel, 'path':showhidemenu}
         return True
 
-    def closePanel(self, panel):
+    def ClosePanel(self, panel):
         """hide and destroy the panel"""
         # delete the show hide menu
-        for (pid, pane) in six.iteritems(self.paneaddon):
+        for (pid, pane) in six.iteritems(self.paneAddon):
             if panel == pane['panel']:
-                self.delMenu(pane['path'], pid)
-                del self.paneaddon[pid]
+                self.DelMenu(pane['path'], pid)
+                del self.paneAddon[pid]
                 break
 
         # delete the pane from the manager
@@ -587,7 +608,7 @@ class FramePlus(wx.Frame):
         self._mgr.Update()
         return True
 
-    def showPanel(self, panel, show=True, focus=False):
+    def ShowPanel(self, panel, show=True, focus=False):
         """show/hide the panel"""
         pane = self._mgr.GetPane(panel)
         if pane is None or not pane.IsOk():
@@ -597,31 +618,22 @@ class FramePlus(wx.Frame):
             panel.SetFocus()
         return True
 
-    def togglePanel(self, command):
+    def TogglePanel(self, command):
         """toggle the display of the panel"""
-        pane = self.paneaddon.get(command, None)
+        pane = self.paneAddon.get(command, None)
         if not pane:
             return
         panel = pane['panel']
-        # find the first hidden parent. Otherwise, the panel may be hidden while
-        # IsShown() returns True
-        show = panel.IsShown()
-        parent = panel.GetParent()
-        while show and parent:
-            show = parent.IsShown()
-            parent = parent.GetParent()
-        if pane:
-            self.showPanel(panel, not show)
+        # IsShown may not work, since the panel may be hidden while IsShown()
+        # returns True
+        show = panel.IsShownOnScreen()
+        self.ShowPanel(panel, not show)
 
-    def togglePanelUI(self, event):
+    def UpdateMenu(self, event):
         """update the menu checkbox"""
-        pane = self.paneaddon.get(event.GetId(), None)
+        pane = self.paneAddon.get(event.GetId(), None)
         if not pane:
             return
         panel = pane['panel']
-        show = panel.IsShown()
-        parent = panel.GetParent()
-        while show and parent:
-            show = parent.IsShown()
-            parent = parent.GetParent()
+        show = panel.IsShownOnScreen()
         event.Check(show)
