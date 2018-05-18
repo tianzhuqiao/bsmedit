@@ -42,10 +42,12 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
     This class will not load the children item until the parent is expanded (
     e.g., by a click).
     """
-    def __init__(self, parent, getchildren=None, style=wx.TR_DEFAULT_STYLE):
+    def __init__(self, parent, getchildren=None, style=wx.TR_DEFAULT_STYLE,
+                 sort=True):
         wx.TreeCtrl.__init__(self, parent, style=style)
         self._get_children = getchildren
         assert(self._get_children)
+        self._sort_children = sort
         self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
 
     def OnTreeItemExpanding(self, event):
@@ -76,5 +78,6 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
             clr = obj.get('color', None)
             if clr:
                 self.SetItemTextColour(child, wx.Colour(100, 174, 100))
-        self.SortChildren(item)
+        if self._sort_children:
+            self.SortChildren(item)
         return True

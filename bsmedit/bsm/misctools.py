@@ -165,47 +165,45 @@ class HelpPanel(wx.Panel):
         self.show_help(command, False)
 
 class HistoryPanel(wx.Panel):
-    ID_CUT = wx.NewId()
-    ID_COPY = wx.NewId()
     ID_EXECUTE = wx.NewId()
-    ID_CLEAR = wx.NewId()
-    ID_DELETE = wx.NewId()
     TIME_STAMP_HEADER = "#bsm"
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         style = wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT |wx.TR_MULTIPLE |\
                 wx.TR_HAS_VARIABLE_ROW_HEIGHT
-        self.tree = FastLoadTreeCtrl(self, getchildren=self.get_children, style=style)
+        # no need to sort the commands, as they are naturally sorted by
+        # execution time
+        self.tree = FastLoadTreeCtrl(self, getchildren=self.get_children,
+                                     style=style, sort=False)
         self.history = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 5)
         self.SetSizer(sizer)
         dp.connect(receiver=self.AddHistory, signal='Shell.addHistory')
-        dp.connect(receiver=self.LoadHistory, signal='frame.load_config')
-        dp.connect(receiver=self.SaveHistory, signal='frame.save_config')
         self.root = self.tree.AddRoot('The Root Item')
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnActivate, self.tree)
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnRightClick, self.tree)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_COPY)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_CUT)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_COPY)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CUT)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_EXECUTE)
-        #self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_SELECTALL)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_DELETE)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_CLEAR)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_DELETE)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CLEAR)
 
-        accel = [(wx.ACCEL_CTRL, ord('C'), self.ID_COPY),
-                 (wx.ACCEL_CTRL, ord('X'), self.ID_CUT),
-                 #(wx.ACCEL_CTRL, ord('A'), wx.ID_SELECTALL),
-                 (wx.ACCEL_NORMAL, wx.WXK_DELETE, self.ID_DELETE),
+        accel = [(wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
+                 (wx.ACCEL_CTRL, ord('X'), wx.ID_CUT),
+                 (wx.ACCEL_CTRL, ord('E'), self.ID_EXECUTE),
+                 (wx.ACCEL_NORMAL, wx.WXK_DELETE, wx.ID_DELETE),
                 ]
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
+        self.LoadHistory()
 
     def get_children(self, item):
         """ callback function to return the children of item """
         if item == self.tree.GetRootItem():
             childlist = list(six.iterkeys(self.history))
-            childlist.sort(reverse=True)
+            # sort by time-stamp
+            childlist.sort()
             is_folder = True
             clr = wx.Colour(100, 174, 100)
         else:
@@ -223,11 +221,15 @@ class HistoryPanel(wx.Panel):
             children.append(child)
         return children
 
-    def LoadHistory(self, config):
-        config.SetPath('/CommandHistory')
+    def LoadHistory(self):
+        resp = dp.send('frame.get_config', group='shell', key='history')
+        history = []
+        if resp and resp[0][1]:
+            history = resp[0][1]
+
         stamp = time.strftime('#%Y/%m/%d')
-        for i in six.moves.range(0, config.GetNumberOfEntries()):
-            value = config.Read("item%d"%i)
+        for i in six.moves.range(len(history)-1, -1, -1):
+            value = history[i]
             if value.startswith(self.TIME_STAMP_HEADER):
                 stamp = value[len(self.TIME_STAMP_HEADER):]
                 self.history[stamp] = self.history.get(stamp, [])
@@ -238,6 +240,11 @@ class HistoryPanel(wx.Panel):
         item = self.tree.GetLastChild(self.root)
         if item.IsOk():
             self.tree.Expand(item)
+            child = self.tree.GetLastChild(item)
+            print(self.tree.GetItemText(child))
+            if child.IsOk():
+                self.tree.SelectItem(child)
+                self.tree.EnsureVisible(child)
 
     def SaveHistory(self, config):
         """save the history"""
@@ -301,14 +308,13 @@ class HistoryPanel(wx.Panel):
 
     def OnRightClick(self, event):
         menu = wx.Menu()
-        menu.Append(self.ID_COPY, "Copy")
-        menu.Append(self.ID_CUT, "Cut")
-        menu.Append(self.ID_EXECUTE, "Evaluate")
+        menu.Append(wx.ID_COPY, "Copy\tCtrl+C")
+        menu.Append(wx.ID_CUT, "Cut\tCtrl+X")
+        menu.Append(self.ID_EXECUTE, "Evaluate\tCtrl+E")
         menu.AppendSeparator()
-        #menu.Append(wx.ID_SELECTALL, "Select all")
         menu.AppendSeparator()
-        menu.Append(self.ID_DELETE, "Delete")
-        menu.Append(self.ID_CLEAR, "Clear history")
+        menu.Append(wx.ID_DELETE, "Delete\tDel")
+        menu.Append(wx.ID_CLEAR, "Clear history")
         self.PopupMenu(menu)
         menu.Destroy()
 
@@ -318,13 +324,13 @@ class HistoryPanel(wx.Panel):
         for item in items:
             cmd.append(self.tree.GetItemText(item))
         evtId = event.GetId()
-        if evtId == self.ID_COPY or evtId == self.ID_CUT:
+        if evtId == wx.ID_COPY or evtId == wx.ID_CUT:
             clipData = wx.TextDataObject()
             clipData.SetText("\n".join(cmd))
             wx.TheClipboard.Open()
             wx.TheClipboard.SetData(clipData)
             wx.TheClipboard.Close()
-            if evtId == self.ID_CUT:
+            if evtId == wx.ID_CUT:
                 for item in items:
                     if self.tree.ItemHasChildren(item):
                         self.tree.DeleteChildren(item)
@@ -332,12 +338,12 @@ class HistoryPanel(wx.Panel):
         elif evtId == self.ID_EXECUTE:
             for c in cmd:
                 dp.send(signal='shell.run', command=c)
-        elif evtId == self.ID_DELETE:
+        elif evtId == wx.ID_DELETE:
             for item in items:
                 if self.tree.ItemHasChildren(item):
                     self.tree.DeleteChildren(item)
                 self.tree.Delete(item)
-        elif evtId == self.ID_CLEAR:
+        elif evtId == wx.ID_CLEAR:
             self.tree.DeleteAllItems()
 
 class DirPanel(wx.Panel):

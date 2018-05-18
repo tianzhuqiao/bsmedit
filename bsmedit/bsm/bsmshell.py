@@ -4,6 +4,7 @@ import re
 import traceback
 import subprocess as sp
 import keyword
+import time
 import pydoc
 import six
 import wx
@@ -175,6 +176,7 @@ class bsmShell(Shell):
         self.autoIndent = True
         self.running = False
         self.debugger = EngineDebugger()
+        self.LoadHistory()
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
         self.Bind(wx.EVT_MENU, self.OnProcessMenu)
@@ -186,13 +188,11 @@ class bsmShell(Shell):
         dp.connect(self.runCommand, 'shell.run')
         dp.connect(self.debugPrompt, 'shell.prompt')
         dp.connect(self.addHistory, 'shell.addToHistory')
-        dp.connect(self.LoadHistory, 'frame.load_config')
         dp.connect(self.OnFrameExit, 'frame.exit')
         dp.connect(self.IsDebuggerOn, 'debugger.debugging')
         dp.connect(self.getAutoCompleteList, 'shell.auto_complete_list')
         dp.connect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
         dp.connect(self.getAutoCallTip, 'shell.auto_call_tip')
-
     def OnContextMenu(self, evt):
         menu = wx.Menu()
         menu.Append(wx.ID_UNDO, "Undo")
@@ -224,6 +224,8 @@ class bsmShell(Shell):
             fun()
     def OnFrameExit(self):
         """the frame is exiting"""
+        # save command history
+        dp.send('frame.set_config', group='shell', history=self.history)
         # stop the debugger if it is on
         if self.IsDebuggerOn():
             dp.send('debugger.stop')
@@ -299,13 +301,11 @@ class bsmShell(Shell):
         if end < start:
             self.SetAnchor(start)
 
-    def LoadHistory(self, config):
+    def LoadHistory(self):
         self.clearHistory()
-        config.SetPath('/CommandHistory')
-        for i in six.moves.range(0, config.GetNumberOfEntries()):
-            value = config.Read("item%d"%i)
-            if value.find("#==bsm==") == -1:
-                self.history.insert(0, value)
+        resp = dp.send('frame.get_config', group='shell', key='history')
+        if resp and resp[0][1]:
+            self.history = resp[0][1]
 
     def OnKillFocus(self, event):
         if self.CallTipActive():
@@ -471,6 +471,13 @@ class bsmShell(Shell):
     def writeErr(self, text):
         """Replacement for stderror"""
         self.writeOut(text)
+
+    def addHistory(self, command):
+        # override the parent function to add time-stamp.
+        stamp = time.strftime('#bsm#%Y/%m/%d')
+        if stamp not in self.history:
+            self.history.insert(0, 'stamp')
+        super(bsmShell, self).addHistory(command)
 
     def runCommand(self, command, prompt=True, verbose=True, debug=False,
                    history=True):

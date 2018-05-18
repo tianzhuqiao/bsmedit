@@ -4,12 +4,13 @@ import os
 import sys
 import imp
 import importlib
+import json
+import six
 import wx
 import wx.lib.agw.aui as aui
 import wx.py
 import wx.py.dispatcher as dp
 from .frameplus import FramePlus
-#from .bsmshell import bsmShell
 from .mainframexpm import bsmedit_xpm, header_xpm
 from .version import *
 from . import c2p
@@ -63,6 +64,8 @@ class MainFrame(FramePlus):
         dp.connect(self.SetPanelTitle, 'frame.set_panel_title')
         dp.connect(self.ShowStatusText, 'frame.show_status_text')
         dp.connect(self.AddFileHistory, 'frame.add_file_history')
+        dp.connect(self.SetConfig, 'frame.set_config')
+        dp.connect(self.GetConfig, 'frame.get_config')
 
         sys.path.append('.')
 
@@ -83,8 +86,6 @@ class MainFrame(FramePlus):
         dt = FileDropTarget()
         # Link the Drop Target Object to the Text Control
         self.SetDropTarget(dt)
-
-        dp.send('frame.load_config', config=self.config)
 
         # used to change the name of a pane in a notebook;
         # TODO change the pane name when it does not belong to a notebook
@@ -167,6 +168,31 @@ class MainFrame(FramePlus):
         self.filehistory.Save(self.config)
         self.config.Flush()
 
+    def SetConfig(self, group, **kwargs):
+        if not group.startswith('/'):
+            group = '/'+group
+        for key, value in six.iteritems(kwargs):
+            if key in ['signal', 'sender']:
+                # reserved key for dp.send
+                continue
+            if not isinstance(value, str):
+                # add sign to indicate that the value needs to be deserialize
+                value = '__bsm__'+json.dumps(value)
+            self.config.SetPath(group)
+            self.config.Write(key, value)
+
+    def GetConfig(self, group, key):
+        if not group.startswith('/'):
+            group = '/'+group
+        if self.config.HasGroup(group):
+            self.config.SetPath(group)
+            if self.config.HasEntry(key):
+                value = self.config.Read(key)
+                if value.startswith('__bsm__'):
+                    value = json.loads(value[7:])
+                    return value
+        return None
+
     def OnPaneClose(self, evt):
         # check if the window should be destroyed
         # auiPaneInfo.IsDestroyOnClose() can not be used since if the pane is
@@ -242,9 +268,8 @@ class MainFrame(FramePlus):
     def OnClose(self, event):
         """close the main program"""
         self.closing = True
-        dp.send('frame.save_config', config=self.config)
-        self.config.Flush()
         dp.send('frame.exit')
+        self.config.Flush()
         super(MainFrame, self).OnClose(event)
 
     def ShowStatusText(self, text, index=0, width=-1):
