@@ -1551,6 +1551,6 @@ class PyEditorPanel(wx.Panel):
                 return editor
         return None
 
-def bsm_Initialize(frame):
+def bsm_initialize(frame):
     """initialize the model"""
     PyEditorPanel.Initialize(frame)

@@ -723,5 +723,5 @@ class bsmShell(Shell):
         if cls.panelShell:
             dp.send('frame.close_panel', panel=cls.panelShell)
 
-def bsm_Initialize(frame):
+def bsm_initialize(frame):
     bsmShell.Initialize(frame)

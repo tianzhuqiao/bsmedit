@@ -449,6 +449,6 @@ class MiscTools(object):
         """destroy the module"""
         pass
 
-def bsm_Initialize(frame):
+def bsm_initialize(frame):
     """module initialization"""
     MiscTools.Initialize(frame)

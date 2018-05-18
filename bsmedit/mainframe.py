@@ -78,14 +78,12 @@ class MainFrame(FramePlus):
             bsmpackages = self._package_contents('bsm')
         for pkg in bsmpackages:
             mod = importlib.import_module('bsmedit.bsm.%s' % pkg)
-            if hasattr(mod, 'bsm_Initialize'):
-                mod.bsm_Initialize(self)
+            if hasattr(mod, 'bsm_initialize'):
+                mod.bsm_initialize(self)
                 self.addon[pkg] = True
 
-        # Create a File Drop Target object
-        dt = FileDropTarget()
-        # Link the Drop Target Object to the Text Control
-        self.SetDropTarget(dt)
+        # Create & Link the Drop Target Object to main window
+        self.SetDropTarget(FileDropTarget())
 
         # used to change the name of a pane in a notebook;
         # TODO change the pane name when it does not belong to a notebook

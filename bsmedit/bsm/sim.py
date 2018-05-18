@@ -1275,5 +1275,5 @@ class sim(object):
         autorelim = kwargs.pop("relim", True)
         mgr.plot_trace(x, y, autorelim, *args, **kwargs)
 
-def bsm_Initialize(frame):
+def bsm_initialize(frame):
     sim.initialize(frame)

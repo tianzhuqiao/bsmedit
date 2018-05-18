@@ -172,6 +172,6 @@ class DebugTool(object):
             enable = paused and status[s]
         event.Enable(enable)
 
-def bsm_Initialize(frame):
+def bsm_initialize(frame):
     """module initialization"""
     DebugTool.Initialize(frame)
