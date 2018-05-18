@@ -121,15 +121,6 @@ class PyEditor(wx.py.editwindow.EditWindow):
     ID_EDIT_BREAKPOINT = wx.NewId()
     ID_DELETE_BREAKPOINT = wx.NewId()
     ID_CLEAR_BREAKPOINT = wx.NewId()
-    # mac has some special processing on the standard command IDs, so avoid
-    # using the standard ones
-    ID_CUT = wx.NewId()
-    ID_COPY = wx.NewId()
-    ID_PASTE = wx.NewId()
-    ID_UNDO = wx.NewId()
-    ID_REDO = wx.NewId()
-    ID_CLEAR = wx.NewId()
-    ID_SELECTALL = wx.NewId()
     def __init__(self, parent, style=wx.CLIP_CHILDREN | wx.BORDER_NONE):
         wx.py.editwindow.EditWindow.__init__(self, parent, style=style)
         self.SetUpEditor()
@@ -772,15 +763,15 @@ class PyEditor(wx.py.editwindow.EditWindow):
             in order to correctly respect our immutable buffer.
         """
         menu = wx.Menu()
-        menu.Append(self.ID_UNDO, 'Undo')
-        menu.Append(self.ID_REDO, 'Redo')
+        menu.Append(wx.ID_UNDO, 'Undo')
+        menu.Append(wx.ID_REDO, 'Redo')
         menu.AppendSeparator()
-        menu.Append(self.ID_CUT, 'Cut')
-        menu.Append(self.ID_COPY, 'Copy')
-        menu.Append(self.ID_PASTE, 'Paste')
-        menu.Append(self.ID_CLEAR, 'Clear')
+        menu.Append(wx.ID_CUT, 'Cut')
+        menu.Append(wx.ID_COPY, 'Copy')
+        menu.Append(wx.ID_PASTE, 'Paste')
+        menu.Append(wx.ID_CLEAR, 'Clear')
         menu.AppendSeparator()
-        menu.Append(self.ID_SELECTALL, 'Select All')
+        menu.Append(wx.ID_SELECTALL, 'Select All')
         menu.AppendSeparator()
         menu.Append(self.ID_COMMENT, 'Comment')
         menu.Append(self.ID_UNCOMMENT, 'Uncomment')
@@ -813,17 +804,17 @@ class PyEditor(wx.py.editwindow.EditWindow):
 
     def OnUpdateCommandUI(self, evt):
         eid = evt.Id
-        if eid in (self.ID_CUT, self.ID_CLEAR):
+        if eid in (wx.ID_CUT, wx.ID_CLEAR):
             evt.Enable(self.GetSelectionStart()
                        != self.GetSelectionEnd())
-        elif eid == self.ID_COPY:
+        elif eid == wx.ID_COPY:
             evt.Enable(self.GetSelectionStart()
                        != self.GetSelectionEnd())
-        elif eid == self.ID_PASTE:
+        elif eid == wx.ID_PASTE:
             evt.Enable(self.CanPaste())
-        elif eid == self.ID_UNDO:
+        elif eid == wx.ID_UNDO:
             evt.Enable(self.CanUndo())
-        elif eid == self.ID_REDO:
+        elif eid == wx.ID_REDO:
             evt.Enable(self.CanRedo())
         else:
             evt.Skip()
@@ -837,19 +828,19 @@ class PyEditor(wx.py.editwindow.EditWindow):
     def OnProcessEvent(self, evt):
         """process the menu command"""
         eid = evt.GetId()
-        if eid == self.ID_CUT:
+        if eid == wx.ID_CUT:
             self.Cut()
-        elif eid == self.ID_CLEAR:
+        elif eid == wx.ID_CLEAR:
             self.ClearAll()
-        elif eid == self.ID_COPY:
+        elif eid == wx.ID_COPY:
             self.Copy()
-        elif eid == self.ID_PASTE:
+        elif eid == wx.ID_PASTE:
             self.Paste()
-        elif eid == self.ID_UNDO:
+        elif eid == wx.ID_UNDO:
             self.Undo()
-        elif eid == self.ID_REDO:
+        elif eid == wx.ID_REDO:
             self.Redo()
-        elif eid == self.ID_SELECTALL:
+        elif eid == wx.ID_SELECTALL:
             self.SelectAll()
         elif eid == self.ID_COMMENT:
             self.comment()

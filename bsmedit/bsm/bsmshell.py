@@ -150,17 +150,8 @@ def sx(cmd, *args, **kwds):
         pass
 
 class bsmShell(Shell):
-    # mac has some special processing on the standard command IDs, so avoid
-    # using the standard ones
-    ID_UNDO = wx.NewId()
-    ID_REDO = wx.NewId()
-    ID_CUT = wx.NewId()
-    ID_COPY = wx.NewId()
     ID_COPY_PLUS = wx.NewId()
-    ID_PASTE = wx.NewId()
     ID_PASTE_PLUS = wx.NewId()
-    ID_CLEAR = wx.NewId()
-    ID_SELECTALL = wx.NewId()
     def __init__(self, parent, id=-1, pos=wx.DefaultPosition,
                  size=wx.DefaultSize, style=wx.CLIP_CHILDREN,
                  introText='', locals=None, InterpClass=None,
@@ -204,30 +195,30 @@ class bsmShell(Shell):
 
     def OnContextMenu(self, evt):
         menu = wx.Menu()
-        menu.Append(self.ID_UNDO, "Undo")
-        menu.Append(self.ID_REDO, "Redo")
+        menu.Append(wx.ID_UNDO, "Undo")
+        menu.Append(wx.ID_REDO, "Redo")
         menu.AppendSeparator()
-        menu.Append(self.ID_CUT, "Cut")
-        menu.Append(self.ID_COPY, "Copy")
+        menu.Append(wx.ID_CUT, "Cut")
+        menu.Append(wx.ID_COPY, "Copy")
         menu.Append(self.ID_COPY_PLUS, "Copy with prompt")
-        menu.Append(self.ID_PASTE, "Paste")
+        menu.Append(wx.ID_PASTE, "Paste")
         menu.Append(self.ID_PASTE_PLUS, "Paste & run")
-        menu.Append(self.ID_CLEAR, "Clear")
+        menu.Append(wx.ID_CLEAR, "Clear")
         menu.AppendSeparator()
-        menu.Append(self.ID_SELECTALL, "Select All")
+        menu.Append(wx.ID_SELECTALL, "Select All")
         self.PopupMenu(menu)
 
     def OnProcessMenu(self, event):
         eid = event.GetId()
-        cmd = {self.ID_CUT: self.Cut,
-               self.ID_CLEAR: self.Clear,
-               self.ID_COPY: self.Copy,
+        cmd = {wx.ID_CUT: self.Cut,
+               wx.ID_CLEAR: self.Clear,
+               wx.ID_COPY: self.Copy,
                self.ID_COPY_PLUS: self.CopyWithPrompts,
-               self.ID_PASTE: self.Paste,
+               wx.ID_PASTE: self.Paste,
                self.ID_PASTE_PLUS: self.PasteAndRun,
-               self.ID_UNDO: self.Undo,
-               self.ID_REDO: self.Redo,
-               self.ID_SELECTALL: self.SelectAll}
+               wx.ID_UNDO: self.Undo,
+               wx.ID_REDO: self.Redo,
+               wx.ID_SELECTALL: self.SelectAll}
         fun = cmd.get(eid, None)
         if fun:
             fun()
@@ -326,15 +317,15 @@ class bsmShell(Shell):
 
     def OnUpdateUI(self, event):
         eid = event.GetId()
-        if eid in (self.ID_CUT, self.ID_CLEAR):
+        if eid in (wx.ID_CUT, wx.ID_CLEAR):
             event.Enable(self.CanCut())
-        elif eid in (self.ID_COPY, self.ID_COPY_PLUS):
+        elif eid in (wx.ID_COPY, self.ID_COPY_PLUS):
             event.Enable(self.CanCopy())
-        elif eid in (self.ID_PASTE, self.ID_PASTE_PLUS):
+        elif eid in (wx.ID_PASTE, self.ID_PASTE_PLUS):
             event.Enable(self.CanPaste())
-        elif eid == self.ID_UNDO:
+        elif eid == wx.ID_UNDO:
             event.Enable(self.CanUndo())
-        elif eid == self.ID_REDO:
+        elif eid == wx.ID_REDO:
             event.Enable(self.CanRedo())
         # update the caret position so that it is always in valid area
         self.UpdateCaretPos()
@@ -718,7 +709,7 @@ class bsmShell(Shell):
         intro = 'Welcome To bsmedit ' + BSM_VERSION
         cls.panelShell = bsmShell(cls.frame, 1, introText=intro, locals=ns)
         dp.send(signal="frame.add_panel", panel=cls.panelShell, active=True,
-                title="shell", showhidemenu='View:Panels:Console Window \tCtrl+t')
+                title="shell")
 
     @classmethod
     def Uninitialize(cls):

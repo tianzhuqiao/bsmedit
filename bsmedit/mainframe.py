@@ -26,6 +26,7 @@ class FileDropTarget(wx.FileDropTarget):
 class MainFrame(FramePlus):
 
     ID_VM_RENAME = wx.NewId()
+    ID_CONTACT = wx.NewId()
     def __init__(self, parent):
         FramePlus.__init__(self, parent, title='bsmedit',
                            size=wx.Size(800, 600),
@@ -114,52 +115,50 @@ class MainFrame(FramePlus):
         menuFile.AppendSubMenu(self.menuRecentFiles, "Recent Files")
 
         menuFile.AppendSeparator()
-
-        menuQuit = wx.MenuItem(menuFile, wx.ID_CLOSE, "&Quit",
-                               wx.EmptyString, wx.ITEM_NORMAL)
-        c2p.menuAppend(menuFile, menuQuit)
+        menuFile.Append(wx.ID_CLOSE, "&Quit")
 
         menubar.Append(menuFile, "&File")
+
+        # add the common Edit menus to menubar; otherwise, the context-menu
+        # from bsmshell or editor may not work (e.g., Mac)
+        menuEdit = wx.Menu()
+        menuEdit.Append(wx.ID_UNDO, "&Undo")
+        menuEdit.Append(wx.ID_REDO, "&Redo")
+        menuEdit.AppendSeparator()
+        menuEdit.Append(wx.ID_CUT, "&Cut")
+        menuEdit.Append(wx.ID_COPY, "&Copy")
+        menuEdit.Append(wx.ID_PASTE, "&Paste")
+        menuEdit.Append(wx.ID_CLEAR, "&Clear")
+        menuEdit.AppendSeparator()
+        menuEdit.Append(wx.ID_SELECTALL, "&Select All")
+
+        menubar.Append(menuEdit, "&Edit")
 
         menuView = wx.Menu()
         menuToolbar = wx.Menu()
         menuView.AppendSubMenu(menuToolbar, "&Toolbars")
-
         menuView.AppendSeparator()
-
         menuPanes = wx.Menu()
         menuView.AppendSubMenu(menuPanes, "Panels")
 
         menubar.Append(menuView, "&View")
 
         menuTool = wx.Menu()
-
         menubar.Append(menuTool, "&Tools")
-
         menuHelp = wx.Menu()
-        menuHome = wx.MenuItem(menuHelp, wx.ID_HOME, "&Home", wx.EmptyString,
-                               wx.ITEM_NORMAL)
-        c2p.menuAppend(menuHelp, menuHome)
-
-        menuContact = wx.MenuItem(menuHelp, wx.ID_ANY, "&Contact",
-                                  wx.EmptyString, wx.ITEM_NORMAL)
-        c2p.menuAppend(menuHelp, menuContact)
-
+        menuHelp.Append(wx.ID_HOME, "&Home")
+        menuHelp.Append(self.ID_CONTACT, "&Contact")
         menuHelp.AppendSeparator()
-
-        menuAbout = wx.MenuItem(menuHelp, wx.ID_ABOUT, "&About",
-                                wx.EmptyString, wx.ITEM_NORMAL)
-        c2p.menuAppend(menuHelp, menuAbout)
-
+        menuHelp.Append(wx.ID_ABOUT, "&About")
         menubar.Append(menuHelp, "&Help")
 
         self.SetMenuBar(menubar)
 
         # Connect Events
-        self.Bind(wx.EVT_MENU, self.OnFileQuit, id=menuQuit.GetId())
-        self.Bind(wx.EVT_MENU, self.OnHelpHome, id=menuHome.GetId())
-        self.Bind(wx.EVT_MENU, self.OnHelpContact, id=menuContact.GetId())
-        self.Bind(wx.EVT_MENU, self.OnHelpAbout, id=menuAbout.GetId())
+        self.Bind(wx.EVT_MENU, self.OnFileQuit, id=wx.ID_CLOSE)
+        self.Bind(wx.EVT_MENU, self.OnHelpHome, id=wx.ID_HOME)
+        self.Bind(wx.EVT_MENU, self.OnHelpContact, id=self.ID_CONTACT)
+        self.Bind(wx.EVT_MENU, self.OnHelpAbout, id=wx.ID_ABOUT)
 
     def AddFileHistory(self, filename):
         """add the file to recent file list"""
