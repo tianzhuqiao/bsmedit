@@ -1455,7 +1455,7 @@ class PyEditorPanel(wx.Panel):
             cls.ID_EDITOR_OPEN = resp[0][1]
         dp.connect(cls.ProcessCommand, 'bsm.editor.menu')
         dp.connect(cls.Uninitialize, 'frame.exit')
-        dp.connect(cls.OpenScript, 'bsm.editor.openfile')
+        dp.connect(cls.OpenScript, 'frame.file_drop')
         dp.connect(cls.debugPaused, 'debugger.paused')
         dp.connect(cls.debugUpdateScope, 'debugger.update_scopes')
 

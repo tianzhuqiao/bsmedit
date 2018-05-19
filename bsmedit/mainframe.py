@@ -21,7 +21,7 @@ class FileDropTarget(wx.FileDropTarget):
 
     def OnDropFiles(self, x, y, filenames):
         for fname in filenames:
-            wx.CallAfter(dp.send, signal='bsm.editor.openfile', filename=fname)
+            wx.CallAfter(dp.send, signal='frame.file_drop', filename=fname)
         return True
 
 class MainFrame(FramePlus):
@@ -49,16 +49,22 @@ class MainFrame(FramePlus):
         self.statusbar_width = [-1]
         self.statusbar.SetStatusWidths(self.statusbar_width)
 
+        # persistent configuration
+        self.config = wx.FileConfig('bsmedit', style=wx.CONFIG_USE_LOCAL_FILE)
+
         # recent file list
         self.filehistory = wx.FileHistory(8)
-        self.config = wx.FileConfig('bsmedit', style=wx.CONFIG_USE_LOCAL_FILE)
         self.config.SetPath('/FileHistory')
         self.filehistory.Load(self.config)
         self.filehistory.UseMenu(self.menuRecentFiles)
         self.filehistory.AddFilesToMenu()
-        self.Bind(wx.EVT_MENU_RANGE, self.OnMenuFileHistory, id=wx.ID_FILE1, id2=wx.ID_FILE9)
+        self.Bind(wx.EVT_MENU_RANGE, self.OnMenuFileHistory, id=wx.ID_FILE1,
+                  id2=wx.ID_FILE9)
 
         self.closing = False
+
+        # Create & Link the Drop Target Object to main window
+        self.SetDropTarget(FileDropTarget())
 
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
         dp.connect(self.SetPanelTitle, 'frame.set_panel_title')
@@ -82,8 +88,6 @@ class MainFrame(FramePlus):
                 mod.bsm_initialize(self)
                 self.addon[pkg] = True
 
-        # Create & Link the Drop Target Object to main window
-        self.SetDropTarget(FileDropTarget())
 
         # used to change the name of a pane in a notebook;
         # TODO change the pane name when it does not belong to a notebook
@@ -341,7 +345,7 @@ class MainFrame(FramePlus):
         fileNum = event.GetId() - wx.ID_FILE1
         path = self.filehistory.GetHistoryFile(fileNum)
         self.filehistory.AddFileToHistory(path)
-        dp.send('bsm.editor.openfile', filename=path)
+        dp.send('frame.file_drop', filename=path)
 
 class AboutDialog(wx.Dialog):
     def __init__(self, parent):

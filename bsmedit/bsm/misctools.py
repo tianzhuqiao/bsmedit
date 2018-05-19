@@ -241,7 +241,6 @@ class HistoryPanel(wx.Panel):
         if item.IsOk():
             self.tree.Expand(item)
             child = self.tree.GetLastChild(item)
-            print(self.tree.GetItemText(child))
             if child.IsOk():
                 self.tree.SelectItem(child)
                 self.tree.EnsureVisible(child)
@@ -395,7 +394,7 @@ class DirPanel(wx.Panel):
             return
         (path, fileExtension) = os.path.splitext(filename)
         if fileExtension == '.py':
-            dp.send(signal='bsm.editor.openfile', filename=filepath)
+            dp.send(signal='frame.file_drop', filename=filepath)
         else:
             os.system("start "+ filepath)
 

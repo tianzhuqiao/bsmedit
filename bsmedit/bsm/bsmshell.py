@@ -405,7 +405,7 @@ class bsmShell(Shell):
                 linenum = int((linenum[0])[5:])
             else:
                 linenum = 1
-            dp.send('bsm.editor.openfile', filename=path, activated=True,
+            dp.send('frame.file_drop', filename=path, activated=True,
                     lineno=linenum)
         event.Skip()
 

@@ -72,7 +72,7 @@ class StackPanel(wx.Panel):
         filename = self.listctrl.GetItem(currentItem, 2).GetText()
         lineno = self.listctrl.GetItem(currentItem, 1).GetText()
         # open the script first
-        dp.send(signal='bsm.editor.openfile', filename=filename,
+        dp.send(signal='frame.file_drop', filename=filename,
                 lineno=int(lineno))
         # ask the debugger to trigger the update scope event to set mark
         dp.send(signal='debugger.set_scope', level=currentItem)
