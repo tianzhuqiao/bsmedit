@@ -565,7 +565,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # Set up the numbers in the margin for margin #1
         self.SetMarginType(NUM_MARGIN, stc.STC_MARGIN_NUMBER)
         # Reasonable value for, say, 4-5 digits using a mono font (40 pix)
-        self.SetMarginWidth(0, 40)
+        self.SetMarginWidth(0, 50)
         # Indentation and tab stuff
         self.SetIndent(4)
         self.SetIndentationGuides(True)
@@ -892,12 +892,6 @@ class PyEditorPanel(wx.Panel):
         self.findFlags = 1
         self.stcFindFlags = 0
         self.wrapped = 0
-        # This can't be done with the eventManager unfortunately ;-(
-        self.Bind(c2p.EVT_COMMAND_FIND, self.OnFind)
-        self.Bind(c2p.EVT_COMMAND_FIND_NEXT, self.OnFind)
-        self.Bind(c2p.EVT_COMMAND_FIND_REPLACE, self.OnReplace)
-        self.Bind(c2p.EVT_COMMAND_FIND_REPLACE_ALL, self.OnReplaceAll)
-        self.Bind(c2p.EVT_COMMAND_FIND_CLOSE, self.OnFindClose)
 
         self.fileName = """"""
         self.splitter = wx.SplitterWindow(self, style=wx.SP_LIVE_UPDATE)
@@ -1203,6 +1197,12 @@ class PyEditorPanel(wx.Panel):
         # dialog
         self.findDialog = wx.FindReplaceDialog(self, data, 'Find & Replace',
                                                wx.FR_REPLACEDIALOG | wx.FR_NOUPDOWN)
+        # bind the event to the dialog, see the example in wxPython demo
+        self.findDialog.Bind(c2p.EVT_COMMAND_FIND, self.OnFind)
+        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_NEXT, self.OnFind)
+        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_REPLACE, self.OnReplace)
+        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_REPLACE_ALL, self.OnReplaceAll)
+        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_CLOSE, self.OnFindClose)
         self.findDialog.Show(1)
         self.findDialog.data = data  # save a reference to it...
 
