@@ -426,62 +426,97 @@ class FramePlus(wx.Frame):
         del self._mgr
         event.Skip()
 
-    def GetMenu(self, pathlist):
-        """find the menu item"""
+    def GetMenu(self, pathlist, autocreate=False):
+        """
+        find the menu item.
+
+        if autocreate is True, then recursive submenu creation.
+        """
+        if not pathlist:
+            return None
         # the top level menu
         menuidx = self.GetMenuBar().FindMenu(pathlist[0])
         if menuidx == wx.NOT_FOUND:
-            return None
-
+            if autocreate:
+                self.GetMenuBar().Append(wx.Menu(), pathlist[0])
+                menuidx = self.GetMenuBar().FindMenu(pathlist[0])
+            else:
+                return None
         menuitem = self.GetMenuBar().GetMenu(menuidx)
-        if menuitem is None:
-            return None
         for p in pathlist[1:]:
+            if menuitem is None:
+                return None
             for m in six.moves.range(menuitem.GetMenuItemCount()):
-                stritem = menuitem.FindItemByPosition(m).GetItemLabelText()
+                child = menuitem.FindItemByPosition(m)
+                if not child.IsSubMenu():
+                    continue
+                stritem = child.GetItemLabelText()
                 stritem = stritem.split('\t')[0]
-                if stritem == p:
-                    menuitem = menuitem.FindItemByPosition(m).GetSubMenu()
+                if stritem == p.split('\t')[0]:
+                    menuitem = child.GetSubMenu()
                     break
+            else:
+                if autocreate:
+                    child = self._append_menu(menuitem, p, kind='Popup')
+                    menuitem = child.GetSubMenu()
+                else:
+                    return None
         return menuitem
 
-    def AddMenu(self, path, rxsignal, updatesignal=None, kind='Normal'):
+    def _append_menu(self, menu, label, rxsignal=None, updatesignal=None,
+                     kind='Normal'):
         """
-        add the item to menubar
+        append an item to menu.
+            kind: 'Separator', 'Normal', 'Check', 'Radio', 'Popup'
+        """
+        if menu is None:
+            return None
+
+        if kind == 'Separator':
+            return menu.AppendSeparator()
+        elif kind == 'Popup':
+            return menu.AppendSubMenu(wx.Menu(), label)
+        else:
+            newid = wx.NewId()
+            if kind == 'Normal':
+                newitem = wx.MenuItem(menu, newid, label,
+                                      label, kind=wx.ITEM_NORMAL)
+            elif kind == 'Check':
+                newitem = wx.MenuItem(menu, newid, label,
+                                      label, kind=wx.ITEM_CHECK)
+            elif kind == 'Radio':
+                newitem = wx.MenuItem(menu, newid, label,
+                                      label, kind=wx.ITEM_RADIO)
+            self.menuAddon[newid] = (rxsignal, updatesignal)
+            child = c2p.menuAppend(menu, newitem)
+            self.Bind(wx.EVT_MENU, self.OnMenuAddOn, id=newid)
+            if updatesignal:
+                self.Bind(wx.EVT_UPDATE_UI, self.OnMenuCmdUI, id=newid)
+            return child
+        return None
+
+    def AddMenu(self, path, rxsignal=None, updatesignal=None, kind='Normal',
+                autocreate=False):
+        """
+        add the item to menubar.
+            path: e.g., New:Open:Figure
 
             kind: 'Separator', 'Normal', 'Check', 'Radio', 'Popup'
         """
 
-        pathlist = path.split(':')
-        menuitem = self.GetMenu(pathlist[:-1])
-        if menuitem is None:
-            return wx.NOT_FOUND
+        paths = path.split(':')
+        menu = None
 
-        if kind == 'Separator':
-            menuitem.AppendSeparator()
-        elif kind == 'Popup':
-            menuitem.AppendSubMenu(wx.Menu(), pathlist[-1])
-        else:
-            newid = wx.NewId()
-            if kind == 'Normal':
-                newitem = wx.MenuItem(menuitem, newid, pathlist[-1],
-                                      pathlist[-1], kind=wx.ITEM_NORMAL)
-            elif kind == 'Check':
-                newitem = wx.MenuItem(menuitem, newid, pathlist[-1],
-                                      pathlist[-1], kind=wx.ITEM_CHECK)
-            elif kind == 'Radio':
-                newitem = wx.MenuItem(menuitem, newid, pathlist[-1],
-                                      pathlist[-1], kind=wx.ITEM_RADIO)
-            self.menuAddon[newid] = (rxsignal, updatesignal)
-            if c2p.bsm_is_phoenix:
-                menuitem.Append(newitem)
-            else:
-                menuitem.AppendItem(newitem)
-            self.Bind(wx.EVT_MENU, self.OnMenuAddOn, id=newid)
-            if updatesignal:
-                self.Bind(wx.EVT_UPDATE_UI, self.OnMenuCmdUI, id=newid)
-
-            return newid
+        if len(paths) == 1:
+            # top level menu
+            return self.GetMenuBar().Append(wx.Menu(), paths[0])
+        elif len(paths) > 1:
+            menu = self.GetMenu(paths[:-1], autocreate)
+            child = self._append_menu(menu, paths[-1], rxsignal, updatesignal,
+                                      kind)
+            if child:
+                return child.GetId()
+        return wx.NOT_FOUND
 
     def DelMenu(self, path, id=None):
         """delete the menu item"""
