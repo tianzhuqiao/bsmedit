@@ -97,6 +97,11 @@ class MainFrame(FramePlus):
         # after initialization processing.
         dp.send('frame.initialized')
 
+        # load the perspective
+        perspective = self.GetConfig('mainframe', 'perspective')
+        if perspective:
+            self._mgr.LoadPerspective(perspective)
+
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPaneMenu)
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnPaneClose)
@@ -192,7 +197,7 @@ class MainFrame(FramePlus):
                 value = self.config.Read(key)
                 if value.startswith('__bsm__'):
                     value = json.loads(value[7:])
-                    return value
+                return value
         return None
 
     def OnPaneClose(self, evt):
@@ -270,6 +275,7 @@ class MainFrame(FramePlus):
     def OnClose(self, event):
         """close the main program"""
         self.closing = True
+        self.SetConfig('mainframe', perspective=self._mgr.SavePerspective())
         dp.send('frame.exit')
         self.config.Flush()
         super(MainFrame, self).OnClose(event)
