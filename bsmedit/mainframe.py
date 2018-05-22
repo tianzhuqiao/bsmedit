@@ -251,7 +251,8 @@ class MainFrame(FramePlus):
             name = pane.caption
             name = wx.GetTextFromUser("Type in the name:", "Input Name",
                                       name, self)
-            if name != pane.caption:
+            # when user click 'cancel', name will be empty, ignore it.
+            if name and name != pane.caption:
                 pane.Caption(name)
                 pane.window.SetLabel(name)
                 self._mgr.Update()

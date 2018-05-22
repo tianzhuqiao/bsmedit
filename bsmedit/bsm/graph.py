@@ -393,7 +393,7 @@ class MatplotPanel(wx.Panel):
 
     def destroy(self, *args):
         if self.isdestory is False:
-            dp.send('frame.close_panel', panel=self)
+            dp.send('frame.delete_panel', panel=self)
             wx.WakeUpIdle()
 
     def Destroy(self, *args, **kwargs):

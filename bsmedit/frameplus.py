@@ -12,6 +12,30 @@ class AuiManagerPlus(aui.AuiManager):
         aui.AuiManager.__init__(self, managed_window=managed_window,
                                 agwFlags=agwFlags)
 
+    def RefreshPaneCaption(self, window):
+        """used to rename a panel"""
+        if window is None:
+            return
+        pane = self.GetPane(window)
+        if not pane.IsOk():
+            return
+        parent = window.GetParent()
+        if parent is None:
+            return
+        if pane.IsNotebookPage() and isinstance(parent, aui.auibook.AuiNotebook):
+            idx = parent.GetPageIndex(window)
+            parent.SetPageText(idx, pane.caption)
+            if idx == parent.GetSelection():
+                for paneInfo in self.GetAllPanes():
+                    if paneInfo.IsNotebookControl() \
+                        and paneInfo.notebook_id == pane.notebook_id:
+                        paneInfo.Caption(pane.caption)
+                        self.RefreshCaptions()
+                        break
+        else:
+            self.RefreshCaptions()
+            parent.Update()
+
     def Repaint(self, dc=None):
         """
         Repaints the entire frame decorations (sashes, borders, buttons and so on).
@@ -272,9 +296,9 @@ class FramePlus(wx.Frame):
         self.paneAddon = {}
         self._pane_num = 0
         dp.connect(self.AddMenu, 'frame.add_menu')
-        dp.connect(self.DelMenu, 'frame.del_menu')
+        dp.connect(self.DeleteMenu, 'frame.delete_menu')
         dp.connect(self.AddPanel, 'frame.add_panel')
-        dp.connect(self.ClosePanel, 'frame.close_panel')
+        dp.connect(self.DeletePanel, 'frame.delete_panel')
         dp.connect(self.ShowPanel, 'frame.show_panel')
         dp.connect(self.TogglePanel, 'frame.check_menu')
         dp.connect(self.UpdateMenu, 'frame.update_menu')
@@ -379,29 +403,33 @@ class FramePlus(wx.Frame):
                 return child.GetId()
         return wx.NOT_FOUND
 
-    def DelMenu(self, path, id=None):
+    def DeleteMenu(self, path, id=None):
         """delete the menu item"""
         pathlist = path.split(':')
         menuitem = self.GetMenu(pathlist[:-1])
         if menuitem is None:
-            return wx.NOT_FOUND
+            return False
         if id is None:
+            # delete a submenu
             for m in six.moves.range(menuitem.GetMenuItemCount()):
                 item = menuitem.FindItemByPosition(m)
                 stritem = item.GetItemLabelText()
                 stritem = stritem.split('\t')[0]
-                if stritem == pathlist[-1] and item.IsSubMenu():
+                if stritem == pathlist[-1].split('\t')[0] and item.IsSubMenu():
                     menuitem.DestroyItem(item)
                     return True
         else:
             item = menuitem.FindItemById(id)
             if item is None:
-                return wx.NOT_FOUND
+                return False
             menuitem.DestroyItem(item)
+            # unbind the event and delete from menuAddon list
             self.Unbind(wx.EVT_MENU, id=id)
+            if self.menuAddon[id][1]:
+                self.Unbind(wx.EVT_UPDATE_UI, id=id)
             del self.menuAddon[id]
 
-            return id
+            return True
 
     def OnMenuAddOn(self, event):
         idx = event.GetId()
@@ -485,16 +513,16 @@ class FramePlus(wx.Frame):
                 self.paneAddon[id] = {'panel':panel, 'path':showhidemenu}
         return True
 
-    def ClosePanel(self, panel):
+    def DeletePanel(self, panel):
         """hide and destroy the panel"""
-        # delete the show hide menu
+        # delete the show/hide menu
         for (pid, pane) in six.iteritems(self.paneAddon):
             if panel == pane['panel']:
-                self.DelMenu(pane['path'], pid)
+                self.DeleteMenu(pane['path'], pid)
                 del self.paneAddon[pid]
                 break
 
-        # delete the pane from the manager
+        # delete the panel from the manager
         pane = self._mgr.GetPane(panel)
         if pane is None or not pane.IsOk():
             return False

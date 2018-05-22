@@ -963,7 +963,7 @@ class SimPanel(wx.Panel):
             viewer = self.gridList[eid - wx.ID_FILE1]
         elif eid == wx.ID_EXIT:
             self.sim.stop()
-            dp.send(signal='frame.close_panel', panel=self)
+            dp.send(signal='frame.delete_panel', panel=self)
         elif eid == wx.ID_RESET:
             self.sim.reset()
         elif eid == self.ID_SIM_STEP:
@@ -1159,10 +1159,10 @@ class sim(object):
     def _frame_uninitialize(cls):
         for mgr in Gcs.get_all_managers():
             mgr.stop()
-            dp.send('frame.close_panel', panel=mgr.frame)
-        dp.send('frame.del_menu', path="View:Simulations")
-        dp.send('frame.del_menu', path="File:New:Simulation", id=cls.ID_SIM_NEW)
-        dp.send('frame.del_menu', path="File:New:PropGrid", id=cls.ID_PROP_NEW)
+            dp.send('frame.delete_panel', panel=mgr.frame)
+        dp.send('frame.delete_menu', path="View:Simulations")
+        dp.send('frame.delete_menu', path="File:New:Simulation", id=cls.ID_SIM_NEW)
+        dp.send('frame.delete_menu', path="File:New:PropGrid", id=cls.ID_PROP_NEW)
 
     @classmethod
     def _process_command(cls, command):
