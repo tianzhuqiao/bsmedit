@@ -109,58 +109,40 @@ class MainFrame(FramePlus):
 
     def InitMenu(self):
         """initialize the menubar"""
-        menubar = wx.MenuBar(0)
-        menuFile = wx.Menu()
-        menuNew = wx.Menu()
-        menuFile.AppendSubMenu(menuNew, "New")
+        menubar = wx.MenuBar()
+        self.SetMenuBar(menubar)
 
-        menuOpen = wx.Menu()
-        menuFile.AppendSubMenu(menuOpen, "Open")
-
-        menuFile.AppendSeparator()
-
-        self.menuRecentFiles = wx.Menu()
-        menuFile.AppendSubMenu(self.menuRecentFiles, "Recent Files")
-
-        menuFile.AppendSeparator()
-        menuFile.Append(wx.ID_CLOSE, "&Quit")
-
-        menubar.Append(menuFile, "&File")
+        self.AddMenu('&File:New', kind="Popup", autocreate=True)
+        self.AddMenu('&File:Open', kind="Popup")
+        self.AddMenu('&File:Sep', kind="Separator")
+        self.AddMenu('&File:Recent Files', kind="Popup")
+        self.menuRecentFiles = self.GetMenu(['File', 'Recent Files'])
+        self.AddMenu('&File:Sep', kind="Separator")
+        self.AddMenu('&File:&Quit', id=wx.ID_CLOSE)
 
         # add the common Edit menus to menubar; otherwise, the context-menu
         # from bsmshell or editor may not work (e.g., Mac)
-        menuEdit = wx.Menu()
-        menuEdit.Append(wx.ID_UNDO, "&Undo")
-        menuEdit.Append(wx.ID_REDO, "&Redo")
-        menuEdit.AppendSeparator()
-        menuEdit.Append(wx.ID_CUT, "&Cut")
-        menuEdit.Append(wx.ID_COPY, "&Copy")
-        menuEdit.Append(wx.ID_PASTE, "&Paste")
-        menuEdit.Append(wx.ID_CLEAR, "&Clear")
-        menuEdit.AppendSeparator()
-        menuEdit.Append(wx.ID_SELECTALL, "&Select All")
+        self.AddMenu('&Edit:&Undo', id=wx.ID_UNDO, autocreate=True)
+        self.AddMenu('&Edit:&Redo', id=wx.ID_REDO)
+        self.AddMenu('&Edit:Sep', kind="Separator")
+        self.AddMenu('&Edit:&Cut', id=wx.ID_CUT)
+        self.AddMenu('&Edit:&Copy', id=wx.ID_COPY)
+        self.AddMenu('&Edit:&Paste', id=wx.ID_PASTE)
+        self.AddMenu('&Edit:&Clear', id=wx.ID_CLEAR)
+        self.AddMenu('&Edit:Sep', kind="Separator")
+        self.AddMenu('&Edit:&Select All', id=wx.ID_SELECTALL)
 
-        menubar.Append(menuEdit, "&Edit")
 
-        menuView = wx.Menu()
-        menuToolbar = wx.Menu()
-        menuView.AppendSubMenu(menuToolbar, "&Toolbars")
-        menuView.AppendSeparator()
-        menuPanes = wx.Menu()
-        menuView.AppendSubMenu(menuPanes, "Panels")
+        self.AddMenu('&View:Toolbars', kind="Popup", autocreate=True)
+        self.AddMenu('&View:Sep', kind="Separator")
+        self.AddMenu('&View:Panels', kind="Popup")
 
-        menubar.Append(menuView, "&View")
+        self.AddMenu('&Tools', kind="Popup", autocreate=True)
 
-        menuTool = wx.Menu()
-        menubar.Append(menuTool, "&Tools")
-        menuHelp = wx.Menu()
-        menuHelp.Append(wx.ID_HOME, "&Home")
-        menuHelp.Append(self.ID_CONTACT, "&Contact")
-        menuHelp.AppendSeparator()
-        menuHelp.Append(wx.ID_ABOUT, "&About")
-        menubar.Append(menuHelp, "&Help")
-
-        self.SetMenuBar(menubar)
+        self.AddMenu('&Help:&Home', id=wx.ID_HOME, autocreate=True)
+        self.ID_CONTACT = self.AddMenu('&Help:&Contact')
+        self.AddMenu('&Help:Sep', kind="Separator")
+        self.AddMenu('&Help:About', id=wx.ID_ABOUT)
 
         # Connect Events
         self.Bind(wx.EVT_MENU, self.OnFileQuit, id=wx.ID_CLOSE)

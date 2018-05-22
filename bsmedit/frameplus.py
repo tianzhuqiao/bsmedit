@@ -463,8 +463,8 @@ class FramePlus(wx.Frame):
                     return None
         return menuitem
 
-    def _append_menu(self, menu, label, rxsignal=None, updatesignal=None,
-                     kind='Normal'):
+    def _append_menu(self, menu, label, id=None, rxsignal=None,
+                     updatesignal=None, kind='Normal'):
         """
         append an item to menu.
             kind: 'Separator', 'Normal', 'Check', 'Radio', 'Popup'
@@ -477,7 +477,9 @@ class FramePlus(wx.Frame):
         elif kind == 'Popup':
             return menu.AppendSubMenu(wx.Menu(), label)
         else:
-            newid = wx.NewId()
+            newid = id;
+            if newid is None:
+                newid = wx.NewId()
             if kind == 'Normal':
                 newitem = wx.MenuItem(menu, newid, label,
                                       label, kind=wx.ITEM_NORMAL)
@@ -495,8 +497,8 @@ class FramePlus(wx.Frame):
             return child
         return None
 
-    def AddMenu(self, path, rxsignal=None, updatesignal=None, kind='Normal',
-                autocreate=False):
+    def AddMenu(self, path, id=None, rxsignal=None, updatesignal=None,
+                kind='Normal', autocreate=False):
         """
         add the item to menubar.
             path: e.g., New:Open:Figure
@@ -512,8 +514,8 @@ class FramePlus(wx.Frame):
             return self.GetMenuBar().Append(wx.Menu(), paths[0])
         elif len(paths) > 1:
             menu = self.GetMenu(paths[:-1], autocreate)
-            child = self._append_menu(menu, paths[-1], rxsignal, updatesignal,
-                                      kind)
+            child = self._append_menu(menu, paths[-1], id, rxsignal,
+                                      updatesignal, kind)
             if child:
                 return child.GetId()
         return wx.NOT_FOUND
@@ -618,7 +620,7 @@ class FramePlus(wx.Frame):
 
         # add the menu item to show/hide the panel
         if showhidemenu:
-            id = self.AddMenu(showhidemenu, 'frame.check_menu',
+            id = self.AddMenu(showhidemenu, rxsignal='frame.check_menu',
                               updatesignal='frame.update_menu', kind='Check')
             if id != wx.NOT_FOUND:
                 self.paneAddon[id] = {'panel':panel, 'path':showhidemenu}

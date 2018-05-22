@@ -77,6 +77,6 @@ def treeAppendItem(tree, parent, label, img, selimg, data):
 
 def menuAppend(menu, item):
     if not bsm_is_phoenix:
-        menu.AppendItem(item)
+        return menu.AppendItem(item)
     else:
-        menu.Append(item)
+        return menu.Append(item)
