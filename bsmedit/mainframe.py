@@ -6,6 +6,7 @@ import imp
 import importlib
 import json
 import six
+import six.moves
 import wx
 import wx.lib.agw.aui as aui
 import wx.py
@@ -194,7 +195,7 @@ class MainFrame(FramePlus):
         # close the notebook
         if evt.pane.IsNotebookControl():
             nb = evt.pane.window
-            for idx in range(nb.GetPageCount()-1, -1, -1):
+            for idx in six.moves.range(nb.GetPageCount()-1, -1, -1):
                 wnd = nb.GetPage(idx)
                 page = self._mgr.GetPane(wnd)
 
@@ -205,6 +206,9 @@ class MainFrame(FramePlus):
                     page.window.Reparent(self)
                     page.window.notebook_id = -1
                     page.Top()
+            # update so the change will take effect; otherwise, when close a
+            # notebook, its pages are not hidden correctly.
+            self._mgr.Update()
             return
         # close a page or a panel
         wnd = evt.pane.window
