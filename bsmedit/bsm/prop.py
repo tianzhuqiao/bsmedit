@@ -714,7 +714,6 @@ class bsmProperty(object):
     #control maintained by this property
     def CreateControl(self):
         """create the control"""
-        assert self.controlWin is None
         if self.controlWin != None or self.GetSeparator():
             return
         sizeCtrl = wx.Size(0, 0)
@@ -796,6 +795,13 @@ class bsmProperty(object):
                 self.SetMinSize(size)
             self.LayoutControl()
             self.controlWin.SetFocus()
+            self.controlWin.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
+
+    def OnKillFocus(self, evt):
+        # destroy the control if it loses focus. Wait until the event has been
+        # processed; otherwise, it may crash.
+        wx.CallAfter(self.DestroyControl)
+        evt.Skip()
 
     def LayoutControl(self):
         """re-positioning the control"""
