@@ -743,7 +743,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
                 sz.y += (pt.y- self.ptMouseDown.y)
                 sz.y = max(sz.y, 25)
                 if sz.y != sz2.y:
-                    self.ptMouseDown.Set(pt.x, pt.y)
+                    self.ptMouseDown.x, self.ptMouseDown.y = pt.x, pt.y
                     self.PropUnderMouse.SetMinSize(sz)
             else:
                 self.PropUnderMouse.OnMouseMove(pt)
@@ -1088,8 +1088,6 @@ class dlgSettings(wx.Dialog):
                            size=wx.Size(402, 494),
                            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
-        self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
-
         sz = wx.BoxSizer(wx.VERTICAL)
 
         self.propgrid = bsmPropGridBase(self)
@@ -1145,8 +1143,7 @@ class dlgSettings(wx.Dialog):
             elif ctrl == PROP_CTRL_COLOR:
                 pp.SetValue(v)
                 pp.SetBGColor(v, v, v)
-                t = wx.Colour()
-                t.SetFromString(v)
+                t = wx.Colour(v)
                 t.SetRGB(t.GetRGB()^0xffffff)
                 t = t.GetAsString(wx.C2S_HTML_SYNTAX)
                 pp.SetTextColor(t, t, t)
