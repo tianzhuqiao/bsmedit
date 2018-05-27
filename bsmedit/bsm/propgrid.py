@@ -578,10 +578,11 @@ class bsmPropGridBase(wx.ScrolledWindow):
         if c2p.bsm_is_phoenix:
             if not crBg.IsOk():
                 crBg = wx.SystemSettings.GetColour(wx.SYS_COLOUR_3DFACE)
+            pen = wx.Pen(wx.BLACK, 1, wx.PENSTYLE_TRANSPARENT)
         else:
             if not crBg.Ok():
                 crBg = wx.SystemSettings.GetColour(wx.SYS_COLOUR_3DFACE)
-        pen = wx.Pen(wx.BLACK, 1, wx.TRANSPARENT)
+            pen = wx.Pen(wx.BLACK, 1, wx.TRANSPARENT)
         dc.SetPen(pen)
         brush = wx.Brush(crBg)
         dc.SetBrush(brush)

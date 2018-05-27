@@ -517,8 +517,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
             self.CallTipShow(tippos, argspec)
     # Some methods to make it compatible with how the wxTextCtrl is used
     def SetValue(self, value):
-        if wx.USE_UNICODE:
-            value = value.decode('iso8859_1')
+        # if wx.USE_UNICODE:
+        #    value = value.decode('iso8859_1')
         val = self.GetReadOnly()
         self.SetReadOnly(False)
         self.SetText(value)

@@ -360,7 +360,7 @@ class FramePlus(wx.Frame):
         elif kind == 'Popup':
             return menu.AppendSubMenu(wx.Menu(), label)
         else:
-            newid = id;
+            newid = id
             if newid is None:
                 newid = wx.NewId()
             if kind == 'Normal':
@@ -430,6 +430,7 @@ class FramePlus(wx.Frame):
             del self.menuAddon[id]
 
             return True
+        return False
 
     def OnMenuAddOn(self, event):
         idx = event.GetId()

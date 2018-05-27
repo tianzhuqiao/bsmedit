@@ -280,7 +280,6 @@ class MainFrame(FramePlus):
 
     def _package_contents(self, package_name):
         """return a list of the modules"""
-        MOD_EXT = ('.py')
         mod = imp.find_module('bsmedit')
         (f, pathname, _) = imp.find_module(package_name, [mod[1]])
         if f:
@@ -289,7 +288,7 @@ class MainFrame(FramePlus):
         # Use a set because some may be both source and compiled.
         return set([os.path.splitext(module)[0] for module in
                     os.listdir(pathname)
-                    if module.endswith(MOD_EXT) and not module.startswith('_')])
+                    if module.endswith('.py') and not module.startswith('_')])
 
     def OnPaneActivated(self, event):
         """notify the window managers that the panel is activated"""

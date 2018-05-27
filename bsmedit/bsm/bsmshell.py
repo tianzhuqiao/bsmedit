@@ -398,10 +398,10 @@ class bsmShell(Shell):
         line_num = self.GetCurrentLine()
         line = self.GetLine(line_num)
         filepath = re.findall('[Ff]ile [^,]+,', line)
-        if len(filepath) > 0:
+        if filepath:
             path = (filepath[0])[6:-2]
             linenum = re.findall(r'line \d+', line, re.IGNORECASE)
-            if len(linenum) > 0:
+            if linenum:
                 linenum = int((linenum[0])[5:])
             else:
                 linenum = 1
