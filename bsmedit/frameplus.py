@@ -509,7 +509,8 @@ class FramePlus(wx.Frame):
         # add the menu item to show/hide the panel
         if showhidemenu:
             id = self.AddMenu(showhidemenu, rxsignal='frame.check_menu',
-                              updatesignal='frame.update_menu', kind='Check')
+                              updatesignal='frame.update_menu', kind='Check',
+                              autocreate=True)
             if id != wx.NOT_FOUND:
                 self.paneAddon[id] = {'panel':panel, 'path':showhidemenu}
         return True

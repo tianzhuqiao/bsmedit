@@ -1069,8 +1069,6 @@ class sim(object):
     def initialize(cls, frame):
         cls.frame = frame
 
-        dp.send('frame.add_menu', path="View:Simulations", rxsignal='',
-                kind='Popup')
         resp = dp.send(signal='frame.add_menu', path='File:New:Simulation',
                        rxsignal='bsm.simulation')
         if resp:
@@ -1083,7 +1081,7 @@ class sim(object):
         dp.connect(cls._process_command, signal='bsm.simulation')
         dp.connect(receiver=cls._frame_set_active, signal='frame.activate_panel')
         dp.connect(receiver=cls._frame_uninitialize, signal='frame.exit')
-        dp.connect(receiver=cls.Initialized, signal='frame.initialized')
+        dp.connect(receiver=cls.initialized, signal='frame.initialized')
         dp.connect(receiver=cls._prop_insert, signal='prop.insert')
         dp.connect(receiver=cls._prop_delete, signal='prop.delete')
         dp.connect(receiver=cls._prop_drop, signal='prop.drop')
@@ -1092,9 +1090,9 @@ class sim(object):
         dp.connect(receiver=cls._prop_changed, signal='prop.changed')
 
     @classmethod
-    def Initialized(cls):
+    def initialized(cls):
         dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
-            prompt=False, verbose=False, history=False)
+                prompt=False, verbose=False, history=False)
 
     @classmethod
     def _prop_changed(cls, prop):
@@ -1167,7 +1165,12 @@ class sim(object):
     @classmethod
     def _process_command(cls, command):
         if command == cls.ID_SIM_NEW:
-            cls.simulation()
+            style = c2p.FD_OPEN | c2p.FD_FILE_MUST_EXIST
+            dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", "*.*", style)
+            if dlg.ShowModal() == wx.ID_OK:
+                filename = dlg.GetPath()
+                cls.simulation(filename=filename)
+            dlg.Destroy()
         if command == cls.ID_PROP_NEW:
             cls.propgrid()
 
