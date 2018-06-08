@@ -1,6 +1,6 @@
 #include <math.h>
 extern "C" {
-#include "wave.h"
+#include "waves.h"
 }
 
 void get_frame(wave_frame* frame)

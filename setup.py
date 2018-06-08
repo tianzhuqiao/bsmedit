@@ -14,5 +14,5 @@ setup(name='bsmedit',
               'bsmedit = bsmedit.__main__:main'
           ]
       },
-      install_requires=['wxpython', 'matplotlib', 'numpy']
+      install_requires=['wxpython', 'matplotlib', 'numpy', 'click']
      )

@@ -8,8 +8,8 @@ from glsurface import SurfaceBase
 class Wave(object):
     def __init__(self):
         folder = os.path.dirname(os.path.realpath(__file__))
-        self.sim = csim.init_dll(os.path.join(folder, 'libwave.so'),
-                                 os.path.join(folder, 'wave.h'))
+        self.sim = csim.init_dll(os.path.join(folder, 'libwaves.so'),
+                                 os.path.join(folder, 'waves.h'))
         self.f = self.sim.wave_frame()
         self.sim.get_frame(self.f)
         self.f.max_frame_len = self.f.rows*self.f.cols

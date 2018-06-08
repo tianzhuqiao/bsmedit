@@ -4,6 +4,7 @@ import os
 import sys
 import imp
 import importlib
+import traceback
 import json
 import six
 import six.moves
@@ -29,7 +30,7 @@ class MainFrame(FramePlus):
 
     ID_VM_RENAME = wx.NewId()
     ID_CONTACT = wx.NewId()
-    def __init__(self, parent):
+    def __init__(self, parent, ext_module):
         FramePlus.__init__(self, parent, title='bsmedit',
                            size=wx.Size(800, 600),
                            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
@@ -89,7 +90,17 @@ class MainFrame(FramePlus):
                 mod.bsm_initialize(self)
                 self.addon[pkg] = True
 
-
+        for ext in ext_module:
+            p, m = os.path.split(ext)
+            if p and p != '.':
+                sys.path.append(p)
+            try:
+                mod = importlib.import_module(m)
+                if hasattr(mod, 'bsm_initialize'):
+                    mod.bsm_initialize(self)
+                    self.addon[ext] = True
+            except ImportError:
+                traceback.print_exc(file=sys.stdout)
         # used to change the name of a pane in a notebook;
         # TODO change the pane name when it does not belong to a notebook
         self.activePaneWindow = None
@@ -191,6 +202,7 @@ class MainFrame(FramePlus):
             force = self.closing
             if hasattr(pane, 'bsm_destroyonclose'):
                 force = pane.bsm_destroyonclose
+                assert(evt.pane.IsDestroyOnClose()==force)
             return not force
         # close the notebook
         if evt.pane.IsNotebookControl():
