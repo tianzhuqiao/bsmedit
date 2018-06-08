@@ -1,12 +1,12 @@
 CC = g++
 CFLAGS = -Wall -fexceptions -g -W -fPIC -DPURIFY -D_USRDLL
 
-DEPS = cexample.h
+DEPS = wave.h
 ODIR=obj
 OBJ = main.o
 OBJS = $(patsubst %,$(ODIR)/%,$(OBJ))
 
-libcexample: $(OBJS)
+libwave: $(OBJS)
 	g++ -shared  $^ -o $@.so
 
 $(ODIR)/%.o: %.c $(DEPS)

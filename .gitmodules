@@ -1,3 +1,6 @@
 [submodule "PyCParser"]
 	path = cparser
 	url = git@github.com:tianzhuqiao/PyCParser.git
+[submodule "glsurface"]
+	path = glsurface
+	url = git@github.com:tianzhuqiao/glsurface.git
