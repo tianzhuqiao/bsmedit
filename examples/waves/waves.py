@@ -11,15 +11,14 @@ import bsmedit.bsm.csim as csim
 from glsurface import TrackingSurface
 from wavesxpm import run_xpm, pause_xpm, stop_xpm
 from bsmedit.c2p import BitmapFromXPM
-class Wave(object):
 
+class Wave(object):
     def __init__(self, qCmd, qResp):
         folder = os.path.dirname(os.path.realpath(__file__))
         self.sim = csim.init_dll(os.path.join(folder, 'libwaves.so'),
                                  os.path.join(folder, 'waves.h'))
         self.f = self.sim.wave_frame()
-        SIM_CALLBACK = CFUNCTYPE(self.f.callback.restype, *self.f.callback.argtypes)
-        self.f.callback = SIM_CALLBACK(self.new_frame_arrive)
+        self.f.callback = csim.callback(self.f.callback, self.new_frame_arrive)
         self.sim.get_frame(self.f)
         self.f.max_frame_len = self.f.rows*self.f.cols
         self.frame = np.zeros(self.f.max_frame_len).astype(np.float32)
@@ -160,11 +159,12 @@ class SurfacePanel(wx.Panel):
         # waves panel
         cls.panel = cls(frame)
         dp.send(signal='frame.add_panel', panel=cls.panel, title="wave",
-                target="History", showhidemenu='View:Panels:wave')
+                showhidemenu='View:Panels:Wave')
 
     @classmethod
     def uninitialize(cls):
         if cls.panel:
             cls.panel.stop()
+
 def bsm_initialize(frame):
     SurfacePanel.initialize(frame)

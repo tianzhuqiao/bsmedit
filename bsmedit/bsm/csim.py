@@ -14,3 +14,6 @@ def init_dll(dll, header):
     wrapper.register(parsedState, dll)
     return wrapper.wrapped
 
+def callback(proto, fun):
+    SIM_CALLBACK = CFUNCTYPE(proto.restype, *proto.argtypes)
+    return SIM_CALLBACK(fun)
