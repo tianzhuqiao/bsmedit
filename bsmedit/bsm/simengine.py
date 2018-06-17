@@ -70,22 +70,18 @@ class SimObj(SimStructure):
                 ('writable', c_bool),
                 ('readable', c_bool),
                 ('numeric', c_bool),
-                ('obj', c_voidp),
                 ('parent', c_char*256),
                 ('nkind', c_int),
                 ('register', c_bool)]
 
 class SimTraceFile(SimStructure):
     _fields_ = [('name', c_char*256),
-                ('type', c_int),
-                ('obj', c_voidp)]
+                ('type', c_int)]
 
 class SimTraceBuf(SimStructure):
     _fields_ = [('name', c_char*256),
                 ('buffer', POINTER(c_double)),
-                ('size', c_int),
-                ('obj', c_voidp),
-                ('buf', c_voidp)]
+                ('size', c_int)]
 
 class SimContext(SimStructure):
     _fields_ = [('version', c_char*256),
@@ -119,7 +115,7 @@ class SimEngine(object):
         interfaces = [['start', '', (c_double, c_int), None],
                       ['stop', '', None, None],
                       ['time', '', None, c_double],
-                      ['time_str', '_helper', (c_char*255, ), c_bool],
+                      ['time_str', '_helper', (c_char*256, ), c_bool],
                       ['create_trace_file', '', (PTFILE,), c_bool],
                       ['close_trace_file', '', (PTFILE,), c_bool],
                       ['trace_file', '', (PTFILE, PTOBJ, PTOBJ, c_int), c_bool],
@@ -135,8 +131,9 @@ class SimEngine(object):
         try:
             self.cdll = cdll.LoadLibrary(str(dll))
             # create the simulation
-            sim_top = self.interface("bsm_sim_top", None, POINTER(SimContext))
-            self.ctx = sim_top().contents
+            sim_top = self.interface("bsm_sim_top", (POINTER(SimContext),), None)
+            self.ctx = SimContext()
+            sim_top(self.ctx)
 
             # load all the interfaces
             for inf in interfaces:
@@ -248,7 +245,7 @@ class SimEngine(object):
     def ctx_time_str(self):
         if not self.is_valid():
             return ""
-        buf = create_string_buffer(255)
+        buf = create_string_buffer(256)
         self.ctx_time_str_helper(buf)
         return buf.value.decode('utf-8')
 

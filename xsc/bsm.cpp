@@ -1,12 +1,41 @@
 #include <vector>
 #include <assert.h>
 #include <stdlib.h>
+#include <map>
+#include "systemc.h"
+
+extern "C" {
+#define BSM_SYSTEMC_INTERFACE
 #include "bsm.h"
-#ifdef WIN32
-#define BSMEDIT_EXPORT __declspec( dllexport )
-#else
-#define BSMEDIT_EXPORT
-#endif
+}
+
+class bsm_buffer_impl : public bsm_buf_read_inf, public bsm_buf_write_inf
+{
+public:
+    bsm_buffer_impl(int size=256);
+    virtual ~bsm_buffer_impl();
+
+public:
+    // bsm_buf_read_inf
+    virtual int size();
+    virtual double read(int n) const;
+
+    // bsm_buf_write_inf
+    virtual bool write(double value, int n);
+    virtual bool append(double value);
+    virtual bool resize(int nSize);
+
+    bool retrive(double* buf, int size);
+protected:
+    std::vector<double> m_buffer;
+    int m_nRead;
+    int m_nWrite;
+};
+
+static std::map<std::string, bsm_sim_object*> sim_objs;
+static std::map<std::string, bsm_sim_trace_file*> sim_tfiles;
+static std::map<std::string, bsm_sim_trace_buf*> sim_tbufs;
+static std::map<std::string, bsm_buffer_impl*> sim_bufs;
 
 bsm_buffer_impl::bsm_buffer_impl(int size)
     : m_nRead(0)
@@ -14,15 +43,17 @@ bsm_buffer_impl::bsm_buffer_impl(int size)
 {
     resize(size);
 }
+
 bsm_buffer_impl::~bsm_buffer_impl()
 {
 }
 
-//bsm_buf_read_inf
+// bsm_buf_read_inf
 int bsm_buffer_impl::size()
 {
     return m_buffer.size();
 }
+
 double bsm_buffer_impl::read(int n) const
 {
     if(m_buffer.size() > 0) {
@@ -31,7 +62,8 @@ double bsm_buffer_impl::read(int n) const
     }
     return 0.0;
 }
-//bsm_buf_write_inf
+
+// bsm_buf_write_inf
 bool bsm_buffer_impl::append(double value)
 {
     if(m_buffer.size() > 0) {
@@ -65,184 +97,187 @@ bool bsm_buffer_impl::resize(int nSize)
 bool bsm_buffer_impl::retrive(double* buf, int size)
 {
     int count = (int)(size < this->size() ? size : this->size());
-    if(m_nWrite >= count)
-        std::copy(m_buffer.begin() + m_nWrite - count, m_buffer.begin() + m_nWrite, buf);
-    else {
+    if(m_nWrite >= count) {
+        std::copy(m_buffer.begin()+m_nWrite-count, m_buffer.begin()+m_nWrite, buf);
+    } else {
         int sz = count - m_nWrite;
-        std::copy(m_buffer.begin() + (this->size() - sz), m_buffer.begin() + this->size(), buf);
-        std::copy(m_buffer.begin(), m_buffer.begin() + m_nWrite, buf + sz);
+        std::copy(m_buffer.begin()+(this->size()-sz), m_buffer.begin()+this->size(), buf);
+        std::copy(m_buffer.begin(), m_buffer.begin()+m_nWrite, buf+sz);
     }
 
     return true;
 }
-sim_context context;
-extern "C" {
-    BSMEDIT_EXPORT bool ctx_read(sim_object* obj)
-    {
-        if(obj && obj->readable) {
-            return obj->m_obj->read(&obj->value);
-        }
-        return false;
-    }
 
-    BSMEDIT_EXPORT bool ctx_write(sim_object* obj)
-    {
-        if(obj && obj->writable) {
-            return obj->m_obj->write(&obj->value);
-        }
-        return false;
+bsm_sim_context* sim = NULL;
+BSMEDIT_EXPORT bool ctx_read(sim_object* obj)
+{
+    if(obj && obj->readable) {
+        return sim_objs[obj->name]->read(&obj->value);
     }
+    return false;
+}
 
-    BSMEDIT_EXPORT bool ctx_first_object(sim_object* obj)
-    {
-        bsm_sim_object* simobj = context.m_sim->first_object();
-        if(simobj) {
-            obj->m_obj = simobj;
-            strcpy(obj->name, simobj->name());
-            strcpy(obj->basename, simobj->basename());
-            strcpy(obj->kind, simobj->kind());
-            obj->writable = simobj->is_writable();
-            obj->readable = simobj->is_readable();
-            obj->numeric = simobj->is_number();
-            ctx_read(obj);
-            return true;
-        }
-        return false;
+BSMEDIT_EXPORT bool ctx_write(sim_object* obj)
+{
+    if(obj && obj->writable) {
+        return sim_objs[obj->name]->write(&obj->value);
     }
+    return false;
+}
 
-    BSMEDIT_EXPORT bool ctx_next_object(sim_object* obj)
-    {
-        bsm_sim_object* simobj = context.m_sim->next_object();
-        if(simobj) {
-            obj->m_obj = simobj;
-            strcpy(obj->name, simobj->name());
-            strcpy(obj->basename, simobj->basename());
-            strcpy(obj->kind, simobj->kind());
-            obj->writable = simobj->is_writable();
-            obj->readable = simobj->is_readable();
-            obj->numeric = simobj->is_number();
-            ctx_read(obj);
-            return true;
-        }
-        return false;
-    }
+void copy_simobject(sim_object* obj, bsm_sim_object* simobj)
+{
+    snprintf(obj->name, MAX_NAME_LEN, "%s",simobj->name());
+    snprintf(obj->basename, MAX_NAME_LEN, "%s", simobj->basename());
+    snprintf(obj->kind, MAX_NAME_LEN, "%s", simobj->kind());
+    obj->writable = simobj->is_writable();
+    obj->readable = simobj->is_readable();
+    obj->numeric = simobj->is_number();
+    sim_objs[obj->name] = simobj;
+    ctx_read(obj);
+}
 
-    BSMEDIT_EXPORT bool ctx_free_object(sim_object* obj)
-    {
-        if(obj) {
-            delete obj->m_obj;
-            obj->m_obj = NULL;
-            return true;
-        }
-        return false;
-    }
-
-    BSMEDIT_EXPORT void ctx_start(double duration, int unit)
-    {
-        context.m_sim->start(duration, unit);
-    }
-
-    BSMEDIT_EXPORT void ctx_stop()
-    {
-        context.m_sim->stop();
-        delete context.m_sim;
-        context.m_sim = NULL;
-    }
-
-    BSMEDIT_EXPORT double ctx_time()
-    {
-        return context.m_sim->time();
-    }
-
-    BSMEDIT_EXPORT bool ctx_time_str(char* time)
-    {
-        if(time) {
-            strcpy(time, context.m_sim->time_string());
-            return true;
-        }
-        return false;
-    }
-
-    BSMEDIT_EXPORT void ctx_set_callback(bsm_sim_context::bsm_callback fun)
-    {
-        context.m_sim->set_callback(fun);
-    }
-
-    BSMEDIT_EXPORT bool ctx_create_trace_file(sim_trace_file* t)
-    {
-        bsm_sim_trace_file* obj = context.m_sim->add_trace(t->name, t->type);
-        if(obj) {
-            t->m_obj = obj;
-            return true;
-        }
-        return false;
-    }
-
-    BSMEDIT_EXPORT bool ctx_close_trace_file(sim_trace_file* t)
-    {
-        if(context.m_sim->remove_trace(t->m_obj)) {
-            return true;
-        }
-        return false;
-    }
-
-    BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj,
-        sim_object* val, int trigger)
-    {
-        if(val) {
-            //ugly code, to be updated
-            context.m_sim->trace(t->m_obj, val->m_obj);
-            t->m_obj->set_trace_type(-1, trigger, 1);
-            context.m_sim->trace(t->m_obj, obj->m_obj);
-            t->m_obj->set_trace_type(-1, 4, 0);
-        } else {
-            context.m_sim->trace(t->m_obj, obj->m_obj);
-            t->m_obj->set_trace_type(-1, trigger, 0);
-        }
-        return context.m_sim->trace(t->m_obj, obj->m_obj);
-    }
-
-    BSMEDIT_EXPORT bool ctx_create_trace_buf(sim_trace_buf* t)
-    {
-        bsm_sim_trace_buf* obj = context.m_sim->add_trace_buf(t->name);
-        if(obj) {
-            t->m_obj = obj;
-            bsm_buffer_impl* buf = new bsm_buffer_impl(t->size);
-            obj->set_buffer(buf);
-            t->m_buf = buf;
-            return true;
-        }
-        return false;
-    }
-
-    BSMEDIT_EXPORT bool ctx_close_trace_buf(sim_trace_buf* t)
-    {
-        return context.m_sim->remove_trace_buf(t->m_obj);
-    }
-
-    BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj,
-        sim_object* val, int trigger)
-    {
-        if(val) {
-            //ugly code, to be updated
-            context.m_sim->trace_buf(t->m_obj, val->m_obj);
-            t->m_obj->set_trace_type(-1, trigger, 1);
-            context.m_sim->trace_buf(t->m_obj, obj->m_obj);
-            t->m_obj->set_trace_type(-1, 4, 0);
-        } else {
-            context.m_sim->trace_buf(t->m_obj, obj->m_obj);
-            t->m_obj->set_trace_type(-1, trigger, 0);
-        }
+BSMEDIT_EXPORT bool ctx_first_object(sim_object* obj)
+{
+    bsm_sim_object* simobj = sim->first_object();
+    if(obj && simobj) {
+        copy_simobject(obj, simobj);
         return true;
     }
+    return false;
+}
 
-    BSMEDIT_EXPORT bool ctx_read_trace_buf(sim_trace_buf* t)
-    {
-        return t->m_buf->retrive(t->buffer, t->size);
+BSMEDIT_EXPORT bool ctx_next_object(sim_object* obj)
+{
+    bsm_sim_object* simobj = sim->next_object();
+    if(obj && simobj) {
+        copy_simobject(obj, simobj);
+        return true;
     }
+    return false;
+}
 
-    BSMEDIT_EXPORT bool ctx_resize_trace_buf(sim_trace_buf* t)
-    {
-        return t->m_buf->resize(t->size);
+BSMEDIT_EXPORT bool ctx_free_object(sim_object* obj)
+{
+    if(obj) {
+        delete sim_objs[obj->name];
+        sim_objs.erase(obj->name);
+        return true;
     }
+    return false;
+}
+
+BSMEDIT_EXPORT void ctx_start(double duration, int unit)
+{
+    sim->start(duration, unit);
+}
+
+BSMEDIT_EXPORT void ctx_stop()
+{
+    sim->stop();
+    delete sim;
+    sim = NULL;
+}
+
+BSMEDIT_EXPORT double ctx_time()
+{
+    return sim->time();
+}
+
+BSMEDIT_EXPORT bool ctx_time_str(char* time)
+{
+    if(time) {
+        snprintf(time, MAX_NAME_LEN, "%s", sim->time_string());
+        return true;
+    }
+    return false;
+}
+
+BSMEDIT_EXPORT void ctx_set_callback(bsm_sim_context::bsm_callback fun)
+{
+    sim->set_callback(fun);
+}
+
+BSMEDIT_EXPORT bool ctx_create_trace_file(sim_trace_file* t)
+{
+    bsm_sim_trace_file* obj = sim->add_trace(t->name, t->type);
+    if(obj) {
+        sim_tfiles[t->name] = obj;
+        return true;
+    }
+    return false;
+}
+
+BSMEDIT_EXPORT bool ctx_close_trace_file(sim_trace_file* t)
+{
+    if(sim->remove_trace(sim_tfiles[t->name])) {
+        sim_tfiles.erase(t->name);
+        return true;
+    }
+    return false;
+}
+
+BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj,
+    sim_object* val, int trigger)
+{
+    if(!t || ! obj) {
+        return false;
+    }
+    if(val) {
+        // ugly code, to be updated
+        sim->trace(sim_tfiles[t->name], sim_objs[val->name]);
+        sim_tfiles[t->name]->set_trace_type(-1, trigger, 1);
+        sim->trace(sim_tfiles[t->name], sim_objs[obj->name]);
+        sim_tfiles[t->name]->set_trace_type(-1, 4, 0);
+    } else {
+        sim->trace(sim_tfiles[t->name], sim_objs[obj->name]);
+        sim_tfiles[t->name]->set_trace_type(-1, trigger, 0);
+    }
+    return true;
+}
+
+BSMEDIT_EXPORT bool ctx_create_trace_buf(sim_trace_buf* t)
+{
+    bsm_sim_trace_buf* obj = sim->add_trace_buf(t->name);
+    if(obj) {
+        sim_tbufs[t->name] = obj;
+        bsm_buffer_impl* buf = new bsm_buffer_impl(t->size);
+        obj->set_buffer(buf);
+        sim_bufs[t->name] = buf;
+        return true;
+    }
+    return false;
+}
+
+BSMEDIT_EXPORT bool ctx_close_trace_buf(sim_trace_buf* t)
+{
+    if(sim_tbufs.find(t->name) != sim_tbufs.end())
+        return sim->remove_trace_buf(sim_tbufs[t->name]);
+    return false;
+}
+
+BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj,
+    sim_object* val, int trigger)
+{
+    if(val) {
+        // ugly code, to be updated
+        sim->trace_buf(sim_tbufs[t->name], sim_objs[val->name]);
+        sim_tbufs[t->name]->set_trace_type(-1, trigger, 1);
+        sim->trace_buf(sim_tbufs[t->name], sim_objs[obj->name]);
+        sim_tbufs[t->name]->set_trace_type(-1, 4, 0);
+    } else {
+        sim->trace_buf(sim_tbufs[t->name], sim_objs[obj->name]);
+        sim_tbufs[t->name]->set_trace_type(-1, trigger, 0);
+    }
+    return true;
+}
+
+BSMEDIT_EXPORT bool ctx_read_trace_buf(sim_trace_buf* t)
+{
+    return sim_bufs[t->name]->retrive(t->buffer, t->size);
+}
+
+BSMEDIT_EXPORT bool ctx_resize_trace_buf(sim_trace_buf* t)
+{
+    return sim_bufs[t->name]->resize(t->size);
 }

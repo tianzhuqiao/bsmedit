@@ -326,12 +326,13 @@ class Simulation(object):
         """
         if isinstance(obj, list):
             obj = obj[0]
-        fmts = {'bsm': BSM_TRACE_SIMPLE, 'vcd': BSM_TRACE_VCD}
+        fmts = {'bsm': BSM_TRACE_SIMPLE, 'vcd': BSM_TRACE_VCD,
+                BSM_TRACE_SIMPLE: BSM_TRACE_SIMPLE, BSM_TRACE_VCD: BSM_TRACE_VCD}
 
         tfmt = fmts.get(fmt, None)
         trig = self.trigger_type.get(trigger, None)
         if tfmt is None:
-            raise ValueError("Not supported trace type: " + fmt)
+            raise ValueError("Not supported trace type: " + str(fmt))
         if trig is None:
             raise ValueError("Not supported trigger type: " + str(trigger))
 
@@ -601,7 +602,6 @@ class DumpDlg(wx.Dialog):
         self.objects = objects
         self.traceFile = tracefile
 
-        self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
         szAll = wx.BoxSizer(wx.VERTICAL)
 
         if self.traceFile:
@@ -649,9 +649,9 @@ class DumpDlg(wx.Dialog):
 
         szConfirm = wx.BoxSizer(wx.HORIZONTAL)
         self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
-        szConfirm.Add(self.btnOK, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
+        szConfirm.Add(self.btnOK, 0, wx.ALL, 5)
         self.btnCancel = wx.Button(self, wx.ID_CANCEL, u"Cancel")
-        szConfirm.Add(self.btnCancel, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
+        szConfirm.Add(self.btnCancel, 0, wx.ALL, 5)
         szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
 
         self.SetSizer(szAll)
