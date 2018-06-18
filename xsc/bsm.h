@@ -8,25 +8,18 @@
 #endif
 #define MAX_NAME_LEN 256
 
-#ifdef BSM_SYSTEMC_INTERFACE
-#include "systemc.h"
-#endif  // BSM_SYSTEMC_INTERFACE
-
-typedef struct sim_object {
-    char name[MAX_NAME_LEN];
-    char basename[MAX_NAME_LEN];
-    char kind[MAX_NAME_LEN];
-#ifdef BSM_SYSTEMC_INTERFACE
-    bsm_sim_object::bsm_object_value value;
-#else
-    struct bsm_object_value {
-        char sValue[256];
+typedef struct bsm_object_value {
+        char sValue[MAX_NAME_LEN];
         double fValue;
         unsigned long long uValue;
         long long iValue;
         int type;
-    } value;
-#endif  // BSM_SYSTEMC_INTERFACE
+}bsm_object_value;
+typedef struct sim_object {
+    char name[MAX_NAME_LEN];
+    char basename[MAX_NAME_LEN];
+    char kind[MAX_NAME_LEN];
+    bsm_object_value value;
     bool writable;
     bool readable;
     bool numeric;
@@ -68,12 +61,8 @@ void ctx_start(double duration, int unit);
 void ctx_stop();
 double ctx_time();
 bool ctx_time_str(char* time);
-#ifdef BSM_SYSTEMC_INTERFACE
-void ctx_set_callback(bsm_sim_context::bsm_callback fun);
-#else
 typedef int(*bsm_callback)(int);
 void ctx_set_callback(bsm_callback fun);
-#endif  // BSM_SYSTEMC_INTERFACE
 bool ctx_create_trace_file(sim_trace_file* t);
 bool ctx_close_trace_file(sim_trace_file* t);
 bool ctx_trace_file(sim_trace_file* t, sim_object* obj, sim_object* val, int trigger);

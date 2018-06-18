@@ -5,7 +5,6 @@
 #include "systemc.h"
 
 extern "C" {
-#define BSM_SYSTEMC_INTERFACE
 #include "bsm.h"
 }
 
@@ -112,7 +111,7 @@ bsm_sim_context* sim = NULL;
 BSMEDIT_EXPORT bool ctx_read(sim_object* obj)
 {
     if(obj && obj->readable) {
-        return sim_objs[obj->name]->read(&obj->value);
+        return sim_objs[obj->name]->read((bsm_sim_object::bsm_object_value*)&obj->value);
     }
     return false;
 }
@@ -120,14 +119,14 @@ BSMEDIT_EXPORT bool ctx_read(sim_object* obj)
 BSMEDIT_EXPORT bool ctx_write(sim_object* obj)
 {
     if(obj && obj->writable) {
-        return sim_objs[obj->name]->write(&obj->value);
+        return sim_objs[obj->name]->write((bsm_sim_object::bsm_object_value*)&obj->value);
     }
     return false;
 }
 
 void copy_simobject(sim_object* obj, bsm_sim_object* simobj)
 {
-    snprintf(obj->name, MAX_NAME_LEN, "%s",simobj->name());
+    snprintf(obj->name, MAX_NAME_LEN, "%s", simobj->name());
     snprintf(obj->basename, MAX_NAME_LEN, "%s", simobj->basename());
     snprintf(obj->kind, MAX_NAME_LEN, "%s", simobj->kind());
     obj->writable = simobj->is_writable();
