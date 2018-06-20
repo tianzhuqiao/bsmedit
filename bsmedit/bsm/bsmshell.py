@@ -476,7 +476,7 @@ class bsmShell(Shell):
         # override the parent function to add time-stamp.
         stamp = time.strftime('#bsm#%Y/%m/%d')
         if stamp not in self.history:
-            self.history.insert(0, 'stamp')
+            self.history.insert(0, stamp)
         super(bsmShell, self).addHistory(command)
 
     def runCommand(self, command, prompt=True, verbose=True, debug=False,
