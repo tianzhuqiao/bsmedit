@@ -221,12 +221,12 @@ class ProcessCommand(object):
             self.simengine.ctx_set_callback(self.check_bp)
             objs = {}
             for name, obj in six.iteritems(self.simengine.sim_objects):
-                objs[obj['name']] = {'name':obj['name'], 'basename':obj['basename'],
-                                     'kind':obj['kind'], 'value':obj['value'],
-                                     'writable':obj['writable'],
-                                     'readable':obj['readable'],
-                                     'numeric':obj['numeric'], 'parent':obj['parent'],
-                                     'nkind':obj['nkind'], 'register':obj['register']}
+                objs[obj.name] = {'name':obj.name, 'basename':obj.basename,
+                                  'kind':obj.kind, 'value':"",
+                                  'writable':obj.writable,
+                                  'readable':obj.readable,
+                                  'numeric':obj.numeric, 'parent':obj.parent,
+                                  'nkind':obj.nkind, 'register':obj.register}
             return objs
         return None
 
@@ -334,8 +334,8 @@ class ProcessCommand(object):
             valid = self.simengine.sim_objects[name]
 
         trace = SimTraceFile()
-        trace['name'] = name
-        trace['type'] = ntype
+        trace.name = name
+        trace.type = ntype
         if self.simengine.ctx_create_trace_file(trace):
             self.simengine.ctx_trace_file(trace, self.simengine.sim_objects[name], valid, trigger)
             self.tfile[name] = trace
@@ -366,8 +366,8 @@ class ProcessCommand(object):
             del self.tbuf_raw[name]
 
         trace = SimTraceBuf()
-        trace['name'] = name
-        trace['size'] = size
+        trace.name = name
+        trace.size = size
         data = np.zeros((size))
         trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         if self.simengine.ctx_create_trace_buf(trace):
