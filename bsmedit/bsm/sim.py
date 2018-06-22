@@ -12,9 +12,8 @@ from wx.lib.masked import NumCtrl
 
 from . import graph
 from ._simxpm import *
-from .simprocess import sim_process
+from .simprocess import *
 from .propgrid import bsmPropGrid
-from .simengine import *
 from ._pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from ._utility import MakeBitmap, FastLoadTreeCtrl
