@@ -28,8 +28,10 @@ class SStructWrapper(ctypes.Structure):
         if isinstance(item, six.string_types):
             if hasattr(self._object, item):
                 v = getattr(self._object, item)
-                if isinstance(v, ctypes.ARRAY(ctypes.c_byte, len(v))):
-                    setattr(self._object, item, (ctypes.c_byte*len(v))(*bytearray(value)))
+                if isinstance(v, ctypes.Array) and \
+                   isinstance(v, ctypes.ARRAY(ctypes.c_byte, len(v))):
+                    setattr(self._object, item,
+                            (ctypes.c_byte*len(v))(*bytearray(str(value))))
                 else:
                     setattr(self._object, item, value)
                 return True

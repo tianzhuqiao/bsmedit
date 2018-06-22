@@ -23,7 +23,7 @@ Gcs = Gcm()
 class Simulation(object):
     trigger_type = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
                     'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE,
-                    BSM_BOTHEDGE:BSM_BOTHEDGE, BSM_POSEDGE:BSM_PS,
+                    BSM_BOTHEDGE:BSM_BOTHEDGE, BSM_POSEDGE:BSM_POSEDGE,
                     BSM_NEGEDGE:BSM_NEGEDGE, BSM_NONEEDGE:BSM_NONEEDGE}
     sim_units = {'fs':BSM_FS, 'ps':BSM_PS, 'ns':BSM_NS, 'us':BSM_US,
                  'ms':BSM_MS, 's':BSM_SEC}
@@ -336,6 +336,7 @@ class Simulation(object):
             raise ValueError("Not supported trigger type: " + str(trigger))
 
         args = {'name':obj, 'type':tfmt, 'valid':valid, 'trigger':trig}
+        print(args)
         return self._send_command('trace_file', args, block)
 
     def trace_buf(self, obj, size=256, valid=None, trigger='posneg',
@@ -953,9 +954,9 @@ class SimPanel(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK:
                 t = dlg.GetTrace()
                 if eid == self.ID_MP_DUMP:
-                    self.sim.trace_file(t['signal'], t['format'], t['valid'], t['trigger'])
+                    self.sim.trace_file(t['signal'], t['format'], t['valid'], t['trigger'], False)
                 else:
-                    self.sim.trace_buf(t['signal'], t['size'], t['valid'], t['trigger'])
+                    self.sim.trace_buf(t['signal'], t['size'], t['valid'], t['trigger'], False)
         elif eid == self.ID_MP_ADD_TO_NEW_VIEWER:
             viewer = sim.propgrid()
         elif eid >= wx.ID_FILE1 and eid <= wx.ID_FILE9:

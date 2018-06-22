@@ -86,38 +86,25 @@ class SimEngine(object):
         assert obj
         if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return
-        kindstr = obj['kind']
-        kind = SC_OBJ_UNKNOWN
-        if kindstr == "sc_signal":
-            kind = SC_OBJ_SIGNAL
-        elif kindstr == "sc_in":
-            kind = SC_OBJ_INPUT
-        elif kindstr == "sc_out":
-            kind = SC_OBJ_OUTPUT
-        elif kindstr == "sc_in_out":
-            kind = SC_OBJ_INOUT
-        elif kindstr == "sc_clock":
-            kind = SC_OBJ_CLOCK
-        elif kindstr == "xsc_property":
-            kind = SC_OBJ_XSC_PROP
-            if obj.name.find("[") != -1 and  obj['name'].find("]") != -1:
+
+        kinds = {'sc_signal':SC_OBJ_SIGNAL, 'sc_in': SC_OBJ_INPUT,
+                 'sc_out':SC_OBJ_OUTPUT, 'sc_in_out': SC_OBJ_INOUT,
+                 'sc_clock':SC_OBJ_CLOCK, 'xsc_property': SC_OBJ_XSC_PROP,
+                 'sc_module':SC_OBJ_MODULE, 'xsc_array': SC_OBJ_XSC_ARRAY}
+        kind = kinds.get(obj.kind, SC_OBJ_UNKNOWN)
+        if kind == SC_OBJ_XSC_PROP and '[' in obj.name and ']' in obj['name']:
                 kind = SC_OBJ_XSC_ARRAY_ITEM
-        elif kindstr == "sc_module":
-            kind = SC_OBJ_MODULE
-        elif kindstr == "xsc_array":
-            kind = SC_OBJ_XSC_ARRAY
         obj.nkind = kind
-        obj.register = (kind in (SC_OBJ_SIGNAL, SC_OBJ_INPUT,
-                                    SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK,
-                                    SC_OBJ_XSC_PROP, SC_OBJ_XSC_ARRAY_ITEM))
+        obj.register = (kind in (SC_OBJ_SIGNAL, SC_OBJ_INPUT, SC_OBJ_OUTPUT,
+                                 SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,
+                                 SC_OBJ_XSC_ARRAY_ITEM))
         name = obj.name
         idx = name.rfind('.')
         if kind == SC_OBJ_XSC_ARRAY_ITEM:
             idx = name.rfind('[')
         obj.parent = ""
         if idx != -1:
-            name = name[0:idx]
-            obj.parent = name
+            obj.parent = name[0:idx]
 
     def ctx_read(self, obj):
         if not self.is_valid():
@@ -126,9 +113,11 @@ class SimEngine(object):
             obj = self.sim_objects.get(obj, None)
         if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return ""
+
         obj = obj._object
         if not obj.readable:
             return ""
+
         if self.csim.ctx_read(obj):
             if obj.value.type == BSM_DATA_STRING:
                 return ctypes.cast(obj.value.sValue, ctypes.c_char_p).value
@@ -151,17 +140,19 @@ class SimEngine(object):
         obj = obj._object
 
         if not obj.writable:
-            return ""
+            return False
 
-        if self.ctx_read(obj):
-            if obj.value.type == BSM_DATA_STRING:
-                obj.value.sValue =  (ctypes.c_byte*len(v))(*bytearray(value))
-            elif obj.value.type == BSM_DATA_FLOAT:
-                obj.value.fValue = float(value)
-            elif obj.value.type == BSM_DATA_INT:
-                obj.value.iValue = int(value)
-            elif obj.value.type == BSM_DATA_UINT:
-                obj.value.uValue = int(value)
+        if obj.value.type == BSM_DATA_STRING:
+            obj.value.sValue = (ctypes.c_byte*len(obj.value.sValue))(*bytearray(value))
+        elif obj.value.type == BSM_DATA_FLOAT:
+            obj.value.fValue = float(value)
+        elif obj.value.type == BSM_DATA_INT:
+            obj.value.iValue = int(value)
+        elif obj.value.type == BSM_DATA_UINT:
+            obj.value.uValue = int(value)
+        else:
+            return False
+
         return self.csim.ctx_write(obj)
 
     def ctx_time_str(self):
@@ -179,7 +170,7 @@ class SimEngine(object):
             return False
         self.ctx_callback = csim.callback(self.csim.bsm_callback(), fun)
         self.csim.ctx_set_callback(self.ctx_callback)
-
+        return True
 
 class BpCond(object):
     """
@@ -519,11 +510,11 @@ class ProcessCommand(object):
         if valid:
             valid = self.simengine.sim_objects[name]
 
-        trace = SimTraceFile()
+        trace = csim.SStructWrapper(self.simengine.csim.sim_trace_file())
         trace.name = name
         trace.type = ntype
-        if self.simengine.ctx_create_trace_file(trace):
-            self.simengine.ctx_trace_file(trace, self.simengine.sim_objects[name], valid, trigger)
+        if self.simengine.ctx_create_trace_file(trace._object):
+            self.simengine.ctx_trace_file(trace._object, self.simengine.sim_objects[name]._object, valid, trigger)
             self.tfile[name] = trace
             self.tfile_raw[name] = [ntype, valid, trigger]
             return True
@@ -549,17 +540,17 @@ class ProcessCommand(object):
         if name in six.iterkeys(self.tbuf):
             # remove the existing trace
             trace = self.tbuf[name]['trace']
-            self.simengine.ctx_remove_trace_buf(trace)
+            self.simengine.ctx_remove_trace_buf(trace._object)
             del self.tbuf[name]
             del self.tbuf_raw[name]
 
-        trace = SimTraceBuf()
+        trace = csim.SStructWrapper(self.simengine.csim.sim_trace_buf())
         trace.name = name
         trace.size = size
         data = np.zeros((size))
         trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        if self.simengine.ctx_create_trace_buf(trace):
-            self.simengine.ctx_trace_buf(trace, self.simengine.sim_objects[name],
+        if self.simengine.ctx_create_trace_buf(trace._object):
+            self.simengine.ctx_trace_buf(trace._object, self.simengine.sim_objects[name]._object,
                                          valid, trigger)
             self.tbuf[name] = {'trace':trace, 'data':data}
             self.tbuf_raw[name] = [size, valid, trigger]
@@ -577,7 +568,7 @@ class ProcessCommand(object):
                 # if not traced yet, trace it now
                 self.trace_buf({'name':obj})
 
-            self.simengine.ctx_read_trace_buf(self.tbuf[obj]['trace'])
+            self.simengine.ctx_read_trace_buf(self.tbuf[obj]['trace']._object)
             resp[obj] = self.tbuf[obj]['data']
         return resp
 
