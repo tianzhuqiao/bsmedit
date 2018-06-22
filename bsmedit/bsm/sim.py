@@ -246,7 +246,7 @@ class Simulation(object):
         self.simProcess.join()
         self.simProcess = None
         # stop the client
-        self.qResp.put({'cmd':'exit'})
+        self._process_response({'cmd':'exit'})
 
     def stop(self):
         """destroy the simulation process and update the GUI"""

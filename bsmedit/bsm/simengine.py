@@ -36,78 +36,42 @@ BSM_DATA_FLOAT = 1
 BSM_DATA_INT = 2
 BSM_DATA_UINT = 3
 
-class SStructWrapper(Structure):
-    def __init__(self, object, *args, **kwargs):
-        Structure.__init__(self, *args, **kwargs)
-        self.object = object
-
-    def SetObjectProp(self, item, value):
-        if isinstance(item, six.string_types):
-            if hasattr(self.object, item):
-                v = getattr(self.object, item)
-                if isinstance(v, ctypes.ARRAY(c_byte, len(v))):
-                    setattr(self.object, item, (ctypes.c_byte*len(v))(*bytearray(value)))
-                else:
-                    setattr(self.object, item, value)
-                return True
-        return False
-
-    def __getattr__(self, item):
-        return self[item]
-
-    def __setattr__(self, item, val):
-        if hasattr(self, 'object'):
-            if self.SetObjectProp(item, val):
-               return
-        super(Structure, self).__setattr__(item, val)
-
-    def __getitem__(self, item):
-        if isinstance(item, six.string_types):
-            if hasattr(self.object, item):
-                v = getattr(self.object, item)
-                if isinstance(v, ctypes.Array) and \
-                   isinstance(v, ctypes.ARRAY(c_byte, len(v))):
-                    return ctypes.cast(v, ctypes.c_char_p).value
-                return v
-        return None
-
-    def __setitem__(self, item, val):
-        return self.SetObjectProp(item, val)
-
 class SimEngine(object):
+
     def __init__(self, dll, frame=None):
         self.frame = frame
         self.dll = ""
         self.ctx_callback = None
         self.valid = False
-        folder = os.path.dirname(os.path.realpath(__file__))
-        self.csim = csim.init_dll(dll, os.path.join(folder, 'bsm.h'))
-        ctx = self.csim.sim_context()
-        self.csim.bsm_sim_top(ctx)
-        self.ctx = SStructWrapper(ctx)
+        try:
+            folder = os.path.dirname(os.path.realpath(__file__))
+            self.csim = csim.init_dll(dll, os.path.join(folder, 'bsm.h'))
+            ctx = self.csim.sim_context()
+            self.csim.bsm_sim_top(ctx)
+            self.ctx = csim.SStructWrapper(ctx)
 
-        obj = self.csim.sim_object()
-        rtn = self.csim.ctx_first_object(obj)
-        self.sim_objects = {}
-        while rtn:
-            wobj = SStructWrapper(obj)
-            self.check_object(wobj)
-            if obj.readable:
-                self.csim.ctx_read(obj)
-            self.sim_objects[wobj.name] = wobj
             obj = self.csim.sim_object()
-            rtn = self.csim.ctx_next_object(obj)
-        self.valid = True
+            rtn = self.csim.ctx_first_object(obj)
+            self.sim_objects = {}
+            while rtn:
+                wobj = csim.SStructWrapper(obj)
+                self.check_object(wobj)
+                if obj.readable:
+                    self.csim.ctx_read(obj)
+                self.sim_objects[wobj.name] = wobj
+                obj = self.csim.sim_object()
+                rtn = self.csim.ctx_next_object(obj)
+            self.valid = True
+        except:
+            pass
 
     def __del__(self):
         pass
 
     def __getattr__(self, item):
+        # so we can all the function 'directly'
         if 'ctx' in item:
             return getattr(self.csim, item)
-
-    def load(self, dll):
-        return True
 
     def is_valid(self):
         return self.valid
@@ -119,7 +83,7 @@ class SimEngine(object):
 
     def check_object(self, obj):
         assert obj
-        if not obj or (not isinstance(obj, SStructWrapper)):
+        if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return
         kindstr = obj['kind']
         kind = SC_OBJ_UNKNOWN
@@ -159,9 +123,9 @@ class SimEngine(object):
             return ""
         if isinstance(obj, six.string_types):
             obj = self.sim_objects.get(obj, None)
-        if not obj or (not isinstance(obj, SStructWrapper)):
+        if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return ""
-        obj = obj.object
+        obj = obj._object
         if not obj.readable:
             return ""
         if self.csim.ctx_read(obj):
@@ -180,10 +144,10 @@ class SimEngine(object):
             return False
         if isinstance(obj, six.string_types):
             obj = self.sim_objects.get(obj, None)
-        if not obj or (not isinstance(obj, SStructWrapper)):
+        if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return False
 
-        obj = obj.object
+        obj = obj._object
 
         if not obj.writable:
             return ""
