@@ -9,7 +9,7 @@ ODIR=obj
 OBJ = main.o top.o sub.o bsm.o
 OBJS = $(patsubst %,$(ODIR)/%,$(OBJ))
 
-libstart: $(OBJS) $(SYSC_LIB)
+libtbdll: $(OBJS) $(SYSC_LIB)
 	g++ -shared  $^ -o $@.so
 
 $(ODIR)/bsm.o: ../../xsc/bsm.cpp ../../xsc/bsm.h

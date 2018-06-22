@@ -48,7 +48,7 @@ typedef struct sim_context {
         extern bsm_sim_context* sim;\
         sim = new bsm_sim_context_impl(new T(name));\
         snprintf(context->copyright, MAX_NAME_LEN, "%s", sim->sc_copyright());\
-        snprintf(context->version, MAX_NAME_LEN, ""%s, sim->sc_version());\
+        snprintf(context->version, MAX_NAME_LEN, "%s", sim->sc_version());\
     }\
 }
 void bsm_sim_top(sim_context *context);
