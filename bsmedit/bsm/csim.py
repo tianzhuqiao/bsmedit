@@ -24,7 +24,13 @@ class SStructWrapper(ctypes.Structure):
         ctypes.Structure.__init__(self, *args, **kwargs)
         self._object = obj
 
-    def SetObjectProp(self, item, value):
+    def __call__(self):
+        return self._object
+
+    def is_type(self, obj_type):
+        return isinstance(self._object, obj_type)
+
+    def set_object(self, item, value):
         if isinstance(item, six.string_types):
             if hasattr(self._object, item):
                 v = getattr(self._object, item)
@@ -42,7 +48,7 @@ class SStructWrapper(ctypes.Structure):
 
     def __setattr__(self, item, val):
         if hasattr(self, '_object'):
-            if self.SetObjectProp(item, val):
+            if self.set_object(item, val):
                return
         super(ctypes.Structure, self).__setattr__(item, val)
 
@@ -57,4 +63,4 @@ class SStructWrapper(ctypes.Structure):
         return None
 
     def __setitem__(self, item, val):
-        return self.SetObjectProp(item, val)
+        return self.set_object(item, val)

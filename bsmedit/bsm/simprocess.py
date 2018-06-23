@@ -1,8 +1,8 @@
 import sys, os
-import six
-import six.moves.queue as Queue
-import ctypes
 import traceback
+import ctypes
+import six.moves.queue as Queue
+import six
 import numpy as np
 from . import csim
 
@@ -39,18 +39,19 @@ BSM_DATA_UINT = 3
 
 class SimEngine(object):
 
-    def __init__(self, dll, frame=None):
-        self.frame = frame
-        self.dll = ""
+    def __init__(self, dll):
         self.ctx_callback = None
         self.valid = False
         try:
             folder = os.path.dirname(os.path.realpath(__file__))
             self.csim = csim.init_dll(dll, os.path.join(folder, 'bsm.h'))
+
+            # create simulation
             ctx = self.csim.sim_context()
             self.csim.bsm_sim_top(ctx)
             self.ctx = csim.SStructWrapper(ctx)
 
+            # load all objects
             obj = self.csim.sim_object()
             rtn = self.csim.ctx_first_object(obj)
             self.sim_objects = {}
@@ -66,13 +67,11 @@ class SimEngine(object):
         except:
             pass
 
-    def __del__(self):
-        pass
-
     def __getattr__(self, item):
-        # so we can all the function 'directly'
+        # so we can call simulation functions 'directly'
         if 'ctx' in item:
             return getattr(self.csim, item)
+        return None
 
     def is_valid(self):
         return self.valid
@@ -83,7 +82,6 @@ class SimEngine(object):
         return self.sim_objects
 
     def check_object(self, obj):
-        assert obj
         if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return
 
@@ -93,11 +91,13 @@ class SimEngine(object):
                  'sc_module':SC_OBJ_MODULE, 'xsc_array': SC_OBJ_XSC_ARRAY}
         kind = kinds.get(obj.kind, SC_OBJ_UNKNOWN)
         if kind == SC_OBJ_XSC_PROP and '[' in obj.name and ']' in obj['name']:
-                kind = SC_OBJ_XSC_ARRAY_ITEM
+            kind = SC_OBJ_XSC_ARRAY_ITEM
         obj.nkind = kind
         obj.register = (kind in (SC_OBJ_SIGNAL, SC_OBJ_INPUT, SC_OBJ_OUTPUT,
                                  SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,
                                  SC_OBJ_XSC_ARRAY_ITEM))
+
+        # retrieve the parent module from name
         name = obj.name
         idx = name.rfind('.')
         if kind == SC_OBJ_XSC_ARRAY_ITEM:
@@ -106,38 +106,42 @@ class SimEngine(object):
         if idx != -1:
             obj.parent = name[0:idx]
 
-    def ctx_read(self, obj):
+    def find_object(self, obj):
         if not self.is_valid():
-            return ""
+            return None
         if isinstance(obj, six.string_types):
             obj = self.sim_objects.get(obj, None)
-        if not obj or (not isinstance(obj, csim.SStructWrapper)):
+        if obj and obj.is_type(self.csim.sim_object):
+            return obj
+        return None
+
+    def ctx_read(self, obj):
+        obj = self.find_object(obj)
+        if obj is None:
             return ""
 
-        obj = obj._object
+        obj = obj()
         if not obj.readable:
             return ""
 
+        val = ''
         if self.csim.ctx_read(obj):
             if obj.value.type == BSM_DATA_STRING:
-                return ctypes.cast(obj.value.sValue, ctypes.c_char_p).value
+                val = ctypes.cast(obj.value.sValue, ctypes.c_char_p).value
             elif obj.value.type == BSM_DATA_FLOAT:
-                return obj.value.fValue
+                val = obj.value.fValue
             elif obj.value.type == BSM_DATA_INT:
-                return obj.value.iValue
+                val = obj.value.iValue
             elif obj.value.type == BSM_DATA_UINT:
-                return obj.value.uValue
-        return ""
+                val = obj.value.uValue
+        return val
 
     def ctx_write(self, obj, value):
-        if not self.is_valid():
-            return False
-        if isinstance(obj, six.string_types):
-            obj = self.sim_objects.get(obj, None)
-        if not obj or (not isinstance(obj, csim.SStructWrapper)):
+        obj = self.find_object(obj)
+        if obj is None:
             return False
 
-        obj = obj._object
+        obj = obj()
 
         if not obj.writable:
             return False
@@ -352,7 +356,7 @@ class MonitorList(object):
         return self.monitor
 
 class ProcessCommand(object):
-    def __init__(self, qCmd, qResp):
+    def __init__(self, qcmd, qresp):
         self.simengine = None
         self.monitor = MonitorList()
         self.breakpoint = BpList()
@@ -360,27 +364,21 @@ class ProcessCommand(object):
         self.tfile = {}
         self.tfile_raw = {}
         self.tbuf = {}
-        self.tbuf_raw = {}
-        self.qCmd = qCmd
-        self.qResp = qResp
+        self.qcmd = qcmd
+        self.qresp = qresp
         self.running = False
-        self.simStep = 20
-        self.simUnitStep = BSM_NS
-        self.simTotal = -1
-        self.simUnitTotal = BSM_NS
-        self.simTotalSec = -1
+        self.sim_step = 20
+        self.sim_unit_step = BSM_NS
+        self.sim_total = -1 # -1 --> run forever
+        self.sim_unit_total = BSM_NS
+        self.sim_total_sec = -1
 
     def __del__(self):
         if self.simengine and self.simengine.is_valid():
             self.simengine.ctx_stop()
 
-    def IsValidObj(self, name):
-        if self.simengine and self.simengine.is_valid():
-            return name and name in six.iterkeys(self.simengine.sim_objects)
-        return False
-
     def response(self, resp):
-        self.qResp.put(resp)
+        self.qresp.put(resp)
 
     def load(self, filename):
         self.simengine = SimEngine(filename)
@@ -390,12 +388,11 @@ class ProcessCommand(object):
             self.simengine.ctx_set_callback(self.check_bp)
             objs = {}
             for name, obj in six.iteritems(self.simengine.sim_objects):
-                objs[obj.name] = {'name':obj.name, 'basename':obj.basename,
-                                  'kind':obj.kind, 'value':"",
-                                  'writable':obj.writable,
-                                  'readable':obj.readable,
-                                  'numeric':obj.numeric, 'parent':obj.parent,
-                                  'nkind':obj.nkind, 'register':obj.register}
+                objs[name] = {'name':obj.name, 'basename':obj.basename,
+                              'kind':obj.kind, 'value':"",
+                              'writable':obj.writable, 'readable':obj.readable,
+                              'numeric':obj.numeric, 'parent':obj.parent,
+                              'nkind':obj.nkind, 'register':obj.register}
             return objs
         return None
 
@@ -424,52 +421,51 @@ class ProcessCommand(object):
         """run simulation by one step"""
         if not self.simengine or not self.simengine.is_valid():
             return False
-        simStep = self.simStep
-        simUnit = self.simUnitStep
-        if self.simTotalSec > 0:
+        sim_step = self.sim_step
+        sim_unit = self.sim_unit_step
+        if self.sim_total_sec > 0:
             # not run infinitely
-            t = self.simTotalSec - self.simengine.ctx_time()
+            t = self.sim_total_sec - self.simengine.ctx_time()
             if t > 0:
+                # step should not exceed the remaining simulation time
                 scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
-                simStep = min(simStep, int(t*scale[simUnit]+0.5))
+                sim_step = min(sim_step, int(t*scale[sim_unit]+0.5))
             else:
                 # finished, no need to run
                 self.running = False
                 return False
-        self.running = (running and (simStep == self.simStep))
-        self.simengine.ctx_start(simStep, simUnit)
+        self.running = (running and (sim_step == self.sim_step))
+        self.simengine.ctx_start(sim_step, sim_unit)
 
         return True
 
     def set_parameter(self, param):
         """set the parameters"""
-        self.simUnitStep = param.get('unitStep', self.simUnitStep)
-        self.simStep = param.get('step', self.simStep)
-        self.simTotal = param.get('total', self.simTotal)
-        self.simUnitTotal = param.get('unitTotal', self.simUnitTotal)
+        self.sim_unit_step = param.get('unitStep', self.sim_unit_step)
+        self.sim_step = param.get('step', self.sim_step)
+        self.sim_total = param.get('total', self.sim_total)
+        self.sim_unit_total = param.get('unitTotal', self.sim_unit_total)
         more = param.get('more', False)
-        if self.simTotal > 0:
+        if self.sim_total > 0:
             scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
-            self.simTotalSec = self.simTotal/scale[self.simUnitTotal]
+            self.sim_total_sec = self.sim_total/scale[self.sim_unit_total]
             if more:
-                self.simTotalSec += self.time_stamp(True)
+                self.sim_total_sec += self.time_stamp(True)
         else:
-            self.simTotalSec = -1
+            self.sim_total_sec = -1
         return True
 
     def read(self, objects):
         """read the register value"""
         if not self.simengine or not self.simengine.is_valid():
             return {}
-        if objects == []:
+        if not objects:
+            # empty list, read all the monitored objects
             objects = self.monitor.get_monitor()
-        objs = {}
+        values = {}
         for obj in objects:
-            if not self.IsValidObj(obj):
-                continue
-            val = self.simengine.ctx_read(self.simengine.sim_objects[obj])
-            objs[obj] = val
-        return objs
+            values[obj] = self.simengine.ctx_read(obj)
+        return values
 
     def write(self, objects):
         """write the register value"""
@@ -477,13 +473,7 @@ class ProcessCommand(object):
             return {}
         resp = {}
         for name, value in six.iteritems(objects):
-            resp[name] = False
-            if name not in self.simengine.sim_objects:
-                continue
-            if not self.IsValidObj(name):
-                continue
-            resp[name] = True
-            self.simengine.ctx_write(self.simengine.sim_objects[name], value)
+            resp[name] = self.simengine.ctx_write(name, value)
         return resp
 
     def time_stamp(self, insecond):
@@ -503,18 +493,20 @@ class ProcessCommand(object):
         ntype = args.get('ntype', BSM_TRACE_SIMPLE)
         valid = args.get('valid', None)
         trigger = args.get('trigger', BSM_BOTHEDGE)
-        if not self.IsValidObj(name):
-            return False
-        if valid and not self.IsValidObj(valid):
+        obj = self.simengine.find_object(name)
+        if obj is None:
             return False
         if valid:
-            valid = self.simengine.sim_objects[name]
+            valid = self.simengine.find_object(valid)
+            if valid is None:
+                return False
+            valid = valid()
 
         trace = csim.SStructWrapper(self.simengine.csim.sim_trace_file())
         trace.name = name
         trace.type = ntype
-        if self.simengine.ctx_create_trace_file(trace._object):
-            self.simengine.ctx_trace_file(trace._object, self.simengine.sim_objects[name]._object, valid, trigger)
+        if self.simengine.ctx_create_trace_file(trace()):
+            self.simengine.ctx_trace_file(trace(), obj(), valid, trigger)
             self.tfile[name] = trace
             self.tfile_raw[name] = [ntype, valid, trigger]
             return True
@@ -529,32 +521,34 @@ class ProcessCommand(object):
         size = args.get('size', 256)
         valid = args.get('valid', None)
         trigger = args.get('trigger', BSM_BOTHEDGE)
-        if not self.IsValidObj(name):
+        # used to return the traced buffer list
+        raw = [size, valid, trigger]
+        obj = self.simengine.find_object(name)
+        if obj is None:
             return False
 
-        if valid and not self.IsValidObj(valid):
-            return False
         if valid:
-            valid = self.simengine.sim_objects[valid]
+            valid = self.simengine.find_object(valid)
+            if valid is None:
+                return False
+            valid = valid()
 
-        if name in six.iterkeys(self.tbuf):
+        if name in self.tbuf:
             # remove the existing trace
             trace = self.tbuf[name]['trace']
-            self.simengine.ctx_remove_trace_buf(trace._object)
+            self.simengine.ctx_close_trace_buf(trace())
             del self.tbuf[name]
-            del self.tbuf_raw[name]
 
         trace = csim.SStructWrapper(self.simengine.csim.sim_trace_buf())
         trace.name = name
         trace.size = size
         data = np.zeros((size))
         trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-        if self.simengine.ctx_create_trace_buf(trace._object):
-            self.simengine.ctx_trace_buf(trace._object, self.simengine.sim_objects[name]._object,
-                                         valid, trigger)
-            self.tbuf[name] = {'trace':trace, 'data':data}
-            self.tbuf_raw[name] = [size, valid, trigger]
+        if self.simengine.ctx_create_trace_buf(trace()):
+            self.simengine.ctx_trace_buf(trace(), obj(), valid, trigger)
+            self.tbuf[name] = {'trace':trace, 'data':data, 'raw':raw}
         return True
+
 
     def read_buf(self, objects):
         if not self.simengine or not self.simengine.is_valid():
@@ -563,13 +557,17 @@ class ProcessCommand(object):
             # no object defined, return all the traced buffers
             objects = list(self.tbuf.keys())
         resp = {}
-        for obj in objects:
-            if obj not in six.iterkeys(self.tbuf):
-                # if not traced yet, trace it now
-                self.trace_buf({'name':obj})
+        for name in objects:
+            obj = self.simengine.find_object(name)
+            if obj is None:
+                continue
 
-            self.simengine.ctx_read_trace_buf(self.tbuf[obj]['trace']._object)
-            resp[obj] = self.tbuf[obj]['data']
+            if name not in self.tbuf:
+                # if not traced yet, trace it now with default settings
+                self.trace_buf({'name':name})
+
+            self.simengine.ctx_read_trace_buf(self.tbuf[name]['trace']())
+            resp[name] = self.tbuf[name]['data']
         return resp
 
     def process(self):
@@ -579,8 +577,9 @@ class ProcessCommand(object):
                 if not self.simengine or not self.simengine.is_valid():
                     self.running = False
                 else:
-                    tremain = self.simTotalSec - self.simengine.ctx_time()
-                    if not ((self.simTotalSec <= 0) or (tremain > 0)):
+                    remain = self.sim_total_sec - self.simengine.ctx_time()
+                    if not ((self.sim_total_sec <= 0) or (remain > 0)):
+                        # pause simulation when reach the simulation time
                         self.running = False
             try:
                 if self.running:
@@ -588,9 +587,9 @@ class ProcessCommand(object):
                 if self.running:
                     # In running mode, return immediately so that the simulation
                     # can be triggered as soon as possible
-                    cmd = self.qCmd.get_nowait()
+                    cmd = self.qcmd.get_nowait()
                 else:
-                    cmd = self.qCmd.get()
+                    cmd = self.qcmd.get()
                 if not cmd:
                     continue
                 engine = self.simengine
@@ -647,10 +646,10 @@ class ProcessCommand(object):
                 elif command == 'set_parameter':
                     resp['value'] = self.set_parameter(args)
                 elif command == 'get_parameter':
-                    resp['value'] = {'unitStep': self.simUnitStep,
-                                     'step': self.simStep,
-                                     'total': self.simTotal,
-                                     'unitTotal': self.simUnitTotal}
+                    resp['value'] = {'unitStep': self.sim_unit_step,
+                                     'step': self.sim_step,
+                                     'total': self.sim_total,
+                                     'unitTotal': self.sim_unit_total}
                 elif command in ['read', 'read_buf']:
                     objs = args.get('objects', None)
                     resp['value'] = getattr(self, command)(objs)
@@ -670,7 +669,7 @@ class ProcessCommand(object):
                 elif command == 'trace_buf':
                     resp['value'] = self.trace_buf(args)
                 elif command == 'get_trace_buf':
-                    resp['value'] = self.tbuf_raw
+                    resp['value'] = {b:self.tbuf[b]['raw'] for b in self.tbuf}
                 elif command == 'get_status':
                     resp['value'] = {'running': self.running,
                                      'valid': engine and engine.valid}
@@ -682,27 +681,30 @@ class ProcessCommand(object):
                     valid = engine and engine.valid
                     self.response({'cmd':'get_status',
                                    'value':{'running':self.running, 'valid':valid}})
-
             except Queue.Empty:
                 pass
             except:
+                if resp:
+                    self.response(resp)
                 traceback.print_exc(file=sys.stdout)
+
 class SimLogger(object):
-    def __init__(self, qResp):
-        self.qResp = qResp
+    def __init__(self, qresp):
+        self.qresp = qresp
+
     def write(self, buf):
-        self.qResp.put({'cmd':'write_out', 'important':True, 'value':buf})
+        self.qresp.put({'cmd':'write_out', 'important':True, 'value':buf})
 
     def flush(self):
         pass
 
-def sim_process(qResp, qCmd):
-    log = SimLogger(qResp)
+def sim_process(qresp, qcmd):
+    log = SimLogger(qresp)
     stdout = sys.stdout
     stderr = sys.stderr
     sys.stdout = log
     sys.stderr = log
-    proc = ProcessCommand(qCmd, qResp)
+    proc = ProcessCommand(qcmd, qresp)
     # infinite loop
     proc.process()
     sys.stdout = stdout
