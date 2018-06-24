@@ -37,14 +37,22 @@ class SStructWrapper(ctypes.Structure):
                 if isinstance(v, ctypes.Array) and \
                    isinstance(v, ctypes.ARRAY(ctypes.c_byte, len(v))):
                     setattr(self._object, item,
-                            (ctypes.c_byte*len(v))(*bytearray(str(value))))
+                            (ctypes.c_byte*len(v))(*bytearray(str(value).encode())))
                 else:
                     setattr(self._object, item, value)
                 return True
         return False
 
     def __getattr__(self, item):
-        return self[item]
+        if item == '_object':
+            raise AttributeError()
+        if hasattr(self._object, item):
+            v = getattr(self._object, item)
+            if isinstance(v, ctypes.Array) and \
+               isinstance(v, ctypes.ARRAY(ctypes.c_byte, len(v))):
+                return ctypes.cast(v, ctypes.c_char_p).value.decode()
+            return v
+        raise AttributeError()
 
     def __setattr__(self, item, val):
         if hasattr(self, '_object'):

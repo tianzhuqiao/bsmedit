@@ -66,13 +66,15 @@ class SimSysC(object):
                 rtn = self.csim.ctx_next_object(obj)
             self.valid = True
         except:
-            pass
+            traceback.print_exc(file=sys.stdout)
 
     def __getattr__(self, item):
         # so we can call simulation functions 'directly'
+        if item == 'csim':
+            raise AttributeError()
         if 'ctx' in item:
             return getattr(self.csim, item)
-        return None
+        raise AttributeError()
 
     def is_valid(self):
         return self.valid
@@ -128,7 +130,7 @@ class SimSysC(object):
         val = ''
         if self.csim.ctx_read(obj):
             if obj.value.type == BSM_DATA_STRING:
-                val = ctypes.cast(obj.value.sValue, ctypes.c_char_p).value
+                val = ctypes.cast(obj.value.sValue, ctypes.c_char_p).value.decode()
             elif obj.value.type == BSM_DATA_FLOAT:
                 val = obj.value.fValue
             elif obj.value.type == BSM_DATA_INT:
@@ -165,7 +167,7 @@ class SimSysC(object):
             return ""
         buf = ctypes.create_string_buffer(256)
         self.csim.ctx_time_str(ctypes.cast(buf, ctypes.POINTER(ctypes.c_byte)))
-        return ctypes.cast(buf, ctypes.c_char_p).value
+        return ctypes.cast(buf, ctypes.c_char_p).value.decode()
 
     def ctx_set_callback(self, fun):
         # the callback fun should take an integer arguments and return an
@@ -426,8 +428,8 @@ class SimCommand(object):
             return None
         self.simengine = SimSysC(filename)
         if self.is_valid():
-            print(self.simengine.ctx['version'])
-            print(self.simengine.ctx['copyright'])
+            print(self.simengine.ctx.version)
+            print(self.simengine.ctx.copyright)
             self.simengine.ctx_set_callback(self.check_bp)
             objs = {}
             for name, obj in six.iteritems(self.simengine.sim_objects):
