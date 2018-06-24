@@ -978,6 +978,12 @@ class PyEditorPanel(wx.Panel):
         self.num = self.Gce.get_next_num()
         self.Gce.set_active(self)
 
+    def Destroy(self):
+        dp.disconnect(self.debug_ended, 'debugger.ended')
+        dp.disconnect(self.debug_bpadded, 'debugger.breakpoint_added')
+        dp.disconnect(self.debug_bpcleared, 'debugger.breakpoint_cleared')
+        super(PyEditorPanel, self).Destroy()
+
     @classmethod
     def get_instances(cls):
         for inst in cls.Gce.get_all_managers():

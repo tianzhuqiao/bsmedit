@@ -359,6 +359,11 @@ class MatplotPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_DELETE)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_CLEAR)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
+
+    def Destroy(self):
+        dp.disconnect(self.simLoad, 'sim.loaded')
+        super(MatplotPanel, self).Destroy()
+
     def simLoad(self, num):
         for l in self.figure.gca().lines:
             if hasattr(l, 'trace'):

@@ -105,6 +105,12 @@ class bsmPropGridBase(wx.ScrolledWindow):
         dp.connect(self.simLoad, 'sim.loaded')
         dp.connect(self.simUnload, 'sim.unloaded')
 
+    def Destroy(self):
+        dp.disconnect(self.UpdateProp, 'grid.updateprop')
+        dp.disconnect(self.simLoad, 'sim.loaded')
+        dp.disconnect(self.simUnload, 'sim.unloaded')
+        super(bsmPropGridBase, self).Destroy()
+
     def simLoad(self, num):
         """try to reconnect the register when the simulation is loaded."""
         objs = []
