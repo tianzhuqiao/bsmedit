@@ -1,5 +1,6 @@
 import sys, os
 import traceback
+import inspect
 import ctypes
 import six.moves.queue as Queue
 import six
@@ -37,8 +38,8 @@ BSM_DATA_FLOAT = 1
 BSM_DATA_INT = 2
 BSM_DATA_UINT = 3
 
-class SimEngine(object):
-
+class SimSysC(object):
+    """class to load the systemc simulation"""
     def __init__(self, dll):
         self.ctx_callback = None
         self.valid = False
@@ -355,7 +356,19 @@ class MonitorList(object):
     def get_monitor(self):
         return self.monitor
 
-class ProcessCommand(object):
+class SimInterface(object):
+    all_interfaces = {}
+    def __init__(self):
+        pass
+    def __call__(self, fun):
+        argspec = inspect.getargspec(fun)
+        argspec = inspect.formatargspec(*argspec)
+        temp = argspec.split(',')
+        SimInterface.all_interfaces[fun.__name__] = '('+', '.join(temp[1:]).strip()
+        return fun
+
+class SimCommand(object):
+
     def __init__(self, qcmd, qresp):
         self.simengine = None
         self.monitor = MonitorList()
@@ -374,27 +387,11 @@ class ProcessCommand(object):
         self.sim_total_sec = -1
 
     def __del__(self):
-        if self.simengine and self.simengine.is_valid():
+        if self.is_valid():
             self.simengine.ctx_stop()
 
     def response(self, resp):
         self.qresp.put(resp)
-
-    def load(self, filename):
-        self.simengine = SimEngine(filename)
-        if self.simengine.is_valid():
-            print(self.simengine.ctx['version'])
-            print(self.simengine.ctx['copyright'])
-            self.simengine.ctx_set_callback(self.check_bp)
-            objs = {}
-            for name, obj in six.iteritems(self.simengine.sim_objects):
-                objs[name] = {'name':obj.name, 'basename':obj.basename,
-                              'kind':obj.kind, 'value':"",
-                              'writable':obj.writable, 'readable':obj.readable,
-                              'numeric':obj.numeric, 'parent':obj.parent,
-                              'nkind':obj.nkind, 'register':obj.register}
-            return objs
-        return None
 
     def check_bp(self, n):
         """check the breakpoints"""
@@ -402,7 +399,7 @@ class ProcessCommand(object):
         if len(bps) <= 0:
             return 0
         objs = list(bps.keys())
-        values = self.read(objs)
+        values = self.read(objects=objs)
         for name, bp in six.iteritems(bps):
             t = bp.triggered(values[name], self.bp_values_prev[name])
             if t is not None:
@@ -417,10 +414,37 @@ class ProcessCommand(object):
         self.bp_values_prev.update(values)
         return 0
 
-    def step(self, running):
+    @SimInterface()
+    def is_valid(self, **kwargs):
+        if self.simengine and self.simengine.is_valid():
+            return True
+        return False
+
+    @SimInterface()
+    def load(self, filename="", **kwargs):
+        if not os.path.exists(filename):
+            return None
+        self.simengine = SimSysC(filename)
+        if self.is_valid():
+            print(self.simengine.ctx['version'])
+            print(self.simengine.ctx['copyright'])
+            self.simengine.ctx_set_callback(self.check_bp)
+            objs = {}
+            for name, obj in six.iteritems(self.simengine.sim_objects):
+                objs[name] = {'name':obj.name, 'basename':obj.basename,
+                              'kind':obj.kind, 'value':"",
+                              'writable':obj.writable, 'readable':obj.readable,
+                              'numeric':obj.numeric, 'parent':obj.parent,
+                              'nkind':obj.nkind, 'register':obj.register}
+            return objs
+        return None
+
+    @SimInterface()
+    def step(self, running=False, **kwargs):
         """run simulation by one step"""
-        if not self.simengine or not self.simengine.is_valid():
+        if not self.is_valid():
             return False
+
         sim_step = self.sim_step
         sim_unit = self.sim_unit_step
         if self.sim_total_sec > 0:
@@ -439,26 +463,43 @@ class ProcessCommand(object):
 
         return True
 
-    def set_parameter(self, param):
+    @SimInterface()
+    def pause(self, **kwargs):
+        self.running = False
+        return True
+
+    @SimInterface()
+    def set_parameter(self, step=None, unitStep=None, total=None,
+                      unitTotal=None, more=False, **kwargs):
         """set the parameters"""
-        self.sim_unit_step = param.get('unitStep', self.sim_unit_step)
-        self.sim_step = param.get('step', self.sim_step)
-        self.sim_total = param.get('total', self.sim_total)
-        self.sim_unit_total = param.get('unitTotal', self.sim_unit_total)
-        more = param.get('more', False)
+        if unitStep is not None:
+            self.sim_unit_step = unitStep
+        if step is not None:
+            self.sim_step = step
+        if total is not None:
+            self.sim_total = total
+        if unitTotal is not None:
+            self.sim_unit_total = unitTotal
         if self.sim_total > 0:
             scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
             self.sim_total_sec = self.sim_total/scale[self.sim_unit_total]
             if more:
-                self.sim_total_sec += self.time_stamp(True)
+                self.sim_total_sec += self.time_stamp(format='second')
         else:
             self.sim_total_sec = -1
         return True
 
-    def read(self, objects):
+    @SimInterface()
+    def get_parameter(self, **kwargs):
+        return {'unitStep':self.sim_unit_step, 'step': self.sim_step,
+                'total':self.sim_total, 'unitTotal':self.sim_unit_total}
+
+    @SimInterface()
+    def read(self, objects=None, **kwargs):
         """read the register value"""
-        if not self.simengine or not self.simengine.is_valid():
+        if not self.is_valid():
             return {}
+
         if not objects:
             # empty list, read all the monitored objects
             objects = self.monitor.get_monitor()
@@ -467,32 +508,35 @@ class ProcessCommand(object):
             values[obj] = self.simengine.ctx_read(obj)
         return values
 
-    def write(self, objects):
+    @SimInterface()
+    def write(self, objects=None, **kwargs):
         """write the register value"""
-        if not self.simengine or not self.simengine.is_valid():
-            return {}
+        if not self.is_valid():
+            return False
+        if not objects:
+            return False
         resp = {}
         for name, value in six.iteritems(objects):
             resp[name] = self.simengine.ctx_write(name, value)
         return resp
 
-    def time_stamp(self, insecond):
+    @SimInterface()
+    def time_stamp(self, insecond=False, **kwargs):
         """return the current simulation time stamp in string"""
-        if not self.simengine or not self.simengine.is_valid():
+        if not self.is_valid():
             return 0.0
         if insecond:
             #in second
             return self.simengine.ctx_time()
         return self.simengine.ctx_time_str()
 
-    def trace_file(self, args):
+    @SimInterface()
+    def trace_file(self, name='', ntype=BSM_TRACE_SIMPLE, valid='',
+                   trigger=BSM_BOTHEDGE, **kwargs):
         """dump the file"""
-        if not self.simengine or not self.simengine.is_valid():
+        if not self.is_valid():
             return False
-        name = args.get('name', None)
-        ntype = args.get('ntype', BSM_TRACE_SIMPLE)
-        valid = args.get('valid', None)
-        trigger = args.get('trigger', BSM_BOTHEDGE)
+        raw = [ntype, valid, trigger]
         obj = self.simengine.find_object(name)
         if obj is None:
             return False
@@ -507,20 +551,21 @@ class ProcessCommand(object):
         trace.type = ntype
         if self.simengine.ctx_create_trace_file(trace()):
             self.simengine.ctx_trace_file(trace(), obj(), valid, trigger)
-            self.tfile[name] = trace
-            self.tfile_raw[name] = [ntype, valid, trigger]
+            self.tfile[name] = {'trace': trace, 'raw':raw}
             return True
 
         return False
 
-    def trace_buf(self, args):
+    @SimInterface()
+    def get_trace_files(self, **kwargs):
+        return {b:self.tbuf[b]['raw'] for b in self.tfile}
+
+    @SimInterface()
+    def trace_buf(self, name='', size=256, valid='', trigger=BSM_BOTHEDGE,
+                  **kwargs):
         """trace the buffer"""
-        if not self.simengine or not self.simengine.is_valid():
+        if not self.is_valid():
             return False
-        name = args.get('name', None)
-        size = args.get('size', 256)
-        valid = args.get('valid', None)
-        trigger = args.get('trigger', BSM_BOTHEDGE)
         # used to return the traced buffer list
         raw = [size, valid, trigger]
         obj = self.simengine.find_object(name)
@@ -549,11 +594,11 @@ class ProcessCommand(object):
             self.tbuf[name] = {'trace':trace, 'data':data, 'raw':raw}
         return True
 
-
-    def read_buf(self, objects):
-        if not self.simengine or not self.simengine.is_valid():
+    @SimInterface()
+    def read_buf(self, objects=None, **kwargs):
+        if not self.is_valid():
             return {}
-        if objects == []:
+        if not objects:
             # no object defined, return all the traced buffers
             objects = list(self.tbuf.keys())
         resp = {}
@@ -564,17 +609,69 @@ class ProcessCommand(object):
 
             if name not in self.tbuf:
                 # if not traced yet, trace it now with default settings
-                self.trace_buf({'name':name})
+                self.trace_buf(name=name)
 
             self.simengine.ctx_read_trace_buf(self.tbuf[name]['trace']())
             resp[name] = self.tbuf[name]['data']
         return resp
 
+    @SimInterface()
+    def get_trace_bufs(self, **kwargs):
+        return {b:self.tbuf[b]['raw'] for b in self.tbuf}
+
+    @SimInterface()
+    def monitor_signal(self, objects=None, **kwargs):
+        if not self.is_valid() or not objects:
+            return {}
+
+        return self.monitor.add(objects, self.simengine.sim_objects)
+
+    @SimInterface()
+    def unmonitor_signal(self, objects=None, **kwargs):
+        if not self.is_valid() or not objects:
+            return {}
+
+        return self.monitor.delete(objects, self.simengine.get_objects())
+
+    @SimInterface()
+    def get_monitored_signals(self, **kwargs):
+        return self.monitor.get_monitor()
+
+    @SimInterface()
+    def get_status(self, **kwargs):
+        return {'valid': self.is_valid(), 'running': self.running}
+
+    @SimInterface()
+    def add_breakpoint(self, objects=None, **kwargs):
+        if not self.is_valid() or not objects:
+            return {}
+        objs = self.breakpoint.add(objects, self.simengine.get_objects())
+        bps = self.breakpoint.get_bp()
+        # update the current breakpoint values before they are
+        # checked next time
+        self.bp_values_prev = self.read(objects=list(bps.keys()))
+        return objs
+
+    @SimInterface()
+    def del_breakpoint(self, objects=None, **kwargs):
+        if not self.is_valid() or not objects:
+            return {}
+
+        return self.breakpoint.delete(objects, self.simengine.get_objects())
+
+    @SimInterface()
+    def get_breakpoints(self, **kwargs):
+        return self.breakpoint.data_raw
+
+    @SimInterface()
+    def get_interfaces(self, **kwargs):
+        return SimInterface.all_interfaces
+
     def process(self):
         while True:
             running = self.running
             if self.running:
-                if not self.simengine or not self.simengine.is_valid():
+                if not self.is_valid():
                     self.running = False
                 else:
                     remain = self.sim_total_sec - self.simengine.ctx_time()
@@ -583,7 +680,7 @@ class ProcessCommand(object):
                         self.running = False
             try:
                 if self.running:
-                    self.step(self.running)
+                    self.step(running=self.running)
                 if self.running:
                     # In running mode, return immediately so that the simulation
                     # can be triggered as soon as possible
@@ -592,10 +689,6 @@ class ProcessCommand(object):
                     cmd = self.qcmd.get()
                 if not cmd:
                     continue
-                engine = self.simengine
-                sim_objects = {}
-                if engine:
-                    sim_objects = engine.sim_objects
 
                 command = cmd.get('cmd', '')
                 args = cmd.get('arguments', {})
@@ -605,9 +698,7 @@ class ProcessCommand(object):
                 resp = cmd
                 resp['value'] = False
                 if not command and not args:
-                    print("unknown command: ")
-                    self.response(resp)
-                    continue
+                    raise ValueError("unknown command: ", cmd)
 
                 if command == 'exit':
                     return False
@@ -615,72 +706,16 @@ class ProcessCommand(object):
                 if not args.get('silent', True):
                     print(cmd)
 
-                if command == 'load':
-                    resp['value'] = self.load(args.get('filename', None))
-                elif command == 'step':
-                    resp['value'] = self.step(args.get('running', False))
-                    args['running'] = self.running
-                elif command == 'pause':
-                    self.running = False
-                    resp['value'] = True
-                elif command == 'monitor_signal':
-                    objs = self.monitor.add(args['objects'], sim_objects)
-                    resp['value'] = objs
-                elif command == 'unmonitor_signal':
-                    objs = self.monitor.delete(args['objects'], sim_objects)
-                    resp['value'] = objs
-                elif command == 'get_monitored_signal':
-                    resp['value'] = self.monitor.get_monitor()
-                elif command == 'add_breakpoint':
-                    objs = self.breakpoint.add(args['objects'], sim_objects)
-                    bps = self.breakpoint.get_bp()
-                    # update the current breakpoint values before they are
-                    # checked next time
-                    self.bp_values_prev = self.read(list(bps.keys()))
-                    resp['value'] = objs
-                elif command == 'del_breakpoint':
-                    objs = self.breakpoint.delete(args['objects'], sim_objects)
-                    resp['value'] = objs
-                elif command == 'get_breakpoint':
-                    resp['value'] = self.breakpoint.data_raw
-                elif command == 'set_parameter':
-                    resp['value'] = self.set_parameter(args)
-                elif command == 'get_parameter':
-                    resp['value'] = {'unitStep': self.sim_unit_step,
-                                     'step': self.sim_step,
-                                     'total': self.sim_total,
-                                     'unitTotal': self.sim_unit_total}
-                elif command in ['read', 'read_buf']:
-                    objs = args.get('objects', None)
-                    resp['value'] = getattr(self, command)(objs)
-                elif command in ['write']:
-                    objs = args.get('objects', None)
-                    if objs and isinstance(objs, dict):
-                        resp['value'] = getattr(self, command)(objs)
-                    else:
-                        resp['value'] = False
-                elif command == 'time_stamp':
-                    t = self.time_stamp(args.get('format', '') == 'second')
-                    resp['value'] = t
-                elif command == 'trace_file':
-                    resp['value'] = self.trace_file(args)
-                elif command == 'get_trace_file':
-                    resp['value'] = self.tfile_raw
-                elif command == 'trace_buf':
-                    resp['value'] = self.trace_buf(args)
-                elif command == 'get_trace_buf':
-                    resp['value'] = {b:self.tbuf[b]['raw'] for b in self.tbuf}
-                elif command == 'get_status':
-                    resp['value'] = {'running': self.running,
-                                     'valid': engine and engine.valid}
+                if hasattr(self, command):
+                    fun = getattr(self, command)
+                    resp['value'] = fun(**args)
                 else:
-                    print('Unknown command: ' + cmd)
-                if resp:
-                    self.response(resp)
+                    raise ValueError('unknown command: ', cmd)
+
+                self.response(resp)
                 if self.running != running:
-                    valid = engine and engine.valid
-                    self.response({'cmd':'get_status',
-                                   'value':{'running':self.running, 'valid':valid}})
+                    # automatically report status change
+                    self.response({'cmd':'get_status', 'value':self.get_status()})
             except Queue.Empty:
                 pass
             except:
@@ -704,7 +739,7 @@ def sim_process(qresp, qcmd):
     stderr = sys.stderr
     sys.stdout = log
     sys.stderr = log
-    proc = ProcessCommand(qcmd, qresp)
+    proc = SimCommand(qcmd, qresp)
     # infinite loop
     proc.process()
     sys.stdout = stdout

@@ -261,7 +261,7 @@ class Simulation(object):
         """return the simulation time elapsed as a string"""
         args = {}
         if in_second:
-            args['format'] = 'second'
+            args['insecond'] = True
         return self._send_command('time_stamp', args, block)
 
     def read(self, objs, block=True):
@@ -387,7 +387,7 @@ class Simulation(object):
 
     def get_monitored_signal(self, block=True):
         """get the list of the monitored signals"""
-        return self._send_command('get_monitored_singal', block=block)
+        return self._send_command('get_monitored_singals', block=block)
 
     def add_breakpoint(self, bp, block=True):
         """
@@ -407,7 +407,7 @@ class Simulation(object):
 
     def get_breakpoint(self, block=True):
         """get all the breakpoints"""
-        return self._send_command('get_breakpoint', block=block)
+        return self._send_command('get_breakpoints', block=block)
 
     def global_object_name(self, obj):
         """generate the global name for simulation object (num.name)"""
