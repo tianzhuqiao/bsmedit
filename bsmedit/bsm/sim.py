@@ -53,7 +53,7 @@ class Simulation(object):
 
     def __getitem__(self, obj):
         """read the object"""
-        return self.read(obj)
+        return self.read(objects=obj)
 
     def __setitem__(self, obj, value):
         """write the value to the object"""
@@ -64,7 +64,7 @@ class Simulation(object):
         else:
             raise ValueError()
 
-    def _send_command(self, cmd, args=None, block=True):
+    def _send_command(self, cmd, **kwargs):
         """
         send the command to the simulation process
 
@@ -81,11 +81,10 @@ class Simulation(object):
             if self.qResp is None or self.qCmd is None or\
                self.simProcess is None:
                 raise KeyboardInterrupt
-            if args and not isinstance(args, dict):
-                return False
-            if not args:
-                args = {}
-            self.qCmd.put({'id':cid, 'block':block, 'cmd':cmd, 'arguments':args})
+            block = kwargs.get('block', True)
+            if not kwargs.get('silent', True):
+                print(cmd, cid, kwargs)
+            self.qCmd.put({'id':cid, 'block':block, 'cmd':cmd, 'arguments':kwargs})
             if block is True:
                 # wait for the command to finish
                 while True:
@@ -122,38 +121,6 @@ class Simulation(object):
                 return False
         return False
 
-    def get_status(self):
-        """
-        get the simulation status.
-
-        return the dict showing the simulation status
-        """
-        return self._send_command('get_status', None, block=True)
-
-    def set_parameter(self, step=None, total=None, more=False, block=True):
-        """set the simulation parameters"""
-        step, step_unit = self._parse_time(step)
-        total, total_unit = self._parse_time(total)
-        return self._set_parameter(step, step_unit, total, total_unit, more, block)
-
-    def _set_parameter(self, step=None, unitStep=None, total=None,
-                       unitTotal=None, more=False, block=True):
-        """
-        set the simulation parameters
-
-        If more is True, total is additional to the current simulation time.
-        """
-        args = {'more':more}
-        if step is not None:
-            args['step'] = step
-        if unitStep is not None:
-            args['unitStep'] = unitStep
-        if total is not None:
-            args['total'] = total
-        if unitTotal is not None:
-            args['unitTotal'] = unitTotal
-        return self._send_command('set_parameter', args, block)
-
     def start(self):
         """create an empty simulation"""
         self.stop()
@@ -162,12 +129,36 @@ class Simulation(object):
         self.simProcess = mp.Process(target=sim_process,
                                      args=(self.qResp, self.qCmd))
         self.simProcess.start()
+        self._interfaces = self._send_command('get_interfaces')
+        self._set_interfaces(self._interfaces)
+
+    def _set_interfaces(self, interfaces):
+        for item in interfaces:
+            if hasattr(self, item):
+                continue
+            def wrapper(cmd, **kwargs):
+                return self._send_command(cmd, **kwargs)
+            formatted_args = interfaces[item]['args']
+            formatted_args = formatted_args.lstrip('(').rstrip(')')
+            formatted_args2 = []
+            for a in formatted_args.split(','):
+                if '=' in a:
+                    a = a[:a.find('=')]
+                    a = "{0}={0}".format(a)
+                formatted_args2.append(a)
+
+            fndef = 'lambda %s: wrapper("%s", %s)' % (formatted_args, item,
+                                                ','.join(formatted_args2))
+            fake_fn = eval(fndef, {'wrapper': wrapper, 'item': item})
+            print(fndef, fake_fn)
+            fake_fn.__doc__ = interfaces[item]['doc']
+            setattr(self, item, fake_fn)
 
     def load(self, filename, block=True):
         """load the simulation library (e.g., dll)"""
         self.start()
         self.filename = filename
-        return self._send_command('load', {'filename':filename}, block)
+        return self._send_command('load', block=block, filename=filename)
 
     def load_interactive(self):
         """show a file open dialog to select and open the simulation"""
@@ -178,38 +169,6 @@ class Simulation(object):
             self.load(filename)
         dlg.Destroy()
 
-    def _parse_time(self, t):
-        """
-        parse the time in time+unit format
-
-        For example,
-            1) 1.5us will return (1.5, BSM_US)
-            2) 100 will return (100, None), where unit is None (current one will
-               be used)
-        """
-        pattern = r"([+-]?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)(?:\s)*(fs|ps|ns|us|ms|s|)"
-        x = re.match(pattern, str(t))
-        if x:
-            if x.group(2):
-                unit = self.sim_units.get(x.group(2), None)
-                if unit is None:
-                    raise ValueError("unknown time format: " + str(time))
-                return float(x.group(1)), unit
-            else:
-                return float(x.group(1)), None
-        return None, None
-
-    def step(self, step=None, block=False):
-        """
-        proceed the simulation with one step
-
-        The step is set with set_parameter(). The GUI components will be updated
-        after the running.
-
-        The breakpoints are checked at each delta cycle.
-        """
-        self.set_parameter(step=step, block=False)
-        return self._send_command('step', {'running': False}, block)
 
     def run(self, to=None, more=None, block=False):
         """
@@ -227,11 +186,8 @@ class Simulation(object):
             # run with the current settings
             total, ismore = None, False
         self.set_parameter(total=total, more=ismore, block=False)
-        return self._send_command('step', {'running': True}, block)
+        return self._send_command('step', running=True, block=block)
 
-    def pause(self, block=True):
-        """pause the simulation"""
-        return self._send_command('pause', {}, block)
 
     def _stop(self):
         """destroy the simulation process"""
@@ -239,7 +195,7 @@ class Simulation(object):
             return
         # stop the simulation kernel. No block operation allowed since
         # no response from the subprocess
-        self._send_command('exit', {}, False)
+        self._send_command('exit', block=False)
         while not self.qResp.empty():
             self.qResp.get_nowait()
         self.simProcess.join()
@@ -257,100 +213,6 @@ class Simulation(object):
             return self.load(self.filename)
         return False
 
-    def time_stamp(self, in_second=False, block=True):
-        """return the simulation time elapsed as a string"""
-        args = {}
-        if in_second:
-            args['insecond'] = True
-        return self._send_command('time_stamp', args, block)
-
-    def read(self, objs, block=True):
-        """
-        get the values of the registers
-
-        If block == False, it will return after sending the command; otherwise,
-        it will return the values.
-
-        If objects only contains one register, its value will be returned if
-        succeed; otherwise a dictionary is returned, where the keys are the
-        items in objects.
-
-        Example: read a single register
-        >>> read('top.sig_bool', True)
-
-        Example: read multiple registers from the same simulation
-        >>> read(['top.sig_bool', 'top.sig_cos']
-        """
-        objs = self._object_list(objs)
-        return self._send_command('read', {'objects':objs}, block)
-
-    def write(self, objs, block=True):
-        """
-        write the value to the registers
-
-        objs should be a dictionary where the keys are the register name.
-        Due to the two-step mechanism in SystemC, the value will be updated
-        after the next delta cycle. That is, if a read() is called after
-        write(), it will return the previous value.
-
-        Example:
-        >>> a = read('top.sig_int', True)
-        >>> write({'top.sig_int': 100}, True)
-        >>> b = read('top.sig_int', True) # a == b
-        >>> step()
-        >>> c = read('top.sig_int', True)
-        """
-        if not isinstance(objs, dict):
-            raise ValueError("Not supported objs type, expect a dict")
-        return self._send_command('write', {'objects':objs}, block)
-
-    def trace_file(self, obj, fmt='bsm', valid=None, trigger='posneg',
-                   block=True):
-        """
-        dump object values to a file
-
-        obj:
-            register name
-        fmt:
-            'bsm': only output the register value, one per line (Default)
-            'vcd': output the SystemC VCD format data
-        valid:
-            the trigger signal. If it is none, the write-operation will be
-            triggered by the register itself
-        trigger:
-            'posneg': trigger on both rising and falling edges
-            'pos': trigger on rising edge
-            'neg': trigger on falling edge
-            'none': no triggering
-        """
-        if isinstance(obj, list):
-            obj = obj[0]
-        fmts = {'bsm': BSM_TRACE_SIMPLE, 'vcd': BSM_TRACE_VCD,
-                BSM_TRACE_SIMPLE: BSM_TRACE_SIMPLE, BSM_TRACE_VCD: BSM_TRACE_VCD}
-
-        tfmt = fmts.get(fmt, None)
-        trig = self.trigger_type.get(trigger, None)
-        if tfmt is None:
-            raise ValueError("Not supported trace type: " + str(fmt))
-        if trig is None:
-            raise ValueError("Not supported trigger type: " + str(trigger))
-
-        args = {'name':obj, 'type':tfmt, 'valid':valid, 'trigger':trig}
-        print(args)
-        return self._send_command('trace_file', args, block)
-
-    def trace_buf(self, obj, size=256, valid=None, trigger='posneg',
-                  block=True):
-        """start dumping the register to a numpy array"""
-        if isinstance(obj, list):
-            obj = obj[0]
-        trig = self.trigger_type.get(trigger, None)
-        if trig is None:
-            raise ValueError("Not supported trigger type: " + str(trigger))
-
-        args = {'name':obj, 'size':size, 'valid':valid, 'trigger':trig}
-        return self._send_command('trace_buf', args, block)
-
     def _object_list(self, objs):
         """help function to generate object list"""
         if isinstance(objs, six.string_types):
@@ -359,55 +221,6 @@ class Simulation(object):
             return objs
         else:
             raise ValueError()
-
-    def read_buf(self, objects, block=True):
-        """
-        read the traced buffer to an numpy array
-
-        If the buffer is previous traced by calling trace_buf, the array with
-        previous defined size will return; otherwise the trace_buf will be
-        called with default arguments first.
-        """
-        objs = self._object_list(objects)
-        return self._send_command('read_buf', {'objects':objs}, block)
-
-    def monitor_signal(self, objects, block=True):
-        """
-        monitor the register value
-
-        At end of each step, the simulation process will report the value
-        """
-        objs = self._object_list(objects)
-        return self._send_command('monitor_signal', {'objects':objs}, block)
-
-    def unmonitor_signal(self, objects, block=True):
-        """stop monitoring the register"""
-        objs = self._object_list(objects)
-        return self._send_command('unmonitor_signal', {'objects':objs}, block)
-
-    def get_monitored_signal(self, block=True):
-        """get the list of the monitored signals"""
-        return self._send_command('get_monitored_singals', block=block)
-
-    def add_breakpoint(self, bp, block=True):
-        """
-        add the breakpoint
-
-        bp = (name, condition, hitcount) or name
-        """
-        if isinstance(bp[0], six.string_types):
-            bp = [bp, None, None]
-        return self._send_command('add_breakpoint', {'objects':bp}, block)
-
-    def del_breakpoint(self, bp, block=True):
-        """delete the breakpoint"""
-        if isinstance(bp[0], six.string_types):
-            bp = [bp, None, None]
-        return self._send_command('del_breakpoint', {'objects':bp}, block)
-
-    def get_breakpoint(self, block=True):
-        """get all the breakpoints"""
-        return self._send_command('get_breakpoints', block=block)
 
     def global_object_name(self, obj):
         """generate the global name for simulation object (num.name)"""
@@ -754,9 +567,9 @@ class SimPanel(wx.Panel):
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Step "))
         self.tb.AddControl(self.tcStep)
         units = ['fs', 'ps', 'ns', 'us', 'ms', 's']
-        self.cmbUnitStep = wx.ComboBox(self.tb, wx.ID_ANY, 'ns',
-                                       size=(50, -1), choices=units,
-                                       style=wx.CB_READONLY)
+        self.cmbUnitStep = wx.Choice(self.tb, wx.ID_ANY, size=(50, -1),
+                                     choices=units)
+        self.cmbUnitStep.SetSelection(2)
         self.tb.AddControl(self.cmbUnitStep)
         self.tb.AddSeparator()
 
@@ -764,9 +577,9 @@ class SimPanel(wx.Panel):
                                allowNegative=True, fractionWidth=0)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Total "))
         self.tb.AddControl(self.tcTotal)
-        self.cmbUnitTotal = wx.ComboBox(self.tb, wx.ID_ANY, 'ns',
-                                        size=(50, -1), choices=units,
-                                        style=wx.CB_READONLY)
+        self.cmbUnitTotal = wx.Choice(self.tb, wx.ID_ANY, size=(50, -1),
+                                      choices=units)
+        self.cmbUnitTotal.SetSelection(2)
         self.tb.AddControl(self.cmbUnitTotal)
         self.tb.AddSeparator()
         self.tb.AddStretchableSpace()
@@ -812,9 +625,9 @@ class SimPanel(wx.Panel):
             return
         if self.running and self.sim.qResp.empty() and self.sim.qCmd.empty():
             # if the queues are almost empty, retrieve the data
-            self.sim.time_stamp(False, False)
-            self.sim.read([], False)
-            self.sim.read_buf([], False)
+            self.sim.time_stamp(insecond=False, block=False)
+            self.sim.read(objects=[], block=False)
+            self.sim.read_buf([], block=False)
         try:
             # process the response
             resp = self.sim.qResp.get_nowait()
@@ -841,11 +654,13 @@ class SimPanel(wx.Panel):
 
     def SetParameter(self, block=True):
         """set the simulation parameters with the values from GUI"""
-        step = int(self.tcStep.GetValue())
-        unitStep = int(self.cmbUnitStep.GetSelection())
-        total = int(self.tcTotal.GetValue())
-        unitTotal = int(self.cmbUnitTotal.GetSelection())
-        self.sim._set_parameter(step, unitStep, total, unitTotal, False, block)
+        step = self.tcStep.GetValue()
+        unitStep = self.cmbUnitStep.GetString(self.cmbUnitStep.GetSelection())
+        step = "%f%s"%(step, unitStep)
+        total = self.tcTotal.GetValue()
+        unitTotal = self.cmbUnitTotal.GetString(self.cmbUnitTotal.GetSelection())
+        total = "%f%s"%(total, unitTotal)
+        self.sim.set_parameter(step=step, total=total, more=False, block=block)
 
     def OnTreeSelChanged(self, event):
         item = event.GetItem()
@@ -858,7 +673,7 @@ class SimPanel(wx.Panel):
             obj = self.tree.GetExtendObj(item)
             objects.append(obj['name'])
         if objects:
-            wx.CallAfter(self.sim.read, objects, True)
+            wx.CallAfter(self.sim.read, objects, block=True)
 
     def OnTreeItemMenu(self, event):
         item = event.GetItem()
@@ -930,7 +745,7 @@ class SimPanel(wx.Panel):
             pass
         elif rtn == wx.DragCancel:
             pass
-        self.sim.read(objs_name, False)
+        self.sim.read(objects=objs_name, block=False)
 
     def OnUpdateCmdUI(self, event):
         eid = event.GetId()
@@ -954,9 +769,9 @@ class SimPanel(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK:
                 t = dlg.GetTrace()
                 if eid == self.ID_MP_DUMP:
-                    self.sim.trace_file(t['signal'], t['format'], t['valid'], t['trigger'], False)
+                    self.sim.trace_file(t['signal'], t['format'], t['valid'], t['trigger'], block=False)
                 else:
-                    self.sim.trace_buf(t['signal'], t['size'], t['valid'], t['trigger'], False)
+                    self.sim.trace_buf(t['signal'], t['size'], t['valid'], t['trigger'], block=False)
         elif eid == self.ID_MP_ADD_TO_NEW_VIEWER:
             viewer = sim.propgrid()
         elif eid >= wx.ID_FILE1 and eid <= wx.ID_FILE9:
@@ -997,7 +812,7 @@ class SimPanel(wx.Panel):
                         objs.append(ext2['name'])
                         prop.SetIndent(1)
                         (child, cookie) = self.tree.GetNextChild(item, cookie)
-            self.sim.read(objs, False)
+            self.sim.read(objects=objs, block=False)
 
     def ProcessResponse(self, resp):
         if self.is_destroying:
@@ -1008,33 +823,32 @@ class SimPanel(wx.Panel):
             args = resp.get('arguments', {})
             if command == 'load':
                 self.tree.Load(self.sim.objects)
-                self.sim.time_stamp(False, False)
-                self.sim.read([], False)
-                self.sim.read_buf([], False)
+                self.sim.time_stamp(insecond=False, block=False)
+                self.sim.read(objects=[], block=False)
+                self.sim.read_buf(objects=[], block=False)
             elif command == 'exit':
                 self.tree.Load(None)
                 dp.send('sim.unloaded', num=self.sim.num)
             elif command == 'step':
                 if value:
-                    self.sim.time_stamp(False, False)
-                    self.sim.read([], False)
-                    self.sim.read_buf([], False)
+                    self.sim.time_stamp(insecond=False, block=False)
+                    self.sim.read(objects=[], block=False)
+                    self.sim.read_buf([], block=False)
             elif command == 'get_status':
                 self.running = value.get('running', False)
             elif command == 'monitor_add':
                 objs = [name for name, v in six.iteritems(value) if v]
-                self.sim.read(objs, False)
+                self.sim.read(objects=objs, block=False)
             elif command == 'set_parameter':
                 if value:
-                    args = resp['arguments']
                     step = self.tcStep.GetValue()
-                    self.tcStep.SetValue(args.get('step', step))
+                    self.tcStep.SetValue(value.get('step', step))
                     unitStep = self.cmbUnitStep.GetSelection()
-                    self.cmbUnitStep.SetSelection(args.get('unitStep', unitStep))
+                    self.cmbUnitStep.SetSelection(value.get('step_unit', unitStep))
                     total = self.tcTotal.GetValue()
-                    self.tcTotal.SetValue(args.get('total', total))
+                    self.tcTotal.SetValue(value.get('total', total))
                     unitTotal = self.cmbUnitTotal.GetSelection()
-                    self.cmbUnitTotal.SetSelection(args.get('unitTotal', unitTotal))
+                    self.cmbUnitTotal.SetSelection(value.get('total_unit', unitTotal))
             elif command == 'read':
                 gname = self.sim.global_object_name
                 ui_objs = {gname(name):v for name, v in six.iteritems(value)}
@@ -1105,14 +919,14 @@ class sim(object):
         mgr, name = cls._find_object(prop.GetName())
         if mgr:
             cnd = prop.GetBPCondition()
-            mgr.add_breakpoint([[name, cnd[0], cnd[1]]])
+            mgr.add_breakpoint(name, cnd[0], cnd[1])
 
     @classmethod
     def _prop_bp_del(cls, prop):
         mgr, name = cls._find_object(prop.GetName())
         if mgr:
             cnd = prop.GetBPCondition()
-            mgr.del_breakpoint([[name, cnd[0], cnd[1]]])
+            mgr.del_breakpoint(name, cnd[0], cnd[1])
 
     @classmethod
     def _prop_insert(cls, prop):
