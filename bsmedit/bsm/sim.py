@@ -8,7 +8,6 @@ import six
 import six.moves.queue as Queue
 import wx
 import wx.py.dispatcher as dp
-from wx.lib.masked import NumCtrl
 
 from . import graph
 from ._simxpm import *
@@ -562,8 +561,9 @@ class SimPanel(wx.Panel):
 
         self.tb.AddSeparator()
 
-        self.tcStep = NumCtrl(self.tb, wx.ID_ANY, "1000",
-                              allowNegative=False, fractionWidth=0)
+        self.tcStep = wx.SpinCtrlDouble(self.tb, value='1000', size=(50,-1),
+                                        min=0, max=1e9, inc=1)
+        self.tcStep.SetDigits(4)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Step "))
         self.tb.AddControl(self.tcStep)
         units = ['fs', 'ps', 'ns', 'us', 'ms', 's']
@@ -573,8 +573,9 @@ class SimPanel(wx.Panel):
         self.tb.AddControl(self.cmbUnitStep)
         self.tb.AddSeparator()
 
-        self.tcTotal = NumCtrl(self.tb, wx.ID_ANY, "-1",
-                               allowNegative=True, fractionWidth=0)
+        self.tcTotal = wx.SpinCtrlDouble(self.tb, value='-1', size=(50,-1),
+                                         min=-1, max=1e9, inc=1)
+        self.tcTotal.SetDigits(4)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Total "))
         self.tb.AddControl(self.tcTotal)
         self.cmbUnitTotal = wx.Choice(self.tb, wx.ID_ANY, size=(50, -1),
