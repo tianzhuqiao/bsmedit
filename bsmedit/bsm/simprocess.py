@@ -613,11 +613,13 @@ class SimCommand(object):
         return self.simengine.ctx_time_str()
 
     @SimInterface()
-    def trace_file(self, name='', fmt='bsm', valid=None, trigger='posneg',
-                  **kwargs):
+    def trace_file(self, filename='', name='', fmt='bsm', valid=None,
+                   trigger='posneg', **kwargs):
         """
         dump object values to a file
 
+        filename:
+            trace filename
         name:
             register name
         fmt:
@@ -634,7 +636,13 @@ class SimCommand(object):
         """
         if not self.is_valid():
             return False
-        raw = [fmt, valid, trigger]
+        raw = [filename, name, fmt, valid, trigger]
+
+        if not filename:
+            filename = name
+        if filename in self.tfile:
+            return False
+
         obj = self.simengine.find_object(name)
         if obj is None:
             return False
@@ -650,18 +658,30 @@ class SimCommand(object):
         if trigger is None:
             raise ValueError("Not supported trigger type: " + str(raw[2]))
         trace = csim.SStructWrapper(self.simengine.csim.sim_trace_file())
-        trace.name = name
+        trace.name = filename
         trace.type = fmt
         if self.simengine.ctx_create_trace_file(trace()):
             self.simengine.ctx_trace_file(trace(), obj(), valid, trigger)
-            self.tfile[name] = {'trace': trace, 'raw':raw}
+            self.tfile[filename] = {'trace': trace, 'raw':raw}
             return True
 
         return False
 
     @SimInterface()
+    def close_trace_file(self, filename="", **kwargs):
+        """stop dumping to a file"""
+        if filename not in self.tfile:
+            return False
+        trace = self.tfile[filename]['trace']
+        if self.simengine.ctx_close_trace_file(trace()):
+            del self.tfile[filename]
+            return True
+        return False
+
+    @SimInterface()
     def get_trace_files(self, **kwargs):
-        return {b:self.tbuf[b]['raw'] for b in self.tfile}
+        """return all the trace files"""
+        return {b:self.tfile[b]['raw'] for b in self.tfile}
 
     @SimInterface()
     def trace_buf(self, name='', size=256, valid=None, trigger="posneg",
@@ -702,6 +722,18 @@ class SimCommand(object):
         return True
 
     @SimInterface()
+    def close_trace_buf(self, name='', **kwargs):
+        """stop dumping to a numpy array"""
+        if not name in self.tbuf:
+            return False
+
+        trace = self.tbuf[name]['trace']
+        if self.simengine.ctx_close_trace_buf(trace()):
+            del self.tbuf[name]
+            return True
+        return False
+
+    @SimInterface()
     def read_buf(self, objects=None, **kwargs):
         """
         read the traced buffer to an numpy array
@@ -731,6 +763,7 @@ class SimCommand(object):
             self.simengine.ctx_read_trace_buf(self.tbuf[name]['trace']())
             resp[name] = self.tbuf[name]['data']
         return resp
+
 
     @SimInterface()
     def get_trace_bufs(self, **kwargs):

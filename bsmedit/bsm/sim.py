@@ -799,8 +799,8 @@ class SimPanel(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK:
                 t = dlg.GetTrace()
                 if eid == self.ID_MP_DUMP:
-                    self.sim.trace_file(t['signal'], t['format'], t['valid'],
-                                        t['trigger'], block=False)
+                    self.sim.trace_file(t['filename'], t['signal'], t['format'],
+                                        t['valid'], t['trigger'], block=False)
                 else:
                     self.sim.trace_buf(t['signal'], t['size'], t['valid'],
                                        t['trigger'], block=False)
