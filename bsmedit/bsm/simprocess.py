@@ -552,9 +552,6 @@ class SimCommand(object):
         """
         get the values of the registers
 
-        If block == False, it will return after sending the command; otherwise,
-        it will return the values.
-
         If objects only contains one register, its value will be returned if
         succeed; otherwise a dictionary is returned, where the keys are the
         items in objects.

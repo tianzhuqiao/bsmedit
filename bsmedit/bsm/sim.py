@@ -8,6 +8,7 @@ import six
 import six.moves.queue as Queue
 import wx
 import wx.py.dispatcher as dp
+import wx.lib.agw.aui as aui
 
 from . import graph
 from ._simxpm import *
@@ -20,12 +21,6 @@ from .. import c2p
 
 Gcs = Gcm()
 class Simulation(object):
-    trigger_type = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
-                    'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE,
-                    BSM_BOTHEDGE:BSM_BOTHEDGE, BSM_POSEDGE:BSM_POSEDGE,
-                    BSM_NEGEDGE:BSM_NEGEDGE, BSM_NONEEDGE:BSM_NONEEDGE}
-    sim_units = {'fs':BSM_FS, 'ps':BSM_PS, 'ns':BSM_NS, 'us':BSM_US,
-                 'ms':BSM_MS, 's':BSM_SEC}
     def __init__(self, parent, num=None):
         if num is not None and isinstance(num, int) and \
            num not in Gcs.get_all_managers():
@@ -40,14 +35,15 @@ class Simulation(object):
         self.objects = None
         # create the simulation kernel
         self._cmd_id = 0
-        self.qResp = None
-        self.qCmd = None
-        self.simProcess = None
+        self.qresp = None
+        self.qcmd = None
+        self.sim_process = None
+        self.status = {'running':False, 'valid':False}
 
     def release(self):
         """destroy simulation"""
         self.frame = None
-        self._stop()
+        self.stop()
         Gcs.destroy(self.num)
 
     def __getitem__(self, obj):
@@ -77,23 +73,30 @@ class Simulation(object):
             # return, if the previous call has not finished
             # it may happen when the previous command is waiting for response,
             # and another command is sent (by clicking a button)
-            if self.qResp is None or self.qCmd is None or\
-               self.simProcess is None:
+            if self.qresp is None or self.qcmd is None or self.sim_process is None:
                 raise KeyboardInterrupt
             block = kwargs.get('block', True)
+
             if not kwargs.get('silent', True):
                 print(cmd, cid, kwargs)
-            self.qCmd.put({'id':cid, 'block':block, 'cmd':cmd, 'arguments':kwargs})
+
+            self.qcmd.put({'id':cid, 'cmd':cmd, 'arguments':kwargs})
             if block is True:
                 # wait for the command to finish
                 while True:
-                    resp = self.qResp.get()
+                    resp = self.qresp.get()
                     rtn = self._process_response(resp)
                     if resp.get('id', -1) == cid:
                         return rtn
             return True
         except:
             traceback.print_exc(file=sys.stdout)
+
+    def is_valid(self):
+        return self.status['valid']
+
+    def is_running(self):
+        return self.status['running']
 
     def wait_until_simulation_paused(self, timeout=None):
         """
@@ -105,7 +108,7 @@ class Simulation(object):
         timeout: the maximum waiting period (in second)
         """
         # return if the simulation is not valid
-        if self.qResp is None or self.qCmd is None or self.simProcess is None:
+        if self.qresp is None or self.qcmd is None or self.sim_process is None:
             return False
         start = -1
         if timeout is not None:
@@ -123,13 +126,14 @@ class Simulation(object):
     def start(self):
         """create an empty simulation"""
         self.stop()
-        self.qResp = mp.Queue()
-        self.qCmd = mp.Queue()
-        self.simProcess = mp.Process(target=sim_process,
-                                     args=(self.qResp, self.qCmd))
-        self.simProcess.start()
+        self.qresp = mp.Queue()
+        self.qcmd = mp.Queue()
+        self.sim_process = mp.Process(target=sim_process,
+                                      args=(self.qresp, self.qcmd))
+        self.sim_process.start()
         self._interfaces = self._send_command('get_interfaces')
-        self._set_interfaces(self._interfaces)
+        if self._set_interfaces:
+            self._set_interfaces(self._interfaces)
 
     def _set_interfaces(self, interfaces):
         for item in interfaces:
@@ -140,34 +144,40 @@ class Simulation(object):
             formatted_args = interfaces[item]['args']
             formatted_args = formatted_args.lstrip('(').rstrip(')')
             formatted_args2 = []
-            for a in formatted_args.split(','):
-                if '=' in a:
-                    a = a[:a.find('=')]
-                    a = "{0}={0}".format(a)
-                formatted_args2.append(a)
+            for arg in formatted_args.split(','):
+                if '=' in arg:
+                    # remove the default value
+                    arg = arg[:arg.find('=')]
+                    arg = "{0}={0}".format(arg)
+                formatted_args2.append(arg)
 
-            fndef = 'lambda %s: wrapper("%s", %s)' % (formatted_args, item,
-                                                ','.join(formatted_args2))
+            fndef = 'lambda %s: wrapper("%s", %s)'%(formatted_args, item,
+                                                    ','.join(formatted_args2))
             fake_fn = eval(fndef, {'wrapper': wrapper, 'item': item})
-            print(fndef, fake_fn)
             fake_fn.__doc__ = interfaces[item]['doc']
             setattr(self, item, fake_fn)
 
-    def load(self, filename, block=True):
-        """load the simulation library (e.g., dll)"""
+    def load(self, filename=None, block=True):
+        """
+        load the simulation library (e.g., dll)
+
+        if filename is None, show a file open dialog to select and open the
+        simulation
+        """
+        if filename is None:
+            style = c2p.FD_OPEN | c2p.FD_FILE_MUST_EXIST
+            dlg = wx.FileDialog(self.frame, "Choose a file", "", "", "*.*", style)
+            if dlg.ShowModal() == wx.ID_OK:
+                filename = dlg.GetPath()
+            dlg.Destroy()
+
+        if filename is None:
+            return False
+
         self.start()
         self.filename = filename
-        return self._send_command('load', block=block, filename=filename)
-
-    def load_interactive(self):
-        """show a file open dialog to select and open the simulation"""
-        style = c2p.FD_OPEN | c2p.FD_FILE_MUST_EXIST
-        dlg = wx.FileDialog(self.frame, "Choose a file", "", "", "*.*", style)
-        if dlg.ShowModal() == wx.ID_OK:
-            filename = dlg.GetPath()
-            self.load(filename)
-        dlg.Destroy()
-
+        self._send_command('load', block=block, filename=filename)
+        return self.get_status()
 
     def run(self, to=None, more=None, block=False):
         """
@@ -185,26 +195,21 @@ class Simulation(object):
             # run with the current settings
             total, ismore = None, False
         self.set_parameter(total=total, more=ismore, block=False)
-        return self._send_command('step', running=True, block=block)
+        return self.step(running=True, block=block)
 
-
-    def _stop(self):
-        """destroy the simulation process"""
-        if self.qResp is None or self.qCmd is None or self.simProcess is None:
+    def stop(self):
+        """destroy the simulation"""
+        if self.qresp is None or self.qcmd is None or self.sim_process is None:
             return
         # stop the simulation kernel. No block operation allowed since
         # no response from the subprocess
         self._send_command('exit', block=False)
-        while not self.qResp.empty():
-            self.qResp.get_nowait()
-        self.simProcess.join()
-        self.simProcess = None
+        while not self.qresp.empty():
+            self.qresp.get_nowait()
+        self.sim_process.join()
+        self.sim_process = None
         # stop the client
         self._process_response({'cmd':'exit'})
-
-    def stop(self):
-        """destroy the simulation process and update the GUI"""
-        self._stop()
 
     def reset(self):
         """reset the simulation"""
@@ -266,7 +271,7 @@ class Simulation(object):
     def _process_response(self, resp):
         """process the response from the simulation core"""
         try:
-            wx.CallAfter(self.frame.ProcessResponse, resp)
+            wx.CallAfter(dp.send, signal='sim.response', sender=self, resp=resp)
             command = resp.get('cmd', '')
             value = resp.get('value', False)
             args = resp.get('arguments', {})
@@ -277,19 +282,36 @@ class Simulation(object):
                 # single value, return the value, not the dict
                 if len(value) == 1:
                     value = list(value.values())[0]
+            elif command == 'get_status':
+                self.status.update(value)
             return value
         except:
             traceback.print_exc(file=sys.stdout)
 
+    def process_response(self):
+        if not self.qresp:
+            return None
+        try:
+            # process the response
+            resp = self.qresp.get_nowait()
+            if resp:
+                return self._process_response(resp)
+        except Queue.Empty:
+            pass
+
+        if self.status['running'] and self.qresp.empty() and self.qcmd.empty():
+            # if the queues are almost empty, retrieve the data
+            self.time_stamp(insecond=False, block=False)
+            self.read(objects=[], block=False)
+            self.read_buf([], block=False)
+
+        return None
+
 class ModuleTree(FastLoadTreeCtrl):
-    """the tree control shows the hierarchy of the objects in the simulation"""
-    ID_MP_DUMP = wx.NewId()
-    ID_MP_TRACE_BUF = wx.NewId()
-    ID_MP_ADD_TO_NEW_VIEWER = wx.NewId()
-    ID_MP_ADD_TO_VIEWER_START = wx.NewId()
+    """the tree control to show the hierarchy of the objects in the simulation"""
     def __init__(self, parent, style=wx.TR_DEFAULT_STYLE):
-        style = style | wx.TR_HAS_VARIABLE_ROW_HEIGHT | \
-                wx.TR_HIDE_ROOT| wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
+        style = style | wx.TR_HAS_VARIABLE_ROW_HEIGHT | wx.TR_HIDE_ROOT |\
+                wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
         FastLoadTreeCtrl.__init__(self, parent, self.get_children, style=style)
         imglist = wx.ImageList(16, 16, True, 10)
         for xpm in [module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,
@@ -529,8 +551,6 @@ class DumpDlg(wx.Dialog):
         return self.trace
 
 class SimPanel(wx.Panel):
-    ID_GOTO_PARENT = wx.NewId()
-    ID_GOTO_HOME = wx.NewId()
     ID_SIM_STEP = wx.NewId()
     ID_SIM_RUN = wx.NewId()
     ID_SIM_PAUSE = wx.NewId()
@@ -544,24 +564,21 @@ class SimPanel(wx.Panel):
 
         self.is_destroying = False
         self._color = wx.Colour(178, 34, 34)
-        # the variable used to update the UI in idle()
         self.gridList = []
-        self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|wx.TB_NODIVIDER)
+        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW|
+                                 aui.AUI_TB_PLAIN_BACKGROUND)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
         xpm2bmp = c2p.BitmapFromXPM
-        c2p.tbAddTool(self.tb, self.ID_SIM_STEP, "", xpm2bmp(step_xpm),
-                      xpm2bmp(step_grey_xpm), wx.ITEM_NORMAL, "Step",
-                      "Step the simulation")
-        c2p.tbAddTool(self.tb, self.ID_SIM_RUN, "", xpm2bmp(run_xpm),
-                      xpm2bmp(run_grey_xpm), wx.ITEM_NORMAL, "Run",
-                      "Run the simulation")
-        c2p.tbAddTool(self.tb, self.ID_SIM_PAUSE, "", xpm2bmp(pause_xpm),
-                      xpm2bmp(pause_grey_xpm), wx.ITEM_NORMAL, "Pause",
-                      "Pause the simulation")
+        self.tb.AddSimpleTool(self.ID_SIM_STEP, "Step", xpm2bmp(step_xpm),
+                              "Step the simulation")
+        self.tb.AddSimpleTool(self.ID_SIM_RUN, "Run", xpm2bmp(run_xpm),
+                              "Run the simulation")
+        self.tb.AddSimpleTool(self.ID_SIM_PAUSE, "Pause", xpm2bmp(pause_xpm),
+                              "Pause the simulation")
 
         self.tb.AddSeparator()
 
-        self.tcStep = wx.SpinCtrlDouble(self.tb, value='1000', size=(50,-1),
+        self.tcStep = wx.SpinCtrlDouble(self.tb, value='1000', size=(150, -1),
                                         min=0, max=1e9, inc=1)
         self.tcStep.SetDigits(4)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Step "))
@@ -573,7 +590,7 @@ class SimPanel(wx.Panel):
         self.tb.AddControl(self.cmbUnitStep)
         self.tb.AddSeparator()
 
-        self.tcTotal = wx.SpinCtrlDouble(self.tb, value='-1', size=(50,-1),
+        self.tcTotal = wx.SpinCtrlDouble(self.tb, value='-1', size=(150, -1),
                                          min=-1, max=1e9, inc=1)
         self.tcTotal.SetDigits(4)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Total "))
@@ -582,17 +599,11 @@ class SimPanel(wx.Panel):
                                       choices=units)
         self.cmbUnitTotal.SetSelection(2)
         self.tb.AddControl(self.cmbUnitTotal)
-        self.tb.AddSeparator()
-        self.tb.AddStretchableSpace()
-        c2p.tbAddTool(self.tb, self.ID_SIM_SET, "", xpm2bmp(setting_xpm),
-                      xpm2bmp(setting_grey_xpm), wx.ITEM_DROPDOWN,
-                      "Setting", "Configure the simulation")
-        menu = wx.Menu()
-        menu.Append(wx.ID_RESET, "&Reset")
-        menu.AppendSeparator()
-        menu.Append(wx.ID_EXIT, "&Exit")
-        self.tb_set_menu = menu
-        self.tb.SetDropdownMenu(self.ID_SIM_SET, self.tb_set_menu)
+        self.tb.AddStretchSpacer()
+        self.tb.AddSimpleTool(self.ID_SIM_SET, "Setting", xpm2bmp(setting_xpm),
+                              "Configure the simulation")
+
+        self.tb.SetToolDropDown(self.ID_SIM_SET, True)
         self.tb.Realize()
         self.tree = ModuleTree(self)
         self.box = wx.BoxSizer(wx.VERTICAL)
@@ -602,40 +613,52 @@ class SimPanel(wx.Panel):
         self.box.Fit(self)
         self.SetSizer(self.box)
 
-        self.running = False
         self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
         self.tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnTreeSelChanged)
         self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
         self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
-
+        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN, self.OnMenuDropDown,
+                  id=self.ID_SIM_SET)
+        # simulation
         self.sim = Simulation(self, num)
-        if isinstance(filename, six.string_types):
+        if filename is not None or not silent:
             self.sim.load(filename)
-        elif not silent:
-            self.sim.load_interactive()
-        self.SetParameter()
+            self.SetParameter()
+
+        dp.connect(receiver=self._process_response, signal='sim.response',
+                   sender=self.sim)
 
         self.timer = wx.Timer(self)
         self.Bind(wx.EVT_TIMER, self.OnTimer, self.timer)
         self.timer.Start(5)
 
     def OnTimer(self, event):
-        if not self.sim or not self.sim.qResp or not self.sim.qCmd:
-            return
-        if self.running and self.sim.qResp.empty() and self.sim.qCmd.empty():
-            # if the queues are almost empty, retrieve the data
-            self.sim.time_stamp(insecond=False, block=False)
-            self.sim.read(objects=[], block=False)
-            self.sim.read_buf([], block=False)
         try:
             # process the response
-            resp = self.sim.qResp.get_nowait()
-            if resp:
-                self.ProcessResponse(resp)
-        except Queue.Empty:
-            pass
+            self.sim.process_response()
+        except:
+            traceback.print_exc(file=sys.stdout)
+
+    def OnMenuDropDown(self, event):
+        if event.IsDropDownClicked():
+            menu = wx.Menu()
+            menu.Append(wx.ID_RESET, "&Reset")
+            menu.AppendSeparator()
+            menu.Append(wx.ID_EXIT, "&Exit")
+
+            # line up our menu with the button
+            tb = event.GetEventObject()
+            tb.SetToolSticky(event.GetId(), True)
+            rect = tb.GetToolRect(event.GetId())
+            pt = tb.ClientToScreen(rect.GetBottomLeft())
+            pt = self.ScreenToClient(pt)
+
+            self.PopupMenu(menu, pt)
+
+            # make sure the button is "un-stuck"
+            tb.SetToolSticky(event.GetId(), False)
 
     def Destroy(self):
         """
@@ -655,6 +678,9 @@ class SimPanel(wx.Panel):
 
     def SetParameter(self, block=True):
         """set the simulation parameters with the values from GUI"""
+        if not self.sim or not self.sim.is_valid():
+            return
+
         step = self.tcStep.GetValue()
         unitStep = self.cmbUnitStep.GetString(self.cmbUnitStep.GetSelection())
         step = "%f%s"%(step, unitStep)
@@ -751,9 +777,9 @@ class SimPanel(wx.Panel):
     def OnUpdateCmdUI(self, event):
         eid = event.GetId()
         if eid in [self.ID_SIM_STEP, self.ID_SIM_RUN]:
-            event.Enable(not self.running)
+            event.Enable(self.sim and not self.sim.is_running())
         elif eid == self.ID_SIM_PAUSE:
-            event.Enable(self.running)
+            event.Enable(self.sim and self.sim.is_running())
 
     def OnProcessCommand(self, event):
         """process the menu command"""
@@ -770,16 +796,20 @@ class SimPanel(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK:
                 t = dlg.GetTrace()
                 if eid == self.ID_MP_DUMP:
-                    self.sim.trace_file(t['signal'], t['format'], t['valid'], t['trigger'], block=False)
+                    self.sim.trace_file(t['signal'], t['format'], t['valid'],
+                                        t['trigger'], block=False)
                 else:
-                    self.sim.trace_buf(t['signal'], t['size'], t['valid'], t['trigger'], block=False)
+                    self.sim.trace_buf(t['signal'], t['size'], t['valid'],
+                                       t['trigger'], block=False)
         elif eid == self.ID_MP_ADD_TO_NEW_VIEWER:
             viewer = sim.propgrid()
         elif eid >= wx.ID_FILE1 and eid <= wx.ID_FILE9:
             viewer = self.gridList[eid - wx.ID_FILE1]
         elif eid == wx.ID_EXIT:
             self.sim.stop()
-            dp.send(signal='frame.delete_panel', panel=self)
+            # delay destroy the simulation window so AuiToolBar can finish
+            # processing the dropdown event.
+            wx.CallAfter(dp.send, signal='frame.delete_panel', panel=self)
         elif eid == wx.ID_RESET:
             self.sim.reset()
         elif eid == self.ID_SIM_STEP:
@@ -815,7 +845,7 @@ class SimPanel(wx.Panel):
                         (child, cookie) = self.tree.GetNextChild(item, cookie)
             self.sim.read(objects=objs, block=False)
 
-    def ProcessResponse(self, resp):
+    def _process_response(self, resp):
         if self.is_destroying:
             return
         try:
@@ -824,20 +854,10 @@ class SimPanel(wx.Panel):
             args = resp.get('arguments', {})
             if command == 'load':
                 self.tree.Load(self.sim.objects)
-                self.sim.time_stamp(insecond=False, block=False)
-                self.sim.read(objects=[], block=False)
-                self.sim.read_buf(objects=[], block=False)
             elif command == 'exit':
                 self.tree.Load(None)
                 dp.send('sim.unloaded', num=self.sim.num)
-            elif command == 'step':
-                if value:
-                    self.sim.time_stamp(insecond=False, block=False)
-                    self.sim.read(objects=[], block=False)
-                    self.sim.read_buf([], block=False)
-            elif command == 'get_status':
-                self.running = value.get('running', False)
-            elif command == 'monitor_add':
+            elif command == 'monitor_signal':
                 objs = [name for name, v in six.iteritems(value) if v]
                 self.sim.read(objects=objs, block=False)
             elif command == 'set_parameter':
@@ -873,6 +893,11 @@ class SimPanel(wx.Panel):
                     dp.send(signal='shell.write_out', text=txt)
             elif command == 'write_out':
                 dp.send(signal='shell.write_out', text=value)
+
+            if command in ['load', 'step'] and value:
+                self.sim.time_stamp(insecond=False, block=False)
+                self.sim.read(objects=[], block=False)
+                self.sim.read_buf(objects=[], block=False)
         except:
             traceback.print_exc(file=sys.stdout)
 
