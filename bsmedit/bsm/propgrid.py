@@ -226,6 +226,10 @@ class bsmPropGridBase(wx.ScrolledWindow):
             return True
         return False
 
+    def DeleteAllProperties(self, update=True):
+        for i in range(len(self.PropList)-1, -1, -1):
+            self.DeleteProperty(self.PropList[i], update)
+
     def DeleteProperty(self, prop, update=True):
         if self.SendPropEvent(wxEVT_BSM_PROP_DELETE, prop):
             dp.send('prop.delete', prop=prop)
@@ -889,8 +893,10 @@ class bsmPropGrid(bsmPropGridBase):
         self.num = num
         bsmPropGrid.GCM.set_active(self)
 
-    def __del__(self):
+    def Destroy(self):
+        self.DeleteAllProperties()
         bsmPropGrid.GCM.destroy_mgr(self)
+        super(bsmPropGrid, self).Destroy()
 
     def OnPropEventsHandler(self, evt):
         super(bsmPropGrid, self).OnPropEventsHandler(evt)
