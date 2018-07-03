@@ -32,25 +32,25 @@ class HelpPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        self.search = AutocompleteTextCtrl(self, completer=self.completer)
 
         self.html = html.WebView.New(self)
 
-        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND)
+        agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
+        self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddSimpleTool(wx.ID_BACKWARD, 'Back',
                               c2p.BitmapFromXPM(backward_xpm),
                               'Go the previous page')
         self.tb.AddSimpleTool(wx.ID_FORWARD, 'Forward',
                               c2p.BitmapFromXPM(forward_xpm),
                               'Go to the next page')
+        self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
+        item = self.tb.AddControl(self.search)
+        item.SetProportion(1)
         self.tb.Realize()
 
         # Setup the layout
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer2 = wx.BoxSizer(wx.HORIZONTAL)
-        sizer2.Add(self.tb, 0, wx.ALL|wx.EXPAND, 5)
-        sizer2.Add(self.search, 1, wx.ALL|wx.EXPAND, 5)
-        sizer.Add(sizer2, 0, wx.ALL | wx.EXPAND, 0)
+        sizer.Add(self.tb, 0, wx.ALL|wx.EXPAND, 5)
         sizer.Add(self.html, 1, wx.ALL | wx.EXPAND, 5)
         self.SetSizer(sizer)
 
@@ -61,22 +61,14 @@ class HelpPanel(wx.Panel):
 
         self.Bind(wx.EVT_TEXT_ENTER, self.OnDoSearch, self.search)
         self.Bind(html.EVT_WEBVIEW_NAVIGATING, self.OnWebViewNavigating, self.html)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI, id=wx.ID_BACKWARD)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI, id=wx.ID_FORWARD)
+        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI)
         self.Bind(wx.EVT_TOOL, self.OnBack, id=wx.ID_BACKWARD)
         self.Bind(wx.EVT_TOOL, self.OnForward, id=wx.ID_FORWARD)
         self.Bind(wx.EVT_TOOL, self.OnShowFind, id=wx.ID_FIND)
-        # hook the event to invoke 'Find' dialog when 'Ctrl+F' is pressed
-        self.Bind(wx.EVT_CHAR_HOOK, self.OnKeyDown)
 
-    def OnKeyDown(self, event):
-        controlDown = event.ControlDown()
-        rawControlDown = event.RawControlDown()
-        key = event.GetKeyCode()
-
-        if (rawControlDown or controlDown) and key in (ord('f'), ord('F')):
-            self.OnShowFind(None)
-        event.Skip()
+        accel = [(wx.ACCEL_CTRL, ord('F'), wx.ID_FIND)]
+        self.accel = wx.AcceleratorTable(accel)
+        self.SetAcceleratorTable(self.accel)
 
     def OnShowFind(self, evt):
         self.html.Find("")
@@ -353,7 +345,8 @@ class DirPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW|aui.AUI_TB_PLAIN_BACKGROUND)
+        agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
+        self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
 
         self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
                               c2p.BitmapFromXPM(goup_xpm),
