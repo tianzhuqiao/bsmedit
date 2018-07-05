@@ -7,6 +7,8 @@ import six
 import wx
 import wx.stc as stc
 import wx.py.dispatcher as dp
+import wx.lib.agw.aui as aui
+
 import pprint
 from ._editorxpm import *
 from ._pymgr_helpers import Gcm
@@ -920,16 +922,16 @@ class PyEditorPanel(wx.Panel):
                 (self.ID_SPLIT_VERT, 'Split Vert', vert_xpm, 'Split the window vertically'),
                 (self.ID_SPLIT_HORZ, 'Split Horz', horz_xpm, 'Split the window horizontally'),
                )
-        self.tb = wx.ToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
+        self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND)
         for (eid, label, img_xpm, tooltip) in item:
             if eid == None:
                 self.tb.AddSeparator()
                 continue
             bmp = c2p.BitmapFromXPM(img_xpm)
             if label in ['Split Vert', 'Split Horz']:
-                c2p.tbAddCheckTool(self.tb, eid, label, bmp, shortHelp=tooltip)
+                self.tb.AddCheckTool(eid, label, bmp, wx.NullBitmap, tooltip)
             else:
-                c2p.tbAddTool(self.tb, eid, label, bmp, shortHelp=tooltip)
+                self.tb.AddSimpleTool(eid, label, bmp, tooltip)
         self.tb.AddSeparator()
         self.cbWrapMode = wx.CheckBox(self.tb, wx.ID_ANY, 'Word Wrap')
         self.cbWrapMode.SetValue(True)

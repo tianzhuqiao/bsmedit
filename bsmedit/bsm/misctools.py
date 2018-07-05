@@ -5,6 +5,7 @@ import traceback
 import sys
 import six
 import wx
+import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
 import wx.html2 as html
 from .dirtreectrl import DirTreeCtrl, Directory
@@ -35,14 +36,13 @@ class HelpPanel(wx.Panel):
 
         self.html = html.WebView.New(self)
 
-        self.tb = wx.ToolBar(self, style=wx.TB_FLAT|wx.TB_HORIZONTAL|
-                             wx.NO_BORDER|wx.TB_NODIVIDER)
-        c2p.tbAddTool(self.tb, wx.ID_BACKWARD, 'Back',
-                      c2p.BitmapFromXPM(backward_xpm), wx.NullBitmap,
-                      wx.ITEM_NORMAL, 'Go the previous page', wx.EmptyString)
-        c2p.tbAddTool(self.tb, wx.ID_FORWARD, 'Forward',
-                      c2p.BitmapFromXPM(forward_xpm), wx.NullBitmap,
-                      wx.ITEM_NORMAL, 'Go to the next page', wx.EmptyString)
+        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND)
+        self.tb.AddSimpleTool(wx.ID_BACKWARD, 'Back',
+                              c2p.BitmapFromXPM(backward_xpm),
+                              'Go the previous page')
+        self.tb.AddSimpleTool(wx.ID_FORWARD, 'Forward',
+                              c2p.BitmapFromXPM(forward_xpm),
+                              'Go to the next page')
         self.tb.Realize()
 
         # Setup the layout
@@ -353,13 +353,14 @@ class DirPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        self.tb = wx.ToolBar(self, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
-        c2p.tbAddTool(self.tb, self.ID_GOTO_PARENT, 'Parent',
-                      c2p.BitmapFromXPM(goup_xpm), wx.NullBitmap,
-                      wx.ITEM_NORMAL, 'Parent folder', wx.EmptyString)
-        c2p.tbAddTool(self.tb, self.ID_GOTO_HOME, 'Home',
-                      c2p.BitmapFromXPM(home_xpm), wx.NullBitmap,
-                      wx.ITEM_NORMAL, 'Current folder', wx.EmptyString)
+        self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW|aui.AUI_TB_PLAIN_BACKGROUND)
+
+        self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
+                              c2p.BitmapFromXPM(goup_xpm),
+                              'Parent folder')
+        self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
+                              c2p.BitmapFromXPM(home_xpm),
+                              'Current folder')
         self.tb.Realize()
         self.dirtree = DirTreeCtrl(self, style=wx.TR_DEFAULT_STYLE |
                                    wx.TR_HAS_VARIABLE_ROW_HEIGHT |
