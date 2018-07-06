@@ -4,3 +4,6 @@
 [submodule "glsurface"]
 	path = glsurface
 	url = git@github.com:tianzhuqiao/glsurface.git
+[submodule "auibarpopup"]
+	path = auibarpopup
+	url = git@github.com:tianzhuqiao/auibarpopup.git

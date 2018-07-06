@@ -9,7 +9,7 @@ import six.moves.queue as Queue
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
-
+from auibarpopup import *
 from . import graph
 from ._simxpm import *
 from .simprocess import *
@@ -18,6 +18,7 @@ from ._pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from ._utility import MakeBitmap, FastLoadTreeCtrl
 from .. import c2p
+from auibarpopup import *
 
 Gcs = Gcm()
 class Simulation(object):
@@ -565,6 +566,7 @@ class SimPanel(wx.Panel):
         self.is_destroying = False
         self._color = wx.Colour(178, 34, 34)
         self.gridList = []
+        self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW|
                                  aui.AUI_TB_PLAIN_BACKGROUND)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
@@ -604,6 +606,7 @@ class SimPanel(wx.Panel):
                               "Configure the simulation")
 
         self.tb.SetToolDropDown(self.ID_SIM_SET, True)
+        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
         self.tree = ModuleTree(self)
         self.box = wx.BoxSizer(wx.VERTICAL)
