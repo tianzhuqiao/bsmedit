@@ -1,9 +1,9 @@
 [submodule "PyCParser"]
 	path = cparser
-	url = git@github.com:tianzhuqiao/PyCParser.git
+    url = https://github.com/tianzhuqiao/PyCParser.git
 [submodule "glsurface"]
 	path = glsurface
-	url = git@github.com:tianzhuqiao/glsurface.git
+    url = https://github.com/tianzhuqiao/glsurface.git
 [submodule "auibarpopup"]
 	path = auibarpopup
-	url = git@github.com:tianzhuqiao/auibarpopup.git
+	url = https://github.com/tianzhuqiao/auibarpopup.git
