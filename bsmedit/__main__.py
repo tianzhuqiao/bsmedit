@@ -1,3 +1,4 @@
+import multiprocessing
 import wx
 import click
 from .mainframe import MainFrame
@@ -22,12 +23,16 @@ class RunApp(wx.App):
 @click.command()
 @click.option('--config', '-c', default='bsmedit',
               help="Set configuration file name, default 'bsmedit'.")
-@click.option('--ignore-perspective', '-i', is_flag=True,
-              help="Do not load perspective.")
 @click.option('--path', '-p', multiple=True, type=click.Path(exists=True),
               help="Add external module path.")
+@click.option('--ignore-perspective', '-i', is_flag=True,
+              help="Do not load perspective.")
+@click.option('--spawn', is_flag=True,
+              help="Start a process with method 'spawn'.")
 @click.argument('module', nargs=-1)
-def main(config, ignore_perspective, path, module):
+def main(config, path, ignore_perspective, spawn, module):
+    if spawn and hasattr(multiprocessing, 'set_start_method'):
+        multiprocessing.set_start_method('spawn')
     app = RunApp(config=config, ignore_perspective=ignore_perspective,
                  path=path, module=module)
     app.MainLoop()
