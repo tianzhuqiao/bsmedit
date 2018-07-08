@@ -9,11 +9,14 @@ setup(name='bsmedit',
       license="MIT",
       platforms=["any"],
       packages=find_packages(),
-      package_data={'': ['bsm.h']},
+      data_files=[('bsmedit/bsm', ['bsm.h']),
+                  ('.', ['readme.md', 'LICENSE'])
+                 ],
       entry_points={
           'gui_scripts': [
               'bsmedit = bsmedit.__main__:main'
           ]
       },
-      install_requires=['wxpython', 'matplotlib', 'numpy', 'click']
+      install_requires=['wxpython', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
+                        'PyOpenGL_accelerate']
      )
