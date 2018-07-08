@@ -1,7 +1,7 @@
 import os
 import ctypes
 import multiprocessing as mp
-from Queue import Empty
+import six.moves.queue as Queue
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
@@ -9,7 +9,7 @@ from ctypes import CFUNCTYPE, c_int
 import numpy as np
 import bsmedit.bsm.csim as csim
 from glsurface import TrackingSurface
-from wavesxpm import run_xpm, pause_xpm, stop_xpm
+from .wavesxpm import run_xpm, pause_xpm, stop_xpm
 from bsmedit.c2p import BitmapFromXPM
 
 class Wave(object):
@@ -42,7 +42,7 @@ class Wave(object):
             elif command == 'stop':
                 self.status = 'stop'
             self.qResp.put({'status':self.status})
-        except Empty:
+        except Queue.Empty:
             pass
         if self.frame.size and self.status == 'run':
             frame = np.reshape(self.frame, (self.f.rows, self.f.cols)).astype(np.float)
@@ -145,7 +145,7 @@ class SurfacePanel(wx.Panel):
             frame = data.get('frame', None)
             if self.canvas.initialized and frame is not None:
                 self.canvas.NewFrameArrive(frame, False)
-        except Empty:
+        except Queue.Empty:
             pass
 
     @classmethod

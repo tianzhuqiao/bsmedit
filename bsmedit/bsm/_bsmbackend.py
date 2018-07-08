@@ -12,7 +12,7 @@ def new_figure_manager(num, *args, **kwargs):
     # in order to expose the Figure constructor to the pylab
     # interface we need to create the figure here
 
-    from bsmedit.bsm.graph import MatplotPanel
+    from .graph import MatplotPanel
     DEBUG_MSG('new_figure_manager()', 3, None)
     FigureClass = kwargs.pop('FigureClass', Figure)
     thisFig = FigureClass(*args, **kwargs)

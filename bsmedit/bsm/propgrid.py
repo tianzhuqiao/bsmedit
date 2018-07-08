@@ -5,7 +5,7 @@ import wx
 import wx.py.dispatcher as dp
 from .prop import *
 from ._pymgr_helpers import Gcm
-import bsmedit.c2p as c2p
+from .. import c2p
 
 class bsmPropDropTarget(c2p.PyDropTarget):
     def __init__(self, frame):
