@@ -1,14 +1,15 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 from bsmedit.version import BSM_VERSION
 setup(name='bsmedit',
       version=BSM_VERSION,
-      description='Another C/C++/SystemC Simulation Controller',
+      description='C/C++/SystemC Visualizer',
       author='Tianzhu Qiao',
       author_email='tq@feiyilin.com',
       url='http://bsmedit.feiyilin.com',
       license="MIT",
       platforms=["any"],
-      packages=['bsmedit', 'bsmedit.bsm'],
+      packages=find_packages(),
+      package_data={'': ['bsm.h']},
       entry_points={
           'gui_scripts': [
               'bsmedit = bsmedit.__main__:main'
