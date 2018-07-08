@@ -416,24 +416,30 @@ class DirPanel(wx.Panel):
 class MiscTools(object):
     frame = None
     @classmethod
-    def Initialize(cls, frame):
+    def Initialize(cls, frame, **kwargs):
         if cls.frame:
             return
         cls.frame = frame
         if not frame:
             return
+
+        active = kwargs.get('active', True)
+        direction = kwargs.get('direction', 'top')
         # history panel
         cls.panelHistory = HistoryPanel(frame)
         dp.send(signal='frame.add_panel', panel=cls.panelHistory,
-                title="History", showhidemenu='View:Panels:Command History')
+                title="History", showhidemenu='View:Panels:Command History',
+                active=active, direction=direction)
         # help panel
         cls.panelHelp = HelpPanel(frame)
         dp.send(signal='frame.add_panel', panel=cls.panelHelp, title="Help",
-                target='History', showhidemenu='View:Panels:Command Help')
+                target='History', showhidemenu='View:Panels:Command Help',
+                active=active, direction=direction)
         # directory panel
         cls.panelDir = DirPanel(frame)
         dp.send(signal='frame.add_panel', panel=cls.panelDir, title="Browsing",
-                target="History", showhidemenu='View:Panels:Browsing')
+                target="History", showhidemenu='View:Panels:Browsing',
+                active=active, direction=direction)
 
         dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
 
@@ -442,6 +448,6 @@ class MiscTools(object):
         """destroy the module"""
         pass
 
-def bsm_initialize(frame):
+def bsm_initialize(frame, **kwargs):
     """module initialization"""
-    MiscTools.Initialize(frame)
+    MiscTools.Initialize(frame, **kwargs)

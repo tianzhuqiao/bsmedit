@@ -528,7 +528,7 @@ class MatplotPanel(wx.Panel):
         if command == cls.clsID_new_figure:
             plt.figure()
 
-def bsm_initialize(frame):
+def bsm_initialize(frame, **kwargs):
     """module initialization"""
     MatplotPanel.Initialize(frame)
 

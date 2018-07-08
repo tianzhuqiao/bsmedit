@@ -95,7 +95,7 @@ class MainFrame(FramePlus):
         # load the perspective
         if not kwargs.get('ignore_perspective', False):
             perspective = self.GetConfig('mainframe', 'perspective')
-            if perspective:
+            if perspective and not wx.GetKeyState(wx.WXK_SHIFT):
                 self._mgr.LoadPerspective(perspective)
 
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPaneMenu)
@@ -158,6 +158,21 @@ class MainFrame(FramePlus):
             modules = self.bsm_packages
 
         for module in modules:
+            module = module.split('+')
+            options = {}
+            if len(module) == 2:
+                if 'h' in module[1]:
+                    options['active'] = False
+                if 't' in module[1]:
+                    options['direction'] = 'Top'
+                if 'b' in module[1]:
+                    options['direction'] = 'bottom'
+                if 'l' in module[1]:
+                    options['direction'] = 'left'
+                if 'r' in module[1]:
+                    options['direction'] = 'right'
+            module = module[0]
+            print(options)
             if module == 'default':
                 module = self.bsm_packages
             else:
@@ -170,7 +185,7 @@ class MainFrame(FramePlus):
                 try:
                     mod = importlib.import_module(pkg)
                     if hasattr(mod, 'bsm_initialize'):
-                        mod.bsm_initialize(self)
+                        mod.bsm_initialize(self, **options)
                         self.addon[pkg] = True
                     else:
                         self.addon[pkg] = False

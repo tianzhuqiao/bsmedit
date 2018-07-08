@@ -706,7 +706,7 @@ class bsmShell(Shell):
                 self.SetCurrentPos(thepos)
                 self.SetAnchor(thepos)
     @classmethod
-    def Initialize(cls, frame):
+    def Initialize(cls, frame, **kwargs):
         cls.frame = frame
         dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
         ns = {}
@@ -715,13 +715,16 @@ class bsmShell(Shell):
         ns['frame'] = cls.frame
         intro = 'Welcome To bsmedit ' + BSM_VERSION
         cls.panelShell = bsmShell(cls.frame, 1, introText=intro, locals=ns)
-        dp.send(signal="frame.add_panel", panel=cls.panelShell, active=True,
-                title="shell", showhidemenu="View:Panels:Console")
+        active = kwargs.get('active', True)
+        direction = kwargs.get('direction', 'top')
+        dp.send(signal="frame.add_panel", panel=cls.panelShell, active=active,
+                title="shell", showhidemenu="View:Panels:Console",
+                direction=direction)
 
     @classmethod
     def Uninitialize(cls):
         if cls.panelShell:
             dp.send('frame.delete_panel', panel=cls.panelShell)
 
-def bsm_initialize(frame):
-    bsmShell.Initialize(frame)
+def bsm_initialize(frame, **kwargs):
+    bsmShell.Initialize(frame, **kwargs)

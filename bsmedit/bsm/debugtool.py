@@ -82,7 +82,7 @@ class DebugTool(object):
     frame = None
     showStackPanel = True
     @classmethod
-    def Initialize(cls, frame):
+    def Initialize(cls, frame, **kwargs):
         if cls.isInitialized:
             return
         cls.isInitialized = True
@@ -122,10 +122,12 @@ class DebugTool(object):
         dp.connect(cls.OnDebugPaused, 'debugger.paused')
         dp.connect(cls.OnDebugEnded, 'debugger.ended')
         dp.connect(cls.Uninitialize, 'frame.exit')
+
     @classmethod
     def Uninitialize(cls):
         """destroy the module"""
         pass
+
     @classmethod
     def OnDebugPaused(cls):
         """update the debug toolbar status"""
@@ -172,6 +174,6 @@ class DebugTool(object):
             enable = paused and status[s]
         event.Enable(enable)
 
-def bsm_initialize(frame):
+def bsm_initialize(frame, **kwargs):
     """module initialization"""
-    DebugTool.Initialize(frame)
+    DebugTool.Initialize(frame, **kwargs)
