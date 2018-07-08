@@ -716,7 +716,7 @@ class bsmShell(Shell):
         intro = 'Welcome To bsmedit ' + BSM_VERSION
         cls.panelShell = bsmShell(cls.frame, 1, introText=intro, locals=ns)
         dp.send(signal="frame.add_panel", panel=cls.panelShell, active=True,
-                title="shell")
+                title="shell", showhidemenu="View:Panels:Console")
 
     @classmethod
     def Uninitialize(cls):

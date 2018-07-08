@@ -30,7 +30,7 @@ class MainFrame(FramePlus):
 
     ID_VM_RENAME = wx.NewId()
     ID_CONTACT = wx.NewId()
-    def __init__(self, parent, ext_module):
+    def __init__(self, parent, **kwargs):
         FramePlus.__init__(self, parent, title='bsmedit',
                            size=wx.Size(800, 600),
                            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
@@ -52,7 +52,8 @@ class MainFrame(FramePlus):
         self.statusbar.SetStatusWidths(self.statusbar_width)
 
         # persistent configuration
-        self.config = wx.FileConfig('bsmedit', style=wx.CONFIG_USE_LOCAL_FILE)
+        conf = kwargs.get('config', 'bsmedit')
+        self.config = wx.FileConfig(conf, style=wx.CONFIG_USE_LOCAL_FILE)
 
         # recent file list
         self.filehistory = wx.FileHistory(8)
@@ -75,32 +76,14 @@ class MainFrame(FramePlus):
         dp.connect(self.SetConfig, 'frame.set_config')
         dp.connect(self.GetConfig, 'frame.get_config')
 
+        # append sys path
         sys.path.append('.')
+        for p in kwargs.get('path', []):
+            sys.path.append(p)
 
         self.addon = {}
-        try:
-            # check if the __init__ module defines all the modules to be loaded
-            mod = importlib.import_module('bsmedit.bsm.__init__')
-            bsmpackages = mod.auto_load_module
-        except ImportError:
-            bsmpackages = self._package_contents('bsm')
-        for pkg in bsmpackages:
-            mod = importlib.import_module('bsmedit.bsm.%s' % pkg)
-            if hasattr(mod, 'bsm_initialize'):
-                mod.bsm_initialize(self)
-                self.addon[pkg] = True
+        self.InitAddOn(kwargs.get('module', ()))
 
-        for ext in ext_module:
-            p, m = os.path.split(ext)
-            if p and p != '.':
-                sys.path.append(p)
-            try:
-                mod = importlib.import_module(m)
-                if hasattr(mod, 'bsm_initialize'):
-                    mod.bsm_initialize(self)
-                    self.addon[ext] = True
-            except ImportError:
-                traceback.print_exc(file=sys.stdout)
         # used to change the name of a pane in a notebook;
         # TODO change the pane name when it does not belong to a notebook
         self.activePaneWindow = None
@@ -110,9 +93,10 @@ class MainFrame(FramePlus):
         dp.send('frame.initialized')
 
         # load the perspective
-        perspective = self.GetConfig('mainframe', 'perspective')
-        if perspective:
-            self._mgr.LoadPerspective(perspective)
+        if not kwargs.get('ignore_perspective', False):
+            perspective = self.GetConfig('mainframe', 'perspective')
+            if perspective:
+                self._mgr.LoadPerspective(perspective)
 
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPaneMenu)
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
@@ -161,6 +145,39 @@ class MainFrame(FramePlus):
         self.Bind(wx.EVT_MENU, self.OnHelpHome, id=wx.ID_HOME)
         self.Bind(wx.EVT_MENU, self.OnHelpContact, id=self.ID_CONTACT)
         self.Bind(wx.EVT_MENU, self.OnHelpAbout, id=wx.ID_ABOUT)
+
+    def InitAddOn(self, modules):
+        self.bsm_packages = []
+        try:
+            # check if the __init__ module defines all the modules to be loaded
+            mod = importlib.import_module('bsmedit.bsm.__init__')
+            self.bsm_packages = mod.auto_load_module
+        except ImportError:
+            self.bsm_packages = self._package_contents('bsm')
+        if not modules:
+            modules = self.bsm_packages
+
+        for module in modules:
+            if module == 'default':
+                module = self.bsm_packages
+            else:
+                module = [module]
+            for pkg in module:
+                if pkg in self.addon:
+                    continue
+                if pkg in self.bsm_packages:
+                    pkg = 'bsmedit.bsm.%s'%pkg
+                try:
+                    mod = importlib.import_module(pkg)
+                    if hasattr(mod, 'bsm_initialize'):
+                        mod.bsm_initialize(self)
+                        self.addon[pkg] = True
+                    else:
+                        self.addon[pkg] = False
+                        print("Invalid module: %s"%pkg)
+                except ImportError:
+                    self.addon[pkg] = False
+                    traceback.print_exc(file=sys.stdout)
 
     def AddFileHistory(self, filename):
         """add the file to recent file list"""
