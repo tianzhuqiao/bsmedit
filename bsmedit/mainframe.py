@@ -172,7 +172,6 @@ class MainFrame(FramePlus):
                 if 'r' in module[1]:
                     options['direction'] = 'right'
             module = module[0]
-            print(options)
             if module == 'default':
                 module = self.bsm_packages
             else:
@@ -232,9 +231,9 @@ class MainFrame(FramePlus):
         # added to a notebook, IsDestroyOnClose() always returns False
         def PaneClosingVeto(pane):
             force = self.closing
-            if hasattr(pane, 'bsm_destroyonclose'):
-                force = pane.bsm_destroyonclose
-                assert(evt.pane.IsDestroyOnClose()==force)
+            if hasattr(pane.window, 'bsm_destroyonclose'):
+                force = pane.window.bsm_destroyonclose
+                assert(pane.IsDestroyOnClose()==force)
             return not force
         # close the notebook
         if evt.pane.IsNotebookControl():
@@ -243,7 +242,7 @@ class MainFrame(FramePlus):
                 wnd = nb.GetPage(idx)
                 page = self._mgr.GetPane(wnd)
 
-                if page.IsOk() and PaneClosingVeto(wnd):
+                if page.IsOk() and PaneClosingVeto(page):
                     nb.RemovePage(idx)
                     page.Dock()
                     page.Hide()
@@ -256,7 +255,7 @@ class MainFrame(FramePlus):
             return
         # close a page or a panel
         wnd = evt.pane.window
-        if PaneClosingVeto(wnd):
+        if PaneClosingVeto(evt.pane):
             evt.Veto()
             if evt.pane.IsNotebookPage():
                 nb = self._mgr.GetNotebooks()

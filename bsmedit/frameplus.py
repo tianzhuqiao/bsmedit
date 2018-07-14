@@ -36,34 +36,6 @@ class AuiManagerPlus(aui.AuiManager):
             self.RefreshCaptions()
             parent.Update()
 
-    def Repaint(self, dc=None):
-        """
-        Repaints the entire frame decorations (sashes, borders, buttons and so on).
-        It renders the entire user interface.
-        :param `dc`: if not ``None``, an instance of :class:`PaintDC`.
-        """
-
-        w, h = self._frame.GetClientSize()
-
-        # Figure out which dc to use; if one
-        # has been specified, use it, otherwise
-        # make a client dc
-        if dc is None:
-            if not self._frame.IsDoubleBuffered():
-                client_dc = wx.BufferedDC(wx.ClientDC(self._frame), wx.Size(w, h))
-            else:
-                client_dc = wx.ClientDC(self._frame)
-            dc = client_dc
-
-        # If the frame has a toolbar, the client area
-        # origin will not be (0, 0).
-        pt = self._frame.GetClientAreaOrigin()
-        if pt.x != 0 or pt.y != 0:
-            dc.SetDeviceOrigin(pt.x, pt.y)
-
-        # Render all the items
-        self.Render(dc)
-
     def UpdateNotebook(self):
         """ Updates the automatic :class:`~lib.agw.aui.auibook.AuiNotebook` in
         the layout (if any exists). """
@@ -245,7 +217,8 @@ class FramePlus(wx.Frame):
             event.Enable(True)
 
     def AddPanel(self, panel, title='Untitle', active=True, paneInfo=None,
-                 target=None, showhidemenu=None, icon=None, maximize=False):
+                 target=None, showhidemenu=None, icon=None, maximize=False,
+                 direction='top'):
         """add the panel to AUI"""
         if not panel:
             return False
@@ -280,11 +253,21 @@ class FramePlus(wx.Frame):
             auipaneinfo = \
                 aui.AuiPaneInfo().Caption(title).BestSize((300, 300))\
                    .DestroyOnClose(not showhidemenu).Top().Snappable()\
-                   .Dockable().Layer(1).Position(1)\
-                   .MinimizeButton(True).MaximizeButton(True).Icon(icon)
+                   .Dockable().MinimizeButton(True).MaximizeButton(True)\
+                   .Icon(icon).Row(1)
+            if direction == 'top':
+                auipaneinfo.Top()
+            elif direction == 'bottom':
+                auipaneinfo.Bottom()
+            elif direction == 'left':
+                auipaneinfo.Left()
+            elif direction == 'right':
+                auipaneinfo.Right()
+
             if not self._mgr.GetAllPanes():
                 # set the first pane to be center pane
                 auipaneinfo.CenterPane()
+                active = True
         # auto generate the unique panel name
         name = "pane-%d"%self._pane_num
         self._pane_num += 1
@@ -296,12 +279,9 @@ class FramePlus(wx.Frame):
         self._mgr.AddPane(panel, auipaneinfo, target=targetpane)
         if maximize:
             self._mgr.MaximizePane(auipaneinfo)
-        if active:
-            self.ShowPanel(panel)
-        else:
-            self.ShowPanel(panel, False)
-            self._mgr.Update()
-
+        if targetpane:
+            self.ShowPanel(targetpane.window, targetpane.IsShown())
+        self.ShowPanel(panel, active)
         # add the menu item to show/hide the panel
         if showhidemenu:
             id = self.AddMenu(showhidemenu, rxsignal='frame.check_menu',
