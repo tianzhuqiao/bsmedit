@@ -1,7 +1,9 @@
 """define some utility functions"""
 import six
 import wx
+import wx.lib.agw.aui as aui
 from .. import c2p
+
 def MakeBitmap(red, green, blue, alpha=128):
     # Create the bitmap that we will stuff pixel values into using
     # the raw bitmap access classes.
@@ -35,6 +37,18 @@ def MakeBitmap(red, green, blue, alpha=128):
 
     return bmp
 
+def PopupMenu(wnd, menu):
+    if not wnd or not menu:
+        return
+
+    cc = aui.ToolbarCommandCapture()
+    wnd.PushEventHandler(cc)
+
+    wnd.PopupMenu(menu)
+
+    command = cc.GetCommandId()
+    wnd.PopEventHandler(True)
+    return command
 
 class FastLoadTreeCtrl(wx.TreeCtrl):
     """

@@ -16,6 +16,7 @@ from .frameplus import FramePlus
 from .mainframexpm import bsmedit_xpm, header_xpm
 from .version import *
 from . import c2p
+from .bsm._utility import PopupMenu
 
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):
@@ -84,10 +85,6 @@ class MainFrame(FramePlus):
         self.addon = {}
         self.InitAddOn(kwargs.get('module', ()))
 
-        # used to change the name of a pane in a notebook;
-        # TODO change the pane name when it does not belong to a notebook
-        self.activePaneWindow = None
-
         # initialization done, broadcasting the message so plugins can do some
         # after initialization processing.
         dp.send('frame.initialized')
@@ -97,11 +94,12 @@ class MainFrame(FramePlus):
             perspective = self.GetConfig('mainframe', 'perspective')
             if perspective and not wx.GetKeyState(wx.WXK_SHIFT):
                 self._mgr.LoadPerspective(perspective)
+                self.UpdatePaneMenuLabel()
 
-        self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPaneMenu)
+        self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPageRightDown)
+        self.Bind(wx.EVT_RIGHT_DOWN, self.OnRightDown)
         self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         self.Bind(aui.EVT_AUINOTEBOOK_PAGE_CLOSE, self.OnPaneClose)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_VM_RENAME)
 
     def InitMenu(self):
         """initialize the menubar"""
@@ -226,6 +224,7 @@ class MainFrame(FramePlus):
         return None
 
     def OnPaneClose(self, evt):
+        # TODO obsolete wxPython4.0.4
         # check if the window should be destroyed
         # auiPaneInfo.IsDestroyOnClose() can not be used since if the pane is
         # added to a notebook, IsDestroyOnClose() always returns False
@@ -233,7 +232,7 @@ class MainFrame(FramePlus):
             force = self.closing
             if hasattr(pane.window, 'bsm_destroyonclose'):
                 force = pane.window.bsm_destroyonclose
-                assert(pane.IsDestroyOnClose()==force)
+                assert(pane.IsDestroyOnClose() == force)
             return not force
         # close the notebook
         if evt.pane.IsNotebookControl():
@@ -271,24 +270,33 @@ class MainFrame(FramePlus):
             self._mgr.ShowPane(wnd, False)
             self._mgr.Update()
 
-    def OnPaneMenu(self, evt):
+    def OnPageRightDown(self, evt):
         # get the index inside the current tab control
         idx = evt.GetSelection()
         tabctrl = evt.GetEventObject()
         tabctrl.SetSelection(idx)
         page = tabctrl.GetPage(idx)
-        self.activePaneWindow = page
+        self.RenamePanel(page)
+
+    def OnRightDown(self, evt):
+        evt.Skip()
+
+        part = self._mgr.HitTest(*evt.GetPosition())
+        if not part or part.pane.IsNotebookControl():
+            return
+
+        self.RenamePanel(part.pane.window)
+
+    def RenamePanel(self, panel):
+        if not panel:
+            return
+
         menu = wx.Menu()
         menu.Append(self.ID_VM_RENAME, "&Rename")
-        self.PopupMenu(menu)
+        command = PopupMenu(self, menu)
 
-    def OnProcessCommand(self, evt):
-        nid = evt.GetId()
-        if nid == self.ID_VM_RENAME:
-            if not self.activePaneWindow:
-                return
-
-            pane = self._mgr.GetPane(self.activePaneWindow)
+        if command == self.ID_VM_RENAME:
+            pane = self._mgr.GetPane(panel)
             if not pane:
                 return
             name = pane.caption
@@ -300,7 +308,19 @@ class MainFrame(FramePlus):
                 pane.window.SetLabel(name)
                 self._mgr.Update()
 
-            self.activePaneWindow = None
+                self.UpdatePaneMenuLabel()
+
+    def UpdatePaneMenuLabel(self):
+        # update the menu
+        for (pid, panel) in six.iteritems(self.paneAddon):
+            pathlist = panel['path'].split(':')
+            menuitem = self.GetMenu(pathlist[:-1])
+            if not menuitem:
+                continue
+            pane = self._mgr.GetPane(panel['panel'])
+            item = menuitem.FindItemById(pid)
+            if item and pane.caption != item.GetItemLabelText():
+                item.SetItemLabel(pane.caption)
 
     def OnClose(self, event):
         """close the main program"""

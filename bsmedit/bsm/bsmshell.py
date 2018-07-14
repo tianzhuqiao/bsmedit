@@ -718,7 +718,7 @@ class bsmShell(Shell):
         active = kwargs.get('active', True)
         direction = kwargs.get('direction', 'top')
         dp.send(signal="frame.add_panel", panel=cls.panelShell, active=active,
-                title="shell", showhidemenu="View:Panels:Console",
+                title="Shell", showhidemenu="View:Panels:Console",
                 direction=direction)
 
     @classmethod
