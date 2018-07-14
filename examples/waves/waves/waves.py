@@ -15,8 +15,8 @@ from bsmedit.c2p import BitmapFromXPM
 class Wave(object):
     def __init__(self, qCmd, qResp):
         folder = os.path.dirname(os.path.realpath(__file__))
-        self.sim = csim.init_dll(os.path.join(folder, 'libwaves.so'),
-                                 os.path.join(folder, 'waves.h'))
+        self.sim = csim.init_dll(os.path.join(folder, '../libwaves.so'),
+                                 os.path.join(folder, '../waves.h'))
         self.f = self.sim.wave_frame()
         self.f.callback = csim.callback(self.f.callback, self.new_frame_arrive)
         self.sim.get_frame(self.f)
@@ -166,5 +166,5 @@ class SurfacePanel(wx.Panel):
         if cls.panel:
             cls.panel.stop()
 
-def bsm_initialize(frame):
+def bsm_initialize(frame, **kwargs):
     SurfacePanel.initialize(frame)
