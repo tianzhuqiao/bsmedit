@@ -1,6 +1,6 @@
 import six
 import wx
-from ._propxpm import radio_xpm, tree_xpm
+from .bsmxpm import radio_xpm, tree_xpm
 from .. import c2p
 
 wxEVT_BSM_PROP_SELECTED = wx.NewEventType()

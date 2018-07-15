@@ -9,9 +9,9 @@ import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
 import wx.html2 as html
 from .dirtreectrl import DirTreeCtrl, Directory
-from ._misctoolsxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
+from .bsmxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
 from .autocomplete import AutocompleteTextCtrl
-from ._utility import FastLoadTreeCtrl
+from .utility import FastLoadTreeCtrl
 from .. import c2p
 
 html_template = '''

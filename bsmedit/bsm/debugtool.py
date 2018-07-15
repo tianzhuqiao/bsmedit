@@ -5,8 +5,7 @@ import wx
 import wx.py.dispatcher as dp
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.agw.aui as aui
-from ._debugtoolxpm import run_xpm, step_xpm, step_into_xpm, step_out_xpm,\
-                          stop_xpm
+from .bsmxpm import run_xpm, step_over_xpm, step_into_xpm, step_out_xpm, stop_xpm
 from .. import c2p
 
 class StackListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
@@ -98,7 +97,7 @@ class DebugTool(object):
         cls.tbDebug = aui.AuiToolBar(frame, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
         items = (('Run\tF5', 'resume', run_xpm, 'paused'),
                  ('Stop\tShift-F5', 'stop', stop_xpm, 'paused'),
-                 ('Step\tF10', 'step', step_xpm, 'paused'),
+                 ('Step\tF10', 'step', step_over_xpm, 'paused'),
                  ('Step Into\tF11', 'step_into', step_into_xpm, 'can_stepin'),
                  ('Step Out\tShift-F11', 'step_out', step_out_xpm, 'can_stepout'),
                 )

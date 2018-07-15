@@ -3,15 +3,17 @@ import sys
 import traceback                        #for formatting errors
 import inspect
 import keyword
+import pprint
 import six
 import wx
 import wx.stc as stc
 import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
-
-import pprint
-from ._editorxpm import *
-from ._pymgr_helpers import Gcm
+from auibarpopup import AuiToolBarPopupArt
+from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
+                    dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \
+                    folder_xpm, vert_xpm, horz_xpm
+from .pymgr_helpers import Gcm
 from .. import c2p
 
 class BreakpointSettingsDlg(wx.Dialog):
@@ -922,6 +924,8 @@ class PyEditorPanel(wx.Panel):
                 (self.ID_SPLIT_VERT, 'Split Vert', vert_xpm, 'Split the window vertically'),
                 (self.ID_SPLIT_HORZ, 'Split Horz', horz_xpm, 'Split the window horizontally'),
                )
+
+        self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND)
         for (eid, label, img_xpm, tooltip) in item:
             if eid == None:
@@ -937,6 +941,7 @@ class PyEditorPanel(wx.Panel):
         self.cbWrapMode.SetValue(True)
         self.tb.AddControl(self.cbWrapMode)
 
+        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)

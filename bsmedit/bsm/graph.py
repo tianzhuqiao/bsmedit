@@ -6,14 +6,15 @@ import wx.aui
 import wx.py.dispatcher as dp
 import numpy
 import matplotlib
-matplotlib.use('module://bsmedit.bsm._bsmbackend')
+matplotlib.use('module://bsmedit.bsm.bsmbackend')
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToolbar
 from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
-from ._graphxpm import *
+from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
+                    cursor_xpm, save_xpm, copy_xpm
 from .. import c2p
 rcParams.update({'figure.autolayout': True})
 matplotlib.interactive(True)

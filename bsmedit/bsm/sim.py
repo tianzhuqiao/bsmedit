@@ -11,12 +11,15 @@ import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
 from auibarpopup import AuiToolBarPopupArt
 from . import graph
-from ._simxpm import *
+from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
+                    module_grey_xpm, switch_grey_xpm, in_grey_xpm,\
+                    out_grey_xpm, inout_grey_xpm, step_xpm, run_xpm, \
+                    pause_xpm, setting_xpm
 from .simprocess import *
 from .propgrid import bsmPropGrid
-from ._pymgr_helpers import Gcm
+from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
-from ._utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
+from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
 from .. import c2p
 
 Gcs = Gcm()

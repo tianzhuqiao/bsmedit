@@ -16,7 +16,7 @@ from .frameplus import FramePlus
 from .mainframexpm import bsmedit_xpm, header_xpm
 from .version import *
 from . import c2p
-from .bsm._utility import PopupMenu
+from .bsm.utility import PopupMenu
 
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):

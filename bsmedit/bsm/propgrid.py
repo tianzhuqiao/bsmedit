@@ -4,7 +4,7 @@ import six
 import wx
 import wx.py.dispatcher as dp
 from .prop import *
-from ._pymgr_helpers import Gcm
+from .pymgr_helpers import Gcm
 from .. import c2p
 
 class bsmPropDropTarget(c2p.PyDropTarget):
