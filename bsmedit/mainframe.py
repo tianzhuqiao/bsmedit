@@ -70,6 +70,7 @@ class MainFrame(FramePlus):
         # Create & Link the Drop Target Object to main window
         self.SetDropTarget(FileDropTarget())
 
+        self.Bind(wx.EVT_ACTIVATE, self.OnActivate)
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
         dp.connect(self.SetPanelTitle, 'frame.set_panel_title')
         dp.connect(self.ShowStatusText, 'frame.show_status_text')
@@ -352,6 +353,10 @@ class MainFrame(FramePlus):
         return set([os.path.splitext(module)[0] for module in
                     os.listdir(pathname)
                     if module.endswith('.py') and not module.startswith('_')])
+
+    def OnActivate(self, event):
+        dp.send('frame.activate', activate=event.GetActive())
+        event.Skip()
 
     def OnPaneActivated(self, event):
         """notify the window managers that the panel is activated"""

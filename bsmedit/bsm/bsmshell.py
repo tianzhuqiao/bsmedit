@@ -193,6 +193,9 @@ class bsmShell(Shell):
         dp.connect(self.getAutoCompleteList, 'shell.auto_complete_list')
         dp.connect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
         dp.connect(self.getAutoCallTip, 'shell.auto_call_tip')
+        dp.connect(self.OnActivatePanel, 'frame.activate_panel')
+        dp.connect(self.OnActivate, 'frame.activate')
+
     def OnContextMenu(self, evt):
         menu = wx.Menu()
         menu.Append(wx.ID_UNDO, "Undo")
@@ -310,10 +313,16 @@ class bsmShell(Shell):
     def OnKillFocus(self, event):
         if self.CallTipActive():
             self.CallTipCancel()
-        # crash on mac
-        #if self.AutoCompActive():
-        #    self.AutoCompCancel()
         event.Skip()
+
+    def OnActivate(self, activate):
+        if self.AutoCompActive():
+            wx.CallAfter(self.AutoCompCancel)
+
+    def OnActivatePanel(self, pane):
+        if pane != self:
+            if self.AutoCompActive():
+                wx.CallAfter(self.AutoCompCancel)
 
     def OnUpdateUI(self, event):
         eid = event.GetId()
