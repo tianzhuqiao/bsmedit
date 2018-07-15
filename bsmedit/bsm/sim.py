@@ -9,16 +9,15 @@ import six.moves.queue as Queue
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
-from auibarpopup import *
+from auibarpopup import AuiToolBarPopupArt
 from . import graph
 from ._simxpm import *
 from .simprocess import *
 from .propgrid import bsmPropGrid
 from ._pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
-from ._utility import MakeBitmap, FastLoadTreeCtrl
+from ._utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
 from .. import c2p
-from auibarpopup import *
 
 Gcs = Gcm()
 class Simulation(object):
@@ -40,6 +39,7 @@ class Simulation(object):
         self.qcmd = None
         self.sim_process = None
         self.status = {'running':False, 'valid':False}
+        self._interfaces = {}
 
     def release(self):
         """destroy simulation"""
@@ -565,7 +565,6 @@ class SimPanel(wx.Panel):
 
         self.is_destroying = False
         self._color = wx.Colour(178, 34, 34)
-        self.gridList = []
         self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW|
                                  aui.AUI_TB_PLAIN_BACKGROUND)
@@ -717,16 +716,66 @@ class SimPanel(wx.Panel):
         submenu = wx.Menu()
         submenu.Append(self.ID_MP_ADD_TO_NEW_VIEWER, "&Add to new propgrid")
         submenu.AppendSeparator()
-        nid = wx.ID_FILE1
-        self.gridList = []
+        nid = wx.ID_HIGHEST
+        grids = []
         for mag in bsmPropGrid.GCM.get_all_managers():
-            self.gridList.append(mag)
+            grids.append(mag)
             submenu.Append(nid, mag.GetLabel())
             nid += 1
 
         menu.AppendSubMenu(submenu, "Add to...")
-        self.PopupMenu(menu)
-        menu.Destroy()
+        cmd = PopupMenu(self, menu)
+        if cmd in [self.ID_MP_DUMP, self.ID_MP_TRACE_BUF]:
+            objs = [o for o, v in six.iteritems(self.sim.objects) if \
+                    v['numeric'] and v['readable']]
+            objs.sort()
+            active = ''
+            items = self.tree.GetSelections()
+            if items:
+                active = self.tree.GetExtendObj(items[0])['name']
+            dlg = DumpDlg(self, objs, active, cmd == self.ID_MP_DUMP)
+            if dlg.ShowModal() == wx.ID_OK:
+                t = dlg.GetTrace()
+                if cmd == self.ID_MP_DUMP:
+                    self.sim.trace_file(t['filename'], t['signal'], t['format'],
+                                        t['valid'], t['trigger'], block=False)
+                else:
+                    self.sim.trace_buf(t['signal'], t['size'], t['valid'],
+                                       t['trigger'], block=False)
+        elif cmd == self.ID_MP_ADD_TO_NEW_VIEWER:
+            self.AddSelectedToGrid(sim.propgrid())
+        else:
+            idx = cmd - wx.ID_HIGHEST
+            if idx >= 0 and idx < len(grids):
+                self.AddSelectedToGrid(grids[idx])
+
+    def AddSelectedToGrid(self, grid):
+        if not grid:
+            return
+        ids = self.tree.GetSelections()
+        objs = []
+        for item in ids:
+            if item == self.tree.GetRootItem():
+                continue
+            if not item.IsOk():
+                break
+            ext = self.tree.GetExtendObj(item)
+            nkind = ext['nkind']
+            self.sim.monitor(ext['name'], grid)
+            objs.append(ext['name'])
+            if nkind == SC_OBJ_XSC_ARRAY:
+                (child, cookie) = self.tree.GetFirstChild(item)
+                if child.IsOk() and self.tree.GetItemText(child) == "...":
+                    self.tree.Expand(item)
+                (child, cookie) = self.tree.GetFirstChild(item)
+                while child.IsOk():
+                    ext2 = self.tree.GetExtendObj(child)
+                    prop = self.sim.monitor(ext2['name'], grid)
+                    objs.append(ext2['name'])
+                    prop.SetIndent(1)
+                    (child, cookie) = self.tree.GetNextChild(item, cookie)
+        self.sim.read(objects=objs, block=False)
+
 
     def OnTreeBeginDrag(self, event):
         if self.tree.objects is None:
@@ -787,28 +836,7 @@ class SimPanel(wx.Panel):
     def OnProcessCommand(self, event):
         """process the menu command"""
         eid = event.GetId()
-        viewer = None
-        if eid in [self.ID_MP_DUMP, self.ID_MP_TRACE_BUF]:
-            objs = [o for o, v in six.iteritems(self.sim.objects) if v['numeric'] and v['readable']]
-            objs.sort()
-            active = ''
-            items = self.tree.GetSelections()
-            if items:
-                active = self.tree.GetExtendObj(items[0])['name']
-            dlg = DumpDlg(self, objs, active, eid == self.ID_MP_DUMP)
-            if dlg.ShowModal() == wx.ID_OK:
-                t = dlg.GetTrace()
-                if eid == self.ID_MP_DUMP:
-                    self.sim.trace_file(t['filename'], t['signal'], t['format'],
-                                        t['valid'], t['trigger'], block=False)
-                else:
-                    self.sim.trace_buf(t['signal'], t['size'], t['valid'],
-                                       t['trigger'], block=False)
-        elif eid == self.ID_MP_ADD_TO_NEW_VIEWER:
-            viewer = sim.propgrid()
-        elif eid >= wx.ID_FILE1 and eid <= wx.ID_FILE9:
-            viewer = self.gridList[eid - wx.ID_FILE1]
-        elif eid == wx.ID_EXIT:
+        if eid == wx.ID_EXIT:
             self.sim.stop()
             # delay destroy the simulation window so AuiToolBar can finish
             # processing the dropdown event.
@@ -823,30 +851,6 @@ class SimPanel(wx.Panel):
             self.sim.run()
         elif eid == self.ID_SIM_PAUSE:
             self.sim.pause()
-        if viewer:
-            ids = self.tree.GetSelections()
-            objs = []
-            for item in ids:
-                if item == self.tree.GetRootItem():
-                    continue
-                if not item.IsOk():
-                    break
-                ext = self.tree.GetExtendObj(item)
-                nkind = ext['nkind']
-                self.sim.monitor(ext['name'], viewer)
-                objs.append(ext['name'])
-                if nkind == SC_OBJ_XSC_ARRAY:
-                    (child, cookie) = self.tree.GetFirstChild(item)
-                    if child.IsOk() and self.tree.GetItemText(child) == "...":
-                        self.tree.Expand(item)
-                    (child, cookie) = self.tree.GetFirstChild(item)
-                    while child.IsOk():
-                        ext2 = self.tree.GetExtendObj(child)
-                        prop = self.sim.monitor(ext2['name'], viewer)
-                        objs.append(ext2['name'])
-                        prop.SetIndent(1)
-                        (child, cookie) = self.tree.GetNextChild(item, cookie)
-            self.sim.read(objects=objs, block=False)
 
     def _process_response(self, resp):
         if self.is_destroying:
@@ -854,7 +858,6 @@ class SimPanel(wx.Panel):
         try:
             command = resp.get('cmd', '')
             value = resp.get('value', False)
-            args = resp.get('arguments', {})
             if command == 'load':
                 self.tree.Load(self.sim.objects)
             elif command == 'exit':
@@ -1112,10 +1115,10 @@ class sim(object):
             args = args[1:]
             sx, x, sy, y = None, None, s1, obj1
 
-        dy = sy.read_buf(y, True)
+        dy = sy.read_buf(y, block=True)
         y = {sy.global_object_name(y):dy}
         if sx:
-            dx = sx.read_buf(x, True)
+            dx = sx.read_buf(x, block=True)
             x = {sx.global_object_name(x):dx}
         mgr = graph.plt.get_current_fig_manager()
         autorelim = kwargs.pop("relim", True)
