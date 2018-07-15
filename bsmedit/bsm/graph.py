@@ -330,6 +330,7 @@ class MatplotPanel(wx.Panel):
     clsFrame = None
     clsID_new_figure = wx.NOT_FOUND
     isInitialized = False
+    kwargs = {}
     def __init__(self, parent, title=None, num=-1, thisFig=None):
         wx.Panel.__init__(self, parent)
 
@@ -484,17 +485,19 @@ class MatplotPanel(wx.Panel):
 
     @classmethod
     def addFigure(cls, title=None, num=None, thisFig=None):
-        panelFigure = cls(cls.clsFrame, title=title, num=num, thisFig=thisFig)
-        dp.send('frame.add_panel', panel=panelFigure,
-                title=panelFigure.GetTitle(), target=Gcf.get_active())
-        return panelFigure
+        direction = cls.kwargs.get('direction', 'top')
+        fig = cls(cls.clsFrame, title=title, num=num, thisFig=thisFig)
+        dp.send('frame.add_panel', panel=fig, direction=direction,
+                title=fig.GetTitle(), target=Gcf.get_active())
+        return fig
 
     @classmethod
-    def Initialize(cls, frame):
+    def Initialize(cls, frame, **kwargs):
         if cls.isInitialized:
             return
         cls.isInitialized = True
         cls.clsFrame = frame
+        cls.kwargs = kwargs
         resp = dp.send('frame.add_menu', path='File:New:Figure',
                        rxsignal='bsm.figure')
         if resp:
@@ -531,5 +534,5 @@ class MatplotPanel(wx.Panel):
 
 def bsm_initialize(frame, **kwargs):
     """module initialization"""
-    MatplotPanel.Initialize(frame)
+    MatplotPanel.Initialize(frame, **kwargs)
 

@@ -1452,12 +1452,13 @@ class PyEditorPanel(wx.Panel):
                 self.tb.ToggleTool(self.ID_SPLIT_VERT, False)
 
     @classmethod
-    def Initialize(cls, frame):
+    def Initialize(cls, frame, **kwargs):
         """initialize the module"""
         if cls.frame:
             # if it has already initialized, simply return
             return
         cls.frame = frame
+        cls.kwargs = kwargs
         resp = dp.send('frame.add_menu', path='File:New:Python script\tCtrl+N',
                        rxsignal='bsm.editor.menu')
         if resp:
@@ -1526,10 +1527,12 @@ class PyEditorPanel(wx.Panel):
     @classmethod
     def AddEditor(cls, title='untitle', activated=True):
         """create a editor panel"""
-        panelEditor = PyEditorPanel(cls.frame)
-        dp.send("frame.add_panel", panel=panelEditor, title=title,
-                active=activated)
-        return panelEditor
+        editor = PyEditorPanel(cls.frame)
+
+        direction = cls.kwargs.get('direction', 'top')
+        dp.send("frame.add_panel", panel=editor, title=title,
+                active=activated, direction=direction)
+        return editor
 
     @classmethod
     def OpenScript(cls, filename, activated=True, lineno=0):
@@ -1566,4 +1569,4 @@ class PyEditorPanel(wx.Panel):
 
 def bsm_initialize(frame, **kwargs):
     """initialize the model"""
-    PyEditorPanel.Initialize(frame)
+    PyEditorPanel.Initialize(frame, **kwargs)
