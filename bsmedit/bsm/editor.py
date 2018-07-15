@@ -486,7 +486,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.AutoCompSetIgnoreCase(self.autoCompleteCaseInsensitive)
 
         options = []
-        # retrieve the auto complete list from bsmshell
+        # retrieve the auto complete list from shell
         response = dp.send('shell.auto_complete_list', command=command)
         if response:
             options = response[0][1]
@@ -498,7 +498,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         if self.CallTipActive():
             self.CallTipCancel()
         (argspec, tip) = (None, None)
-        # retrieve the all tip from bsmshell
+        # retrieve the all tip from shell
         response = dp.send('shell.auto_call_tip', command=command)
         if response:
             # name, argspec, tip

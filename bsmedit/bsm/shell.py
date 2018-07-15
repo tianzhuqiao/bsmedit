@@ -8,7 +8,7 @@ import time
 import pydoc
 import six
 import wx
-from wx.py.shell import USE_MAGIC, Shell
+import wx.py.shell as pyshell
 import wx.py.dispatcher as dp
 from wx.py.pseudo import PseudoFile
 import six.moves.builtins as __builtin__
@@ -150,7 +150,7 @@ def sx(cmd, *args, **kwds):
     except:
         pass
 
-class bsmShell(Shell):
+class Shell(pyshell.Shell):
     ID_COPY_PLUS = wx.NewId()
     ID_PASTE_PLUS = wx.NewId()
     def __init__(self, parent, id=-1, pos=wx.DefaultPosition,
@@ -161,9 +161,9 @@ class bsmShell(Shell):
         # variables used in push, which may be called by
         # wx.py.shell.Shell.__init__ when execStartupScript is True
         self.enable_debugger = False
-        Shell.__init__(self, parent, id, pos, size, style, introText, locals,
-                       InterpClass, startupScript, execStartupScript,
-                       *args, **kwds)
+        pyshell.Shell.__init__(self, parent, id, pos, size, style, introText,
+                               locals, InterpClass, startupScript,
+                               execStartupScript, *args, **kwds)
         #self.redirectStdout(True)
         #self.redirectStderr(True)
         #self.redirectStdin(True)
@@ -290,7 +290,7 @@ class bsmShell(Shell):
             self.evaluate(cmd)
         except:
             pass
-        super(bsmShell, self).autoCompleteShow(command, offset)
+        super(Shell, self).autoCompleteShow(command, offset)
 
     def IsDebuggerOn(self):
         """check if the debugger is on"""
@@ -338,7 +338,7 @@ class bsmShell(Shell):
             event.Enable(self.CanRedo())
         # update the caret position so that it is always in valid area
         self.UpdateCaretPos()
-        super(bsmShell, self).OnUpdateUI(event)
+        super(Shell, self).OnUpdateUI(event)
 
     def UpdateCaretPos(self):
         # when editing the command, do not allow moving the caret to
@@ -401,7 +401,7 @@ class bsmShell(Shell):
             return
         else:
             self.searchHistory = True
-            super(bsmShell, self).OnKeyDown(event)
+            super(Shell, self).OnKeyDown(event)
 
     def OnLeftDClick(self, event):
         line_num = self.GetCurrentLine()
@@ -486,7 +486,7 @@ class bsmShell(Shell):
         stamp = time.strftime('#bsm#%Y/%m/%d')
         if stamp not in self.history:
             self.history.insert(0, stamp)
-        super(bsmShell, self).addHistory(command)
+        super(Shell, self).addHistory(command)
 
     def runCommand(self, command, prompt=True, verbose=True, debug=False,
                    history=True):
@@ -526,7 +526,7 @@ class bsmShell(Shell):
             return
         # DNM
         cmd_raw = command
-        if USE_MAGIC:
+        if pyshell.USE_MAGIC:
             command = magic(command)
         if len(command) > 1 and command[-1] == ';':
             self.silent = True
@@ -723,7 +723,7 @@ class bsmShell(Shell):
         ns['app'] = wx.GetApp()
         ns['frame'] = cls.frame
         intro = 'Welcome To bsmedit ' + BSM_VERSION
-        cls.panelShell = bsmShell(cls.frame, 1, introText=intro, locals=ns)
+        cls.panelShell = Shell(cls.frame, 1, introText=intro, locals=ns)
         active = kwargs.get('active', True)
         direction = kwargs.get('direction', 'top')
         dp.send(signal="frame.add_panel", panel=cls.panelShell, active=active,
@@ -736,4 +736,4 @@ class bsmShell(Shell):
             dp.send('frame.delete_panel', panel=cls.panelShell)
 
 def bsm_initialize(frame, **kwargs):
-    bsmShell.Initialize(frame, **kwargs)
+    Shell.Initialize(frame, **kwargs)

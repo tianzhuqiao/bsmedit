@@ -116,7 +116,7 @@ class MainFrame(FramePlus):
         self.AddMenu('&File:&Quit', id=wx.ID_CLOSE)
 
         # add the common Edit menus to menubar; otherwise, the context-menu
-        # from bsmshell or editor may not work (e.g., Mac)
+        # from shell or editor may not work (e.g., Mac)
         self.AddMenu('&Edit:&Undo', id=wx.ID_UNDO, autocreate=True)
         self.AddMenu('&Edit:&Redo', id=wx.ID_REDO)
         self.AddMenu('&Edit:Sep', kind="Separator")
