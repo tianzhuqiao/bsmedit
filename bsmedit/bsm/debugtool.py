@@ -59,9 +59,14 @@ class StackPanel(wx.Panel):
                 name = frame.f_code.co_name
                 filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
                 lineno = frame.f_lineno
-                index = self.listctrl.InsertStringItem(six.MAXSIZE, name)
-                self.listctrl.SetStringItem(index, 2, filename)
-                self.listctrl.SetStringItem(index, 1, '%d' % lineno)
+                if c2p.bsm_is_phoenix:
+                    index = self.listctrl.InsertItem(six.MAXSIZE, name)
+                    self.listctrl.SetItem(index, 2, filename)
+                    self.listctrl.SetItem(index, 1, '%d' % lineno)
+                else:
+                    index = self.listctrl.InsertStringItem(six.MAXSIZE, name)
+                    self.listctrl.SetStringItem(index, 2, filename)
+                    self.listctrl.SetStringItem(index, 1, '%d' % lineno)
         if level >= 0 and level < self.listctrl.GetItemCount():
             self.listctrl.SetItemTextColour(level, 'blue')
         self.listctrl.RefreshRows()
