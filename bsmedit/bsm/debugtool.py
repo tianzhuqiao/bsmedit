@@ -40,6 +40,12 @@ class StackPanel(wx.Panel):
         dp.connect(self.OnDebugUpdateScopes, 'debugger.update_scopes')
         dp.connect(self.OnDebugUpdateScopes, 'debugger.paused')
 
+    def Destroy(self):
+        dp.disconnect(self.OnDebugEnded, 'debugger.ended')
+        dp.disconnect(self.OnDebugUpdateScopes, 'debugger.update_scopes')
+        dp.disconnect(self.OnDebugUpdateScopes, 'debugger.paused')
+        super(StackPanel, self).Destroy()
+
     def OnDebugEnded(self):
         """debugger is ended"""
         # clear the scopes

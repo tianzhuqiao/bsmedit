@@ -190,6 +190,10 @@ class HistoryPanel(wx.Panel):
         self.SetAcceleratorTable(self.accel)
         self.LoadHistory()
 
+    def Destroy(self):
+        dp.disconnect(receiver=self.AddHistory, signal='Shell.addHistory')
+        super(HistoryPanel, self).Destroy()
+
     def get_children(self, item):
         """ callback function to return the children of item """
         if item == self.tree.GetRootItem():

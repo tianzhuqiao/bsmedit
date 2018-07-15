@@ -127,6 +127,22 @@ class EngineDebugger(object):
         dp.connect(self.get_breakpoint, 'debugger.get_breakpoint')
         dp.connect(self.get_status, 'debugger.get_status')
 
+    def release(self):
+        self.compiler.release()
+        dp.disconnect(self.pause, 'debugger.pause')
+        dp.disconnect(self.resume, 'debugger.resume')
+        dp.disconnect(self.stop_code, 'debugger.stop')
+        dp.disconnect(self.end, 'debugger.end')
+        dp.disconnect(self.step, 'debugger.step')
+        dp.disconnect(self.step_in, 'debugger.step_into')
+        dp.disconnect(self.step_out, 'debugger.step_out')
+        dp.disconnect(self.set_scope, 'debugger.set_scope')
+        dp.disconnect(self.set_breakpoint, 'debugger.set_breakpoint')
+        dp.disconnect(self.clear_breakpoint, 'debugger.clear_breakpoint')
+        dp.disconnect(self.edit_breakpoint, 'debugger.edit_breakpoint')
+        dp.disconnect(self.get_breakpoint, 'debugger.get_breakpoint')
+        dp.disconnect(self.get_status, 'debugger.get_status')
+
     # Interface methods
     def reset(self):
         """Reset the debugger internal state"""
@@ -1212,6 +1228,9 @@ class EngineCompiler(Compile):
 
         #register message handlers
         dp.connect(self.future_flag, 'debugger.futureflag')
+
+    def release(self):
+        dp.disconnect(self.future_flag, 'debugger.futureflag')
 
     # Interface methods
     def set_compiler_flag(self, flag, is_set=True):

@@ -225,6 +225,22 @@ class Shell(pyshell.Shell):
         fun = cmd.get(eid, None)
         if fun:
             fun()
+
+    def Destroy(self):
+        self.debugger.release()
+        dp.disconnect(self.writeOut, 'shell.write_out')
+        dp.disconnect(self.runCommand, 'shell.run')
+        dp.disconnect(self.debugPrompt, 'shell.prompt')
+        dp.disconnect(self.addHistory, 'shell.addToHistory')
+        dp.disconnect(self.OnFrameExit, 'frame.exit')
+        dp.disconnect(self.IsDebuggerOn, 'debugger.debugging')
+        dp.disconnect(self.getAutoCompleteList, 'shell.auto_complete_list')
+        dp.disconnect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
+        dp.disconnect(self.getAutoCallTip, 'shell.auto_call_tip')
+        dp.disconnect(self.OnActivatePanel, 'frame.activate_panel')
+        dp.disconnect(self.OnActivate, 'frame.activate')
+        super(Shell, self).Destroy()
+
     def OnFrameExit(self):
         """the frame is exiting"""
         # save command history
