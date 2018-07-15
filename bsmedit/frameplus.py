@@ -2,9 +2,6 @@ import six
 import wx
 import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
-from wx.lib.agw.aui import AuiPaneButton, AuiPaneInfo
-from wx.lib.agw.aui.aui_constants import AUI_BUTTON_MINIMIZE,\
-                                 AUI_BUTTON_MAXIMIZE_RESTORE, AUI_BUTTON_CLOSE
 from . import c2p
 
 class AuiManagerPlus(aui.AuiManager):
@@ -247,22 +244,19 @@ class FramePlus(wx.Frame):
             targetpane = None
 
         auipaneinfo = paneInfo
-
+        dirs = {'top': aui.AUI_DOCK_TOP, 'bottom': aui.AUI_DOCK_BOTTOM,
+                'left': aui.AUI_DOCK_LEFT, 'right': aui.AUI_DOCK_RIGHT,
+                'center': aui.AUI_DOCK_CENTER
+               }
+        direction = dirs.get(direction, aui.AUI_DOCK_TOP)
         if auipaneinfo is None:
-            # default panel settings
-            auipaneinfo = \
-                aui.AuiPaneInfo().Caption(title).BestSize((300, 300))\
-                   .DestroyOnClose(not showhidemenu).Top().Snappable()\
-                   .Dockable().MinimizeButton(True).MaximizeButton(True)\
-                   .Icon(icon).Row(1)
-            if direction == 'top':
-                auipaneinfo.Top()
-            elif direction == 'bottom':
-                auipaneinfo.Bottom()
-            elif direction == 'left':
-                auipaneinfo.Left()
-            elif direction == 'right':
-                auipaneinfo.Right()
+            # default panel settings. dock_row = -1 to add the pane to the
+            # dock with same direction and layer, and dock_pos = 99 (a large
+            # number) to add it to the right side
+            auipaneinfo = aui.AuiPaneInfo().Caption(title).BestSize((300, 300))\
+                          .DestroyOnClose(not showhidemenu).Snappable()\
+                          .Dockable().MinimizeButton(True).MaximizeButton(True)\
+                          .Icon(icon).Row(-1).Direction(direction).Position(99)
 
             if not self._mgr.GetAllPanes():
                 # set the first pane to be center pane
@@ -284,11 +278,11 @@ class FramePlus(wx.Frame):
         self.ShowPanel(panel, active)
         # add the menu item to show/hide the panel
         if showhidemenu:
-            id = self.AddMenu(showhidemenu, rxsignal='frame.check_menu',
-                              updatesignal='frame.update_menu', kind='Check',
-                              autocreate=True)
-            if id != wx.NOT_FOUND:
-                self.paneAddon[id] = {'panel':panel, 'path':showhidemenu}
+            mid = self.AddMenu(showhidemenu, rxsignal='frame.check_menu',
+                               updatesignal='frame.update_menu', kind='Check',
+                               autocreate=True)
+            if mid != wx.NOT_FOUND:
+                self.paneAddon[mid] = {'panel':panel, 'path':showhidemenu}
         return True
 
     def DeletePanel(self, panel):
