@@ -50,7 +50,7 @@ PROP_CTRL_RADIO = 9
 PROP_CTRL_COLOR = 10
 PROP_CTRL_NUM = 11
 
-class bsmProperty(object):
+class Property(object):
     PROP_HIT_NONE = 0
     PROP_HIT_EXPAND = 1
     PROP_HIT_RADIO = 2
@@ -132,7 +132,7 @@ class bsmProperty(object):
         copy.deepcopy does not work since the object contains pointer to wx
         objects
         """
-        p = bsmProperty(self.parent, self.name, self.label, self.value)
+        p = Property(self.parent, self.name, self.label, self.value)
         p.labelTip = self.labelTip
         p.valueTip = self.valueTip
         p.description = self.description
@@ -711,7 +711,7 @@ class bsmProperty(object):
         self.UpdatePropValue()
         self.DestroyControl()
         self.SendPropEvent(wxEVT_BSM_PROP_REFRESH)
-    #control maintained by this property
+
     def CreateControl(self):
         """create the control"""
         if self.controlWin != None or self.GetSeparator():
@@ -800,7 +800,7 @@ class bsmProperty(object):
     def OnKillFocus(self, evt):
         # destroy the control if it loses focus. Wait until the event has been
         # processed; otherwise, it may crash.
-        wx.CallAfter(self.DestroyControl)
+        wx.CallAfter(self.OnTextEnter)
         evt.Skip()
 
     def LayoutControl(self):
@@ -930,7 +930,7 @@ class bsmProperty(object):
     def SendPropEvent(self, event):
         """ send property grid event to parent"""
         eventObject = self.GetParent()
-        evt = bsmPropertyEvent(event)
+        evt = PropertyEvent(event)
         evt.SetProperty(self)
         evt.SetEventObject(eventObject)
         evtHandler = eventObject.GetEventHandler()
@@ -1104,19 +1104,19 @@ class bsmProperty(object):
         """return whether value tooltip is allowed"""
         return self.showValueTips
 
-class bsmPropertyEvent(wx.PyCommandEvent):
+class PropertyEvent(wx.PyCommandEvent):
     def __init__(self, commandType, id=0):
         wx.PyCommandEvent.__init__(self, commandType, id)
         self.prop = None
         self.refused = False
 
     def GetProperty(self):
-        """return the attached bsmProperty"""
+        """return the attached Property"""
         return self.prop
 
     def SetProperty(self, prop):
-        """attach the bsmProperty instance"""
-        if isinstance(prop, bsmProperty):
+        """attach the Property instance"""
+        if isinstance(prop, Property):
             self.prop = prop
 
     def Refused(self, refused):

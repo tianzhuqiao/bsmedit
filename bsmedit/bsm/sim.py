@@ -16,7 +16,7 @@ from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
                     out_grey_xpm, inout_grey_xpm, step_xpm, run_xpm, \
                     pause_xpm, setting_xpm
 from .simprocess import *
-from .propgrid import bsmPropGrid
+from .propgrid import PropGrid
 from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
@@ -248,7 +248,7 @@ class Simulation(object):
         if not objects:
             return None
         if grid is None:
-            grid = bsmPropGrid.GCM.get_active()
+            grid = PropGrid.GCM.get_active()
         if not grid:
             grid = sim.propgrid()
         if not grid:
@@ -669,6 +669,8 @@ class SimPanel(wx.Panel):
         """
         Destroy the simulation properly before close the pane.
         """
+        dp.disconnect(receiver=self._process_response, signal='sim.response',
+                      sender=self.sim)
         self.timer.Stop()
         self.is_destroying = True
         self.sim.release()
@@ -721,7 +723,7 @@ class SimPanel(wx.Panel):
         submenu.AppendSeparator()
         nid = wx.ID_HIGHEST
         grids = []
-        for mag in bsmPropGrid.GCM.get_all_managers():
+        for mag in PropGrid.GCM.get_all_managers():
             grids.append(mag)
             submenu.Append(nid, mag.GetLabel())
             nid += 1
@@ -893,8 +895,8 @@ class SimPanel(wx.Panel):
             elif command == 'breakpoint_triggered':
                 bp = value #[name, condition, hitcount, hitsofar]
                 gname = self.sim.global_object_name
-                for grid in bsmPropGrid.GCM.get_all_managers():
-                    if grid.triggerBreakPoint(gname(bp[0]), bp[1], bp[2]):
+                for grid in PropGrid.GCM.get_all_managers():
+                    if grid.TriggerBreakPoint(gname(bp[0]), bp[1], bp[2]):
                         dp.send(signal='frame.show_panel', panel=grid)
                         break
                 else:
@@ -999,8 +1001,8 @@ class sim(object):
     def _frame_set_active(cls, pane):
         if pane and isinstance(pane, SimPanel):
             Gcs.set_active(pane.sim)
-        if pane and isinstance(pane, bsmPropGrid):
-            bsmPropGrid.GCM.set_active(pane)
+        if pane and isinstance(pane, PropGrid):
+            PropGrid.GCM.set_active(pane)
 
     @classmethod
     def _frame_uninitialize(cls):
@@ -1085,9 +1087,9 @@ class sim(object):
 
         If the propgrid exists, return its handler; otherwise, it will be created.
         """
-        mgr = bsmPropGrid.GCM.get_manager(num)
+        mgr = PropGrid.GCM.get_manager(num)
         if not mgr and create:
-            mgr = bsmPropGrid(cls.frame)
+            mgr = PropGrid(cls.frame)
             mgr.SetLabel("Propgrid-%d"%mgr.num)
             dp.send(signal="frame.add_panel", panel=mgr, title=mgr.GetLabel())
         elif mgr and activate:

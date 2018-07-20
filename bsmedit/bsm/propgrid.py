@@ -7,7 +7,7 @@ from .prop import *
 from .pymgr_helpers import Gcm
 from .. import c2p
 
-class bsmPropDropTarget(c2p.PyDropTarget):
+class PropDropTarget(c2p.PyDropTarget):
     def __init__(self, frame):
         c2p.PyDropTarget.__init__(self)
         self.obj = c2p.PyTextDataObject()
@@ -15,7 +15,7 @@ class bsmPropDropTarget(c2p.PyDropTarget):
         self.frame = frame
     # override base class (pure) virtuals
     def OnEnter(self, x, y, d):
-        return super(bsmPropDropTarget, self).OnDragOver(x, y, d)
+        return super(PropDropTarget, self).OnDragOver(x, y, d)
     def OnLeave(self):
         pass
     def OnData(self, x, y, d):
@@ -33,9 +33,9 @@ class bsmPropDropTarget(c2p.PyDropTarget):
                 self.frame.Scroll(-1, y-(15-pt.y)/3)
             if pt.y > rc.bottom-15:
                 self.frame.Scroll(-1, y-(rc.bottom-15-pt.y)/3)
-        return super(bsmPropDropTarget, self).OnDragOver(x, y, d)
+        return super(PropDropTarget, self).OnDragOver(x, y, d)
 
-class bsmPropGridBase(wx.ScrolledWindow):
+class PropGridBase(wx.ScrolledWindow):
     dragPropState = 0
     dragStartPt = wx.Point(0, 0)
     dragProperty = None
@@ -67,7 +67,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
         self.SetVirtualSize(wx.Size(100, 200))
 
         #drap target
-        self.SetDropTarget(bsmPropDropTarget(self))
+        self.SetDropTarget(PropDropTarget(self))
 
         self.PropList = []
         self.PropDict = {}
@@ -100,7 +100,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
         self.Bind(EVT_BSM_PROP_DROP, self.OnPropEventsHandler, id=wx.ID_ANY)
         self.Bind(EVT_BSM_PROP_BEGIN_DRAG, self.OnPropEventsHandler, id=wx.ID_ANY)
         self.Bind(EVT_BSM_PROP_CLICK_RADIO, self.OnPropEventsHandler, id=wx.ID_ANY)
-        self.Bind(wx.EVT_TEXT_ENTER, self.OnPropTextEnter, id=bsmProperty.IDC_BSM_PROP_CONTROL)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnPropTextEnter, id=Property.IDC_BSM_PROP_CONTROL)
         dp.connect(self.UpdateProp, 'grid.updateprop')
         dp.connect(self.simLoad, 'sim.loaded')
         dp.connect(self.simUnload, 'sim.unloaded')
@@ -109,7 +109,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
         dp.disconnect(self.UpdateProp, 'grid.updateprop')
         dp.disconnect(self.simLoad, 'sim.loaded')
         dp.disconnect(self.simUnload, 'sim.unloaded')
-        super(bsmPropGridBase, self).Destroy()
+        super(PropGridBase, self).Destroy()
 
     def simLoad(self, num):
         """try to reconnect the register when the simulation is loaded."""
@@ -128,7 +128,7 @@ class bsmPropGridBase(wx.ScrolledWindow):
                     continue
                 p = self.GetProperty(obj)
                 if not p: continue
-                if isinstance(p, bsmProperty):
+                if isinstance(p, Property):
                     p = [p]
                 for prop in p:
                     prop.SetItalicText(False)
@@ -151,16 +151,15 @@ class bsmPropGridBase(wx.ScrolledWindow):
             if isinstance(p, list):
                 for prop in p:
                     prop.SetValue(v)
-            elif isinstance(p, bsmProperty):
+            elif isinstance(p, Property):
                 p.SetValue(v)
 
-   #insert property
     def AppendProperty(self, name, label="", value="", update=True):
         return self.InsertProperty(name, label, value, -1, update)
 
     def _InsertProperty(self, prop, index=-1, update=True):
         # add the prop window to the grid
-        if not isinstance(prop, bsmProperty):
+        if not isinstance(prop, Property):
             return None
 
         if index == -1 or index >= self.GetPropCount():
@@ -181,24 +180,24 @@ class bsmPropGridBase(wx.ScrolledWindow):
 
     def InsertProperty(self, name, label="", value="", index=-1, update=True):
         # add the prop window to the grid
-        prop = bsmProperty(self, name, label, str(value))
+        prop = Property(self, name, label, str(value))
         return self._InsertProperty(prop, index, update)
 
     def CopyProperty(self, prop, index=-1, update=True):
-        if not isinstance(prop, bsmProperty): return None
+        if not isinstance(prop, Property): return None
         p = prop.duplicate()
         p.SetParent(self)
         return self._InsertProperty(p, index, update)
 
     def InsertSeparator(self, name, index=-1, update=True):
-        prop = self.InsertProperty(name, name, "", index, update)
+        prop = self.InsertProperty(name, "", "", index, update)
         if prop:
             prop.SetSeparator(True)
         return prop
 
-    #remove property
     def RemoveProperty(self, prop, update=True):
-        if isinstance(prop, six.string_types) or isinstance(prop, bsmProperty):
+        #remove property
+        if isinstance(prop, six.string_types) or isinstance(prop, Property):
             index = self.FindPropertyIndex(prop)
         elif isinstance(prop, int):
             index = prop
@@ -250,9 +249,9 @@ class bsmPropGridBase(wx.ScrolledWindow):
         return -1
 
     def GetProperty(self, prop):
-        """return the bsmProperty instance"""
-        if isinstance(prop, bsmProperty):
-            # if prop is an bsmProperty instance, simply return
+        """return the Property instance"""
+        if isinstance(prop, Property):
+            # if prop is a Property instance, simply return
             return prop
         elif isinstance(prop, six.string_types):
             # search the prop name
@@ -398,10 +397,10 @@ class bsmPropGridBase(wx.ScrolledWindow):
         """send the property event to the parent"""
         prop = self.GetProperty(prop)
         # prepare the event
-        if isinstance(event, bsmPropertyEvent):
+        if isinstance(event, PropertyEvent):
             evt = event
         elif isinstance(event, int):
-            evt = bsmPropertyEvent(event)
+            evt = PropertyEvent(event)
             evt.SetProperty(prop)
         else:
             return False
@@ -647,23 +646,23 @@ class bsmPropGridBase(wx.ScrolledWindow):
             self.PropUnderMouse = prop
             self.CaptureMouse()
             self.resizeMode = self.BSMGRID_NONE
-            if ht == bsmProperty.PROP_HIT_SPLITTER:
+            if ht == Property.PROP_HIT_SPLITTER:
                 # drag the splitter
                 self.resizeMode = self.BSMGRID_RESIZE_SEP
-            elif ht == bsmProperty.PROP_HIT_EDGE_BOTTOM:
+            elif ht == Property.PROP_HIT_EDGE_BOTTOM:
                 # drag the bottom edge
                 self.resizeMode = self.BSMGRID_RESIZE_BOT
-            elif ht == bsmProperty.PROP_HIT_EDGE_TOP:
+            elif ht == Property.PROP_HIT_EDGE_TOP:
                 # drag the bottom edge of the property above
                 if index > 0:
                     index = index-1
                     self.PropUnderMouse = self.GetProperty(index)
                     self.resizeMode = self.BSMGRID_RESIZE_BOT
-            elif ht == bsmProperty.PROP_HIT_TITLE:
+            elif ht == Property.PROP_HIT_TITLE:
                 # start drag & drop
-                bsmPropGrid.dragStartPt = self.ClientToScreen(pt)
-                bsmPropGrid.dragProperty = prop
-                bsmPropGrid.dragPropState = 1
+                PropGridBase.dragStartPt = self.ClientToScreen(pt)
+                PropGridBase.dragProperty = prop
+                PropGridBase.dragPropState = 1
         evt.Skip()
 
     def OnMouseUp(self, evt):
@@ -682,9 +681,9 @@ class bsmPropGridBase(wx.ScrolledWindow):
         self.resizeMode = self.BSMGRID_NONE
 
         # finish drag & drop
-        bsmPropGrid.dragProperty = None
-        bsmPropGrid.dragPropState = 0
-        bsmPropGrid.dragStartPt = wx.Point(0, 0)
+        PropGridBase.dragProperty = None
+        PropGridBase.dragPropState = 0
+        PropGridBase.dragStartPt = wx.Point(0, 0)
 
         evt.Skip()
 
@@ -712,18 +711,19 @@ class bsmPropGridBase(wx.ScrolledWindow):
             prop = self.GetProperty(index)
             prop.OnMouseMove(pt)
         # drag & drop
-        if evt.LeftIsDown() and bsmPropGrid.dragProperty and\
-           bsmPropGrid.dragPropState == 1:
+        if evt.LeftIsDown() and PropGridBase.dragProperty and\
+           PropGridBase.dragPropState == 1:
             pt = self.ClientToScreen(pt)
-            start = bsmPropGrid.dragStartPt
+            start = PropGridBase.dragStartPt
             if (start.x-pt.x)**2+(start.y-pt.y)**2 > 10:
                 if self.SendPropEvent(wxEVT_BSM_PROP_BEGIN_DRAG, self.dragProperty):
                     # the mouse is moved, so start drag & drop
-                    bsmPropGrid.dragPropState = 2
-                    bsmPropGrid.dragGrid = self
+                    PropGridBase.dragPropState = 2
+                    PropGridBase.dragGrid = self
                     # start drag operation
-                    propData = c2p.PyTextDataObject(bsmPropGrid.dragProperty.GetName())
-                    source = wx.DropSource(bsmPropGrid.dragGrid)
+                    print('=', PropGridBase.dragProperty.GetName())
+                    propData = c2p.PyTextDataObject(PropGridBase.dragProperty.GetName())
+                    source = wx.DropSource(PropGridBase.dragGrid)
                     source.SetData(propData)
 
                     rtn = source.DoDragDrop(True)
@@ -738,8 +738,8 @@ class bsmPropGridBase(wx.ScrolledWindow):
                         pass
                     elif rtn == wx.DragCancel:
                         pass
-                    bsmPropGrid.dragPropState = 0
-                    bsmPropGrid.dragGrid = None
+                    PropGridBase.dragPropState = 0
+                    PropGridBase.dragGrid = None
 
         if evt.LeftIsDown() and self.PropUnderMouse:
             # resize the property
@@ -770,23 +770,23 @@ class bsmPropGridBase(wx.ScrolledWindow):
                     ht = prop.OnMouseMove(pt)
 
                     # change the cursor icon
-                    if ht == bsmProperty.PROP_HIT_SPLITTER:
+                    if ht == Property.PROP_HIT_SPLITTER:
                         cursorMode = self.BSMGRID_CURSOR_RESIZE_HOR
-                    elif ht == bsmProperty.PROP_HIT_EDGE_BOTTOM:
+                    elif ht == Property.PROP_HIT_EDGE_BOTTOM:
                         cursorMode = self.BSMGRID_CURSOR_RESIZE_VER
-                    elif ht == bsmProperty.PROP_HIT_EDGE_TOP:
+                    elif ht == Property.PROP_HIT_EDGE_TOP:
                         if index > 0:
                             cursorMode = self.BSMGRID_CURSOR_RESIZE_VER
                         else:
                             cursorMode = self.BSMGRID_CURSOR_STD
                     else:
                         cursorMode = self.BSMGRID_CURSOR_STD
-                    #if prop.GetShowLabelTips() and ht == bsmProperty.PROP_HIT_TITLE:
-                    if ht == bsmProperty.PROP_HIT_TITLE:
+                    #if prop.GetShowLabelTips() and ht == Property.PROP_HIT_TITLE:
+                    if ht == Property.PROP_HIT_TITLE:
                         strToolTip = prop.GetLabelTip()
-                    elif prop.GetShowValueTips() and ht == bsmProperty.PROP_HIT_VALUE:
+                    elif prop.GetShowValueTips() and ht == Property.PROP_HIT_VALUE:
                         strToolTip = prop.GetValueTip()
-                    elif ht == bsmProperty.PROP_HIT_EXPAND:
+                    elif ht == Property.PROP_HIT_EXPAND:
                         strToolTip = prop.GetLabelTip()
                 # set the tooltip
                 if c2p.bsm_is_phoenix:
@@ -829,26 +829,26 @@ class bsmPropGridBase(wx.ScrolledWindow):
         index2 = self.PropHitTest(pt)
         prop = self.GetProperty(index2)
         # insert a property? Let the parent to determine what to do
-        if bsmPropGrid.dragProperty == None:
+        if PropGrid.dragProperty == None:
             dp.send('prop.drop', index=index2, prop=name, grid=self)
             return
 
-        if name != bsmPropGrid.dragProperty.GetName():
+        if name != PropGrid.dragProperty.GetName():
             # something is wrong
             return
 
-        index = bsmPropGrid.dragGrid.FindPropertyIndex(bsmPropGrid.dragProperty)
+        index = PropGrid.dragGrid.FindPropertyIndex(PropGrid.dragProperty)
         if index == -1:
             # if not find the dragged property, do nothing
             return
 
-        if bsmPropGrid.dragGrid != self:
+        if PropGrid.dragGrid != self:
             # drop the property from the other window, copy it
-            indent = bsmPropGrid.dragProperty.GetIndent()
-            self.CopyProperty(bsmPropGrid.dragProperty, index2)
-            for i in six.moves.range(index+1, bsmPropGrid.dragGrid.GetPropCount()):
+            indent = PropGrid.dragProperty.GetIndent()
+            self.CopyProperty(PropGrid.dragProperty, index2)
+            for i in six.moves.range(index+1, PropGrid.dragGrid.GetPropCount()):
                 # copy all its children
-                child = bsmPropGrid.dragGrid.GetProperty(i)
+                child = PropGrid.dragGrid.GetProperty(i)
                 if child.GetIndent() <= indent:
                     break
                 if index2 != -1:
@@ -856,12 +856,12 @@ class bsmPropGridBase(wx.ScrolledWindow):
                 self.CopyProperty(child, index2)
         else:
             # move the property if necessary
-            if prop == bsmPropGrid.dragProperty:
+            if prop == PropGrid.dragProperty:
                 return
             self.doMoveProperty(index, index2)
         self.UpdateGrid(True, True)
 
-class bsmPropGrid(bsmPropGridBase):
+class PropGrid(PropGridBase):
     GCM = Gcm()
     ID_PROP_GRID_ADD_SEP = wx.NewId()
     ID_PROP_GRID_READ_ONLY = wx.NewId()
@@ -875,31 +875,23 @@ class bsmPropGrid(bsmPropGridBase):
     ID_PROP_GRID_PROP = wx.NewId()
 
     def __init__(self, parent, num=None):
-        bsmPropGridBase.__init__(self, parent)
+        PropGridBase.__init__(self, parent)
 
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_ADD_SEP)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_PROP)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_INDENT_INS)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_INDENT_DES)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_MOVE_UP)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_MOVE_DOWN)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_READ_ONLY)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_GRID_DELETE)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_BREAKPOINT)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.ID_PROP_BREAKPOINT_CLEAR)
         # if num is not defined or is occupied, generate a new one
-        if num is None or num in bsmPropGrid.GCM.get_nums():
-            num = bsmPropGrid.GCM.get_next_num()
+        if num is None or num in PropGrid.GCM.get_nums():
+            num = PropGrid.GCM.get_next_num()
         self.num = num
-        bsmPropGrid.GCM.set_active(self)
+        PropGrid.GCM.set_active(self)
+
+        self.Bind(wx.EVT_MENU, self.OnProcessCommand)
 
     def Destroy(self):
         self.DeleteAllProperties()
-        bsmPropGrid.GCM.destroy_mgr(self)
-        super(bsmPropGrid, self).Destroy()
+        PropGrid.GCM.destroy_mgr(self)
+        super(PropGrid, self).Destroy()
 
     def OnPropEventsHandler(self, evt):
-        super(bsmPropGrid, self).OnPropEventsHandler(evt)
+        super(PropGrid, self).OnPropEventsHandler(evt)
         # TODO disable the event processing if it is rejected by the parent
         prop = evt.GetProperty()
         eid = evt.GetEventType()
@@ -927,7 +919,7 @@ class bsmPropGrid(bsmPropGridBase):
             menu.Append(self.ID_PROP_GRID_PROP, "&Properties")
 
             self.PopupMenu(menu)
-            menu.Destroy()
+
         elif eid == wxEVT_BSM_PROP_CLICK_RADIO:
             # turn on/off breakpoint
             if prop.IsRadioChecked():
@@ -948,7 +940,7 @@ class bsmPropGrid(bsmPropGridBase):
         elif eid == self.ID_PROP_GRID_READ_ONLY:
             prop.SetReadOnly(not prop.GetReadOnly())
         elif eid == self.ID_PROP_GRID_PROP:
-            dlg = dlgSettings(self, prop)
+            dlg = PropSettings(self, prop)
             if dlg.ShowModal() == wx.ID_OK:
                 prop.Refresh()
         elif eid == self.ID_PROP_GRID_INDENT_INS:
@@ -960,22 +952,22 @@ class bsmPropGrid(bsmPropGridBase):
         elif eid == self.ID_PROP_GRID_MOVE_DOWN:
             self.MoveProperty(prop, 2)
         elif eid == self.ID_PROP_GRID_ADD_SEP:
-            self.InsertSeparator("", self.GetActivated())
+            self.InsertSeparator("Separator", self.GetActivated())
         elif eid == self.ID_PROP_BREAKPOINT:
             condition = prop.GetBPCondition()
             dlg = BreakpointSettingsDlg(self, condition[0], condition[1])
             if dlg.ShowModal() == wx.ID_OK:
                 prop.SetBPCondition(dlg.GetCondition())
         elif eid == self.ID_PROP_BREAKPOINT_CLEAR:
-            self.clearBreakPoints()
+            self.ClearBreakPoints()
 
-    def clearBreakPoints(self):
+    def ClearBreakPoints(self):
         """clear all the breakpoints"""
         for prop in self.PropList:
             if prop and prop.IsRadioChecked():
                 prop.SetRadioChecked(False)
 
-    def triggerBreakPoint(self, name, cond, hitcount):
+    def TriggerBreakPoint(self, name, cond, hitcount):
         """check whether the breakpoints are triggered"""
         for prop in self.PropList:
             if name == prop.GetName():
@@ -1095,7 +1087,7 @@ class BreakpointSettingsDlg(wx.Dialog):
     def GetCondition(self):
         return (self.condition, self.hitcount)
 
-class dlgSettings(wx.Dialog):
+class PropSettings(wx.Dialog):
     def __init__(self, parent, prop):
         wx.Dialog.__init__(self, parent, title=u"Settings...",
                            size=wx.Size(402, 494),
@@ -1103,10 +1095,11 @@ class dlgSettings(wx.Dialog):
 
         sz = wx.BoxSizer(wx.VERTICAL)
 
-        self.propgrid = bsmPropGridBase(self)
+        self.propgrid = PropGridBase(self)
         self.prop = prop
         if prop.GetSeparator():
-            self.items = (('label', 'Label', '', PROP_CTRL_EDIT),
+            self.items = (('name', 'Name', '', PROP_CTRL_EDIT),
+                          ('label', 'Label', '', PROP_CTRL_EDIT),
                           ('indent', 'Indent level', '', PROP_CTRL_SPIN),
                           ('italic', 'Italic', '', PROP_CTRL_CHECK))
         else:
@@ -1193,7 +1186,9 @@ class dlgSettings(wx.Dialog):
 
     def OnBtnOk(self, event):
         if self.propgrid.PropSelected:
+            # update the value if necessary
             self.propgrid.PropSelected.OnTextEnter()
+
         for (name, _, _, ctrl) in self.items:
             v = self.propgrid.GetProperty(name)
             if name in ['choiceList', 'valueList']:
