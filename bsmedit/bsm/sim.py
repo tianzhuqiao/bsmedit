@@ -16,7 +16,7 @@ from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
                     out_grey_xpm, inout_grey_xpm, step_xpm, run_xpm, \
                     pause_xpm, setting_xpm
 from .simprocess import *
-from .propgrid import PropGrid
+from .. import propgrid as pg
 from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
@@ -248,7 +248,7 @@ class Simulation(object):
         if not objects:
             return None
         if grid is None:
-            grid = PropGrid.GCM.get_active()
+            grid = SimPropGrid.GCM.get_active()
         if not grid:
             grid = sim.propgrid()
         if not grid:
@@ -264,7 +264,7 @@ class Simulation(object):
                                        obj['basename'], obj['value'], index)
             prop.SetGripperColor(self.frame.GetColor())
             prop.SetReadOnly(not obj['writable'])
-            prop.SetShowRadio(obj['readable'])
+            prop.SetShowCheck(obj['readable'])
             props.append(prop)
             if index != -1:
                 index += 1
@@ -723,7 +723,7 @@ class SimPanel(wx.Panel):
         submenu.AppendSeparator()
         nid = wx.ID_HIGHEST
         grids = []
-        for mag in PropGrid.GCM.get_all_managers():
+        for mag in SimPropGrid.GCM.get_all_managers():
             grids.append(mag)
             submenu.Append(nid, mag.GetLabel())
             nid += 1
@@ -884,7 +884,7 @@ class SimPanel(wx.Panel):
             elif command == 'read':
                 gname = self.sim.global_object_name
                 ui_objs = {gname(name):v for name, v in six.iteritems(value)}
-                dp.send(signal="grid.updateprop", objs=ui_objs)
+                dp.send(signal="sim.update", objs=ui_objs)
             elif command == 'read_buf':
                 gname = self.sim.global_object_name
                 ui_buffers = {gname(name):v for name, v in six.iteritems(value)}
@@ -895,7 +895,7 @@ class SimPanel(wx.Panel):
             elif command == 'breakpoint_triggered':
                 bp = value #[name, condition, hitcount, hitsofar]
                 gname = self.sim.global_object_name
-                for grid in PropGrid.GCM.get_all_managers():
+                for grid in SimPropGrid.GCM.get_all_managers():
                     if grid.TriggerBreakPoint(gname(bp[0]), bp[1], bp[2]):
                         dp.send(signal='frame.show_panel', panel=grid)
                         break
@@ -911,6 +911,254 @@ class SimPanel(wx.Panel):
                 self.sim.read_buf(objects=[], block=False)
         except:
             traceback.print_exc(file=sys.stdout)
+
+class SimPropGrid(pg.PropGrid):
+    GCM = Gcm()
+    ID_PROP_BREAKPOINT = wx.NewId()
+    ID_PROP_BREAKPOINT_CLEAR = wx.NewId()
+    def __init__(self, parent, num=None):
+        pg.PropGrid.__init__(self, parent)
+
+        # if num is not defined or is occupied, generate a new one
+        if num is None or num in SimPropGrid.GCM.get_nums():
+            num = SimPropGrid.GCM.get_next_num()
+        self.num = num
+        SimPropGrid.GCM.set_active(self)
+        self.bp_condition = ('', '')
+
+        dp.connect(self.OnSimLoad, 'sim.loaded')
+        dp.connect(self.OnSimUnload, 'sim.unloaded')
+        dp.connect(self.OnSimUpdate, 'sim.update')
+
+    def Destroy(self):
+        dp.disconnect(self.simLoad, 'sim.loaded')
+        dp.disconnect(self.simUnload, 'sim.unloaded')
+        dp.disconnect(self.OnSimUpdate, 'sim.update')
+        self.DeleteAllProperties()
+        SimPropGrid.GCM.destroy_mgr(self)
+        super(SimPropGrid, self).Destroy()
+
+    def OnSimUpdate(self, objs):
+        for name, v in six.iteritems(objs):
+            p = self.GetProperty(name)
+            if isinstance(p, list):
+                for prop in p:
+                    prop.SetValue(v)
+            elif isinstance(p, pg.Property):
+                p.SetValue(v)
+
+    def OnSimLoad(self, num):
+        """try reconnecting registers when the simulation is loaded."""
+        objs = []
+        s = str(num) + '.'
+        objs = [n for n in six.iterkeys(self.PropDict) if name.startswith(s)]
+        if objs:
+            # tell the simulation to monitor signals
+            resp = dp.send('sim.monitor_reg', objects=objs)
+            if not resp:
+                return
+            status = resp[0][1]
+            if status == False:
+                return
+            for obj in objs:
+                # enable props that is monitored successfully
+                if isinstance(status, dict) and not status.get(obj, False):
+                    continue
+                p = self.GetProperty(obj)
+                if not p:
+                    continue
+                if isinstance(p, pg.Property):
+                    p = [p]
+                for prop in p:
+                    prop.SetItalicText(False)
+                    prop.SetReadOnly(False)
+                    prop.SetEnable(True)
+
+    def OnSimUnload(self, num):
+        # disable all props from the simulation with id 'num'
+        s = str(num) + '.'
+        for p in self.PropList:
+            name = p.GetName()
+            if not name.startswith(s):
+                continue
+            p.SetItalicText(True)
+            p.SetReadOnly(True)
+            p.SetEnable(False)
+
+    def GetContextMenu(self, prop):
+        menu = super(SimPropGrid, self).GetContextMenu(prop)
+        if not menu:
+            menu = wx.Menu()
+        else:
+            menu.AppendSeparator()
+        if prop:
+            menu.Append(self.ID_PROP_BREAKPOINT, "Breakpoint Condition")
+            menu.Enable(self.ID_PROP_BREAKPOINT, prop.IsRadioChecked())
+        menu.Append(self.ID_PROP_BREAKPOINT_CLEAR, "Clear all Breakpoints")
+        return menu
+
+    def OnPropEventsHandler(self, evt):
+        if not super(SimPropGrid, self).OnPropEventsHandler(evt):
+            return False
+
+        prop = evt.GetProperty()
+        eid = evt.GetEventType()
+        if eid == pg.wxEVT_PROP_CLICK_CHECK:
+            # turn on/off breakpoint
+            if prop.IsRadioChecked():
+                dp.send('prop.bp_add', prop=prop)
+            else:
+                dp.send('prop.bp_del', prop=prop)
+        elif eid == pg.wxEVT_PROP_CHANGED:
+            # the value changed, notify the parent
+            dp.send('prop.changed', prop=prop)
+
+    def OnProcessCommand(self, eid, prop):
+        """process the context menu command"""
+        if eid == self.ID_PROP_BREAKPOINT:
+            if not prop:
+                return
+            condition = prop.GetBPCondition()
+            dlg = BreakpointSettingsDlg(self, condition[0], condition[1])
+            if dlg.ShowModal() == wx.ID_OK:
+                prop.SetBPCondition(dlg.GetCondition())
+        elif eid == self.ID_PROP_BREAKPOINT_CLEAR:
+            self.ClearBreakPoints()
+        else:
+            super(SimPropGrid, self).OnProcessCommand(eid, prop)
+
+    def ClearBreakPoints(self):
+        """clear all the breakpoints"""
+        for prop in self._props:
+            if prop and prop.IsRadioChecked():
+                prop.SetRadioChecked(False)
+
+    def TriggerBreakPoint(self, name, cond, hitcount):
+        """check whether the breakpoints are triggered"""
+        for prop in self._props:
+            if name == prop.GetName():
+                if (cond, hitcount) == prop.GetBPCondition():
+                    self.EnsureVisible(prop)
+                    self.SelectProperty(prop)
+                    return True
+
+    def SetBPCondition(self, cond):
+        """set the breakpoint condition"""
+        if self.GetChecked():
+            # delete the current breakpoint
+            self.SetChecked(False)
+            self.bp_condition = cond
+            # add the breakpoint again
+            self.SetChecked(True)
+        else:
+            self.bp_condition = cond
+
+    def GetBPCondition(self):
+        """return the breakpoint condition"""
+        return self.bp_condition
+
+class BreakpointSettingsDlg(wx.Dialog):
+    def __init__(self, parent, condition='', hitcount=''):
+        wx.Dialog.__init__(self, parent, title="Breakpoint Condition",
+                           size=wx.Size(431, 289),
+                           style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
+
+        szAll = wx.BoxSizer(wx.VERTICAL)
+        label = ("At the end of each delta cycle, the expression is evaluated "
+                 "and the breakpoint is hit only if the expression is true or "
+                 "the register value has changed")
+        self.stInfo = wx.StaticText(self, label=label)
+        self.stInfo.Wrap(400)
+        szAll.Add(self.stInfo, 1, wx.ALL, 5)
+
+        szCnd = wx.BoxSizer(wx.HORIZONTAL)
+
+        szCond = wx.BoxSizer(wx.VERTICAL)
+
+        self.rbChanged = wx.RadioButton(self, label="Has changed", style=wx.RB_GROUP)
+        szCond.Add(self.rbChanged, 5, wx.ALL|wx.EXPAND, 5)
+
+        label = "Is true (value: $; for example, $==10)"
+        self.rbCond = wx.RadioButton(self, label=label)
+        szCond.Add(self.rbCond, 0, wx.ALL|wx.EXPAND, 5)
+
+        self.tcCond = wx.TextCtrl(self)
+        szCond.Add(self.tcCond, 0, wx.ALL|wx.EXPAND, 5)
+
+        label = "Hit count (hit count: #; for example, #>10"
+        self.cbHitCount = wx.CheckBox(self, label=label)
+        szCond.Add(self.cbHitCount, 0, wx.ALL, 5)
+
+        self.tcHitCount = wx.TextCtrl(self)
+        szCond.Add(self.tcHitCount, 0, wx.ALL|wx.EXPAND, 5)
+
+        szCnd.Add(szCond, 1, wx.EXPAND, 5)
+
+        szAll.Add(szCnd, 1, wx.EXPAND, 5)
+
+        self.stLine = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
+        szAll.Add(self.stLine, 0, wx.EXPAND |wx.ALL, 5)
+
+        szConfirm = wx.BoxSizer(wx.HORIZONTAL)
+
+        self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
+        szConfirm.Add(self.btnOK, 0, wx.ALL, 5)
+
+        self.btnCancel = wx.Button(self, wx.ID_CANCEL, u"Cancel")
+        szConfirm.Add(self.btnCancel, 0, wx.ALL, 5)
+
+        szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
+
+        self.SetSizer(szAll)
+        self.Layout()
+
+        # initialize the controls
+        self.condition = condition
+        self.hitcount = hitcount
+        if self.condition == '':
+            self.rbChanged.SetValue(True)
+            self.tcCond.Disable()
+        else:
+            self.rbChanged.SetValue(False)
+            self.rbCond.SetValue(True)
+        self.tcCond.SetValue(self.condition)
+        if self.hitcount == '':
+            self.cbHitCount.SetValue(False)
+            self.tcHitCount.Disable()
+        else:
+            self.cbHitCount.SetValue(True)
+        self.tcHitCount.SetValue(self.hitcount)
+        # Connect Events
+        self.rbChanged.Bind(wx.EVT_RADIOBUTTON, self.OnRadioButton)
+        self.rbCond.Bind(wx.EVT_RADIOBUTTON, self.OnRadioButton)
+        self.cbHitCount.Bind(wx.EVT_CHECKBOX, self.OnRadioButton)
+        self.btnOK.Bind(wx.EVT_BUTTON, self.OnBtnOK)
+
+    def OnRadioButton(self, event):
+        if self.rbChanged.GetValue():
+            self.tcCond.Disable()
+        else:
+            self.tcCond.Enable()
+        if self.cbHitCount.GetValue():
+            self.tcHitCount.Enable()
+        else:
+            self.tcHitCount.Disable()
+        event.Skip()
+    def OnBtnOK(self, event):
+        # set condition to empty string to indicate the breakpoint will be
+        # triggered when the value is changed
+        if self.rbChanged.GetValue():
+            self.condition = ''
+        else:
+            self.condition = self.tcCond.GetValue()
+        if self.cbHitCount.GetValue():
+            self.hitcount = self.tcHitCount.GetValue()
+        else:
+            self.hitcount = ""
+        event.Skip()
+
+    def GetCondition(self):
+        return (self.condition, self.hitcount)
 
 class sim(object):
     frame = None
@@ -1001,8 +1249,8 @@ class sim(object):
     def _frame_set_active(cls, pane):
         if pane and isinstance(pane, SimPanel):
             Gcs.set_active(pane.sim)
-        if pane and isinstance(pane, PropGrid):
-            PropGrid.GCM.set_active(pane)
+        if pane and isinstance(pane, SimPropGrid):
+            SimPropGrid.GCM.set_active(pane)
 
     @classmethod
     def _frame_uninitialize(cls):
@@ -1087,9 +1335,9 @@ class sim(object):
 
         If the propgrid exists, return its handler; otherwise, it will be created.
         """
-        mgr = PropGrid.GCM.get_manager(num)
+        mgr = SimPropGrid.GCM.get_manager(num)
         if not mgr and create:
-            mgr = PropGrid(cls.frame)
+            mgr = SimPropGrid(cls.frame)
             mgr.SetLabel("Propgrid-%d"%mgr.num)
             dp.send(signal="frame.add_panel", panel=mgr, title=mgr.GetLabel())
         elif mgr and activate:

@@ -1,11 +1,10 @@
-from .sim import sim
-from .propgrid import PropGrid
+from .sim import sim, SimPropGrid
 
 def gcp():
     """
     get the current propgrid manager
     """
-    mgr = PropGrid.GCM.get_active()
+    mgr = sim.PropGrid.GCM.get_active()
     if not mgr:
         mgr = sim.propgrid()
     return mgr
