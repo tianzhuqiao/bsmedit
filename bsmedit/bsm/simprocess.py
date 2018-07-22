@@ -89,12 +89,12 @@ class SimSysC(object):
         if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return
 
-        kinds = {'sc_signal':SC_OBJ_SIGNAL, 'sc_in': SC_OBJ_INPUT,
-                 'sc_out':SC_OBJ_OUTPUT, 'sc_in_out': SC_OBJ_INOUT,
-                 'sc_clock':SC_OBJ_CLOCK, 'xsc_property': SC_OBJ_XSC_PROP,
-                 'sc_module':SC_OBJ_MODULE, 'xsc_array': SC_OBJ_XSC_ARRAY}
+        kinds = {'sc_signal':SC_OBJ_SIGNAL, 'sc_in':SC_OBJ_INPUT,
+                 'sc_out':SC_OBJ_OUTPUT, 'sc_in_out':SC_OBJ_INOUT,
+                 'sc_clock':SC_OBJ_CLOCK, 'xsc_property':SC_OBJ_XSC_PROP,
+                 'sc_module':SC_OBJ_MODULE, 'xsc_array':SC_OBJ_XSC_ARRAY}
         kind = kinds.get(obj.kind, SC_OBJ_UNKNOWN)
-        if kind == SC_OBJ_XSC_PROP and '[' in obj.name and ']' in obj['name']:
+        if kind == SC_OBJ_XSC_PROP and '[' in obj.name and ']' in obj.name:
             kind = SC_OBJ_XSC_ARRAY_ITEM
         obj.nkind = kind
         obj.register = (kind in (SC_OBJ_SIGNAL, SC_OBJ_INPUT, SC_OBJ_OUTPUT,
