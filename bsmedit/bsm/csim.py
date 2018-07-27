@@ -1,5 +1,5 @@
 import sys, os
-import cparser, cparser.caching, cparser.cwrapper
+from ..cparser import cparser, cwrapper
 import ctypes
 import six
 
@@ -11,7 +11,7 @@ def init_dll(dll, header):
     dll = ctypes.cdll.LoadLibrary(dll)
     parsedState = CParserFunc(header)
 
-    wrapper = cparser.cwrapper.CWrapper()
+    wrapper = cwrapper.CWrapper()
     wrapper.register(parsedState, dll)
     return wrapper.wrapped
 

@@ -9,7 +9,7 @@ import six.moves.queue as Queue
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
-from auibarpopup import AuiToolBarPopupArt
+from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
 from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
                     module_grey_xpm, switch_grey_xpm, in_grey_xpm,\

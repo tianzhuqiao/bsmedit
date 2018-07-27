@@ -9,7 +9,7 @@ import wx
 import wx.stc as stc
 import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
-from auibarpopup import AuiToolBarPopupArt
+from ..auibarpopup import AuiToolBarPopupArt
 from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
                     dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \
                     folder_xpm, vert_xpm, horz_xpm

@@ -8,7 +8,7 @@ import wx.lib.agw.aui as aui
 from ctypes import CFUNCTYPE, c_int
 import numpy as np
 import bsmedit.bsm.csim as csim
-from glsurface import TrackingSurface
+from bsmedit.glsurface import TrackingSurface
 from .wavesxpm import run_xpm, pause_xpm, stop_xpm
 from bsmedit.c2p import BitmapFromXPM
 

@@ -1,11 +1,11 @@
 [submodule "PyCParser"]
-	path = cparser
+	path = bsmedit/cparser
     url = https://github.com/tianzhuqiao/PyCParser.git
 [submodule "glsurface"]
-	path = glsurface
+	path = bsmedit/glsurface
     url = https://github.com/tianzhuqiao/glsurface.git
 [submodule "auibarpopup"]
-	path = auibarpopup
+	path = bsmedit/auibarpopup
 	url = https://github.com/tianzhuqiao/auibarpopup.git
 [submodule "bsmedit/propgrid"]
 	path = bsmedit/propgrid
