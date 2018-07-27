@@ -263,7 +263,7 @@ class Simulation(object):
             prop = grid.InsertProperty(self.global_object_name(obj['name']),
                                        obj['basename'], obj['value'], index)
             prop.SetGripperColor(self.frame.GetColor())
-            prop.SetReadOnly(not obj['writable'])
+            prop.SetReadonly(not obj['writable'])
             prop.SetShowCheck(obj['readable'])
             props.append(prop)
             if index != -1:
@@ -924,7 +924,6 @@ class SimPropGrid(pg.PropGrid):
             num = SimPropGrid.GCM.get_next_num()
         self.num = num
         SimPropGrid.GCM.set_active(self)
-        self.bp_condition = ('', '')
 
         dp.connect(self.OnSimLoad, 'sim.loaded')
         dp.connect(self.OnSimUnload, 'sim.unloaded')
@@ -970,9 +969,9 @@ class SimPropGrid(pg.PropGrid):
                 if isinstance(p, pg.Property):
                     p = [p]
                 for prop in p:
-                    prop.SetItalicText(False)
-                    prop.SetReadOnly(False)
-                    prop.SetEnable(True)
+                    prop.Italic(False)
+                    prop.SetReadonly(False)
+                    prop.Enable(True)
 
     def OnSimUnload(self, num):
         # disable all props from the simulation with id 'num'
@@ -981,9 +980,9 @@ class SimPropGrid(pg.PropGrid):
             name = p.GetName()
             if not name.startswith(s):
                 continue
-            p.SetItalicText(True)
-            p.SetReadOnly(True)
-            p.SetEnable(False)
+            p.Italic(True)
+            p.SetReadonly(True)
+            p.Enable(False)
 
     def GetContextMenu(self, prop):
         menu = super(SimPropGrid, self).GetContextMenu(prop)
@@ -993,7 +992,7 @@ class SimPropGrid(pg.PropGrid):
             menu.AppendSeparator()
         if prop:
             menu.Append(self.ID_PROP_BREAKPOINT, "Breakpoint Condition")
-            menu.Enable(self.ID_PROP_BREAKPOINT, prop.IsRadioChecked())
+            menu.Enable(self.ID_PROP_BREAKPOINT, prop.IsChecked())
         menu.Append(self.ID_PROP_BREAKPOINT_CLEAR, "Clear all Breakpoints")
         return menu
 
@@ -1005,7 +1004,7 @@ class SimPropGrid(pg.PropGrid):
         eid = evt.GetEventType()
         if eid == pg.wxEVT_PROP_CLICK_CHECK:
             # turn on/off breakpoint
-            if prop.IsRadioChecked():
+            if prop.IsChecked():
                 dp.send('prop.bp_add', prop=prop)
             else:
                 dp.send('prop.bp_del', prop=prop)
@@ -1018,10 +1017,12 @@ class SimPropGrid(pg.PropGrid):
         if eid == self.ID_PROP_BREAKPOINT:
             if not prop:
                 return
-            condition = prop.GetBPCondition()
+            condition = prop.GetData()
+            if condition is None:
+                self.bp_condition = ('', '')
             dlg = BreakpointSettingsDlg(self, condition[0], condition[1])
             if dlg.ShowModal() == wx.ID_OK:
-                prop.SetBPCondition(dlg.GetCondition())
+                prop.SetData(dlg.GetCondition())
         elif eid == self.ID_PROP_BREAKPOINT_CLEAR:
             self.ClearBreakPoints()
         else:
@@ -1030,32 +1031,19 @@ class SimPropGrid(pg.PropGrid):
     def ClearBreakPoints(self):
         """clear all the breakpoints"""
         for prop in self._props:
-            if prop and prop.IsRadioChecked():
-                prop.SetRadioChecked(False)
+            if prop and prop.IsChecked():
+                prop.SetChecked(False)
 
     def TriggerBreakPoint(self, name, cond, hitcount):
         """check whether the breakpoints are triggered"""
         for prop in self._props:
             if name == prop.GetName():
-                if (cond, hitcount) == prop.GetBPCondition():
+                if (cond, hitcount) == prop.GetData():
                     self.EnsureVisible(prop)
                     self.SelectProperty(prop)
                     return True
 
-    def SetBPCondition(self, cond):
-        """set the breakpoint condition"""
-        if self.GetChecked():
-            # delete the current breakpoint
-            self.SetChecked(False)
-            self.bp_condition = cond
-            # add the breakpoint again
-            self.SetChecked(True)
-        else:
-            self.bp_condition = cond
 
-    def GetBPCondition(self):
-        """return the breakpoint condition"""
-        return self.bp_condition
 
 class BreakpointSettingsDlg(wx.Dialog):
     def __init__(self, parent, condition='', hitcount=''):
@@ -1203,14 +1191,18 @@ class sim(object):
     def _prop_bp_add(cls, prop):
         mgr, name = cls._find_object(prop.GetName())
         if mgr:
-            cnd = prop.GetBPCondition()
+            cnd = prop.GetData()
+            if cnd is None:
+                cnd = ("", "")
             mgr.add_breakpoint(name, cnd[0], cnd[1])
 
     @classmethod
     def _prop_bp_del(cls, prop):
         mgr, name = cls._find_object(prop.GetName())
         if mgr:
-            cnd = prop.GetBPCondition()
+            cnd = prop.GetData()
+            if cnd is None:
+                cnd = ("", "")
             mgr.del_breakpoint(name, cnd[0], cnd[1])
 
     @classmethod
