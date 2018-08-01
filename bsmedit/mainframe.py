@@ -325,6 +325,9 @@ class MainFrame(FramePlus):
 
     def OnClose(self, event):
         """close the main program"""
+        dp.send('frame.closing', event=event)
+        if event.GetVeto():
+            return
         self.closing = True
         self.SetConfig('mainframe', perspective=self._mgr.SavePerspective())
         dp.send('frame.exit')
@@ -355,16 +358,20 @@ class MainFrame(FramePlus):
                     if module.endswith('.py') and not module.startswith('_')])
 
     def OnActivate(self, event):
-        dp.send('frame.activate', activate=event.GetActive())
+        if not self.closing:
+            dp.send('frame.activate', activate=event.GetActive())
         event.Skip()
 
     def OnPaneActivated(self, event):
         """notify the window managers that the panel is activated"""
+        if self.closing:
+            return
         pane = event.GetPane()
         if isinstance(pane, aui.auibook.AuiNotebook):
             window = pane.GetCurrentPage()
         else:
             window = pane
+
         dp.send('frame.activate_panel', pane=window)
 
     def SetPanelTitle(self, pane, title):

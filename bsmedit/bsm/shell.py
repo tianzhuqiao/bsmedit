@@ -93,7 +93,7 @@ def _help(command):
         print(pydoc.plain(pydoc.render_doc(str(command), "Help on %s")))
     except:
         print('No help found on "%s"'%command)
-        #traceback.print_exc(file=sys.stdout)
+
 def magic(command):
     continuations = wx.py.parse.testForContinuations(command)
     if len(continuations) == 2: # Error case...
@@ -188,13 +188,13 @@ class Shell(pyshell.Shell):
         dp.connect(self.runCommand, 'shell.run')
         dp.connect(self.debugPrompt, 'shell.prompt')
         dp.connect(self.addHistory, 'shell.addToHistory')
-        dp.connect(self.OnFrameExit, 'frame.exit')
         dp.connect(self.IsDebuggerOn, 'debugger.debugging')
         dp.connect(self.getAutoCompleteList, 'shell.auto_complete_list')
         dp.connect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
         dp.connect(self.getAutoCallTip, 'shell.auto_call_tip')
         dp.connect(self.OnActivatePanel, 'frame.activate_panel')
         dp.connect(self.OnActivate, 'frame.activate')
+        dp.connect(self.OnFrameClosing, 'frame.closing')
 
     def OnContextMenu(self, evt):
         menu = wx.Menu()
@@ -228,26 +228,35 @@ class Shell(pyshell.Shell):
 
     def Destroy(self):
         self.debugger.release()
+        # save command history
+        dp.send('frame.set_config', group='shell', history=self.history)
+
         dp.disconnect(self.writeOut, 'shell.write_out')
         dp.disconnect(self.runCommand, 'shell.run')
         dp.disconnect(self.debugPrompt, 'shell.prompt')
         dp.disconnect(self.addHistory, 'shell.addToHistory')
-        dp.disconnect(self.OnFrameExit, 'frame.exit')
         dp.disconnect(self.IsDebuggerOn, 'debugger.debugging')
         dp.disconnect(self.getAutoCompleteList, 'shell.auto_complete_list')
         dp.disconnect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
         dp.disconnect(self.getAutoCallTip, 'shell.auto_call_tip')
         dp.disconnect(self.OnActivatePanel, 'frame.activate_panel')
         dp.disconnect(self.OnActivate, 'frame.activate')
+        dp.disconnect(self.OnFrameClosing, 'frame.closing')
         super(Shell, self).Destroy()
 
-    def OnFrameExit(self):
+    def OnFrameClosing(self, event):
         """the frame is exiting"""
-        # save command history
-        dp.send('frame.set_config', group='shell', history=self.history)
-        # stop the debugger if it is on
-        if self.IsDebuggerOn():
-            dp.send('debugger.stop')
+        if self.IsDebuggerOn() and event.CanVeto():
+            # stop closing if the debugger is running, otherwise it may crash
+            # as some events (e.g., ID_DEBUG_SCRIPT in editor) may be
+            # called after some window (e.g., editor) has been destroyed.
+            msg = 'The debugger is running.\n Turn it off first!'
+            dlg = wx.MessageDialog(self.GetTopLevelParent(), msg, 'bsmedit',
+                                   wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
+            event.Veto()
+
 
     def evaluate(self, word):
         if word in six.iterkeys(self.interp.locals):
@@ -332,6 +341,10 @@ class Shell(pyshell.Shell):
         event.Skip()
 
     def OnActivate(self, activate):
+        # not work on mac
+        if wx.Platform == '__WXMAC__':
+            return
+
         if self.AutoCompActive():
             wx.CallAfter(self.AutoCompCancel)
 
