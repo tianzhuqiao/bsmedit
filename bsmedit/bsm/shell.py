@@ -40,7 +40,7 @@ def magicSingle(command):
     elif command[:3] in ('ls ', 'cd '):
         # when using the 'ls ' or 'cd ' constructs, fill in both parentheses and quotes
         command = command[:2]+'("'+command[3:]+'")'
-    elif command[:5] in ('help '):
+    elif command[:5] in ('help ',):
         command = command[:4]+'("'+command[5:]+'")'
     elif command[:6] == 'close ':
         arg = command[6:]
