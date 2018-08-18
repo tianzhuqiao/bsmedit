@@ -4,7 +4,7 @@ def gcp():
     """
     get the current propgrid manager
     """
-    mgr = sim.PropGrid.GCM.get_active()
+    mgr = SimPropGrid.GCM.get_active()
     if not mgr:
         mgr = sim.propgrid()
     return mgr

@@ -865,6 +865,7 @@ class SimPanel(wx.Panel):
             value = resp.get('value', False)
             if command == 'load':
                 self.tree.Load(self.sim.objects)
+                dp.send('sim.loaded', num=self.sim.num)
             elif command == 'exit':
                 self.tree.Load(None)
                 dp.send('sim.unloaded', num=self.sim.num)
@@ -912,6 +913,49 @@ class SimPanel(wx.Panel):
         except:
             traceback.print_exc(file=sys.stdout)
 
+class SimProperty(pg.Property):
+
+    def __init__(self, grid, name, label, value):
+        pg.Property.__init__(self, grid, name, label, value)
+        self.gripper_clr = wx.RED
+
+    def SetGripperColor(self, clr=None):
+        self.gripper_clr = clr
+
+    def GetGripperColor(self):
+        return self.gripper_clr
+
+class SimPropArt(pg.PropArtNative):
+
+    def __init__(self):
+        super(SimPropArt, self).__init__()
+        self.margin['left'] = 6
+
+    def PrepareDrawRect(self, p):
+        """calculate the rect for each section"""
+        super(SimPropArt, self).PrepareDrawRect(p)
+
+        irc = p.GetRect()
+        # gripper
+        rc = wx.Rect(*irc)
+        rc.x += self.gap_x
+        rc.SetWidth(6)
+        p.regions['gripper'] = rc
+
+    def DrawGripper(self, dc, p):
+        # draw gripper
+        if p.gripper_clr:
+            pen = wx.Pen(wx.BLACK, 1, wx.PENSTYLE_TRANSPARENT)
+            dc.SetPen(pen)
+
+            dc.SetBrush(wx.Brush(p.gripper_clr))
+            rc = p.regions['gripper']
+            dc.DrawRectangle(rc.x, rc.y+1, 3, rc.height-1)
+
+    def DrawItem(self, dc, p):
+        super(SimPropArt, self).DrawItem(dc, p)
+        self.DrawGripper(dc, p)
+
 class SimPropGrid(pg.PropGrid):
     GCM = Gcm()
     ID_PROP_BREAKPOINT = wx.NewId()
@@ -924,14 +968,16 @@ class SimPropGrid(pg.PropGrid):
             num = SimPropGrid.GCM.get_next_num()
         self.num = num
         SimPropGrid.GCM.set_active(self)
+        self.SetArtProvider(SimPropArt())
+        self._prop_cls = SimProperty
 
         dp.connect(self.OnSimLoad, 'sim.loaded')
         dp.connect(self.OnSimUnload, 'sim.unloaded')
         dp.connect(self.OnSimUpdate, 'sim.update')
 
     def Destroy(self):
-        dp.disconnect(self.simLoad, 'sim.loaded')
-        dp.disconnect(self.simUnload, 'sim.unloaded')
+        dp.disconnect(self.OnSimLoad, 'sim.loaded')
+        dp.disconnect(self.OnSimUnload, 'sim.unloaded')
         dp.disconnect(self.OnSimUpdate, 'sim.update')
         self.DeleteAllProperties()
         SimPropGrid.GCM.destroy_mgr(self)
@@ -948,12 +994,17 @@ class SimPropGrid(pg.PropGrid):
 
     def OnSimLoad(self, num):
         """try reconnecting registers when the simulation is loaded."""
-        objs = []
         s = str(num) + '.'
-        objs = [n for n in six.iterkeys(self.PropDict) if name.startswith(s)]
+        sl = len(s)
+        objs = []
+        for p in self._props:
+            name = p.GetName()
+            if name.startswith(s):
+                objs.append(name[sl:])
         if objs:
             # tell the simulation to monitor signals
-            resp = dp.send('sim.monitor_reg', objects=objs)
+            resp = dp.send('sim.command', num=num, command='monitor_signal',
+                           objects=objs)
             if not resp:
                 return
             status = resp[0][1]
@@ -963,24 +1014,22 @@ class SimPropGrid(pg.PropGrid):
                 # enable props that is monitored successfully
                 if isinstance(status, dict) and not status.get(obj, False):
                     continue
-                p = self.GetProperty(obj)
+                p = self.GetProperty(s+obj)
                 if not p:
                     continue
                 if isinstance(p, pg.Property):
                     p = [p]
                 for prop in p:
-                    prop.Italic(False)
                     prop.SetReadonly(False)
                     prop.Enable(True)
 
     def OnSimUnload(self, num):
         # disable all props from the simulation with id 'num'
         s = str(num) + '.'
-        for p in self.PropList:
+        for p in self._props:
             name = p.GetName()
             if not name.startswith(s):
                 continue
-            p.Italic(True)
             p.SetReadonly(True)
             p.Enable(False)
 
@@ -1166,6 +1215,7 @@ class sim(object):
             cls.ID_PROP_NEW = resp[0][1]
 
         dp.connect(cls._process_command, signal='bsm.simulation')
+        dp.connect(cls._sim_command, signal='sim.command')
         dp.connect(receiver=cls._frame_set_active, signal='frame.activate_panel')
         dp.connect(receiver=cls._frame_uninitialize, signal='frame.exit')
         dp.connect(receiver=cls.initialized, signal='frame.initialized')
@@ -1180,6 +1230,17 @@ class sim(object):
     def initialized(cls):
         dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
                 prompt=False, verbose=False, history=False)
+
+    @classmethod
+    def _sim_command(cls, num, command, **kwargs):
+        mgr = Gcs.get_manager(num)
+        kwargs.pop("signal", None)
+        kwargs.pop("sender", None)
+        if mgr and hasattr(mgr, command) and command in mgr._interfaces:
+            fun = getattr(mgr, command)
+            if fun:
+                return fun(**kwargs)
+        return False
 
     @classmethod
     def _prop_changed(cls, prop):
