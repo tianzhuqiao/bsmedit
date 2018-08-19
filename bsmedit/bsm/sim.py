@@ -913,11 +913,24 @@ class SimPanel(wx.Panel):
         except:
             traceback.print_exc(file=sys.stdout)
 
+wxEVT_PROP_CLICK_CHECK = wx.NewEventType()
+EVT_PROP_CLICK_CHECK = wx.PyEventBinder(wxEVT_PROP_CLICK_CHECK, 1)
+
 class SimProperty(pg.Property):
 
     def __init__(self, grid, name, label, value):
         pg.Property.__init__(self, grid, name, label, value)
         self.gripper_clr = wx.RED
+        self.show_check = True
+        self.checked = False
+        self.condition = ("", "")
+
+    def duplicate(self):
+        p = super(SimProperty, self).duplicate()
+        p.gripper_clr = self.gripper_clr
+        p.show_check = self.show_check
+        p.checked = self.checked
+        return p
 
     def SetGripperColor(self, clr=None):
         self.gripper_clr = clr
@@ -925,22 +938,112 @@ class SimProperty(pg.Property):
     def GetGripperColor(self):
         return self.gripper_clr
 
+    def SetShowCheck(self, show=True, silent=True):
+        """show/hide radio button"""
+        if self.show_check == show:
+            return
+        self.show_check = show
+        if not silent:
+            self.Refresh()
+
+    def IsShowCheck(self):
+        """return whether the icon is shown"""
+        return self.show_check
+
+    def SetChecked(self, check=True, silent=False):
+        """check/uncheck the radio button"""
+        if check != self.IsChecked():
+            self.checked = check
+            if not self.SendPropEvent(wxEVT_PROP_CLICK_CHECK):
+                self.checked = not check
+            if not silent:
+                self.Refresh()
+
+    def IsChecked(self):
+        """return true if the radio button is checked"""
+        return self.checked
+
+    def OnMouseUp(self, pt):
+        ht = self.HitTest(pt)
+        if self.IsEnabled():
+            # click on the check icon? change the state
+            if self.IsShowCheck() and ht == 'check':
+                checked = self.IsChecked()
+                self.SetChecked(not checked)
+        return ht
+
+    def SetBpConditon(self, cond, hitcount):
+        self.condition = (cond, hitcount)
+
+    def GetBpCondition(self):
+        return self.condition
+
 class SimPropArt(pg.PropArtNative):
 
     def __init__(self):
         super(SimPropArt, self).__init__()
-        self.margin['left'] = 6
+        self.gripper_width = 6
+        self.check_width = 16
 
     def PrepareDrawRect(self, p):
         """calculate the rect for each section"""
-        super(SimPropArt, self).PrepareDrawRect(p)
-
+        mx = self.gap_x
         irc = p.GetRect()
+        irc.SetLeft(irc.GetLeft()+self.margin['left'])
+        irc.SetRight(irc.GetRight()+self.margin['right'])
+        irc.SetTop(irc.GetTop()+self.margin['top'])
+        irc.SetBottom(irc.GetBottom()+self.margin['bottom'])
+        x = irc.x
+        x = x + mx*2 + p.indent*self.indent_width
         # gripper
         rc = wx.Rect(*irc)
         rc.x += self.gap_x
-        rc.SetWidth(6)
+        rc.SetWidth(self.gripper_width)
         p.regions['gripper'] = rc
+
+        if self.expansion_width > 0 and p.HasChildren():
+            # expander icon
+            rc = wx.Rect(*irc)
+            rc.x = x + mx*2
+            rc.SetWidth(self.expansion_width)
+            p.regions['expander'] = rc
+            x = rc.right
+
+        if self.check_width > 0 and p.IsShowCheck():
+            # radio/check icon
+            rc = wx.Rect(*irc)
+            rc.x = x + mx
+            rc.SetWidth(self.check_width+2)
+            p.regions['check'] = rc
+            x = rc.right
+
+        # label
+        p.regions['label'] = wx.Rect(*irc)
+        p.regions['label'].x = x + mx*2
+
+        if not p.IsSeparator():
+            title_width = p.title_width
+            if title_width < 0:
+                title_width = self.title_width
+            p.regions['label'].SetRight(title_width)
+            x = p.regions['label'].right
+
+            rc = wx.Rect(*irc)
+            rc.x = x + mx
+            rc.SetWidth(self.splitter_width)
+            p.regions['splitter'] = rc
+            x = rc.right
+
+            rc = wx.Rect(*irc)
+            rc.x = x
+            rc.SetWidth(irc.right-x)
+            rc.Deflate(1, 1)
+            p.regions['value'] = rc
+        else:
+            # separator does not have splitter & value
+            p.regions['label'].SetWidth(p.regions['label'].GetWidth() + irc.right-x)
+            p.regions['splitter'] = wx.Rect(irc.right, irc.top, 0, 0)
+            p.regions['value'] = wx.Rect(irc.right, irc.top, 0, 0)
 
     def DrawGripper(self, dc, p):
         # draw gripper
@@ -952,9 +1055,28 @@ class SimPropArt(pg.PropArtNative):
             rc = p.regions['gripper']
             dc.DrawRectangle(rc.x, rc.y+1, 3, rc.height-1)
 
+    def DrawCheck(self, dc, p):
+        # draw radio button
+        if self.check_width > 0 and p.IsShowCheck():
+            render = wx.RendererNative.Get()
+            state = 0
+            if not p.IsEnabled():
+                state |= wx.CONTROL_DISABLED
+            if p.IsChecked():
+                state |= wx.CONTROL_CHECKED
+            if p.IsActivated():
+                state |= wx.CONTROL_FOCUSED
+
+            w, h = self.check_width, self.check_width
+            rc = p.regions['check']
+            x = rc.x+(rc.width-w)/2
+            y = rc.y+(rc.height-h)/2+1
+            render.DrawRadioBitmap(p.grid, dc, (x, y, w, h), state)
+
     def DrawItem(self, dc, p):
         super(SimPropArt, self).DrawItem(dc, p)
         self.DrawGripper(dc, p)
+        self.DrawCheck(dc, p)
 
 class SimPropGrid(pg.PropGrid):
     GCM = Gcm()
@@ -970,6 +1092,7 @@ class SimPropGrid(pg.PropGrid):
         SimPropGrid.GCM.set_active(self)
         self.SetArtProvider(SimPropArt())
         self._prop_cls = SimProperty
+        self.Bind(EVT_PROP_CLICK_CHECK, self.OnPropEventsHandler)
 
         dp.connect(self.OnSimLoad, 'sim.loaded')
         dp.connect(self.OnSimUnload, 'sim.unloaded')
@@ -1051,7 +1174,7 @@ class SimPropGrid(pg.PropGrid):
 
         prop = evt.GetProperty()
         eid = evt.GetEventType()
-        if eid == pg.wxEVT_PROP_CLICK_CHECK:
+        if eid == wxEVT_PROP_CLICK_CHECK:
             # turn on/off breakpoint
             if prop.IsChecked():
                 dp.send('prop.bp_add', prop=prop)
@@ -1066,12 +1189,18 @@ class SimPropGrid(pg.PropGrid):
         if eid == self.ID_PROP_BREAKPOINT:
             if not prop:
                 return
-            condition = prop.GetData()
-            if condition is None:
-                self.bp_condition = ('', '')
+            condition = prop.GetBpCondition()
             dlg = BreakpointSettingsDlg(self, condition[0], condition[1])
             if dlg.ShowModal() == wx.ID_OK:
-                prop.SetData(dlg.GetCondition())
+                if prop.IsChecked():
+                    # delete current breakpoint
+                    prop.SetChecked(False)
+                    prop.SetBpConditon(*dlg.GetCondition())
+                    # add breakpoint to make the condition valid
+                    prop.SetChecked(True)
+                else:
+                    prop.SetBpConditon(*dlg.GetCondition())
+
         elif eid == self.ID_PROP_BREAKPOINT_CLEAR:
             self.ClearBreakPoints()
         else:
@@ -1087,12 +1216,10 @@ class SimPropGrid(pg.PropGrid):
         """check whether the breakpoints are triggered"""
         for prop in self._props:
             if name == prop.GetName():
-                if (cond, hitcount) == prop.GetData():
+                if (cond, hitcount) == prop.GetBpCondition():
                     self.EnsureVisible(prop)
-                    self.SelectProperty(prop)
+                    self.SetSelection(prop)
                     return True
-
-
 
 class BreakpointSettingsDlg(wx.Dialog):
     def __init__(self, parent, condition='', hitcount=''):
@@ -1252,16 +1379,16 @@ class sim(object):
     def _prop_bp_add(cls, prop):
         mgr, name = cls._find_object(prop.GetName())
         if mgr:
-            cnd = prop.GetData()
+            cnd = prop.GetBpCondition()
             if cnd is None:
-                cnd = ("", "")
+                cnd = ["", ""]
             mgr.add_breakpoint(name, cnd[0], cnd[1])
 
     @classmethod
     def _prop_bp_del(cls, prop):
         mgr, name = cls._find_object(prop.GetName())
         if mgr:
-            cnd = prop.GetData()
+            cnd = prop.GetBpCondition()
             if cnd is None:
                 cnd = ("", "")
             mgr.del_breakpoint(name, cnd[0], cnd[1])
