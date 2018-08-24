@@ -978,12 +978,23 @@ class SimProperty(pg.Property):
     def GetBpCondition(self):
         return self.condition
 
+
 class SimPropArt(pg.PropArtNative):
 
     def __init__(self):
         super(SimPropArt, self).__init__()
         self.gripper_width = 6
+        if wx.Platform == '__WXMSW__':
+            self.img_expand = wx.ImageList(12, 12, True, 2)
+            self.img_expand.Add(self.BitmapFromXPM(pg.tree_xpm))
+            self.expansion_width = 12
         self.check_width = 16
+        self.img_check = wx.ImageList(16, 16, True, 4)
+        self.img_check.Add(self.BitmapFromXPM(pg.radio_xpm))
+
+    def BitmapFromXPM(self, xpm):
+        xpm_b = [x.encode('utf-8') for x in xpm]
+        return wx.Bitmap(xpm_b)
 
     def PrepareDrawRect(self, p):
         """calculate the rect for each section"""
@@ -1055,7 +1066,7 @@ class SimPropArt(pg.PropArtNative):
             rc = p.regions['gripper']
             dc.DrawRectangle(rc.x, rc.y+1, 3, rc.height-1)
 
-    def DrawCheck(self, dc, p):
+    def DrawCheckNative(self, dc, p):
         # draw radio button
         if self.check_width > 0 and p.IsShowCheck():
             render = wx.RendererNative.Get()
@@ -1072,6 +1083,39 @@ class SimPropArt(pg.PropArtNative):
             x = rc.x+(rc.width-w)/2
             y = rc.y+(rc.height-h)/2+1
             render.DrawRadioBitmap(p.grid, dc, (x, y, w, h), state)
+
+    def DrawCheck(self, dc, p):
+        if self.check_width > 0 and p.IsShowCheck():
+            state = 0
+            if not p.IsEnabled():
+                state = 1
+            elif p.IsChecked():
+                state = 2
+                if p.IsActivated():
+                    state = 3
+
+            if self.img_check.GetImageCount() == 4:
+                (w, h) = self.img_check.GetSize(0)
+                rc = p.regions['check']
+                x = rc.x+(rc.width-w)/2
+                y = rc.y+(rc.height-h)/2+1
+                self.img_check.Draw(state, dc, x, y, wx.IMAGELIST_DRAW_TRANSPARENT)
+            else:
+                self.DrawCheckNative(dc, p)
+
+    def DrawExpansion(self, dc, p):
+        if p.HasChildren():
+            if self.img_expand.GetImageCount() == 2:
+                (w, h) = self.img_expand.GetSize(0)
+                rc = p.regions['expander']
+                x = rc.x+(rc.width-w)/2
+                y = rc.y+(rc.height-h)/2+1
+                idx = 0
+                if not p.IsExpanded():
+                    idx = 1
+                self.img_expand.Draw(idx, dc, x, y, wx.IMAGELIST_DRAW_TRANSPARENT)
+            else:
+                super(SimPropArt, self).DrawExpansion(dc, p)
 
     def DrawItem(self, dc, p):
         super(SimPropArt, self).DrawItem(dc, p)
