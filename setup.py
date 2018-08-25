@@ -9,9 +9,7 @@ setup(name='bsmedit',
       license="MIT",
       platforms=["any"],
       packages=find_packages(),
-      data_files=[('bsmedit/bsm', ['bsm.h']),
-                  ('.', ['readme.md', 'LICENSE'])
-                 ],
+      include_package_data = True,
       entry_points={
           'gui_scripts': [
               'bsmedit = bsmedit.main:main'
