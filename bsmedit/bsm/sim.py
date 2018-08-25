@@ -260,11 +260,16 @@ class Simulation(object):
             if obj is None:
                 print("invalid object: ", obj)
                 continue
-            prop = grid.InsertProperty(self.global_object_name(obj['name']),
-                                       obj['basename'], obj['value'], index)
-            prop.SetGripperColor(self.frame.GetColor())
-            prop.SetReadonly(not obj['writable'])
-            prop.SetShowCheck(obj['readable'])
+            if obj['kind'] == 'sc_module':
+                prop = grid.InsertSeparator(self.global_object_name(obj['name']),
+                                            obj['basename'], index)
+            else:
+                prop = grid.InsertProperty(self.global_object_name(obj['name']),
+                                           obj['basename'], obj['value'], index)
+                prop.SetGripperColor(self.frame.GetColor())
+                if not obj['writable']:
+                    prop.SetControlStyle('none')
+                prop.SetShowCheck(obj['readable'])
             props.append(prop)
             if index != -1:
                 index += 1
@@ -1048,7 +1053,6 @@ class SimPropArt(pg.PropArtNative):
             rc = wx.Rect(*irc)
             rc.x = x
             rc.SetWidth(irc.right-x)
-            rc.Deflate(1, 1)
             p.regions['value'] = rc
         else:
             # separator does not have splitter & value
