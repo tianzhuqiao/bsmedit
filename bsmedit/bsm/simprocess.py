@@ -528,7 +528,7 @@ class SimCommand(object):
             scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
             self.sim_total_sec = self.sim_total/scale[self.sim_unit_total]
             if more:
-                self.sim_total_sec += self.time_stamp(format='second')
+                self.sim_total_sec += self.time_stamp(insecond=True)
         else:
             self.sim_total_sec = -1
         return self.get_parameter()
