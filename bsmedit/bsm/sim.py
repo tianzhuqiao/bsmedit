@@ -292,6 +292,12 @@ class Simulation(object):
                 if len(value) == 1:
                     value = list(value.values())[0]
             elif command == 'get_status':
+                running = self.status['running']
+                if running == True and value.get('running', running) == False:
+                    # if the queues are almost empty, retrieve the data
+                    self.time_stamp(insecond=False, block=False)
+                    self.read(objects=[], block=False)
+                    self.read_buf([], block=False)
                 self.status.update(value)
             return value
         except:
