@@ -125,30 +125,27 @@ def sx(cmd, *args, **kwds):
     if cmd[-1] == '&':
         wait = False
         cmd = cmd[0:-1]
-    startupinfo = sp.STARTUPINFO()
-    startupinfo.dwFlags |= sp.STARTF_USESHOWWINDOW
     # try the standalone command first
     try:
         if wait:
-            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo,
-                         stdout=sp.PIPE, stderr=sp.PIPE)
-            dp.send('shell.write_out', text=p.stdout.read())
+            p = sp.Popen(cmd.split(' '), stdout=sp.PIPE, stderr=sp.PIPE)
+            dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
-            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo)
+            p = sp.Popen(cmd.split(' '))
         return
     except:
-        pass
+        traceback.print_exc(file=sys.stdout)
     # try the shell command
     try:
         if wait:
-            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True,
-                         stdout=sp.PIPE, stderr=sp.PIPE)
-            dp.send('shell.write_out', text=p.stdout.read())
+            p = sp.Popen(cmd.split(' '), shell=True, stdout=sp.PIPE,
+                         stderr=sp.PIPE)
+            dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
-            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True)
+            p = sp.Popen(cmd.split(' '), shell=True)
         return
     except:
-        pass
+        traceback.print_exc(file=sys.stdout)
 
 class Shell(pyshell.Shell):
     ID_COPY_PLUS = wx.NewId()
@@ -230,6 +227,7 @@ class Shell(pyshell.Shell):
         self.debugger.release()
         # save command history
         dp.send('frame.set_config', group='shell', history=self.history)
+        dp.send('frame.set_config', group='shell', alias=aliasDict)
 
         dp.disconnect(self.writeOut, 'shell.write_out')
         dp.disconnect(self.runCommand, 'shell.run')
@@ -334,6 +332,9 @@ class Shell(pyshell.Shell):
         resp = dp.send('frame.get_config', group='shell', key='history')
         if resp and resp[0][1]:
             self.history = resp[0][1]
+        resp = dp.send('frame.get_config', group='shell', key='alias')
+        if resp and resp[0][1]:
+            aliasDict.update(resp[0][1])
 
     def OnKillFocus(self, event):
         if self.CallTipActive():
