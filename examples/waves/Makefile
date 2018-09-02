@@ -7,10 +7,10 @@ OBJ = main.o
 OBJS = $(patsubst %,$(ODIR)/%,$(OBJ))
 
 libwaves: $(OBJS)
-	g++ -shared  $^ -o $@.so
+	$(CC) -shared  $^ -o $@.so
 
 $(ODIR)/%.o: %.c $(DEPS)
-	g++ $(CFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 $(OBJS): | $(ODIR)
 

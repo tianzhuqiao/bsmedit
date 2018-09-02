@@ -329,6 +329,7 @@ table {
     border-collapse: collapse;
 	border-top: 1px solid #eee;
 	border-bottom: 1px solid #eee;
+    margin-bottom: 8px;
 }
 
 table tr:nth-child(odd) td{
@@ -337,7 +338,7 @@ table tr:nth-child(odd) td{
 
 td,
 th {
-    padding: 0;
+    padding-right: 8px;
 }
 
 caption {
