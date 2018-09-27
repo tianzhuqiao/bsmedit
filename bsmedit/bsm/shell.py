@@ -125,24 +125,29 @@ def sx(cmd, *args, **kwds):
     if cmd[-1] == '&':
         wait = False
         cmd = cmd[0:-1]
+    startupinfo = None
+    if wx.Platform == '__WXMSW__':
+        startupinfo = sp.STARTUPINFO()
+        startupinfo.dwFlags |= sp.STARTF_USESHOWWINDOW
     # try the standalone command first
     try:
         if wait:
-            p = sp.Popen(cmd.split(' '), stdout=sp.PIPE, stderr=sp.PIPE)
+            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo,
+                         stdout=sp.PIPE, stderr=sp.PIPE)
             dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
-            p = sp.Popen(cmd.split(' '))
+            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo)
         return
     except:
         traceback.print_exc(file=sys.stdout)
     # try the shell command
     try:
         if wait:
-            p = sp.Popen(cmd.split(' '), shell=True, stdout=sp.PIPE,
-                         stderr=sp.PIPE)
+            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True,
+                         stdout=sp.PIPE, stderr=sp.PIPE)
             dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
-            p = sp.Popen(cmd.split(' '), shell=True)
+            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True)
         return
     except:
         traceback.print_exc(file=sys.stdout)
@@ -161,9 +166,8 @@ class Shell(pyshell.Shell):
         pyshell.Shell.__init__(self, parent, id, pos, size, style, introText,
                                locals, InterpClass, startupScript,
                                execStartupScript, *args, **kwds)
-        #self.redirectStdout(True)
-        #self.redirectStderr(True)
-        #self.redirectStdin(True)
+        self.redirectStdout(True)
+        self.redirectStderr(True)
         # the default sx function (!cmd to run external command) does not work
         # on windows
         __builtin__.sx = sx
@@ -184,7 +188,7 @@ class Shell(pyshell.Shell):
         dp.connect(self.writeOut, 'shell.write_out')
         dp.connect(self.runCommand, 'shell.run')
         dp.connect(self.debugPrompt, 'shell.prompt')
-        dp.connect(self.addHistory, 'shell.addToHistory')
+        dp.connect(self.addHistory, 'shell.add_to_history')
         dp.connect(self.IsDebuggerOn, 'debugger.debugging')
         dp.connect(self.getAutoCompleteList, 'shell.auto_complete_list')
         dp.connect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
@@ -232,7 +236,7 @@ class Shell(pyshell.Shell):
         dp.disconnect(self.writeOut, 'shell.write_out')
         dp.disconnect(self.runCommand, 'shell.run')
         dp.disconnect(self.debugPrompt, 'shell.prompt')
-        dp.disconnect(self.addHistory, 'shell.addToHistory')
+        dp.disconnect(self.addHistory, 'shell.add_to_history')
         dp.disconnect(self.IsDebuggerOn, 'debugger.debugging')
         dp.disconnect(self.getAutoCompleteList, 'shell.auto_complete_list')
         dp.disconnect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
@@ -254,7 +258,6 @@ class Shell(pyshell.Shell):
             dlg.ShowModal()
             dlg.Destroy()
             event.Veto()
-
 
     def evaluate(self, word):
         if word in six.iterkeys(self.interp.locals):
@@ -744,6 +747,7 @@ class Shell(pyshell.Shell):
             else:
                 self.SetCurrentPos(thepos)
                 self.SetAnchor(thepos)
+
     @classmethod
     def Initialize(cls, frame, **kwargs):
         cls.frame = frame
@@ -767,3 +771,4 @@ class Shell(pyshell.Shell):
 
 def bsm_initialize(frame, **kwargs):
     Shell.Initialize(frame, **kwargs)
+

@@ -1037,10 +1037,11 @@ class EngineDebugger(object):
         #update the locals
         self._update_frame_locals(frame)
 
-        ##Finsihed running the code - prompt for a new command
+        ##Finished running the code - prompt for a new command
         # add the command to history
-        dp.send('shell.addToHistory', command=line)
+        dp.send('shell.add_to_history', command=line)
         self.prompt()
+
     def write_debug(self, string):
         """
         Write a debugger message to the controlling console
