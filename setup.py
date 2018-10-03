@@ -1,5 +1,5 @@
 from setuptools import setup, find_packages
-from bsmedit.version import BSM_VERSION
+exec(open("bsmedit/version.py").read())
 setup(name='bsmedit',
       version=BSM_VERSION,
       description='C/C++/SystemC Visualizer',
