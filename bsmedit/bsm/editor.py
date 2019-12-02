@@ -1268,6 +1268,7 @@ class PyEditorPanel(wx.Panel):
             return
         if not self.fileName:
             return
+        self.RunCommand('import six', verbose=False)
         (path, _) = os.path.split(self.fileName)
         cmd = "compile(open(r'{0}', 'rb').read(), r'{0}', 'exec')".format(self.fileName)
         self.RunCommand('six.exec_(%s)'%cmd, prompt=True, verbose=True,
@@ -1279,6 +1280,7 @@ class PyEditorPanel(wx.Panel):
             return
         if not self.fileName:
             return
+        self.RunCommand('import six', verbose=False)
         # disable the debugger button
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, False)
 
