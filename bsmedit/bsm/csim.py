@@ -1,7 +1,8 @@
-import sys, os
-from ..cparser import cparser, cwrapper
+import sys
+import os
 import ctypes
 import six
+from ..cparser import cparser, cwrapper
 
 #CParserFunc = cparser.caching.parse
 # If we don't want to use caching:
@@ -57,8 +58,8 @@ class SStructWrapper(ctypes.Structure):
     def __setattr__(self, item, val):
         if hasattr(self, '_object'):
             if self.set_object(item, val):
-               return
-        super(ctypes.Structure, self).__setattr__(item, val)
+                return
+        super(SStructWrapper, self).__setattr__(item, val)
 
     def __getitem__(self, item):
         if isinstance(item, six.string_types):
