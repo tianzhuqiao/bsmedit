@@ -28,9 +28,9 @@
 """
 
 import os
+import traceback
 import six
 import wx
-import traceback
 from .. import c2p
 
 class Directory(object):
@@ -224,7 +224,7 @@ class DirTreeCtrl(wx.TreeCtrl):
                             icon = info[0]
                             if icon.Ok():
                                 # add to imagelist and store returned key
-                                iconkey = self.imagelist.AddIcon(icon)
+                                iconkey = self.imagelist.Add(icon)
                                 self.iconentries[ext] = iconkey
                                 # update tree with new imagelist - inefficient
                                 self.SetImageList(self.imagelist)
