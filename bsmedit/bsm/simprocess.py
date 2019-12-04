@@ -1,4 +1,5 @@
-import sys, os
+import sys
+import os
 import traceback
 import inspect
 import re
@@ -505,7 +506,7 @@ class SimCommand(object):
             if x.group(2):
                 unit = self.sim_units.get(x.group(2), None)
                 if unit is None:
-                    raise ValueError("unknown time format: " + str(time))
+                    raise ValueError("unknown time format: " + str(t))
                 return float(x.group(1)), unit
             else:
                 return float(x.group(1)), None
@@ -516,21 +517,27 @@ class SimCommand(object):
         """set the parameters"""
         step, step_unit = self._parse_time(step)
         total, total_unit = self._parse_time(total)
+        if total_unit is None:
+            total_unit = self.sim_unit_total
         if step_unit is not None:
             self.sim_unit_step = step_unit
         if step is not None:
             self.sim_step = step
         if total is not None:
-            self.sim_total = total
-        if total_unit is not None:
-            self.sim_unit_total = total_unit
-        if self.sim_total > 0:
             scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
-            self.sim_total_sec = self.sim_total/scale[self.sim_unit_total]
             if more:
-                self.sim_total_sec += self.time_stamp(insecond=True)
-        else:
-            self.sim_total_sec = -1
+                # calculate the next pause time in sec, no need to update the
+                # absolute max simulation time (sim_total)
+                total = total/scale[total_unit] + self.time_stamp(insecond=True)
+            else:
+                # update absolute simulation time
+                self.sim_total = total
+                self.sim_unit_total = total_unit
+            # update the next pause time
+            if self.sim_total > 0:
+                self.sim_total_sec = min(total, self.sim_total/scale[total_unit])
+            else:
+                self.sim_total_sec = total
         return self.get_parameter()
 
     @SimInterface()
