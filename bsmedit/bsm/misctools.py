@@ -210,7 +210,7 @@ class HistoryPanel(wx.Panel):
             # free the list
             self.history.pop(stamp, None)
         children = []
-        for obj in childlist:
+        for obj in reversed(childlist):
             child = {'label': obj, 'img':-1, 'imgsel': -1, 'data':'',
                      'color': clr}
             child['is_folder'] = is_folder
@@ -287,12 +287,12 @@ class HistoryPanel(wx.Panel):
             (item, cookie) = self.tree.GetNextChild(self.root, cookie)
         # not find the time stamp, create one
         if not item.IsOk():
-            item = self.tree.AppendItem(self.root, stamp)
+            item = self.tree.PrependItem(self.root, stamp)
             self.tree.SetItemTextColour(item, wx.Colour(100, 174, 100))
         # append the history
         if item.IsOk():
             self.tree.Expand(item)
-            child = self.tree.AppendItem(item, command)
+            child = self.tree.PrependItem(item, command)
             self.tree.EnsureVisible(child)
 
     def OnActivate(self, event):
