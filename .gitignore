@@ -1,6 +1,9 @@
 backup/
 res/
 systemc-2.1/
+systemc-2.3.1/include
+systemc-2.3.1/lib-linux64
+systemc-2.3.1/objdir
 temp/
 test/
 release/
@@ -11,3 +14,6 @@ libs/
 License
 *.bsm
 *.zip
+venv*/
+build/
+dist/
