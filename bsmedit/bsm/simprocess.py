@@ -513,31 +513,52 @@ class SimCommand(object):
         return None, None
 
     @SimInterface()
-    def set_parameter(self, step=None, total=None, more=False, **kwargs):
+    def set_parameter(self, step=None, total=None, to=None, more=None, **kwargs):
         """set the parameters"""
         step, step_unit = self._parse_time(step)
         total, total_unit = self._parse_time(total)
-        if total_unit is None:
-            total_unit = self.sim_unit_total
+        more, more_unit = self._parse_time(more)
+        to, to_unit = self._parse_time(to)
+
+        # global settings
+        if total_unit is not None:
+            self.sim_unit_total = total_unit
+        if total is not None:
+            self.sim_total = total
         if step_unit is not None:
             self.sim_unit_step = step_unit
         if step is not None:
             self.sim_step = step
-        if total is not None:
-            scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
-            if more:
-                # calculate the next pause time in sec, no need to update the
-                # absolute max simulation time (sim_total)
-                total = total/scale[total_unit] + self.time_stamp(insecond=True)
-            else:
-                # update absolute simulation time
-                self.sim_total = total
-                self.sim_unit_total = total_unit
+
+        if to_unit is None:
+            # unit not set, use the total unit
+            to_unit = self.sim_unit_total
+        if more_unit is None:
+            more_unit = self.sim_unit_total
+
+        scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
+        if self.sim_total > 0:
+            self.sim_total_sec = self.sim_total/scale[self.sim_unit_total]
+        else:
+            self.sim_total_sec = self.sim_total
+
+        if to is not None and to > 0:
+            # calculate the next pause time in sec, no need to update the
+            # absolute max simulation time (sim_total)
+            to = to/scale[to_unit]
             # update the next pause time
-            if self.sim_total > 0:
-                self.sim_total_sec = min(total, self.sim_total/scale[total_unit])
+            if self.sim_total_sec > 0:
+                self.sim_total_sec = min(to, self.sim_total_sec)
             else:
-                self.sim_total_sec = total
+                self.sim_total_sec = to
+        elif more is not None and more > 0:
+            more = more/scale[more_unit] + self.time_stamp(insecond=True)
+            # update the next pause time
+            if self.sim_total_sec > 0:
+                self.sim_total_sec = min(more, self.sim_total_sec)
+            else:
+                self.sim_total_sec = more
+
         return self.get_parameter()
 
     @SimInterface()

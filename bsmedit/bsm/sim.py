@@ -190,15 +190,7 @@ class Simulation(object):
         The simulation is executed step by step. After each step, the simulation
         'server' will notify the 'client' to update the GUI.
         """
-        total = None
-        if to:
-            total, ismore = to, False
-        elif more:
-            total, ismore = more, True
-        else:
-            # run with the current settings
-            total, ismore = None, False
-        self.set_parameter(total=total, more=ismore, block=False)
+        self.set_parameter(to=to, more=more, block=False)
         return self.step(running=True, block=block)
 
     def stop(self):
@@ -640,7 +632,7 @@ class SimPanel(wx.Panel):
         # simulation
         self.sim = Simulation(self, num)
         if filename is not None or not silent:
-            self.sim.load(filename)
+            self.sim.load(filename, block=True)
             self.SetParameter()
 
         dp.connect(receiver=self._process_response, signal='sim.response',
@@ -705,7 +697,7 @@ class SimPanel(wx.Panel):
         total = self.tcTotal.GetValue()
         unitTotal = self.cmbUnitTotal.GetString(self.cmbUnitTotal.GetSelection())
         total = "%f%s"%(total, unitTotal)
-        self.sim.set_parameter(step=step, total=total, more=False, block=block)
+        self.sim.set_parameter(step=step, total=total, block=block)
 
     def OnTreeSelChanged(self, event):
         item = event.GetItem()
@@ -1411,7 +1403,8 @@ class sim(object):
     def initialized(cls):
         dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
                 prompt=False, verbose=False, history=False)
-
+        dp.send(signal='shell.run', command='import six',
+                prompt=False, verbose=False, history=False)
     @classmethod
     def _sim_command(cls, num, command, **kwargs):
         mgr = Gcs.get_manager(num)
