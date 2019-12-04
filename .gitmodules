@@ -1,4 +1,4 @@
-[submodule "PyCParser"]
+[submodule "cparser"]
 	path = bsmedit/cparser
     url = https://github.com/tianzhuqiao/PyCParser.git
 [submodule "glsurface"]
