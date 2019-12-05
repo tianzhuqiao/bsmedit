@@ -233,10 +233,10 @@ class HistoryPanel(wx.Panel):
                 self.history[stamp].append(value)
 
         self.tree.FillChildren(self.root)
-        item = self.tree.GetLastChild(self.root)
+        item, cookie = self.tree.GetFirstChild(self.root)
         if item.IsOk():
             self.tree.Expand(item)
-            child = self.tree.GetLastChild(item)
+            child, cookie = self.tree.GetFirstChild(item)
             if child.IsOk():
                 self.tree.SelectItem(child)
                 self.tree.EnsureVisible(child)
