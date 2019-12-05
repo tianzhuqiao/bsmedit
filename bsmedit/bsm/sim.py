@@ -262,6 +262,10 @@ class Simulation(object):
                 if not obj['writable']:
                     prop.SetControlStyle('none')
                 prop.SetShowCheck(obj['readable'])
+                # set value invalid since obj['value'] may have garbage value
+                # (not read the actual value from simulation yet.);
+                # will set it to true once the value is updated.
+                prop.SetValueValid(False)
             props.append(prop)
             if index != -1:
                 index += 1
@@ -1158,8 +1162,10 @@ class SimPropGrid(pg.PropGrid):
             if isinstance(p, list):
                 for prop in p:
                     prop.SetValue(v)
+                    prop.SetValueValid(True)
             elif isinstance(p, pg.Property):
                 p.SetValue(v)
+                p.SetValueValid(True)
 
     def OnSimLoad(self, num):
         """try reconnecting registers when the simulation is loaded."""
