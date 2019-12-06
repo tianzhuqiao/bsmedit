@@ -148,7 +148,7 @@ You can also plot the trace to see the signal trend,
 >>> # trace the sine waveform to a buffer with size 4096 too
 >>> s.trace_buf('top.sig_sin', 4096)
 >>> # plot the trace
->>> plot_trace('top.sig_cos', 'top.sig_sin', False)
+>>> plot_trace('top.sig_cos', 'top.sig_sin', relim=False)
 >>> xlim([-1,1])
 >>> ylim([-1,1])
 %}!}
@@ -378,13 +378,14 @@ If \tag{b|filename} is \tag{b|None}, a file-select dialog will be shown to selec
 }
 -{\tag{b|Set simulation parameters.}
 {!example_src||highlight|python||{%
-s.set_parameter(step=None, total=None, more=False)
+s.set_parameter(step=None, total=None, to=None, more=None)
 %}!}
 where
 {{
 \tag{strong|step}| the time duration of each step, e.g., "\tag{b|100us}". The pre-defined time units include \tag{code|fs} (femtosecond), \tag{code|ps} (picosecond), \tag{code|ns} (nanosecond), \tag{code|us} (microsecond), \tag{code|ms} (millisecond), and \tag{code|s} (second).||-
-\tag{strong|total}| the total simulation duration.||-
-\tag{strong|more} | if \tag{b|more} is \tag{b|False}, \tag{b|total} parameter has its usual meaning. In this case, \tag{b|\-1} means to run infinitely; otherwise, \tag{b|total} means the additional simulation duration from the current simulation time.||-
+\tag{strong|total}| the total simulation duration; \tag{b|\-1} means to run infinitely.||-
+\tag{strong|to} | pause simulation when simulation time reaches \tag{b|to} (or \tag{b|total}).||-
+\tag{strong|more} | run simulation for additional time defined by \tag{b|more}, then pause. If \tag{b|to} is also defined, \tag{b|to} has higher priority.||-
 }}
 For example
 {!example_src||highlight|python||{%
@@ -393,9 +394,9 @@ s.set_parameter(step='1000us', total='-1')
 # set the step to be 1000. Here unit is not given, so the current one will be used. The default unit is 'ns'
 s.set_parameter(step='1000', total='-1')
 # When 'run' the simulation, it will stop at 100ms
-s.set_parameter(total='100ms')
+s.set_parameter(to='100ms')
 # When 'run' the simulation, it will stop at 100ms from the current simulation time-stamp
-s.set_parameter(total='100ms', more=True)
+s.set_parameter(more='100ms')
 %}!}
 }
 - {\tag{b|Run the simulation.} There are several functions to start the simulation

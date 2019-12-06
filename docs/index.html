@@ -49,7 +49,7 @@ MathJax.Hub.Config({ TeX: { equationNumbers: {autoNumber: "all"} } });
 </div>
 <div class="main">
 <div class="toptitle">
-bsmedit -- C/C++/SystemC Visualizer
+bsmedit -- C/C++/SystemC Visualizer <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32"></a>
 </div>
 <div class="content">
 <h1 id="sec-1">1 What is bsmedit</h1>
@@ -284,7 +284,7 @@ Your browser does not support the video tag.</video>
 &gt;&gt;&gt; <span class="c1"># trace the sine waveform to a buffer with size 4096 too</span>
 &gt;&gt;&gt; s.trace_buf<span class="o">(</span><span class="s1">&#39;top.sig_sin&#39;</span>, <span class="m">4096</span><span class="o">)</span>
 &gt;&gt;&gt; <span class="c1"># plot the trace</span>
-&gt;&gt;&gt; plot_trace<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>, <span class="s1">&#39;top.sig_sin&#39;</span>, False<span class="o">)</span>
+&gt;&gt;&gt; plot_trace<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>, <span class="s1">&#39;top.sig_sin&#39;</span>, <span class="nv">relim</span><span class="o">=</span>False<span class="o">)</span>
 &gt;&gt;&gt; xlim<span class="o">([</span>-1,1<span class="o">])</span>
 &gt;&gt;&gt; ylim<span class="o">([</span>-1,1<span class="o">])</span>
 </pre></div>
@@ -302,9 +302,8 @@ Your browser does not support the video tag.</video>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="kn">from</span> <span class="nn">bsmedit.bsm.pysim</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">bsmedit.propgrid</span> <span class="kn">import</span> <span class="n">formatters</span> <span class="k">as</span> <span class="n">fmt</span>
-
 <span class="c1"># create a simulation</span>
-<span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;./examples/start/libstart.so&#39;</span><span class="p">)</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;./examples/libstart.so&#39;</span><span class="p">)</span>
 
 <span class="c1"># set the simulation parameters: step = 100us, run infinitely</span>
 <span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="s1">&#39;100us&#39;</span><span class="p">,</span> <span class="s1">&#39;-1us&#39;</span><span class="p">)</span>
@@ -326,7 +325,7 @@ Your browser does not support the video tag.</video>
 <span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
 <span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
 <span class="n">grid</span><span class="p">(</span><span class="n">ls</span><span class="o">=</span><span class="s1">&#39;dotted&#39;</span><span class="p">)</span>
-<span class="n">s</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">to</span><span class="o">=</span><span class="s1">&#39;1000us&#39;</span><span class="p">)</span>
+<span class="n">s</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">more</span><span class="o">=</span><span class="s1">&#39;1000us&#39;</span><span class="p">)</span>
 <span class="n">s</span><span class="o">.</span><span class="n">wait_until_simulation_paused</span><span class="p">()</span>
 </pre></div>
 </div>
@@ -525,7 +524,7 @@ For example</p>
 <p>If <b>filename</b> is <b>None</b>, a file-select dialog will be shown to select the simulation.</p></li>
 <li><p><b>Set simulation parameters.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">more</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">more</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where</p>
@@ -535,10 +534,13 @@ For example</p>
 <td><strong>step</strong></td><td>the time duration of each step, e.g., "<b>100us</b>". The pre-defined time units include <code>fs</code> (femtosecond), <code>ps</code> (picosecond), <code>ns</code> (nanosecond), <code>us</code> (microsecond), <code>ms</code> (millisecond), and <code>s</code> (second).</td>
 </tr>
 <tr>
-<td><strong>total</strong></td><td>the total simulation duration.</td>
+<td><strong>total</strong></td><td>the total simulation duration; <b>-1</b> means to run infinitely.</td>
 </tr>
 <tr>
-<td><strong>more</strong></td><td>if <b>more</b> is <b>False</b>, <b>total</b> parameter has its usual meaning. In this case, <b>-1</b> means to run infinitely; otherwise, <b>total</b> means the additional simulation duration from the current simulation time.</td>
+<td><strong>to</strong></td><td>pause simulation when simulation time reaches <b>to</b> (or <b>total</b>).</td>
+</tr>
+<tr>
+<td><strong>more</strong></td><td>run simulation for additional time defined by <b>more</b>, then pause. If <b>to</b> is also defined, <b>to</b> has higher priority.</td>
 </tr>
 </tbody>
 </table>
@@ -549,9 +551,9 @@ For example</p>
 <span class="c1"># set the step to be 1000. Here unit is not given, so the current one will be used. The default unit is &#39;ns&#39;</span>
 <span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="s1">&#39;1000&#39;</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="s1">&#39;-1&#39;</span><span class="p">)</span>
 <span class="c1"># When &#39;run&#39; the simulation, it will stop at 100ms</span>
-<span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="s1">&#39;100ms&#39;</span><span class="p">)</span>
+<span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">to</span><span class="o">=</span><span class="s1">&#39;100ms&#39;</span><span class="p">)</span>
 <span class="c1"># When &#39;run&#39; the simulation, it will stop at 100ms from the current simulation time-stamp</span>
-<span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">total</span><span class="o">=</span><span class="s1">&#39;100ms&#39;</span><span class="p">,</span> <span class="n">more</span><span class="o">=</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">more</span><span class="o">=</span><span class="s1">&#39;100ms&#39;</span><span class="p">)</span>
 </pre></div>
 </div></li>
 <li><p><b>Run the simulation.</b> There are several functions to start the simulation</p>
@@ -1355,7 +1357,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2018-09-02 09:38:24 PDT, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tianzhu.qiao@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2019-12-05 23:23:05 PST, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 <script src="js/menu.js"></script>

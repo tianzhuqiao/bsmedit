@@ -8,7 +8,7 @@
 !}
 {!div|main||
 {!div|toptitle||
-bsmedit -- C/C++/SystemC Visualizer
+bsmedit -- C/C++/SystemC Visualizer [https://github.com/tianzhuqiao/bsmedit|\image{width="32"|images/github.svg}]
 !}
 {!div|content||
 #include index_content.bsmdoc
