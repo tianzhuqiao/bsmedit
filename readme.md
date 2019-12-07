@@ -1,6 +1,7 @@
 **bsmedit** is a C/C++/SystemC Visualizer.
 
-Full doc: http://bsmedit.feiyilin.com
+- [Documentation](http://bsmedit.feiyilin.com)
+- [PyPI](https://pypi.org/project/bsmedit/)
 
 <img src="/docs/images/start_run_plot.gif"></img>
 
