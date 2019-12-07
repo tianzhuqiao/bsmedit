@@ -49,7 +49,7 @@ MathJax.Hub.Config({ TeX: { equationNumbers: {autoNumber: "all"} } });
 </div>
 <div class="main">
 <div class="toptitle">
-bsmedit -- C/C++/SystemC Visualizer <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32"></a>
+bsmedit -- C/C++/SystemC Visualizer <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32" height="32"></a>
 </div>
 <div class="content">
 <h1 id="sec-1">1 What is bsmedit</h1>
@@ -305,6 +305,7 @@ Your browser does not support the video tag.</video>
 <span class="c1"># create a simulation</span>
 <span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;./examples/libstart.so&#39;</span><span class="p">)</span>
 
+<span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(),</span> <span class="s2">&quot;Failed to load simulation&quot;</span>
 <span class="c1"># set the simulation parameters: step = 100us, run infinitely</span>
 <span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="s1">&#39;100us&#39;</span><span class="p">,</span> <span class="s1">&#39;-1us&#39;</span><span class="p">)</span>
 
@@ -1357,7 +1358,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2019-12-05 23:23:05 PST, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2019-12-06 22:38:49 PST, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 <script src="js/menu.js"></script>
