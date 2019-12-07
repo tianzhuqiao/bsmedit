@@ -38,8 +38,9 @@ def MakeBitmap(red, green, blue, alpha=128):
     return bmp
 
 def PopupMenu(wnd, menu):
+    # popup a menu, and return the selected command
     if not wnd or not menu:
-        return
+        return wx.ID_NONE
 
     cc = aui.ToolbarCommandCapture()
     wnd.PushEventHandler(cc)

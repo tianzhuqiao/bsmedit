@@ -1,8 +1,8 @@
 """
 Manage windows (originated from matplotlib).
 """
-import six
 import gc
+import six
 
 class Gcm(object):
     """

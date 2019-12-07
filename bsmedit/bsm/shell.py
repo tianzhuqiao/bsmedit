@@ -6,12 +6,12 @@ import subprocess as sp
 import keyword
 import time
 import pydoc
+import six.moves.builtins as __builtin__
 import six
 import wx
 import wx.py.shell as pyshell
 import wx.py.dispatcher as dp
 from wx.py.pseudo import PseudoFile
-import six.moves.builtins as __builtin__
 from .debugger import EngineDebugger
 from ..version import BSM_VERSION
 
@@ -292,7 +292,10 @@ class Shell(pyshell.Shell):
     def getAutoCompleteKeys(self):
         return self.interp.getAutoCompleteKeys()
 
-    def getAutoCompleteList(self, command='', signal='', sender='', *args, **kwds):
+    def getAutoCompleteList(self, command, *args, **kwds):
+        # remove additional key from wx.py.dispatcher.send
+        kwds.pop('sender', None)
+        kwds.pop('signal', None)
         try:
             cmd = wx.py.introspect.getRoot(command, '.')
             self.evaluate(cmd)
@@ -300,7 +303,10 @@ class Shell(pyshell.Shell):
             pass
         return self.interp.getAutoCompleteList(command, *args, **kwds)
 
-    def getAutoCallTip(self, command, signal='', sender='', *args, **kwds):
+    def getAutoCallTip(self, command, *args, **kwds):
+        # remove additional key from wx.py.dispatcher.send
+        kwds.pop('sender', None)
+        kwds.pop('signal', None)
         return self.interp.getCallTip(command, *args, **kwds)
 
     def autoCompleteShow(self, command, offset=0):
@@ -357,21 +363,21 @@ class Shell(pyshell.Shell):
             if self.AutoCompActive():
                 wx.CallAfter(self.AutoCompCancel)
 
-    def OnUpdateUI(self, event):
-        eid = event.GetId()
+    def OnUpdateUI(self, evt):
+        eid = evt.GetId()
         if eid in (wx.ID_CUT, wx.ID_CLEAR):
-            event.Enable(self.CanCut())
+            evt.Enable(self.CanCut())
         elif eid in (wx.ID_COPY, self.ID_COPY_PLUS):
-            event.Enable(self.CanCopy())
+            evt.Enable(self.CanCopy())
         elif eid in (wx.ID_PASTE, self.ID_PASTE_PLUS):
-            event.Enable(self.CanPaste())
+            evt.Enable(self.CanPaste())
         elif eid == wx.ID_UNDO:
-            event.Enable(self.CanUndo())
+            evt.Enable(self.CanUndo())
         elif eid == wx.ID_REDO:
-            event.Enable(self.CanRedo())
+            evt.Enable(self.CanRedo())
         # update the caret position so that it is always in valid area
         self.UpdateCaretPos()
-        super(Shell, self).OnUpdateUI(event)
+        super(Shell, self).OnUpdateUI(evt)
 
     def UpdateCaretPos(self):
         # when editing the command, do not allow moving the caret to
@@ -771,4 +777,3 @@ class Shell(pyshell.Shell):
 
 def bsm_initialize(frame, **kwargs):
     Shell.Initialize(frame, **kwargs)
-

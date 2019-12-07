@@ -101,7 +101,7 @@ class HelpPanel(wx.Panel):
             return objs, objs, len(query) - len(root)
         return [], [], 0
     def add_history(self, command):
-        if len(self.history) == 0 or self.history[-1] != command:
+        if not self.history or self.history[-1] != command:
             self.history.append(command)
             self.history_index = -1
 
@@ -117,7 +117,6 @@ class HelpPanel(wx.Panel):
                 self.add_history(command)
         except:
             traceback.print_exc(file=sys.stdout)
-        return
 
     def OnDoSearch(self, evt):
         command = self.search.GetValue()
@@ -139,7 +138,7 @@ class HelpPanel(wx.Panel):
         if h_len > 0:
             h_idx = self.history_index%h_len
         if idx == wx.ID_FORWARD:
-            event.Enable(h_idx >= 0 and h_idx < h_len-1)
+            event.Enable(0 <= h_idx < h_len-1)
         elif idx == wx.ID_BACKWARD:
             event.Enable(h_idx > 0)
 
@@ -319,7 +318,7 @@ class HistoryPanel(wx.Panel):
         for item in items:
             cmd.append(self.tree.GetItemText(item))
         evtId = event.GetId()
-        if evtId == wx.ID_COPY or evtId == wx.ID_CUT:
+        if evtId in (wx.ID_COPY, wx.ID_CUT):
             clipData = wx.TextDataObject()
             clipData.SetText("\n".join(cmd))
             wx.TheClipboard.Open()

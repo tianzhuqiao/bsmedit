@@ -218,4 +218,3 @@ class AutocompleteTextCtrl(wx.TextCtrl):
         if not self.popup.IsActive():
             self.popup.Hide()
         event.Skip()
-

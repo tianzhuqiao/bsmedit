@@ -366,8 +366,9 @@ class SimInterface(object):
     def __init__(self):
         pass
     def __call__(self, fun):
-        argspec = inspect.getargspec(fun)
-        argspec = inspect.formatargspec(*argspec)
+        #argspec = inspect.getargspec(fun)
+        #argspec = inspect.formatargspec(*argspec)
+        argspec = str(inspect.signature(fun))
         temp = argspec.split(',')
         interf = {'args': '('+', '.join(temp[1:]).strip(),
                   'doc': fun.__doc__}
@@ -411,7 +412,7 @@ class SimCommand(object):
     def check_bp(self, n):
         """check the breakpoints"""
         bps = self.breakpoint.get_bp()
-        if len(bps) <= 0:
+        if not bps:
             return 0
         objs = list(bps.keys())
         values = self.read(objects=objs)
@@ -752,7 +753,7 @@ class SimCommand(object):
     @SimInterface()
     def close_trace_buf(self, name='', **kwargs):
         """stop dumping to a numpy array"""
-        if not name in self.tbuf:
+        if name not in self.tbuf:
             return False
 
         trace = self.tbuf[name]['trace']
