@@ -250,7 +250,7 @@ class Simulation(object):
             obj = self.objects.get(name, None)
             # ignore the invalid object
             if obj is None:
-                print("invalid object: ", obj)
+                print("invalid object: ", name)
                 continue
             if obj['kind'] == 'sc_module':
                 prop = grid.InsertSeparator(self.global_object_name(obj['name']),
@@ -1481,7 +1481,12 @@ class sim(object):
     @classmethod
     def _frame_set_active(cls, pane):
         if pane and isinstance(pane, SimPanel):
+            if Gcs.get_active() == pane.sim:
+                return
             Gcs.set_active(pane.sim)
+            if pane.sim.is_valid() and not pane.sim.is_running():
+                # update the time stamp on the status bar
+                pane.sim.time_stamp(insecond=False, block=False)
         if pane and isinstance(pane, SimPropGrid):
             SimPropGrid.GCM.set_active(pane)
 
