@@ -3,6 +3,7 @@ from bsmedit.propgrid import formatters as fmt
 # create a simulation
 s = simulation(None, './examples/libtbdll.so')
 
+assert s.is_valid(), 'Failed to load simulation'
 # set the simulation parameters: step = 100us, run infinitely
 s.set_parameter('100us', '-1us')
 
