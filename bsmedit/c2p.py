@@ -69,6 +69,7 @@ def treeGetData(tree, *args, **kwargs):
         return tree.GetItemData(*args, **kwargs)
     else:
         data = tree.GetPyData(*args, **kwargs)
+        return data
 
 def treeAppendItem(tree, parent, label, img, selimg, data):
     if not bsm_is_phoenix:
