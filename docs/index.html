@@ -194,24 +194,24 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 <span class="nv">OBJS</span> <span class="o">=</span> <span class="k">$(</span>patsubst %,<span class="k">$(</span>ODIR<span class="k">)</span>/%,<span class="k">$(</span>OBJ<span class="k">))</span>
 
 <span class="nf">libstart</span><span class="o">:</span> <span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span> <span class="k">$(</span><span class="nv">SYSC_LIB</span><span class="k">)</span>
-	g++ -shared  $^ -o <span class="nv">$@</span>.so
+    g++ -shared  $^ -o <span class="nv">$@</span>.so
 
 <span class="nf">$(ODIR)/bsm.o</span><span class="o">:</span> ../../<span class="n">xsc</span>/<span class="n">bsm</span>.<span class="n">cpp</span> ../../<span class="n">xsc</span>/<span class="n">bsm</span>.<span class="n">h</span>
-	g++ <span class="k">$(</span>CFLAGS<span class="k">)</span> -I<span class="k">$(</span>SYSC_DIR<span class="k">)</span> -I<span class="k">$(</span>XSC_DIR<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
+    g++ <span class="k">$(</span>CFLAGS<span class="k">)</span> -I<span class="k">$(</span>SYSC_DIR<span class="k">)</span> -I<span class="k">$(</span>XSC_DIR<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
 
 <span class="nf">$(ODIR)/%.o</span><span class="o">:</span> %.<span class="n">cpp</span> <span class="k">$(</span><span class="nv">DEPS</span><span class="k">)</span>
-	g++ <span class="k">$(</span>CFLAGS<span class="k">)</span> -I<span class="k">$(</span>SYSC_DIR<span class="k">)</span> -I<span class="k">$(</span>XSC_DIR<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
+    g++ <span class="k">$(</span>CFLAGS<span class="k">)</span> -I<span class="k">$(</span>SYSC_DIR<span class="k">)</span> -I<span class="k">$(</span>XSC_DIR<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
 
 <span class="nf">$(OBJS)</span><span class="o">:</span> <span class="p">|</span> <span class="k">$(</span><span class="nv">ODIR</span><span class="k">)</span>
 
 <span class="nf">$(ODIR)</span><span class="o">:</span>
-	mkdir -p <span class="k">$(</span>ODIR<span class="k">)</span>
+    mkdir -p <span class="k">$(</span>ODIR<span class="k">)</span>
 
 <span class="nf">.PHONY</span><span class="o">:</span> <span class="n">clean</span>
 
 <span class="nf">clean</span><span class="o">:</span>
-	rm -f <span class="k">$(</span>ODIR<span class="k">)</span>/*.o *.so
-	rm -r <span class="k">$(</span>ODIR<span class="k">)</span>
+    rm -f <span class="k">$(</span>ODIR<span class="k">)</span>/*.o *.so
+    rm -r <span class="k">$(</span>ODIR<span class="k">)</span>
 </pre></div>
 </div></li>
 </ul></li>
@@ -766,7 +766,9 @@ For example</p>
 </div>
 <p>Then when you run the simulation, the plot will be automatically updated accordingly</p>
 <div class="video">
-<video controls><source src="./images/start_run_plot.mp4">
+<video controls><source src="
+./images/start_run_plot.mp4
+">
 Your browser does not support the video tag.</video>
 </div></li>
 <li><p><b>Dump signal to a file.</b></p>
@@ -935,7 +937,7 @@ To set a breakpoint,</p>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">p</span><span class="o">.</span><span class="n">SetExpand</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
 </pre></div>
 </div>
-<p><b>Use the control to set the signal</b>. As you see before, each signal in the <b>propgrid</b> has two sections: name and value. The value section shows its current value. When click on the <code>value</code> section, if the signal is writable, the signal will be in <b>edit</b> mode; by default, an editbox will be shown so that you can type the value. By typing  <b>Enter</b> after modifying the value, bsmedit will send the change to the simulation.</p>
+<p><b>Use the control to set the signal</b>. As you see before, each signal in the <b>propgrid</b> has two sections: name and value. The value section shows its current value. When click on the <code>value</code> section, if the signal is writable, the signal will be in <b>edit</b> mode; by default, an editbox will be shown so that you can type the value. By typing <b>Enter</b> after modifying the value, bsmedit will send the change to the simulation.</p>
 <figure class="figure">
 <img src="./images/prop_editbox.png" alt="./images/prop_editbox.png">
 </figure>
@@ -1223,21 +1225,21 @@ The breakpoint can also be enabled by python script:</p>
 <span class="nv">OBJS</span> <span class="o">=</span> <span class="k">$(</span>patsubst %,<span class="k">$(</span>ODIR<span class="k">)</span>/%,<span class="k">$(</span>OBJ<span class="k">))</span>
 
 <span class="nf">libwaves</span><span class="o">:</span> <span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span>
-	<span class="k">$(</span>CC<span class="k">)</span> -shared  $^ -o <span class="nv">$@</span>.so
+    <span class="k">$(</span>CC<span class="k">)</span> -shared  $^ -o <span class="nv">$@</span>.so
 
 <span class="nf">$(ODIR)/%.o</span><span class="o">:</span> %.<span class="n">c</span> <span class="k">$(</span><span class="nv">DEPS</span><span class="k">)</span>
-	<span class="k">$(</span>CC<span class="k">)</span> <span class="k">$(</span>CFLAGS<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
+    <span class="k">$(</span>CC<span class="k">)</span> <span class="k">$(</span>CFLAGS<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
 
 <span class="nf">$(OBJS)</span><span class="o">:</span> <span class="p">|</span> <span class="k">$(</span><span class="nv">ODIR</span><span class="k">)</span>
 
 <span class="nf">$(ODIR)</span><span class="o">:</span>
-	mkdir -p <span class="k">$(</span>ODIR<span class="k">)</span>
+    mkdir -p <span class="k">$(</span>ODIR<span class="k">)</span>
 
 <span class="nf">.PHONY</span><span class="o">:</span> <span class="n">clean</span>
 
 <span class="nf">clean</span><span class="o">:</span>
-	rm -f <span class="k">$(</span>ODIR<span class="k">)</span>/*.o *.so
-	rm -r <span class="k">$(</span>ODIR<span class="k">)</span>
+    rm -f <span class="k">$(</span>ODIR<span class="k">)</span>/*.o *.so
+    rm -r <span class="k">$(</span>ODIR<span class="k">)</span>
 </pre></div>
 </div>
 <p>To generate the library</p>
@@ -1302,7 +1304,7 @@ One way is to use <a href="https://docs.python.org/3.6/library/ctypes.html">ctyp
 <span class="o">&gt;&gt;&gt;</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">frame_array</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">cols</span><span class="p">))</span>
 </pre></div>
 </div>
- <div class="bs-example">
+<div class="bs-example">
 <figure class="figure">
 <img src="./images/waves.png" alt="./images/waves.png">
 </figure>
@@ -1358,7 +1360,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2019-12-06 22:38:49 PST, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2020-01-10 22:53:46 PST, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 <script src="js/menu.js"></script>

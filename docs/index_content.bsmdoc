@@ -4,7 +4,7 @@ def bsmdoc_example(data, *args, **kwargs):
 def bsmdoc_example_src(data, *args, **kwargs):
     return bsmdoc_div(data, 'bs-example-src')
 def bsmdoc_ccodesnippet(data, *args, **kwargs):
-    with open(data, 'r') as f:
+    with open(data.strip(), 'r') as f:
         return ''.join(f.readlines())
     return data
 %}!}
@@ -594,7 +594,7 @@ For example, for the signals shown in above figure, at $t=9$, the buffer will be
 
 Since the value is dumped to a numpy, you can process the data with all the functions available (e.g., signal processing with [https://docs.scipy.org/doc/scipy/reference/signal.html|scipy.signal] or plot with [http://www.matoplotlib.org|matplotlib]) . And bsmedit also provides a function to plot the trace dynamically
 {!example_src||highlight|python||{%
- plot_trace(x=None, y=None, relim=True, *args, **kwargs)
+plot_trace(x=None, y=None, relim=True, *args, **kwargs)
 %}!}
 where
 {{
@@ -614,7 +614,7 @@ Then when you run the simulation, the plot will be automatically updated accordi
 }
 - {\tag{b|Dump signal to a file.}
 {!example_src||highlight|python||{%
- s.trace_file(signal, ttype='bsm', valid=None, trigger='posneg')
+s.trace_file(signal, ttype='bsm', valid=None, trigger='posneg')
 %}!}
  where
  {{
