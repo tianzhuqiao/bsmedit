@@ -160,16 +160,18 @@ class MainFrame(FramePlus):
             module = module.split('+')
             options = {}
             if len(module) == 2:
-                if 'h' in module[1]:
-                    options['active'] = False
-                if 't' in module[1]:
-                    options['direction'] = 'Top'
-                if 'b' in module[1]:
-                    options['direction'] = 'bottom'
-                if 'l' in module[1]:
-                    options['direction'] = 'left'
-                if 'r' in module[1]:
-                    options['direction'] = 'right'
+                if all([c in 'htblr' for c in module[1]]):
+                    if 'h' in module[1]:
+                        options['active'] = False
+                    if 't' in module[1]:
+                        options['direction'] = 'Top'
+                    if 'b' in module[1]:
+                        options['direction'] = 'bottom'
+                    if 'l' in module[1]:
+                        options['direction'] = 'left'
+                    if 'r' in module[1]:
+                        options['direction'] = 'right'
+                options['data'] = module[1]
             module = module[0]
             if module == 'default':
                 module = self.bsm_packages
