@@ -8,9 +8,9 @@ import wx.lib.agw.aui as aui
 from .bsmxpm import run_xpm, step_over_xpm, step_into_xpm, step_out_xpm, stop_xpm
 from .. import c2p
 
+
 class StackListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
                     listmix.ListRowHighlighter):
-
     def __init__(self, *args, **kwargs):
         wx.ListCtrl.__init__(self, *args, **kwargs)
 
@@ -18,17 +18,19 @@ class StackListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
         listmix.ListRowHighlighter.__init__(self, mode=listmix.HIGHLIGHT_ODD)
         self.SetHighlightColor(wx.Colour(240, 240, 250))
 
+
 class StackPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         sizer = wx.BoxSizer(wx.VERTICAL)
-        self.listctrl = StackListCtrl(self, style=wx.LC_REPORT
+        self.listctrl = StackListCtrl(self,
+                                      style=wx.LC_REPORT
                                       | wx.BORDER_NONE
                                       | wx.LC_EDIT_LABELS | wx.LC_VRULES
                                       | wx.LC_HRULES | wx.LC_SINGLE_SEL)
-                                      # | wx.BORDER_SUNKEN
-                                      # | wx.LC_SORT_ASCENDING
-                                      # | wx.LC_NO_HEADER
+        # | wx.BORDER_SUNKEN
+        # | wx.LC_SORT_ASCENDING
+        # | wx.LC_NO_HEADER
         self.listctrl.InsertColumn(0, 'Name')
         self.listctrl.InsertColumn(1, 'Line')
         self.listctrl.InsertColumn(2, 'File')
@@ -63,7 +65,8 @@ class StackPanel(wx.Panel):
         if frames is not None:
             for frame in frames:
                 name = frame.f_code.co_name
-                filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+                filename = inspect.getsourcefile(frame) or inspect.getfile(
+                    frame)
                 lineno = frame.f_lineno
                 if c2p.bsm_is_phoenix:
                     index = self.listctrl.InsertItem(six.MAXSIZE, name)
@@ -82,15 +85,18 @@ class StackPanel(wx.Panel):
         filename = self.listctrl.GetItem(currentItem, 2).GetText()
         lineno = self.listctrl.GetItem(currentItem, 1).GetText()
         # open the script first
-        dp.send(signal='frame.file_drop', filename=filename,
+        dp.send(signal='frame.file_drop',
+                filename=filename,
                 lineno=int(lineno))
         # ask the debugger to trigger the update scope event to set mark
         dp.send(signal='debugger.set_scope', level=currentItem)
+
 
 class DebugTool(object):
     isInitialized = False
     frame = None
     showStackPanel = True
+
     @classmethod
     def Initialize(cls, frame, **kwargs):
         if cls.isInitialized:
@@ -99,23 +105,31 @@ class DebugTool(object):
         cls.frame = frame
         # stack panel
         cls.panelStack = StackPanel(frame)
-        dp.send('frame.add_panel', panel=cls.panelStack, title="Call Stack",
-                active=False, showhidemenu='View:Panels:Call Stack')
+        dp.send('frame.add_panel',
+                panel=cls.panelStack,
+                title="Call Stack",
+                active=False,
+                showhidemenu='View:Panels:Call Stack')
 
         # debugger toolbar
-        dp.send('frame.add_menu', path='Tools:Debug', rxsignal='',
+        dp.send('frame.add_menu',
+                path='Tools:Debug',
+                rxsignal='',
                 kind='Popup')
-        cls.tbDebug = aui.AuiToolBar(frame, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
-        items = (('Run\tF5', 'resume', run_xpm, 'paused'),
-                 ('Stop\tShift-F5', 'stop', stop_xpm, 'paused'),
-                 ('Step\tF10', 'step', step_over_xpm, 'paused'),
-                 ('Step Into\tF11', 'step_into', step_into_xpm, 'can_stepin'),
-                 ('Step Out\tShift-F11', 'step_out', step_out_xpm, 'can_stepout'),
-                )
+        cls.tbDebug = aui.AuiToolBar(frame,
+                                     style=wx.TB_FLAT | wx.TB_HORIZONTAL)
+        items = (
+            ('Run\tF5', 'resume', run_xpm, 'paused'),
+            ('Stop\tShift-F5', 'stop', stop_xpm, 'paused'),
+            ('Step\tF10', 'step', step_over_xpm, 'paused'),
+            ('Step Into\tF11', 'step_into', step_into_xpm, 'can_stepin'),
+            ('Step Out\tShift-F11', 'step_out', step_out_xpm, 'can_stepout'),
+        )
         cls.menus = {}
         for label, signal, xpm, status in items:
-            resp = dp.send('frame.add_menu', path='Tools:Debug:'+label,
-                           rxsignal='debugger.'+signal,
+            resp = dp.send('frame.add_menu',
+                           path='Tools:Debug:' + label,
+                           rxsignal='debugger.' + signal,
                            updatesignal='debugtool.updateui')
             if not resp:
                 continue
@@ -124,9 +138,12 @@ class DebugTool(object):
                                       c2p.BitmapFromXPM(xpm), label)
         cls.tbDebug.Realize()
 
-        dp.send('frame.add_panel', panel=cls.tbDebug, title='Debugger',
-                active=False, paneInfo=aui.AuiPaneInfo().Name('debugger')
-                .Caption('Debugger').ToolbarPane().Top(),
+        dp.send('frame.add_panel',
+                panel=cls.tbDebug,
+                title='Debugger',
+                active=False,
+                paneInfo=aui.AuiPaneInfo().Name('debugger').Caption(
+                    'Debugger').ToolbarPane().Top(),
                 showhidemenu='View:Toolbars:Debugger')
         dp.connect(cls.OnUpdateMenuUI, 'debugtool.updateui')
         dp.connect(cls.OnDebugPaused, 'debugger.paused')
@@ -156,6 +173,7 @@ class DebugTool(object):
             dp.send('frame.show_panel', panel=cls.panelStack)
             # allow the use to hide the Stack panel
             cls.showStackPanel = False
+
     @classmethod
     def OnDebugEnded(cls):
         """debugger is ended"""
@@ -169,6 +187,7 @@ class DebugTool(object):
         dp.send('frame.show_panel', panel=cls.panelStack, show=False)
         # show the Stack panel next time
         cls.showStackPanel = True
+
     @classmethod
     def OnUpdateMenuUI(cls, event):
         """update the debugger toolbar"""
@@ -183,6 +202,7 @@ class DebugTool(object):
 
             enable = paused and status[s]
         event.Enable(enable)
+
 
 def bsm_initialize(frame, **kwargs):
     """module initialization"""

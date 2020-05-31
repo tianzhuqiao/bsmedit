@@ -19,6 +19,7 @@ from .. import c2p
 rcParams.update({'figure.autolayout': True})
 matplotlib.interactive(True)
 
+
 class DataCursor(object):
     xoffset, yoffset = -20, 20
     text_template = 'x: %0.2f\ny: %0.2f'
@@ -49,7 +50,7 @@ class DataCursor(object):
         # find the closest point on the line
         x, y = line.get_xdata(), line.get_ydata()
         xc, yc = event.mouseevent.xdata, event.mouseevent.ydata
-        idx = (numpy.square(x-xc) + numpy.square(y-yc)).argmin()
+        idx = (numpy.square(x - xc) + numpy.square(y - yc)).argmin()
         xn, yn = x[idx], y[idx]
         if xn is not None:
             self.active.xy = xn, yn
@@ -57,6 +58,7 @@ class DataCursor(object):
             self.active.set_visible(True)
             event.canvas.draw()
         self.pickEvent = True
+
     def set_enable(self, enable):
         self.enable = enable
         if self.active:
@@ -139,11 +141,17 @@ class DataCursor(object):
 
     def create_annotation(self, ax):
         """create the annotation and set it active"""
-        ant = ax.annotate(self.text_template, xy=(0, 0),
-                xytext=(self.xoffset, self.yoffset),
-                textcoords='offset points', ha='right', va='bottom',
-                bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5),
-                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+        ant = ax.annotate(self.text_template,
+                          xy=(0, 0),
+                          xytext=(self.xoffset, self.yoffset),
+                          textcoords='offset points',
+                          ha='right',
+                          va='bottom',
+                          bbox=dict(boxstyle='round,pad=0.5',
+                                    fc='yellow',
+                                    alpha=0.5),
+                          arrowprops=dict(arrowstyle='->',
+                                          connectionstyle='arc3,rad=0'))
         ant.set_visible(False)
         self.annotations.append(ant)
         self.set_active(ant)
@@ -174,6 +182,7 @@ class DataCursor(object):
             return True
         return False
 
+
 class Toolbar(NavigationToolbar):
     def __init__(self, canvas, figure):
         NavigationToolbar.__init__(self, canvas)
@@ -187,6 +196,7 @@ class Toolbar(NavigationToolbar):
         self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
+
     def OnPressed(self, event):
         if self.mode != 'datatip':
             return
@@ -218,8 +228,8 @@ class Toolbar(NavigationToolbar):
         cur_xlim = ax.get_xlim()
         cur_ylim = ax.get_ylim()
 
-        xdata = event.xdata # get event x location
-        ydata = event.ydata # get event y location
+        xdata = event.xdata  # get event x location
+        ydata = event.ydata  # get event y location
         if xdata is None:
             return
         if ydata is None:
@@ -238,17 +248,19 @@ class Toolbar(NavigationToolbar):
         new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
         new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
 
-        relx = (cur_xlim[1] - xdata)/(cur_xlim[1] - cur_xlim[0])
-        rely = (cur_ylim[1] - ydata)/(cur_ylim[1] - cur_ylim[0])
+        relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
+        rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
         xzoom = yzoom = True
         if wx.GetKeyState(wx.WXK_CONTROL_X):
             yzoom = False
         elif wx.GetKeyState(wx.WXK_CONTROL_Y):
             xzoom = False
-        if(xzoom) and new_width * (1-relx) > 0:
-            ax.set_xlim([xdata - new_width * (1-relx), xdata + new_width * (relx)])
-        if(yzoom) and  new_height * (1-rely) > 0:
-            ax.set_ylim([ydata - new_height * (1-rely), ydata + new_height * (rely)])
+        if (xzoom) and new_width * (1 - relx) > 0:
+            ax.set_xlim(
+                [xdata - new_width * (1 - relx), xdata + new_width * (relx)])
+        if (yzoom) and new_height * (1 - rely) > 0:
+            ax.set_ylim(
+                [ydata - new_height * (1 - rely), ydata + new_height * (rely)])
         self.canvas.draw()
 
     def _init_toolbar(self):
@@ -257,7 +269,8 @@ class Toolbar(NavigationToolbar):
             ('Back', 'Back to  previous view', back_xpm, 'back'),
             ('Forward', 'Forward to next view', forward_xpm, 'forward'),
             (None, None, None, None),
-            ('Pan', 'Pan axes with left mouse, zoom with right', pan_xpm, 'pan'),
+            ('Pan', 'Pan axes with left mouse, zoom with right', pan_xpm,
+             'pan'),
             ('Zoom', 'Zoom to rectangle', zoom_xpm, 'zoom'),
             ('Datatip', 'Show the data tip', cursor_xpm, 'datatip'),
             (None, None, None, None),
@@ -265,7 +278,7 @@ class Toolbar(NavigationToolbar):
             ('Copy', 'Copy to clipboard', copy_xpm, 'copy_figure'),
             #(None, None, None, None),
             #('Print', 'Print the figure', print_xpm, 'print_figure'),
-            )
+        )
 
         self._parent = self.canvas.GetParent()
 
@@ -276,14 +289,18 @@ class Toolbar(NavigationToolbar):
                 continue
             self.wx_ids[text] = wx.NewId()
             if text in ['Pan', 'Zoom', 'Datatip']:
-                c2p.tbAddCheckTool(self, self.wx_ids[text], text,
+                c2p.tbAddCheckTool(self,
+                                   self.wx_ids[text],
+                                   text,
                                    c2p.BitmapFromXPM(image_file),
-                                   shortHelp=text, longHelp=tooltip_text)
+                                   shortHelp=text,
+                                   longHelp=tooltip_text)
             else:
                 c2p.tbAddTool(self, self.wx_ids[text], text,
                               c2p.BitmapFromXPM(image_file), wx.NullBitmap,
                               wx.ITEM_NORMAL, tooltip_text)
-            self.Bind(wx.EVT_TOOL, getattr(self, callback),
+            self.Bind(wx.EVT_TOOL,
+                      getattr(self, callback),
                       id=self.wx_ids[text])
 
         self.Realize()
@@ -326,11 +343,13 @@ class Toolbar(NavigationToolbar):
         """show the status message"""
         dp.send(signal='frame.show_status_text', text=s, index=1, width=160)
 
+
 class MatplotPanel(wx.Panel):
     clsFrame = None
     clsID_new_figure = wx.NOT_FOUND
     isInitialized = False
     kwargs = {}
+
     def __init__(self, parent, title=None, num=-1, thisFig=None):
         wx.Panel.__init__(self, parent)
 
@@ -342,7 +361,7 @@ class MatplotPanel(wx.Panel):
 
         self.num = num
         if title is None:
-            title = 'Figure %d'%self.num
+            title = 'Figure %d' % self.num
         self.title = title
         self.isdestory = False
         szAll = wx.BoxSizer(wx.VERTICAL)
@@ -371,7 +390,7 @@ class MatplotPanel(wx.Panel):
             if hasattr(l, 'trace'):
                 sz = len(l.get_ydata())
                 for s in l.trace:
-                    if (not s)  or (not s.startswith(str(num)+'.')):
+                    if (not s) or (not s.startswith(str(num) + '.')):
                         continue
                     #dispatcher.send(signal='sim.trace_buf', objects=s, size=sz)
 
@@ -487,8 +506,11 @@ class MatplotPanel(wx.Panel):
     def addFigure(cls, title=None, num=None, thisFig=None):
         direction = cls.kwargs.get('direction', 'top')
         fig = cls(cls.clsFrame, title=title, num=num, thisFig=thisFig)
-        dp.send('frame.add_panel', panel=fig, direction=direction,
-                title=fig.GetTitle(), target=Gcf.get_active())
+        dp.send('frame.add_panel',
+                panel=fig,
+                direction=direction,
+                title=fig.GetTitle(),
+                target=Gcf.get_active())
         return fig
 
     @classmethod
@@ -498,7 +520,8 @@ class MatplotPanel(wx.Panel):
         cls.isInitialized = True
         cls.clsFrame = frame
         cls.kwargs = kwargs
-        resp = dp.send('frame.add_menu', path='File:New:Figure',
+        resp = dp.send('frame.add_menu',
+                       path='File:New:Figure',
                        rxsignal='bsm.figure')
         if resp:
             cls.clsID_new_figure = resp[0][1]
@@ -512,8 +535,11 @@ class MatplotPanel(wx.Panel):
 
     @classmethod
     def Initialized(self):
-        dp.send('shell.run', command='from matplotlib.pyplot import *',
-            prompt=False, verbose=False, history=False)
+        dp.send('shell.run',
+                command='from matplotlib.pyplot import *',
+                prompt=False,
+                verbose=False,
+                history=False)
 
     @classmethod
     def OnBufferChanged(cls, bufs):
@@ -532,7 +558,7 @@ class MatplotPanel(wx.Panel):
         if command == cls.clsID_new_figure:
             plt.figure()
 
+
 def bsm_initialize(frame, **kwargs):
     """module initialization"""
     MatplotPanel.Initialize(frame, **kwargs)
-

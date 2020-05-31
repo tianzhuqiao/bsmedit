@@ -8,6 +8,7 @@ from ..cparser import cparser, cwrapper
 # If we don't want to use caching:
 CParserFunc = cparser.parse
 
+
 def init_dll(dll, header):
     dll = ctypes.cdll.LoadLibrary(dll)
     parsedState = CParserFunc(header)
@@ -16,9 +17,11 @@ def init_dll(dll, header):
     wrapper.register(parsedState, dll)
     return wrapper.wrapped
 
+
 def callback(proto, fun):
     SIM_CALLBACK = ctypes.CFUNCTYPE(proto.restype, *proto.argtypes)
     return SIM_CALLBACK(fun)
+
 
 class SStructWrapper(ctypes.Structure):
     def __init__(self, obj, *args, **kwargs):
@@ -37,8 +40,8 @@ class SStructWrapper(ctypes.Structure):
                 v = getattr(self._object, item)
                 if isinstance(v, ctypes.Array) and \
                    isinstance(v, ctypes.ARRAY(ctypes.c_byte, len(v))):
-                    setattr(self._object, item,
-                            (ctypes.c_byte*len(v))(*bytearray(str(value).encode())))
+                    setattr(self._object, item, (ctypes.c_byte * len(v))(
+                        *bytearray(str(value).encode())))
                 else:
                     setattr(self._object, item, value)
                 return True

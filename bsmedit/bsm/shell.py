@@ -15,40 +15,45 @@ from wx.py.pseudo import PseudoFile
 from .debugger import EngineDebugger
 from ..version import BSM_VERSION
 
+
 # in linux, the multiprocessing/process.py/_bootstrap will call
 # sys.stdin.close(), which is missing in wx.py.pseudo.PseudoFile
 def PseudoFile_close(self):
     pass
+
+
 PseudoFile.close = PseudoFile_close
 
 aliasDict = {}
+
+
 def magicSingle(command):
-    if command == '': # Pass if command is blank
+    if command == '':  # Pass if command is blank
         return command
 
     first_space = command.find(' ')
 
-    if command[0] == ' ': # Pass if command begins with a space
+    if command[0] == ' ':  # Pass if command begins with a space
         pass
-    elif command[0] == '?': # Do help if starts with ?
-        command = 'help('+command[1:]+')'
-    elif command[0] == '!': # Use os.system if starts with !
-        command = 'sx("'+command[1:]+'")'
+    elif command[0] == '?':  # Do help if starts with ?
+        command = 'help(' + command[1:] + ')'
+    elif command[0] == '!':  # Use os.system if starts with !
+        command = 'sx("' + command[1:] + '")'
     elif command in ('ls', 'pwd'):
         # automatically use ls and pwd with no arguments
-        command = command+'()'
+        command = command + '()'
     elif command[:3] in ('ls ', 'cd '):
         # when using the 'ls ' or 'cd ' constructs, fill in both parentheses and quotes
-        command = command[:2]+'("'+command[3:]+'")'
-    elif command[:5] in ('help ',):
-        command = command[:4]+'("'+command[5:]+'")'
+        command = command[:2] + '("' + command[3:] + '")'
+    elif command[:5] in ('help ', ):
+        command = command[:4] + '("' + command[5:] + '")'
     elif command[:6] == 'close ':
         arg = command[6:]
         if arg.strip() == 'all':
             # when using the close', fill in both parentheses and quotes
-            command = command[:5]+'("'+command[6:]+'")'
+            command = command[:5] + '("' + command[6:] + '")'
     elif command[:5] == 'clear':
-        command = command[:5]+'()'
+        command = command[:5] + '()'
     elif command[:5] == 'alias':
         c = command[5:].lstrip().split(' ')
         if len(c) < 2:
@@ -63,9 +68,9 @@ def magicSingle(command):
     elif command.split(' ')[0] in six.iterkeys(aliasDict):
         c = command.split(' ')
         if len(c) < 2:
-            command = 'sx("'+aliasDict[c[0]]+'")'
+            command = 'sx("' + aliasDict[c[0]] + '")'
         else:
-            command = 'sx("'+aliasDict[c[0]]+' '+' '.join(c[1:])+'")'
+            command = 'sx("' + aliasDict[c[0]] + ' ' + ' '.join(c[1:]) + '")'
     elif first_space != -1:
         # if there is at least one space, add parentheses at beginning and end
         cmds = command.split(' ')
@@ -85,18 +90,20 @@ def magicSingle(command):
                     not keyword.iskeyword(wd1) and not keyword.iskeyword(wd2):
                 if wd1.replace('.', '').replace('_', '').isalnum():
                     # add parentheses where the first space was and at the end... hooray!
-                    command = wd1+'('+command[(first_space+1):]+')'
+                    command = wd1 + '(' + command[(first_space + 1):] + ')'
     return command
+
 
 def _help(command):
     try:
         print(pydoc.plain(pydoc.render_doc(str(command), "Help on %s")))
     except:
-        print('No help found on "%s"'%command)
+        print('No help found on "%s"' % command)
+
 
 def magic(command):
     continuations = wx.py.parse.testForContinuations(command)
-    if len(continuations) == 2: # Error case...
+    if len(continuations) == 2:  # Error case...
         return command
     elif len(continuations) == 4:
         stringContinuationList, indentationBlockList, \
@@ -111,13 +118,15 @@ def magic(command):
               indentationBlockList.pop(0) is False and \
               lineContinuationList.pop(0) is False and \
               parentheticalContinuationList.pop(0) is False:
-            commandList.append(magicSingle(i)) # unless this is in a larger expression, use magic
+            commandList.append(magicSingle(
+                i))  # unless this is in a larger expression, use magic
         else:
             commandList.append(i)
 
         firstLine = False
 
     return '\n'.join(commandList)
+
 
 def sx(cmd, *args, **kwds):
     wait = True
@@ -132,8 +141,10 @@ def sx(cmd, *args, **kwds):
     # try the standalone command first
     try:
         if wait:
-            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo,
-                         stdout=sp.PIPE, stderr=sp.PIPE)
+            p = sp.Popen(cmd.split(' '),
+                         startupinfo=startupinfo,
+                         stdout=sp.PIPE,
+                         stderr=sp.PIPE)
             dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo)
@@ -143,8 +154,11 @@ def sx(cmd, *args, **kwds):
     # try the shell command
     try:
         if wait:
-            p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True,
-                         stdout=sp.PIPE, stderr=sp.PIPE)
+            p = sp.Popen(cmd.split(' '),
+                         startupinfo=startupinfo,
+                         shell=True,
+                         stdout=sp.PIPE,
+                         stderr=sp.PIPE)
             dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo, shell=True)
@@ -152,14 +166,24 @@ def sx(cmd, *args, **kwds):
     except:
         traceback.print_exc(file=sys.stdout)
 
+
 class Shell(pyshell.Shell):
     ID_COPY_PLUS = wx.NewId()
     ID_PASTE_PLUS = wx.NewId()
-    def __init__(self, parent, id=-1, pos=wx.DefaultPosition,
-                 size=wx.DefaultSize, style=wx.CLIP_CHILDREN,
-                 introText='', locals=None, InterpClass=None,
-                 startupScript=None, execStartupScript=True,
-                 *args, **kwds):
+
+    def __init__(self,
+                 parent,
+                 id=-1,
+                 pos=wx.DefaultPosition,
+                 size=wx.DefaultSize,
+                 style=wx.CLIP_CHILDREN,
+                 introText='',
+                 locals=None,
+                 InterpClass=None,
+                 startupScript=None,
+                 execStartupScript=True,
+                 *args,
+                 **kwds):
         # variables used in push, which may be called by
         # wx.py.shell.Shell.__init__ when execStartupScript is True
         self.enable_debugger = False
@@ -214,15 +238,17 @@ class Shell(pyshell.Shell):
 
     def OnProcessMenu(self, event):
         eid = event.GetId()
-        cmd = {wx.ID_CUT: self.Cut,
-               wx.ID_CLEAR: self.Clear,
-               wx.ID_COPY: self.Copy,
-               self.ID_COPY_PLUS: self.CopyWithPrompts,
-               wx.ID_PASTE: self.Paste,
-               self.ID_PASTE_PLUS: self.PasteAndRun,
-               wx.ID_UNDO: self.Undo,
-               wx.ID_REDO: self.Redo,
-               wx.ID_SELECTALL: self.SelectAll}
+        cmd = {
+            wx.ID_CUT: self.Cut,
+            wx.ID_CLEAR: self.Clear,
+            wx.ID_COPY: self.Copy,
+            self.ID_COPY_PLUS: self.CopyWithPrompts,
+            wx.ID_PASTE: self.Paste,
+            self.ID_PASTE_PLUS: self.PasteAndRun,
+            wx.ID_UNDO: self.Undo,
+            wx.ID_REDO: self.Redo,
+            wx.ID_SELECTALL: self.SelectAll
+        }
         fun = cmd.get(eid, None)
         if fun:
             fun()
@@ -314,7 +340,7 @@ class Shell(pyshell.Shell):
             command = command.strip()
             # deal with the case "fun(arg.", which will return "arg."
             for i in range(len(command)):
-                c = command[-i-1]
+                c = command[-i - 1]
                 if not (c.isalnum() or c in ('_', '.')):
                     command = command[-i:]
                     break
@@ -413,7 +439,8 @@ class Shell(pyshell.Shell):
         if canEdit and not self.more and (not shiftDown) and key == wx.WXK_UP:
             # Replace with the previous command from the history buffer.
             self.GoToHistory(True)
-        elif canEdit and not self.more and (not shiftDown) and key == wx.WXK_DOWN:
+        elif canEdit and not self.more and (
+                not shiftDown) and key == wx.WXK_DOWN:
             # Replace with the next command from the history buffer.
             self.GoToHistory(False)
         elif canEdit and (not shiftDown) and key == wx.WXK_TAB:
@@ -421,13 +448,13 @@ class Shell(pyshell.Shell):
             # first try to get the autocompletelist from the package
             cmd = self.getCommand()
             k = self.getAutoCompleteList(cmd)
-            cmd = cmd[cmd.rfind('.')+1:]
+            cmd = cmd[cmd.rfind('.') + 1:]
             # if failed, search the locals()
             if not k:
-                for i in six.moves.range(len(cmd)-1, -1, -1):
+                for i in six.moves.range(len(cmd) - 1, -1, -1):
                     if cmd[i].isalnum() or cmd[i] == '_':
                         continue
-                    cmd = cmd[i+1:]
+                    cmd = cmd[i + 1:]
                     break
                 k = six.iterkeys(self.interp.locals)
                 k = [s for s in k if s.startswith(cmd)]
@@ -453,7 +480,9 @@ class Shell(pyshell.Shell):
                 linenum = int((linenum[0])[5:])
             else:
                 linenum = 1
-            dp.send('frame.file_drop', filename=path, activated=True,
+            dp.send('frame.file_drop',
+                    filename=path,
+                    activated=True,
                     lineno=linenum)
         event.Skip()
 
@@ -474,7 +503,8 @@ class Shell(pyshell.Shell):
         # Search upwards from the current history position and loop
         # back to the beginning if we don't find anything.
         if up:
-            searchOrder = six.moves.range(self.historyIndex + 1, len(self.history))
+            searchOrder = six.moves.range(self.historyIndex + 1,
+                                          len(self.history))
         else:
             searchOrder = six.moves.range(self.historyIndex - 1, -1, -1)
         for i in searchOrder:
@@ -527,7 +557,11 @@ class Shell(pyshell.Shell):
             self.history.insert(0, stamp)
         super(Shell, self).addHistory(command)
 
-    def runCommand(self, command, prompt=True, verbose=True, debug=False,
+    def runCommand(self,
+                   command,
+                   prompt=True,
+                   verbose=True,
+                   debug=False,
                    history=True):
         """run the command in the shell"""
         if not self.enable_debugger:
@@ -656,8 +690,10 @@ class Shell(pyshell.Shell):
                 indent = previousLine.strip('\n').strip('\r')
             else:
                 indent = previousLine[:len(previousLine) - len(lstrip)]
-                keys = ['if', 'else', 'elif', 'for', 'while', 'def', 'class',
-                        'try', 'except', 'finally']
+                keys = [
+                    'if', 'else', 'elif', 'for', 'while', 'def', 'class',
+                    'try', 'except', 'finally'
+                ]
                 if pstrip[-1] == ':' and first_word in keys:
                     indent += ' ' * 4
             if self.autoIndent:
@@ -766,14 +802,18 @@ class Shell(pyshell.Shell):
         cls.panelShell = Shell(cls.frame, 1, introText=intro, locals=ns)
         active = kwargs.get('active', True)
         direction = kwargs.get('direction', 'top')
-        dp.send(signal="frame.add_panel", panel=cls.panelShell, active=active,
-                title="Shell", showhidemenu="View:Panels:Console",
+        dp.send(signal="frame.add_panel",
+                panel=cls.panelShell,
+                active=active,
+                title="Shell",
+                showhidemenu="View:Panels:Console",
                 direction=direction)
 
     @classmethod
     def Uninitialize(cls):
         if cls.panelShell:
             dp.send('frame.delete_panel', panel=cls.panelShell)
+
 
 def bsm_initialize(frame, **kwargs):
     Shell.Initialize(frame, **kwargs)

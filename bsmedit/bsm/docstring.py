@@ -1,6 +1,8 @@
 """copy the docstring"""
 import inspect
 import textwrap
+
+
 def copy(source, dropSelf=True):
     """return the function to copy the docstring"""
     def do_copy(target):
@@ -14,7 +16,8 @@ def copy(source, dropSelf=True):
                 temp = argspec.split(',')
                 if len(temp) == 1:  # No other arguments.
                     argspec = '()'
-                elif temp[0][:2] == '(*': # first param is like *args, not self
+                elif temp[
+                        0][:2] == '(*':  # first param is like *args, not self
                     pass
                 else:  # Drop the first argument.
                     argspec = '(' + ','.join(temp[1:]).lstrip()
@@ -25,11 +28,14 @@ def copy(source, dropSelf=True):
 
             target.__doc__ = docstring
         return target
+
     return do_copy
+
 
 def copy_docstring(source, dropSelf=True):
     """copy the docstring to target, used as decorator"""
     return lambda target: copy(source, dropSelf)(target)
+
 
 def copy_docstring_raw(source, target, dropSelf=True):
     """copy the docstring to target"""
@@ -42,7 +48,7 @@ def copy_docstring_raw(source, target, dropSelf=True):
             temp = argspec.split(',')
             if len(temp) == 1:  # No other arguments.
                 argspec = '()'
-            elif temp[0][:2] == '(*': # first param is like *args, not self
+            elif temp[0][:2] == '(*':  # first param is like *args, not self
                 pass
             else:  # Drop the first argument.
                 argspec = '(' + ','.join(temp[1:]).lstrip()
@@ -51,4 +57,3 @@ def copy_docstring_raw(source, target, dropSelf=True):
 
         target.__doc__ = docstring
     return target
-

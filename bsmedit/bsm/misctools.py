@@ -27,11 +27,11 @@ html_template = '''
     </body>
 </html>
 '''
-class HelpPanel(wx.Panel):
 
+
+class HelpPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
-
 
         self.html = html.WebView.New(self)
 
@@ -50,7 +50,7 @@ class HelpPanel(wx.Panel):
 
         # Setup the layout
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.tb, 0, wx.ALL|wx.EXPAND, 5)
+        sizer.Add(self.tb, 0, wx.ALL | wx.EXPAND, 5)
         sizer.Add(self.html, 1, wx.ALL | wx.EXPAND, 5)
         self.SetSizer(sizer)
 
@@ -60,7 +60,8 @@ class HelpPanel(wx.Panel):
         self.findFlags = html.WEBVIEW_FIND_DEFAULT | html.WEBVIEW_FIND_WRAP
 
         self.Bind(wx.EVT_TEXT_ENTER, self.OnDoSearch, self.search)
-        self.Bind(html.EVT_WEBVIEW_NAVIGATING, self.OnWebViewNavigating, self.html)
+        self.Bind(html.EVT_WEBVIEW_NAVIGATING, self.OnWebViewNavigating,
+                  self.html)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI)
         self.Bind(wx.EVT_TOOL, self.OnBack, id=wx.ID_BACKWARD)
         self.Bind(wx.EVT_TOOL, self.OnForward, id=wx.ID_FORWARD)
@@ -87,19 +88,20 @@ class HelpPanel(wx.Panel):
             self.findFlags |= html.WEBVIEW_FIND_ENTIRE_WORD
         if wx.FR_MATCHCASE & flags:
             self.findFlags |= html.WEBVIEW_FIND_MATCH_CASE
-        if not(wx.FR_DOWN & flags):
+        if not (wx.FR_DOWN & flags):
             self.findFlags |= html.WEBVIEW_FIND_BACKWARDS
         self.html.Find(self.findStr, self.findFlags)
 
     def completer(self, query):
         response = dp.send(signal='shell.auto_complete_list', command=query)
         if response:
-            root = query[0:query.rfind('.')+1]
-            remain = query[query.rfind('.')+1:]
+            root = query[0:query.rfind('.') + 1]
+            remain = query[query.rfind('.') + 1:]
             remain = remain.lower()
             objs = [o for o in response[0][1] if o.lower().startswith(remain)]
             return objs, objs, len(query) - len(root)
         return [], [], 0
+
     def add_history(self, command):
         if not self.history or self.history[-1] != command:
             self.history.append(command)
@@ -108,7 +110,7 @@ class HelpPanel(wx.Panel):
     def show_help(self, command, addhistory=True):
         try:
             strhelp = pydoc.plain(pydoc.render_doc(str(command), "Help on %s"))
-            htmlpage = html_template%({'title':'', 'message':strhelp})
+            htmlpage = html_template % ({'title': '', 'message': strhelp})
             self.html.SetPage(htmlpage, '')
             # do not use SetValue since it will trigger the text update event, which
             # will popup the auto complete list window
@@ -136,9 +138,9 @@ class HelpPanel(wx.Panel):
         h_idx = -1
         h_len = len(self.history)
         if h_len > 0:
-            h_idx = self.history_index%h_len
+            h_idx = self.history_index % h_len
         if idx == wx.ID_FORWARD:
-            event.Enable(0 <= h_idx < h_len-1)
+            event.Enable(0 <= h_idx < h_len - 1)
         elif idx == wx.ID_BACKWARD:
             event.Enable(h_idx > 0)
 
@@ -155,17 +157,21 @@ class HelpPanel(wx.Panel):
         command = self.history[self.history_index]
         self.show_help(command, False)
 
+
 class HistoryPanel(wx.Panel):
     ID_EXECUTE = wx.NewId()
     TIME_STAMP_HEADER = "#bsm"
+
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
         style = wx.TR_DEFAULT_STYLE | wx.TR_HIDE_ROOT |wx.TR_MULTIPLE |\
                 wx.TR_HAS_VARIABLE_ROW_HEIGHT
         # no need to sort the commands, as they are naturally sorted by
         # execution time
-        self.tree = FastLoadTreeCtrl(self, getchildren=self.get_children,
-                                     style=style, sort=False)
+        self.tree = FastLoadTreeCtrl(self,
+                                     getchildren=self.get_children,
+                                     style=style,
+                                     sort=False)
         self.history = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 5)
@@ -180,11 +186,12 @@ class HistoryPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_DELETE)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CLEAR)
 
-        accel = [(wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
-                 (wx.ACCEL_CTRL, ord('X'), wx.ID_CUT),
-                 (wx.ACCEL_CTRL, ord('E'), self.ID_EXECUTE),
-                 (wx.ACCEL_NORMAL, wx.WXK_DELETE, wx.ID_DELETE),
-                ]
+        accel = [
+            (wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
+            (wx.ACCEL_CTRL, ord('X'), wx.ID_CUT),
+            (wx.ACCEL_CTRL, ord('E'), self.ID_EXECUTE),
+            (wx.ACCEL_NORMAL, wx.WXK_DELETE, wx.ID_DELETE),
+        ]
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
         self.LoadHistory()
@@ -210,8 +217,13 @@ class HistoryPanel(wx.Panel):
             self.history.pop(stamp, None)
         children = []
         for obj in reversed(childlist):
-            child = {'label': obj, 'img':-1, 'imgsel': -1, 'data':'',
-                     'color': clr}
+            child = {
+                'label': obj,
+                'img': -1,
+                'imgsel': -1,
+                'data': '',
+                'color': clr
+            }
             child['is_folder'] = is_folder
             children.append(child)
         return children
@@ -223,7 +235,7 @@ class HistoryPanel(wx.Panel):
             history = resp[0][1]
 
         stamp = time.strftime('#%Y/%m/%d')
-        for i in six.moves.range(len(history)-1, -1, -1):
+        for i in six.moves.range(len(history) - 1, -1, -1):
             value = history[i]
             if value.startswith(self.TIME_STAMP_HEADER):
                 stamp = value[len(self.TIME_STAMP_HEADER):]
@@ -248,18 +260,20 @@ class HistoryPanel(wx.Panel):
         pos = 0
         while item.IsOk():
             stamp = self.tree.GetItemText(item)
-            config.Write("item%d"%pos, self.TIME_STAMP_HEADER + stamp)
+            config.Write("item%d" % pos, self.TIME_STAMP_HEADER + stamp)
             pos += 1
 
             childitem, childcookie = self.tree.GetFirstChild(item)
             if childitem.IsOk() and self.tree.GetItemText(childitem) != "...":
                 while childitem.IsOk():
-                    config.Write("item%d"%pos, self.tree.GetItemText(childitem))
-                    childitem, childcookie = self.tree.GetNextChild(item, childcookie)
+                    config.Write("item%d" % pos,
+                                 self.tree.GetItemText(childitem))
+                    childitem, childcookie = self.tree.GetNextChild(
+                        item, childcookie)
                     pos = pos + 1
             # save the unexpanded folder
             for child in self.history.get(stamp, []):
-                config.Write("item%d"%pos, child)
+                config.Write("item%d" % pos, child)
                 pos = pos + 1
 
             (item, cookie) = self.tree.GetNextChild(self.root, cookie)
@@ -340,6 +354,7 @@ class HistoryPanel(wx.Panel):
         elif evtId == wx.ID_CLEAR:
             self.tree.DeleteAllItems()
 
+
 class DirPanel(wx.Panel):
 
     ID_GOTO_PARENT = wx.NewId()
@@ -352,15 +367,14 @@ class DirPanel(wx.Panel):
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
 
         self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
-                              c2p.BitmapFromXPM(goup_xpm),
-                              'Parent folder')
+                              c2p.BitmapFromXPM(goup_xpm), 'Parent folder')
         self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
-                              c2p.BitmapFromXPM(home_xpm),
-                              'Current folder')
+                              c2p.BitmapFromXPM(home_xpm), 'Current folder')
         self.tb.Realize()
-        self.dirtree = DirTreeCtrl(self, style=wx.TR_DEFAULT_STYLE |
-                                   wx.TR_HAS_VARIABLE_ROW_HEIGHT |
-                                   wx.TR_HIDE_ROOT)
+        self.dirtree = DirTreeCtrl(self,
+                                   style=wx.TR_DEFAULT_STYLE
+                                   | wx.TR_HAS_VARIABLE_ROW_HEIGHT
+                                   | wx.TR_HIDE_ROOT)
         self.dirtree.SetRootDir(os.getcwd())
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)
@@ -371,8 +385,7 @@ class DirPanel(wx.Panel):
         self.SetSizer(self.box)
 
         self.Bind(wx.EVT_TOOL, self.OnGotoHome, id=self.ID_GOTO_HOME)
-        self.Bind(wx.EVT_TOOL, self.OnGotoParent,
-                  id=self.ID_GOTO_PARENT)
+        self.Bind(wx.EVT_TOOL, self.OnGotoParent, id=self.ID_GOTO_PARENT)
 
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnItemActivated,
                   self.dirtree)
@@ -393,7 +406,7 @@ class DirPanel(wx.Panel):
         if fileExtension == '.py':
             dp.send(signal='frame.file_drop', filename=filepath)
         else:
-            os.system("start "+ filepath)
+            os.system("start " + filepath)
 
     def OnGotoHome(self, event):
         root = self.dirtree.GetRootItem()
@@ -416,8 +429,10 @@ class DirPanel(wx.Panel):
                 return
             self.dirtree.SetRootDir(path)
 
+
 class MiscTools(object):
     frame = None
+
     @classmethod
     def Initialize(cls, frame, **kwargs):
         if cls.frame:
@@ -430,19 +445,30 @@ class MiscTools(object):
         direction = kwargs.get('direction', 'top')
         # history panel
         cls.panelHistory = HistoryPanel(frame)
-        dp.send(signal='frame.add_panel', panel=cls.panelHistory,
-                title="History", showhidemenu='View:Panels:Command History',
-                active=active, direction=direction)
+        dp.send(signal='frame.add_panel',
+                panel=cls.panelHistory,
+                title="History",
+                showhidemenu='View:Panels:Command History',
+                active=active,
+                direction=direction)
         # help panel
         cls.panelHelp = HelpPanel(frame)
-        dp.send(signal='frame.add_panel', panel=cls.panelHelp, title="Help",
-                target='History', showhidemenu='View:Panels:Command Help',
-                active=active, direction=direction)
+        dp.send(signal='frame.add_panel',
+                panel=cls.panelHelp,
+                title="Help",
+                target='History',
+                showhidemenu='View:Panels:Command Help',
+                active=active,
+                direction=direction)
         # directory panel
         cls.panelDir = DirPanel(frame)
-        dp.send(signal='frame.add_panel', panel=cls.panelDir, title="Browsing",
-                target="History", showhidemenu='View:Panels:Browsing',
-                active=active, direction=direction)
+        dp.send(signal='frame.add_panel',
+                panel=cls.panelDir,
+                title="Browsing",
+                target="History",
+                showhidemenu='View:Panels:Browsing',
+                active=active,
+                direction=direction)
 
         dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
 
@@ -450,6 +476,7 @@ class MiscTools(object):
     def Uninitialize(cls):
         """destroy the module"""
         pass
+
 
 def bsm_initialize(frame, **kwargs):
     """module initialization"""

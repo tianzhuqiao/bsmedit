@@ -40,6 +40,7 @@ BSM_DATA_FLOAT = 1
 BSM_DATA_INT = 2
 BSM_DATA_UINT = 3
 
+
 class SimSysC(object):
     """class to load the systemc simulation"""
     def __init__(self, dll):
@@ -90,10 +91,16 @@ class SimSysC(object):
         if not obj or (not isinstance(obj, csim.SStructWrapper)):
             return
 
-        kinds = {'sc_signal':SC_OBJ_SIGNAL, 'sc_in':SC_OBJ_INPUT,
-                 'sc_out':SC_OBJ_OUTPUT, 'sc_in_out':SC_OBJ_INOUT,
-                 'sc_clock':SC_OBJ_CLOCK, 'xsc_property':SC_OBJ_XSC_PROP,
-                 'sc_module':SC_OBJ_MODULE, 'xsc_array':SC_OBJ_XSC_ARRAY}
+        kinds = {
+            'sc_signal': SC_OBJ_SIGNAL,
+            'sc_in': SC_OBJ_INPUT,
+            'sc_out': SC_OBJ_OUTPUT,
+            'sc_in_out': SC_OBJ_INOUT,
+            'sc_clock': SC_OBJ_CLOCK,
+            'xsc_property': SC_OBJ_XSC_PROP,
+            'sc_module': SC_OBJ_MODULE,
+            'xsc_array': SC_OBJ_XSC_ARRAY
+        }
         kind = kinds.get(obj.kind, SC_OBJ_UNKNOWN)
         if kind == SC_OBJ_XSC_PROP and '[' in obj.name and ']' in obj.name:
             kind = SC_OBJ_XSC_ARRAY_ITEM
@@ -133,7 +140,8 @@ class SimSysC(object):
         val = ''
         if self.csim.ctx_read(obj):
             if obj.value.type == BSM_DATA_STRING:
-                val = ctypes.cast(obj.value.sValue, ctypes.c_char_p).value.decode()
+                val = ctypes.cast(obj.value.sValue,
+                                  ctypes.c_char_p).value.decode()
             elif obj.value.type == BSM_DATA_FLOAT:
                 val = obj.value.fValue
             elif obj.value.type == BSM_DATA_INT:
@@ -153,7 +161,8 @@ class SimSysC(object):
             return False
 
         if obj.value.type == BSM_DATA_STRING:
-            obj.value.sValue = (ctypes.c_byte*len(obj.value.sValue))(*bytearray(value))
+            obj.value.sValue = (ctypes.c_byte * len(obj.value.sValue))(
+                *bytearray(value))
         elif obj.value.type == BSM_DATA_FLOAT:
             obj.value.fValue = float(value)
         elif obj.value.type == BSM_DATA_INT:
@@ -181,6 +190,7 @@ class SimSysC(object):
         self.ctx_callback = csim.callback(self.csim.bsm_callback(), fun)
         self.csim.ctx_set_callback(self.ctx_callback)
         return True
+
 
 class BpCond(object):
     """
@@ -253,6 +263,7 @@ class BpCond(object):
         # the condition is empty and can be deleted.
         return len(self.hitcount)
 
+
 class Breakpoint(object):
     def __init__(self, name):
         self.name = name
@@ -288,10 +299,12 @@ class Breakpoint(object):
         # deleted
         return len(self.condition)
 
+
 class BpList(object):
     def __init__(self):
         self.data = {}
         self.data_raw = []
+
     def add(self, objs, objectsdict):
         resp = {}
         for name, cond, hitcount in objs:
@@ -326,13 +339,15 @@ class BpList(object):
     def get_bp(self):
         return self.data
 
+
 # the list of registers to be monitored
 class MonitorList(object):
     def __init__(self):
         self.data = {}
         self.monitor = []
+
     def add(self, objs, objsdict):
-        resp = {o:False for o in objs}
+        resp = {o: False for o in objs}
         if objsdict:
             objs = [o for o in objs if o in six.iterkeys(objsdict)]
         for obj in objs:
@@ -340,8 +355,9 @@ class MonitorList(object):
             resp[obj] = True
         self.update_monitor(objsdict)
         return resp
+
     def delete(self, objs, objsdict):
-        resp = {o:False for o in objs}
+        resp = {o: False for o in objs}
         if objsdict:
             objs = [o for o in objs if o in six.iterkeys(objsdict)]
         for obj in objs:
@@ -352,39 +368,64 @@ class MonitorList(object):
                     del self.data[obj]
         self.update_monitor(objsdict)
         return resp
+
     def update_monitor(self, objsdict=None):
         if objsdict:
             regs = list(objsdict.keys())
             self.monitor = [k for k in six.iterkeys(self.data) if k in regs]
         else:
             self.monitor = list(self.data.keys())
+
     def get_monitor(self):
         return self.monitor
 
+
 class SimInterface(object):
     all_interfaces = {}
+
     def __init__(self):
         pass
+
     def __call__(self, fun):
         #argspec = inspect.getargspec(fun)
         #argspec = inspect.formatargspec(*argspec)
         argspec = str(inspect.signature(fun))
         temp = argspec.split(',')
-        interf = {'args': '('+', '.join(temp[1:]).strip(),
-                  'doc': fun.__doc__}
-        SimInterface.all_interfaces[fun.__name__] = interf#'('+', '.join(temp[1:]).strip()
+        interf = {
+            'args': '(' + ', '.join(temp[1:]).strip(),
+            'doc': fun.__doc__
+        }
+        SimInterface.all_interfaces[
+            fun.__name__] = interf  #'('+', '.join(temp[1:]).strip()
         return fun
 
+
 class SimCommand(object):
-    sim_units = {'fs':BSM_FS, 'ps':BSM_PS, 'ns':BSM_NS, 'us':BSM_US,
-                 'ms':BSM_MS, 's':BSM_SEC}
-    trigger_type = {'posneg': BSM_BOTHEDGE, 'pos': BSM_POSEDGE,
-                    'neg': BSM_NEGEDGE, 'none': BSM_NONEEDGE,
-                    BSM_BOTHEDGE:BSM_BOTHEDGE, BSM_POSEDGE:BSM_POSEDGE,
-                    BSM_NEGEDGE:BSM_NEGEDGE, BSM_NONEEDGE:BSM_NONEEDGE}
-    tfile_format = {'bsm': BSM_TRACE_SIMPLE, 'vcd': BSM_TRACE_VCD,
-                    BSM_TRACE_SIMPLE: BSM_TRACE_SIMPLE,
-                    BSM_TRACE_VCD:BSM_TRACE_VCD}
+    sim_units = {
+        'fs': BSM_FS,
+        'ps': BSM_PS,
+        'ns': BSM_NS,
+        'us': BSM_US,
+        'ms': BSM_MS,
+        's': BSM_SEC
+    }
+    trigger_type = {
+        'posneg': BSM_BOTHEDGE,
+        'pos': BSM_POSEDGE,
+        'neg': BSM_NEGEDGE,
+        'none': BSM_NONEEDGE,
+        BSM_BOTHEDGE: BSM_BOTHEDGE,
+        BSM_POSEDGE: BSM_POSEDGE,
+        BSM_NEGEDGE: BSM_NEGEDGE,
+        BSM_NONEEDGE: BSM_NONEEDGE
+    }
+    tfile_format = {
+        'bsm': BSM_TRACE_SIMPLE,
+        'vcd': BSM_TRACE_VCD,
+        BSM_TRACE_SIMPLE: BSM_TRACE_SIMPLE,
+        BSM_TRACE_VCD: BSM_TRACE_VCD
+    }
+
     def __init__(self, qcmd, qresp):
         self.simengine = None
         self.monitor = MonitorList()
@@ -398,7 +439,7 @@ class SimCommand(object):
         self.running = False
         self.sim_step = 20
         self.sim_unit_step = BSM_NS
-        self.sim_total = -1 # -1 --> run forever
+        self.sim_total = -1  # -1 --> run forever
         self.sim_unit_total = BSM_NS
         self.sim_total_sec = -1
 
@@ -421,8 +462,11 @@ class SimCommand(object):
             if t is not None:
                 # set the important filed to be True, so the client will
                 # never ignore the events
-                resp = {'cmd': 'breakpoint_triggered', 'important': True,
-                        'value': [name, t[0], t[1], t[2]]}
+                resp = {
+                    'cmd': 'breakpoint_triggered',
+                    'important': True,
+                    'value': [name, t[0], t[1], t[2]]
+                }
                 self.response(resp)
                 self.running = False
                 self.bp_values_prev.update(values)
@@ -447,11 +491,18 @@ class SimCommand(object):
             self.simengine.ctx_set_callback(self.check_bp)
             objs = {}
             for name, obj in six.iteritems(self.simengine.sim_objects):
-                objs[name] = {'name':obj.name, 'basename':obj.basename,
-                              'kind':obj.kind, 'value':"",
-                              'writable':obj.writable, 'readable':obj.readable,
-                              'numeric':obj.numeric, 'parent':obj.parent,
-                              'nkind':obj.nkind, 'register':obj.register}
+                objs[name] = {
+                    'name': obj.name,
+                    'basename': obj.basename,
+                    'kind': obj.kind,
+                    'value': "",
+                    'writable': obj.writable,
+                    'readable': obj.readable,
+                    'numeric': obj.numeric,
+                    'parent': obj.parent,
+                    'nkind': obj.nkind,
+                    'register': obj.register
+                }
             return objs
         return None
 
@@ -476,7 +527,7 @@ class SimCommand(object):
             if t > 0:
                 # step should not exceed the remaining simulation time
                 scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
-                sim_step = min(sim_step, int(t*scale[sim_unit]+0.5))
+                sim_step = min(sim_step, int(t * scale[sim_unit] + 0.5))
             else:
                 # finished, no need to run
                 self.running = False
@@ -514,7 +565,12 @@ class SimCommand(object):
         return None, None
 
     @SimInterface()
-    def set_parameter(self, step=None, total=None, to=None, more=None, **kwargs):
+    def set_parameter(self,
+                      step=None,
+                      total=None,
+                      to=None,
+                      more=None,
+                      **kwargs):
         """set the parameters"""
         step, step_unit = self._parse_time(step)
         total, total_unit = self._parse_time(total)
@@ -539,21 +595,21 @@ class SimCommand(object):
 
         scale = [1e15, 1e12, 1e9, 1e6, 1e3, 1e0]
         if self.sim_total > 0:
-            self.sim_total_sec = self.sim_total/scale[self.sim_unit_total]
+            self.sim_total_sec = self.sim_total / scale[self.sim_unit_total]
         else:
             self.sim_total_sec = self.sim_total
 
         if to is not None and to > 0:
             # calculate the next pause time in sec, no need to update the
             # absolute max simulation time (sim_total)
-            to = to/scale[to_unit]
+            to = to / scale[to_unit]
             # update the next pause time
             if self.sim_total_sec > 0:
                 self.sim_total_sec = min(to, self.sim_total_sec)
             else:
                 self.sim_total_sec = to
         elif more is not None and more > 0:
-            more = more/scale[more_unit] + self.time_stamp(insecond=True)
+            more = more / scale[more_unit] + self.time_stamp(insecond=True)
             # update the next pause time
             if self.sim_total_sec > 0:
                 self.sim_total_sec = min(more, self.sim_total_sec)
@@ -564,8 +620,12 @@ class SimCommand(object):
 
     @SimInterface()
     def get_parameter(self, **kwargs):
-        return {'step_unit':self.sim_unit_step, 'step': self.sim_step,
-                'total':self.sim_total, 'total_unit':self.sim_unit_total}
+        return {
+            'step_unit': self.sim_unit_step,
+            'step': self.sim_step,
+            'total': self.sim_total,
+            'total_unit': self.sim_unit_total
+        }
 
     def _object_list(self, objs):
         """help function to generate object list"""
@@ -642,8 +702,13 @@ class SimCommand(object):
         return self.simengine.ctx_time_str()
 
     @SimInterface()
-    def trace_file(self, filename='', name='', fmt='bsm', valid=None,
-                   trigger='posneg', **kwargs):
+    def trace_file(self,
+                   filename='',
+                   name='',
+                   fmt='bsm',
+                   valid=None,
+                   trigger='posneg',
+                   **kwargs):
         """
         dump object values to a file
 
@@ -691,7 +756,7 @@ class SimCommand(object):
         trace.type = fmt
         if self.simengine.ctx_create_trace_file(trace()):
             self.simengine.ctx_trace_file(trace(), obj(), valid, trigger)
-            self.tfile[filename] = {'trace': trace, 'raw':raw}
+            self.tfile[filename] = {'trace': trace, 'raw': raw}
             return True
 
         return False
@@ -710,10 +775,14 @@ class SimCommand(object):
     @SimInterface()
     def get_trace_files(self, **kwargs):
         """return all the trace files"""
-        return {b:self.tfile[b]['raw'] for b in self.tfile}
+        return {b: self.tfile[b]['raw'] for b in self.tfile}
 
     @SimInterface()
-    def trace_buf(self, name='', size=256, valid=None, trigger="posneg",
+    def trace_buf(self,
+                  name='',
+                  size=256,
+                  valid=None,
+                  trigger="posneg",
                   **kwargs):
         """start dumping the register to a numpy array"""
         if not self.is_valid():
@@ -747,7 +816,7 @@ class SimCommand(object):
         trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         if self.simengine.ctx_create_trace_buf(trace()):
             self.simengine.ctx_trace_buf(trace(), obj(), valid, trigger)
-            self.tbuf[name] = {'trace':trace, 'data':data, 'raw':raw}
+            self.tbuf[name] = {'trace': trace, 'data': data, 'raw': raw}
         return True
 
     @SimInterface()
@@ -793,10 +862,9 @@ class SimCommand(object):
             resp[name] = self.tbuf[name]['data']
         return resp
 
-
     @SimInterface()
     def get_trace_bufs(self, **kwargs):
-        return {b:self.tbuf[b]['raw'] for b in self.tbuf}
+        return {b: self.tbuf[b]['raw'] for b in self.tbuf}
 
     @SimInterface()
     def monitor_signal(self, objects=None, **kwargs):
@@ -839,7 +907,7 @@ class SimCommand(object):
         if not self.is_valid():
             return {}
         if not self.simengine.find_object(name):
-            raise ValueError("Invalid object %s"%name)
+            raise ValueError("Invalid object %s" % name)
         objs = self.breakpoint.add([[name, condition, hitcount]],
                                    self.simengine.get_objects())
         bps = self.breakpoint.get_bp()
@@ -855,7 +923,7 @@ class SimCommand(object):
             return {}
 
         if not self.simengine.find_object(name):
-            raise ValueError("Invalid object %s"%name)
+            raise ValueError("Invalid object %s" % name)
         return self.breakpoint.delete([[name, condition, hitcount]],
                                       self.simengine.get_objects())
 
@@ -916,7 +984,10 @@ class SimCommand(object):
                 self.response(resp)
                 if self.running != running:
                     # automatically report status change
-                    self.response({'cmd':'get_status', 'value':self.get_status()})
+                    self.response({
+                        'cmd': 'get_status',
+                        'value': self.get_status()
+                    })
             except Queue.Empty:
                 pass
             except:
@@ -924,15 +995,17 @@ class SimCommand(object):
                     self.response(resp)
                 traceback.print_exc(file=sys.stdout)
 
+
 class SimLogger(object):
     def __init__(self, qresp):
         self.qresp = qresp
 
     def write(self, buf):
-        self.qresp.put({'cmd':'write_out', 'important':True, 'value':buf})
+        self.qresp.put({'cmd': 'write_out', 'important': True, 'value': buf})
 
     def flush(self):
         pass
+
 
 def sim_process(qresp, qcmd):
     log = SimLogger(qresp)

@@ -21,9 +21,8 @@ s.trace_buf('top.sig_cos', 2**14)
 s.trace_buf('top.sig_sin', 2**14)
 
 plot_trace('top.sig_cos', 'top.sig_sin', relim=False)
-xlim([-1,1])
-ylim([-1,1])
+xlim([-1, 1])
+ylim([-1, 1])
 grid(ls='dotted')
 s.run(more='1000us')
 s.wait_until_simulation_paused()
-

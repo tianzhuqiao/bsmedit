@@ -23,6 +23,8 @@ from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
 from .. import c2p
 
 Gcs = Gcm()
+
+
 class Simulation(object):
     def __init__(self, parent, num=None):
         if num is not None and isinstance(num, int) and \
@@ -41,7 +43,7 @@ class Simulation(object):
         self.qresp = None
         self.qcmd = None
         self.sim_process = None
-        self.status = {'running':False, 'valid':False}
+        self.status = {'running': False, 'valid': False}
         self._interfaces = {}
 
     def release(self):
@@ -57,7 +59,7 @@ class Simulation(object):
     def __setitem__(self, obj, value):
         """write the value to the object"""
         if isinstance(obj, six.string_types):
-            return self.write({obj:value})
+            return self.write({obj: value})
         elif isinstance(obj, (list, tuple)):
             return self.write(dict(zip(obj, value)))
         else:
@@ -84,7 +86,7 @@ class Simulation(object):
             if not kwargs.get('silent', True):
                 print(cmd, cid, kwargs)
 
-            self.qcmd.put({'id':cid, 'cmd':cmd, 'arguments':kwargs})
+            self.qcmd.put({'id': cid, 'cmd': cmd, 'arguments': kwargs})
             if block is True:
                 # wait for the command to finish
                 while True:
@@ -123,7 +125,7 @@ class Simulation(object):
                 return True
             wx.YieldIfNeeded()
             time.sleep(0.1)
-            if start > 0 and time.time()-start > timeout:
+            if start > 0 and time.time() - start > timeout:
                 return False
         return False
 
@@ -143,8 +145,10 @@ class Simulation(object):
         for item in interfaces:
             if hasattr(self, item):
                 continue
+
             def wrapper(cmd, **kwargs):
                 return self._send_command(cmd, **kwargs)
+
             formatted_args = interfaces[item]['args']
             formatted_args = formatted_args.lstrip('(').rstrip(')')
             formatted_args2 = []
@@ -155,8 +159,8 @@ class Simulation(object):
                     arg = "{0}={0}".format(arg)
                 formatted_args2.append(arg)
 
-            fndef = 'lambda %s: wrapper("%s", %s)'%(formatted_args, item,
-                                                    ','.join(formatted_args2))
+            fndef = 'lambda %s: wrapper("%s", %s)' % (
+                formatted_args, item, ','.join(formatted_args2))
             fake_fn = eval(fndef, {'wrapper': wrapper, 'item': item})
             fake_fn.__doc__ = interfaces[item]['doc']
             setattr(self, item, fake_fn)
@@ -170,7 +174,8 @@ class Simulation(object):
         """
         if filename is None:
             style = c2p.FD_OPEN | c2p.FD_FILE_MUST_EXIST
-            dlg = wx.FileDialog(self.frame, "Choose a file", "", "", "*.*", style)
+            dlg = wx.FileDialog(self.frame, "Choose a file", "", "", "*.*",
+                                style)
             if dlg.ShowModal() == wx.ID_OK:
                 filename = dlg.GetPath()
             dlg.Destroy()
@@ -205,7 +210,7 @@ class Simulation(object):
         self.sim_process.join()
         self.sim_process = None
         # stop the client
-        self._process_response({'cmd':'exit'})
+        self._process_response({'cmd': 'exit'})
 
     def reset(self):
         """reset the simulation"""
@@ -225,7 +230,7 @@ class Simulation(object):
     def global_object_name(self, obj):
         """generate the global name for simulation object (num.name)"""
         if obj in self.objects:
-            return "%d."%self.num + obj
+            return "%d." % self.num + obj
         return None
 
     def monitor(self, objects, grid=None, index=-1):
@@ -253,11 +258,13 @@ class Simulation(object):
                 print("invalid object: ", name)
                 continue
             if obj['kind'] == 'sc_module':
-                prop = grid.InsertSeparator(self.global_object_name(obj['name']),
-                                            obj['basename'], index)
+                prop = grid.InsertSeparator(
+                    self.global_object_name(obj['name']), obj['basename'],
+                    index)
             else:
-                prop = grid.InsertProperty(self.global_object_name(obj['name']),
-                                           obj['basename'], obj['value'], index)
+                prop = grid.InsertProperty(
+                    self.global_object_name(obj['name']), obj['basename'],
+                    obj['value'], index)
                 prop.SetGripperColor(self.frame.GetColor())
                 if not obj['writable']:
                     prop.SetControlStyle('none')
@@ -276,7 +283,10 @@ class Simulation(object):
     def _process_response(self, resp):
         """process the response from the simulation core"""
         try:
-            wx.CallAfter(dp.send, signal='sim.response', sender=self, resp=resp)
+            wx.CallAfter(dp.send,
+                         signal='sim.response',
+                         sender=self,
+                         resp=resp)
             command = resp.get('cmd', '')
             value = resp.get('value', False)
             args = resp.get('arguments', {})
@@ -318,6 +328,7 @@ class Simulation(object):
 
         return None
 
+
 class ModuleTree(FastLoadTreeCtrl):
     """the tree control to show the hierarchy of the objects in the simulation"""
     def __init__(self, parent, style=wx.TR_DEFAULT_STYLE):
@@ -325,9 +336,11 @@ class ModuleTree(FastLoadTreeCtrl):
                 wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
         FastLoadTreeCtrl.__init__(self, parent, self.get_children, style=style)
         imglist = wx.ImageList(16, 16, True, 10)
-        for xpm in [module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,
-                    module_grey_xpm, switch_grey_xpm, in_grey_xpm,
-                    out_grey_xpm, inout_grey_xpm]:
+        for xpm in [
+                module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,
+                module_grey_xpm, switch_grey_xpm, in_grey_xpm, out_grey_xpm,
+                inout_grey_xpm
+        ]:
             imglist.Add(c2p.BitmapFromXPM(xpm))
         self.AssignImageList(imglist)
         self.objects = None
@@ -342,13 +355,15 @@ class ModuleTree(FastLoadTreeCtrl):
         children = []
         for key, obj in six.iteritems(self.objects):
             if obj['nkind'] != SC_OBJ_UNKNOWN and obj['parent'] == parent:
-                child = {'label':obj['basename']}
+                child = {'label': obj['basename']}
                 nkind = obj['nkind']
                 img = [-1, -1]
                 if nkind == SC_OBJ_MODULE:
                     img = [0, 0]
-                elif nkind in [SC_OBJ_SIGNAL, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,
-                               SC_OBJ_XSC_ARRAY, SC_OBJ_XSC_ARRAY_ITEM]:
+                elif nkind in [
+                        SC_OBJ_SIGNAL, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,
+                        SC_OBJ_XSC_ARRAY, SC_OBJ_XSC_ARRAY_ITEM
+                ]:
                     img = [1, 1]
                 elif nkind == SC_OBJ_INPUT:
                     img = [2, 2]
@@ -440,6 +455,7 @@ class ModuleTree(FastLoadTreeCtrl):
             self.UnselectAll()
             self.SelectItem(child)
 
+
 class DumpDlg(wx.Dialog):
     def __init__(self, parent, objects, active, tracefile=True):
         wx.Dialog.__init__(self, parent, id=wx.ID_ANY, title="Dump...")
@@ -454,43 +470,50 @@ class DumpDlg(wx.Dialog):
             szFile = wx.StaticBoxSizer(sbox, wx.HORIZONTAL)
             self.tcFile = wx.TextCtrl(sbox, value=active)
             self.tcFile.SetMaxLength(0)
-            szFile.Add(self.tcFile, 1, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
+            szFile.Add(self.tcFile, 1, wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
             self.btnSelectFile = wx.Button(sbox, label="...", size=(25, -1))
-            szFile.Add(self.btnSelectFile, 0, wx.ALIGN_CENTER_VERTICAL|wx.ALL, 5)
-            szAll.Add(szFile, 0, wx.ALL|wx.EXPAND, 5)
+            szFile.Add(self.btnSelectFile, 0,
+                       wx.ALIGN_CENTER_VERTICAL | wx.ALL, 5)
+            szAll.Add(szFile, 0, wx.ALL | wx.EXPAND, 5)
 
         sbox = wx.StaticBox(self, wx.ID_ANY, "&Signal")
         szSignal = wx.StaticBoxSizer(sbox, wx.VERTICAL)
-        self.tcSignal = AutocompleteTextCtrl(sbox, value=active,
+        self.tcSignal = AutocompleteTextCtrl(sbox,
+                                             value=active,
                                              completer=self.Completer)
-        szSignal.Add(self.tcSignal, 0, wx.ALL|wx.EXPAND, 5)
+        szSignal.Add(self.tcSignal, 0, wx.ALL | wx.EXPAND, 5)
         self.cbTrigger = wx.CheckBox(sbox, label="Use Trigger Signal")
         szSignal.Add(self.cbTrigger, 0, wx.ALL, 5)
         self.tcValid = AutocompleteTextCtrl(sbox, completer=self.Completer)
-        szSignal.Add(self.tcValid, 0, wx.ALL|wx.EXPAND, 5)
+        szSignal.Add(self.tcValid, 0, wx.ALL | wx.EXPAND, 5)
         rbTriggerChoices = ["&Pos Edge", "&Neg Edge", "Both Edge"]
-        self.rbTrigger = wx.RadioBox(sbox, label="Trigger",
+        self.rbTrigger = wx.RadioBox(sbox,
+                                     label="Trigger",
                                      choices=rbTriggerChoices)
         self.rbTrigger.SetSelection(2)
-        szSignal.Add(self.rbTrigger, 0, wx.ALL|wx.EXPAND, 5)
-        szAll.Add(szSignal, 1, wx.ALL|wx.EXPAND, 5)
+        szSignal.Add(self.rbTrigger, 0, wx.ALL | wx.EXPAND, 5)
+        szAll.Add(szSignal, 1, wx.ALL | wx.EXPAND, 5)
 
         if self.traceFile:
             rbFormatChoices = [u"&VCD", u"&BSM"]
-            self.rbFormat = wx.RadioBox(self, label="&Format",
+            self.rbFormat = wx.RadioBox(self,
+                                        label="&Format",
                                         choices=rbFormatChoices)
             self.rbFormat.SetSelection(1)
-            szAll.Add(self.rbFormat, 0, wx.ALL|wx.EXPAND, 5)
+            szAll.Add(self.rbFormat, 0, wx.ALL | wx.EXPAND, 5)
         else:
             szSize = wx.BoxSizer(wx.HORIZONTAL)
             szSize.Add(wx.StaticText(self, wx.ID_ANY, "Size"), 0, wx.ALL, 5)
-            self.spinSize = wx.SpinCtrl(self, style=wx.SP_ARROW_KEYS, min=1,
-                                        max=2**31-1, initial=256)
+            self.spinSize = wx.SpinCtrl(self,
+                                        style=wx.SP_ARROW_KEYS,
+                                        min=1,
+                                        max=2**31 - 1,
+                                        initial=256)
             szSize.Add(self.spinSize, 1, wx.EXPAND | wx.ALL, 5)
-            szAll.Add(szSize, 0, wx.ALL|wx.EXPAND, 5)
+            szAll.Add(szSize, 0, wx.ALL | wx.EXPAND, 5)
 
         self.m_staticline1 = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
-        szAll.Add(self.m_staticline1, 0, wx.EXPAND |wx.ALL, 5)
+        szAll.Add(self.m_staticline1, 0, wx.EXPAND | wx.ALL, 5)
 
         szConfirm = wx.BoxSizer(wx.HORIZONTAL)
         self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
@@ -516,7 +539,7 @@ class DumpDlg(wx.Dialog):
         """return all the simulation object for auto complete"""
         root = query
         if query.find('.'):
-            root = query[0:query.rfind('.')+1]
+            root = query[0:query.rfind('.') + 1]
         # only report the direct children of 'query', for example
         # query = 'top.si'
         # will return all the children of top, whose name starts with 'si'
@@ -530,11 +553,15 @@ class DumpDlg(wx.Dialog):
         if objs:
             objs = list(set(objs))
             objs.sort()
-        return objs, objs, len(query)-len(root)
+        return objs, objs, len(query) - len(root)
 
     def OnBtnSelectFile(self, event):
         wildcard = "BSM Files (*.bsm)|*.bsm|All Files (*.*)|*.*"
-        dlg = wx.FileDialog(self, "Select BSM dump file", '', '', wildcard,
+        dlg = wx.FileDialog(self,
+                            "Select BSM dump file",
+                            '',
+                            '',
+                            wildcard,
                             style=c2p.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             self.tcFile.SetValue(dlg.GetPath())
@@ -561,6 +588,7 @@ class DumpDlg(wx.Dialog):
     def GetTrace(self):
         return self.trace
 
+
 class SimPanel(wx.Panel):
     ID_SIM_STEP = wx.NewId()
     ID_SIM_RUN = wx.NewId()
@@ -570,14 +598,17 @@ class SimPanel(wx.Panel):
     ID_MP_TRACE_BUF = wx.NewId()
     ID_MP_ADD_TO_NEW_VIEWER = wx.NewId()
     ID_MP_ADD_TO_VIEWER_START = wx.NewId()
+
     def __init__(self, parent, num=None, filename=None, silent=False):
         wx.Panel.__init__(self, parent)
 
         self.is_destroying = False
         self._color = wx.Colour(178, 34, 34)
         self.toolbarart = AuiToolBarPopupArt(self)
-        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW|
-                                 aui.AUI_TB_PLAIN_BACKGROUND)
+        self.tb = aui.AuiToolBar(self,
+                                 -1,
+                                 agwStyle=aui.AUI_TB_OVERFLOW
+                                 | aui.AUI_TB_PLAIN_BACKGROUND)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
         xpm2bmp = c2p.BitmapFromXPM
         self.tb.AddSimpleTool(self.ID_SIM_STEP, "Step", xpm2bmp(step_xpm),
@@ -589,24 +620,36 @@ class SimPanel(wx.Panel):
 
         self.tb.AddSeparator()
 
-        self.tcStep = wx.SpinCtrlDouble(self.tb, value='1000', size=(150, -1),
-                                        min=0, max=1e9, inc=1)
+        self.tcStep = wx.SpinCtrlDouble(self.tb,
+                                        value='1000',
+                                        size=(150, -1),
+                                        min=0,
+                                        max=1e9,
+                                        inc=1)
         self.tcStep.SetDigits(4)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Step "))
         self.tb.AddControl(self.tcStep)
         units = ['fs', 'ps', 'ns', 'us', 'ms', 's']
-        self.cmbUnitStep = wx.Choice(self.tb, wx.ID_ANY, size=(50, -1),
+        self.cmbUnitStep = wx.Choice(self.tb,
+                                     wx.ID_ANY,
+                                     size=(50, -1),
                                      choices=units)
         self.cmbUnitStep.SetSelection(2)
         self.tb.AddControl(self.cmbUnitStep)
         self.tb.AddSeparator()
 
-        self.tcTotal = wx.SpinCtrlDouble(self.tb, value='-1', size=(150, -1),
-                                         min=-1, max=1e9, inc=1)
+        self.tcTotal = wx.SpinCtrlDouble(self.tb,
+                                         value='-1',
+                                         size=(150, -1),
+                                         min=-1,
+                                         max=1e9,
+                                         inc=1)
         self.tcTotal.SetDigits(4)
         self.tb.AddControl(wx.StaticText(self.tb, wx.ID_ANY, "Total "))
         self.tb.AddControl(self.tcTotal)
-        self.cmbUnitTotal = wx.Choice(self.tb, wx.ID_ANY, size=(50, -1),
+        self.cmbUnitTotal = wx.Choice(self.tb,
+                                      wx.ID_ANY,
+                                      size=(50, -1),
                                       choices=units)
         self.cmbUnitTotal.SetSelection(2)
         self.tb.AddControl(self.cmbUnitTotal)
@@ -631,7 +674,8 @@ class SimPanel(wx.Panel):
         self.tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnTreeSelChanged)
         self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
         self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
-        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN, self.OnMenuDropDown,
+        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN,
+                  self.OnMenuDropDown,
                   id=self.ID_SIM_SET)
         # simulation
         self.sim = Simulation(self, num)
@@ -639,7 +683,8 @@ class SimPanel(wx.Panel):
             self.sim.load(filename, block=True)
             self.SetParameter()
 
-        dp.connect(receiver=self._process_response, signal='sim.response',
+        dp.connect(receiver=self._process_response,
+                   signal='sim.response',
                    sender=self.sim)
 
         self.timer = wx.Timer(self)
@@ -676,7 +721,8 @@ class SimPanel(wx.Panel):
         """
         Destroy the simulation properly before close the pane.
         """
-        dp.disconnect(receiver=self._process_response, signal='sim.response',
+        dp.disconnect(receiver=self._process_response,
+                      signal='sim.response',
                       sender=self.sim)
         self.timer.Stop()
         self.is_destroying = True
@@ -697,10 +743,11 @@ class SimPanel(wx.Panel):
 
         step = self.tcStep.GetValue()
         unitStep = self.cmbUnitStep.GetString(self.cmbUnitStep.GetSelection())
-        step = "%f%s"%(step, unitStep)
+        step = "%f%s" % (step, unitStep)
         total = self.tcTotal.GetValue()
-        unitTotal = self.cmbUnitTotal.GetString(self.cmbUnitTotal.GetSelection())
-        total = "%f%s"%(total, unitTotal)
+        unitTotal = self.cmbUnitTotal.GetString(
+            self.cmbUnitTotal.GetSelection())
+        total = "%f%s" % (total, unitTotal)
         self.sim.set_parameter(step=step, total=total, block=block)
 
     def OnTreeSelChanged(self, event):
@@ -749,11 +796,18 @@ class SimPanel(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK:
                 t = dlg.GetTrace()
                 if cmd == self.ID_MP_DUMP:
-                    self.sim.trace_file(t['filename'], t['signal'], t['format'],
-                                        t['valid'], t['trigger'], block=False)
+                    self.sim.trace_file(t['filename'],
+                                        t['signal'],
+                                        t['format'],
+                                        t['valid'],
+                                        t['trigger'],
+                                        block=False)
                 else:
-                    self.sim.trace_buf(t['signal'], t['size'], t['valid'],
-                                       t['trigger'], block=False)
+                    self.sim.trace_buf(t['signal'],
+                                       t['size'],
+                                       t['valid'],
+                                       t['trigger'],
+                                       block=False)
         elif cmd == self.ID_MP_ADD_TO_NEW_VIEWER:
             self.AddSelectedToGrid(sim.propgrid())
         else:
@@ -788,7 +842,6 @@ class SimPanel(wx.Panel):
                     (child, cookie) = self.tree.GetNextChild(item, cookie)
         self.sim.read(objects=objs, block=False)
 
-
     def OnTreeBeginDrag(self, event):
         if self.tree.objects is None:
             return
@@ -816,9 +869,9 @@ class SimPanel(wx.Panel):
                     objchild.append(gname(ext2['name']))
                     objs_name.append(ext2['name'])
                     (child, cookie) = self.tree.GetNextChild(item, cookie)
-                objs.append({'reg':gname(ext['name']), 'child':objchild})
+                objs.append({'reg': gname(ext['name']), 'child': objchild})
             else:
-                objs.append({'reg':gname(ext['name'])})
+                objs.append({'reg': gname(ext['name'])})
             objs_name.append(ext['name'])
         # need to explicitly allow drag
         # start drag operation
@@ -884,31 +937,36 @@ class SimPanel(wx.Panel):
                     step = self.tcStep.GetValue()
                     self.tcStep.SetValue(value.get('step', step))
                     unitStep = self.cmbUnitStep.GetSelection()
-                    self.cmbUnitStep.SetSelection(value.get('step_unit', unitStep))
+                    self.cmbUnitStep.SetSelection(
+                        value.get('step_unit', unitStep))
                     total = self.tcTotal.GetValue()
                     self.tcTotal.SetValue(value.get('total', total))
                     unitTotal = self.cmbUnitTotal.GetSelection()
-                    self.cmbUnitTotal.SetSelection(value.get('total_unit', unitTotal))
+                    self.cmbUnitTotal.SetSelection(
+                        value.get('total_unit', unitTotal))
             elif command == 'read':
                 gname = self.sim.global_object_name
-                ui_objs = {gname(name):v for name, v in six.iteritems(value)}
+                ui_objs = {gname(name): v for name, v in six.iteritems(value)}
                 dp.send(signal="sim.update", objs=ui_objs)
             elif command == 'read_buf':
                 gname = self.sim.global_object_name
-                ui_buffers = {gname(name):v for name, v in six.iteritems(value)}
+                ui_buffers = {
+                    gname(name): v
+                    for name, v in six.iteritems(value)
+                }
                 dp.send(signal="sim.buffer_changed", bufs=ui_buffers)
             elif command == 'time_stamp':
                 if isinstance(value, six.string_types):
                     dp.send(signal="frame.show_status_text", text=value)
             elif command == 'breakpoint_triggered':
-                bp = value #[name, condition, hitcount, hitsofar]
+                bp = value  #[name, condition, hitcount, hitsofar]
                 gname = self.sim.global_object_name
                 for grid in SimPropGrid.GCM.get_all_managers():
                     if grid.TriggerBreakPoint(gname(bp[0]), bp[1], bp[2]):
                         dp.send(signal='frame.show_panel', panel=grid)
                         break
                 else:
-                    txt = "Breakpoint triggered: %s\n"%(json.dumps(bp))
+                    txt = "Breakpoint triggered: %s\n" % (json.dumps(bp))
                     dp.send(signal='shell.write_out', text=txt)
             elif command == 'write_out':
                 dp.send(signal='shell.write_out', text=value)
@@ -920,11 +978,12 @@ class SimPanel(wx.Panel):
         except:
             traceback.print_exc(file=sys.stdout)
 
+
 wxEVT_PROP_CLICK_CHECK = wx.NewEventType()
 EVT_PROP_CLICK_CHECK = wx.PyEventBinder(wxEVT_PROP_CLICK_CHECK, 1)
 
-class SimProperty(pg.Property):
 
+class SimProperty(pg.Property):
     def __init__(self, grid, name, label, value):
         pg.Property.__init__(self, grid, name, label, value)
         self.gripper_clr = wx.RED
@@ -987,7 +1046,6 @@ class SimProperty(pg.Property):
 
 
 class SimPropArt(pg.PropArtNative):
-
     def __init__(self):
         super(SimPropArt, self).__init__()
         self.gripper_width = 6
@@ -1007,12 +1065,12 @@ class SimPropArt(pg.PropArtNative):
         """calculate the rect for each section"""
         mx = self.gap_x
         irc = p.GetRect()
-        irc.SetLeft(irc.GetLeft()+self.margin['left'])
-        irc.SetRight(irc.GetRight()+self.margin['right'])
-        irc.SetTop(irc.GetTop()+self.margin['top'])
-        irc.SetBottom(irc.GetBottom()+self.margin['bottom'])
+        irc.SetLeft(irc.GetLeft() + self.margin['left'])
+        irc.SetRight(irc.GetRight() + self.margin['right'])
+        irc.SetTop(irc.GetTop() + self.margin['top'])
+        irc.SetBottom(irc.GetBottom() + self.margin['bottom'])
         x = irc.x
-        x = x + mx*2 + p.indent*self.indent_width
+        x = x + mx * 2 + p.indent * self.indent_width
         # gripper
         rc = wx.Rect(*irc)
         rc.x += self.gap_x
@@ -1022,7 +1080,7 @@ class SimPropArt(pg.PropArtNative):
         if self.expansion_width > 0 and p.HasChildren():
             # expander icon
             rc = wx.Rect(*irc)
-            rc.x = x + mx*2
+            rc.x = x + mx * 2
             rc.SetWidth(self.expansion_width)
             p.regions['expander'] = rc
             x = rc.right
@@ -1031,13 +1089,13 @@ class SimPropArt(pg.PropArtNative):
             # radio/check icon
             rc = wx.Rect(*irc)
             rc.x = x + mx
-            rc.SetWidth(self.check_width+2)
+            rc.SetWidth(self.check_width + 2)
             p.regions['check'] = rc
             x = rc.right
 
         # label
         p.regions['label'] = wx.Rect(*irc)
-        p.regions['label'].x = x + mx*2
+        p.regions['label'].x = x + mx * 2
 
         if not p.IsSeparator():
             title_width = p.title_width
@@ -1054,11 +1112,12 @@ class SimPropArt(pg.PropArtNative):
 
             rc = wx.Rect(*irc)
             rc.x = x
-            rc.SetWidth(irc.right-x)
+            rc.SetWidth(irc.right - x)
             p.regions['value'] = rc
         else:
             # separator does not have splitter & value
-            p.regions['label'].SetWidth(p.regions['label'].GetWidth() + irc.right-x)
+            p.regions['label'].SetWidth(p.regions['label'].GetWidth() +
+                                        irc.right - x)
             p.regions['splitter'] = wx.Rect(irc.right, irc.top, 0, 0)
             p.regions['value'] = wx.Rect(irc.right, irc.top, 0, 0)
 
@@ -1070,7 +1129,7 @@ class SimPropArt(pg.PropArtNative):
 
             dc.SetBrush(wx.Brush(p.gripper_clr))
             rc = p.regions['gripper']
-            dc.DrawRectangle(rc.x, rc.y+1, 3, rc.height-1)
+            dc.DrawRectangle(rc.x, rc.y + 1, 3, rc.height - 1)
 
     def DrawCheckNative(self, dc, p):
         # draw radio button
@@ -1086,8 +1145,8 @@ class SimPropArt(pg.PropArtNative):
 
             w, h = self.check_width, self.check_width
             rc = p.regions['check']
-            x = rc.x+(rc.width-w)/2
-            y = rc.y+(rc.height-h)/2+1
+            x = rc.x + (rc.width - w) / 2
+            y = rc.y + (rc.height - h) / 2 + 1
             render.DrawRadioBitmap(p.grid, dc, (x, y, w, h), state)
 
     def DrawCheck(self, dc, p):
@@ -1103,9 +1162,10 @@ class SimPropArt(pg.PropArtNative):
             if self.img_check.GetImageCount() == 4:
                 (w, h) = self.img_check.GetSize(0)
                 rc = p.regions['check']
-                x = rc.x+(rc.width-w)/2
-                y = rc.y+(rc.height-h)/2+1
-                self.img_check.Draw(state, dc, x, y, wx.IMAGELIST_DRAW_TRANSPARENT)
+                x = rc.x + (rc.width - w) / 2
+                y = rc.y + (rc.height - h) / 2 + 1
+                self.img_check.Draw(state, dc, x, y,
+                                    wx.IMAGELIST_DRAW_TRANSPARENT)
             else:
                 self.DrawCheckNative(dc, p)
 
@@ -1114,12 +1174,13 @@ class SimPropArt(pg.PropArtNative):
             if self.img_expand.GetImageCount() == 2:
                 (w, h) = self.img_expand.GetSize(0)
                 rc = p.regions['expander']
-                x = rc.x+(rc.width-w)/2
-                y = rc.y+(rc.height-h)/2+1
+                x = rc.x + (rc.width - w) / 2
+                y = rc.y + (rc.height - h) / 2 + 1
                 idx = 0
                 if not p.IsExpanded():
                     idx = 1
-                self.img_expand.Draw(idx, dc, x, y, wx.IMAGELIST_DRAW_TRANSPARENT)
+                self.img_expand.Draw(idx, dc, x, y,
+                                     wx.IMAGELIST_DRAW_TRANSPARENT)
             else:
                 super(SimPropArt, self).DrawExpansion(dc, p)
 
@@ -1128,10 +1189,12 @@ class SimPropArt(pg.PropArtNative):
         self.DrawGripper(dc, p)
         self.DrawCheck(dc, p)
 
+
 class SimPropGrid(pg.PropGrid):
     GCM = Gcm()
     ID_PROP_BREAKPOINT = wx.NewId()
     ID_PROP_BREAKPOINT_CLEAR = wx.NewId()
+
     def __init__(self, parent, num=None):
         pg.PropGrid.__init__(self, parent)
 
@@ -1178,7 +1241,9 @@ class SimPropGrid(pg.PropGrid):
                 objs.append(name[sl:])
         if objs:
             # tell the simulation to monitor signals
-            resp = dp.send('sim.command', num=num, command='monitor_signal',
+            resp = dp.send('sim.command',
+                           num=num,
+                           command='monitor_signal',
                            objects=objs)
             if not resp:
                 return
@@ -1189,7 +1254,7 @@ class SimPropGrid(pg.PropGrid):
                 # enable props that is monitored successfully
                 if isinstance(status, dict) and not status.get(obj, False):
                     continue
-                p = self.GetProperty(s+obj)
+                p = self.GetProperty(s + obj)
                 if not p:
                     continue
                 if isinstance(p, pg.Property):
@@ -1273,9 +1338,12 @@ class SimPropGrid(pg.PropGrid):
                     self.SetSelection(prop)
                     return True
 
+
 class BreakpointSettingsDlg(wx.Dialog):
     def __init__(self, parent, condition='', hitcount=''):
-        wx.Dialog.__init__(self, parent, title="Breakpoint Condition",
+        wx.Dialog.__init__(self,
+                           parent,
+                           title="Breakpoint Condition",
                            size=wx.Size(431, 289),
                            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
@@ -1291,29 +1359,31 @@ class BreakpointSettingsDlg(wx.Dialog):
 
         szCond = wx.BoxSizer(wx.VERTICAL)
 
-        self.rbChanged = wx.RadioButton(self, label="Has changed", style=wx.RB_GROUP)
-        szCond.Add(self.rbChanged, 5, wx.ALL|wx.EXPAND, 5)
+        self.rbChanged = wx.RadioButton(self,
+                                        label="Has changed",
+                                        style=wx.RB_GROUP)
+        szCond.Add(self.rbChanged, 5, wx.ALL | wx.EXPAND, 5)
 
         label = "Is true (value: $; for example, $==10)"
         self.rbCond = wx.RadioButton(self, label=label)
-        szCond.Add(self.rbCond, 0, wx.ALL|wx.EXPAND, 5)
+        szCond.Add(self.rbCond, 0, wx.ALL | wx.EXPAND, 5)
 
         self.tcCond = wx.TextCtrl(self)
-        szCond.Add(self.tcCond, 0, wx.ALL|wx.EXPAND, 5)
+        szCond.Add(self.tcCond, 0, wx.ALL | wx.EXPAND, 5)
 
         label = "Hit count (hit count: #; for example, #>10"
         self.cbHitCount = wx.CheckBox(self, label=label)
         szCond.Add(self.cbHitCount, 0, wx.ALL, 5)
 
         self.tcHitCount = wx.TextCtrl(self)
-        szCond.Add(self.tcHitCount, 0, wx.ALL|wx.EXPAND, 5)
+        szCond.Add(self.tcHitCount, 0, wx.ALL | wx.EXPAND, 5)
 
         szCnd.Add(szCond, 1, wx.EXPAND, 5)
 
         szAll.Add(szCnd, 1, wx.EXPAND, 5)
 
         self.stLine = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
-        szAll.Add(self.stLine, 0, wx.EXPAND |wx.ALL, 5)
+        szAll.Add(self.stLine, 0, wx.EXPAND | wx.ALL, 5)
 
         szConfirm = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -1360,6 +1430,7 @@ class BreakpointSettingsDlg(wx.Dialog):
         else:
             self.tcHitCount.Disable()
         event.Skip()
+
     def OnBtnOK(self, event):
         # set condition to empty string to indicate the breakpoint will be
         # triggered when the value is changed
@@ -1376,26 +1447,31 @@ class BreakpointSettingsDlg(wx.Dialog):
     def GetCondition(self):
         return (self.condition, self.hitcount)
 
+
 class sim(object):
     frame = None
     ID_SIM_NEW = wx.NOT_FOUND
     ID_PROP_NEW = wx.NOT_FOUND
+
     @classmethod
     def initialize(cls, frame):
         cls.frame = frame
 
-        resp = dp.send(signal='frame.add_menu', path='File:New:Simulation',
+        resp = dp.send(signal='frame.add_menu',
+                       path='File:New:Simulation',
                        rxsignal='bsm.simulation')
         if resp:
             cls.ID_SIM_NEW = resp[0][1]
-        resp = dp.send(signal='frame.add_menu', path='File:New:PropGrid',
+        resp = dp.send(signal='frame.add_menu',
+                       path='File:New:PropGrid',
                        rxsignal='bsm.simulation')
         if resp:
             cls.ID_PROP_NEW = resp[0][1]
 
         dp.connect(cls._process_command, signal='bsm.simulation')
         dp.connect(cls._sim_command, signal='sim.command')
-        dp.connect(receiver=cls._frame_set_active, signal='frame.activate_panel')
+        dp.connect(receiver=cls._frame_set_active,
+                   signal='frame.activate_panel')
         dp.connect(receiver=cls._frame_uninitialize, signal='frame.exit')
         dp.connect(receiver=cls.initialized, signal='frame.initialized')
         dp.connect(receiver=cls._prop_insert, signal='prop.insert')
@@ -1407,10 +1483,17 @@ class sim(object):
 
     @classmethod
     def initialized(cls):
-        dp.send(signal='shell.run', command='from bsmedit.bsm.pysim import *',
-                prompt=False, verbose=False, history=False)
-        dp.send(signal='shell.run', command='import six',
-                prompt=False, verbose=False, history=False)
+        dp.send(signal='shell.run',
+                command='from bsmedit.bsm.pysim import *',
+                prompt=False,
+                verbose=False,
+                history=False)
+        dp.send(signal='shell.run',
+                command='import six',
+                prompt=False,
+                verbose=False,
+                history=False)
+
     @classmethod
     def _sim_command(cls, num, command, **kwargs):
         mgr = Gcs.get_manager(num)
@@ -1496,14 +1579,19 @@ class sim(object):
             mgr.stop()
             dp.send('frame.delete_panel', panel=mgr.frame)
         dp.send('frame.delete_menu', path="View:Simulations")
-        dp.send('frame.delete_menu', path="File:New:Simulation", id=cls.ID_SIM_NEW)
-        dp.send('frame.delete_menu', path="File:New:PropGrid", id=cls.ID_PROP_NEW)
+        dp.send('frame.delete_menu',
+                path="File:New:Simulation",
+                id=cls.ID_SIM_NEW)
+        dp.send('frame.delete_menu',
+                path="File:New:PropGrid",
+                id=cls.ID_PROP_NEW)
 
     @classmethod
     def _process_command(cls, command):
         if command == cls.ID_SIM_NEW:
             style = c2p.FD_OPEN | c2p.FD_FILE_MUST_EXIST
-            dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", "*.*", style)
+            dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", "*.*",
+                                style)
             if dlg.ShowModal() == wx.ID_OK:
                 filename = dlg.GetPath()
                 cls.simulation(filename=filename)
@@ -1536,7 +1624,11 @@ class sim(object):
         return mgr, obj
 
     @classmethod
-    def simulation(cls, num=None, filename=None, silent=False, create=True,
+    def simulation(cls,
+                   num=None,
+                   filename=None,
+                   silent=False,
+                   create=True,
                    activate=False):
         """
         create a simulation
@@ -1545,20 +1637,27 @@ class sim(object):
         create == True.
         """
         def GetColorByNum(num):
-            color = ['green', 'red', 'blue', 'black', 'cyan', 'yellow',
-                     'magenta', 'cyan']
-            return c2p.NamedColour(color[num%len(color)])
+            color = [
+                'green', 'red', 'blue', 'black', 'cyan', 'yellow', 'magenta',
+                'cyan'
+            ]
+            return c2p.NamedColour(color[num % len(color)])
+
         manager = Gcs.get_manager(num)
         if manager is None and create:
             manager = SimPanel(sim.frame, num, filename, silent)
             clr = GetColorByNum(manager.sim.num)
             clr.Set(clr.red, clr.green, clr.blue, 128)
             manager.SetColor(clr)
-            page_bmp = MakeBitmap(clr.red, clr.green, clr.blue)#178,  34,  34)
-            title = "Simulation-%d"%manager.sim.num
-            dp.send(signal="frame.add_panel", panel=manager, title=title,
-                    target="History", icon=page_bmp,
-                    showhidemenu="View:Simulations:%s"%title)
+            page_bmp = MakeBitmap(clr.red, clr.green,
+                                  clr.blue)  #178,  34,  34)
+            title = "Simulation-%d" % manager.sim.num
+            dp.send(signal="frame.add_panel",
+                    panel=manager,
+                    title=title,
+                    target="History",
+                    icon=page_bmp,
+                    showhidemenu="View:Simulations:%s" % title)
             return manager.sim
         # activate the manager
         elif manager and activate:
@@ -1576,7 +1675,7 @@ class sim(object):
         mgr = SimPropGrid.GCM.get_manager(num)
         if not mgr and create:
             mgr = SimPropGrid(cls.frame)
-            mgr.SetLabel("Propgrid-%d"%mgr.num)
+            mgr.SetLabel("Propgrid-%d" % mgr.num)
             dp.send(signal="frame.add_panel", panel=mgr, title=mgr.GetLabel())
         elif mgr and activate:
             # activate the window
@@ -1607,13 +1706,14 @@ class sim(object):
             sx, x, sy, y = None, None, s1, obj1
 
         dy = sy.read_buf(y, block=True)
-        y = {sy.global_object_name(y):dy}
+        y = {sy.global_object_name(y): dy}
         if sx:
             dx = sx.read_buf(x, block=True)
-            x = {sx.global_object_name(x):dx}
+            x = {sx.global_object_name(x): dx}
         mgr = graph.plt.get_current_fig_manager()
         autorelim = kwargs.pop("relim", True)
         mgr.plot_trace(x, y, autorelim, *args, **kwargs)
+
 
 def bsm_initialize(frame, **kwargs):
     sim.initialize(frame)

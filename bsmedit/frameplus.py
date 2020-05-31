@@ -4,9 +4,11 @@ import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
 from . import c2p
 
+
 class AuiManagerPlus(aui.AuiManager):
     def __init__(self, managed_window=None, agwFlags=None):
-        aui.AuiManager.__init__(self, managed_window=managed_window,
+        aui.AuiManager.__init__(self,
+                                managed_window=managed_window,
                                 agwFlags=agwFlags)
 
     def RefreshPaneCaption(self, window):
@@ -19,7 +21,8 @@ class AuiManagerPlus(aui.AuiManager):
         parent = window.GetParent()
         if parent is None:
             return
-        if pane.IsNotebookPage() and isinstance(parent, aui.auibook.AuiNotebook):
+        if pane.IsNotebookPage() and isinstance(parent,
+                                                aui.auibook.AuiNotebook):
             idx = parent.GetPageIndex(window)
             parent.SetPageText(idx, pane.caption)
             if idx == parent.GetSelection():
@@ -49,11 +52,21 @@ class AuiManagerPlus(aui.AuiManager):
 
                 notebook.DoSizing()
 
+
 class FramePlus(wx.Frame):
-    def __init__(self, parent, id=wx.ID_ANY, title=u'bsmedit',
-                 pos=wx.DefaultPosition, size=wx.Size(800, 600),
+    def __init__(self,
+                 parent,
+                 id=wx.ID_ANY,
+                 title=u'bsmedit',
+                 pos=wx.DefaultPosition,
+                 size=wx.Size(800, 600),
                  style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL):
-        wx.Frame.__init__(self, parent, id=id, title=title, pos=pos, size=size,
+        wx.Frame.__init__(self,
+                          parent,
+                          id=id,
+                          title=title,
+                          pos=pos,
+                          size=size,
                           style=style)
         self._mgr = AuiManagerPlus()
         self._mgr.SetManagedWindow(self)
@@ -111,8 +124,13 @@ class FramePlus(wx.Frame):
                     return None
         return menuitem
 
-    def _append_menu(self, menu, label, id=None, rxsignal=None,
-                     updatesignal=None, kind='Normal'):
+    def _append_menu(self,
+                     menu,
+                     label,
+                     id=None,
+                     rxsignal=None,
+                     updatesignal=None,
+                     kind='Normal'):
         """
         append an item to menu.
             kind: 'Separator', 'Normal', 'Check', 'Radio', 'Popup'
@@ -129,14 +147,23 @@ class FramePlus(wx.Frame):
             if newid is None:
                 newid = wx.NewId()
             if kind == 'Normal':
-                newitem = wx.MenuItem(menu, newid, label,
-                                      label, kind=wx.ITEM_NORMAL)
+                newitem = wx.MenuItem(menu,
+                                      newid,
+                                      label,
+                                      label,
+                                      kind=wx.ITEM_NORMAL)
             elif kind == 'Check':
-                newitem = wx.MenuItem(menu, newid, label,
-                                      label, kind=wx.ITEM_CHECK)
+                newitem = wx.MenuItem(menu,
+                                      newid,
+                                      label,
+                                      label,
+                                      kind=wx.ITEM_CHECK)
             elif kind == 'Radio':
-                newitem = wx.MenuItem(menu, newid, label,
-                                      label, kind=wx.ITEM_RADIO)
+                newitem = wx.MenuItem(menu,
+                                      newid,
+                                      label,
+                                      label,
+                                      kind=wx.ITEM_RADIO)
             self.menuAddon[newid] = (rxsignal, updatesignal)
             child = c2p.menuAppend(menu, newitem)
             self.Bind(wx.EVT_MENU, self.OnMenuAddOn, id=newid)
@@ -145,8 +172,13 @@ class FramePlus(wx.Frame):
             return child
         return None
 
-    def AddMenu(self, path, id=None, rxsignal=None, updatesignal=None,
-                kind='Normal', autocreate=False):
+    def AddMenu(self,
+                path,
+                id=None,
+                rxsignal=None,
+                updatesignal=None,
+                kind='Normal',
+                autocreate=False):
         """
         add the item to menubar.
             path: e.g., New:Open:Figure
@@ -213,8 +245,15 @@ class FramePlus(wx.Frame):
         else:
             event.Enable(True)
 
-    def AddPanel(self, panel, title='Untitle', active=True, paneInfo=None,
-                 target=None, showhidemenu=None, icon=None, maximize=False,
+    def AddPanel(self,
+                 panel,
+                 title='Untitle',
+                 active=True,
+                 paneInfo=None,
+                 target=None,
+                 showhidemenu=None,
+                 icon=None,
+                 maximize=False,
                  direction='top'):
         """add the panel to AUI"""
         if not panel:
@@ -244,10 +283,13 @@ class FramePlus(wx.Frame):
             targetpane = None
 
         auipaneinfo = paneInfo
-        dirs = {'top': aui.AUI_DOCK_TOP, 'bottom': aui.AUI_DOCK_BOTTOM,
-                'left': aui.AUI_DOCK_LEFT, 'right': aui.AUI_DOCK_RIGHT,
-                'center': aui.AUI_DOCK_CENTER
-               }
+        dirs = {
+            'top': aui.AUI_DOCK_TOP,
+            'bottom': aui.AUI_DOCK_BOTTOM,
+            'left': aui.AUI_DOCK_LEFT,
+            'right': aui.AUI_DOCK_RIGHT,
+            'center': aui.AUI_DOCK_CENTER
+        }
         direction = dirs.get(direction, aui.AUI_DOCK_TOP)
         if auipaneinfo is None:
             # default panel settings. dock_row = -1 to add the pane to the
@@ -263,7 +305,7 @@ class FramePlus(wx.Frame):
                 auipaneinfo.CenterPane()
                 active = True
         # auto generate the unique panel name
-        name = "pane-%d"%self._pane_num
+        name = "pane-%d" % self._pane_num
         self._pane_num += 1
         auipaneinfo.Name(name)
 
@@ -278,11 +320,13 @@ class FramePlus(wx.Frame):
         self.ShowPanel(panel, active)
         # add the menu item to show/hide the panel
         if showhidemenu:
-            mid = self.AddMenu(showhidemenu, rxsignal='frame.check_menu',
-                               updatesignal='frame.update_menu', kind='Check',
+            mid = self.AddMenu(showhidemenu,
+                               rxsignal='frame.check_menu',
+                               updatesignal='frame.update_menu',
+                               kind='Check',
                                autocreate=True)
             if mid != wx.NOT_FOUND:
-                self.paneAddon[mid] = {'panel':panel, 'path':showhidemenu}
+                self.paneAddon[mid] = {'panel': panel, 'path': showhidemenu}
         return True
 
     def DeletePanel(self, panel):

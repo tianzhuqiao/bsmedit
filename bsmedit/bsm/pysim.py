@@ -1,5 +1,6 @@
 from .sim import sim, SimPropGrid
 
+
 def gcp():
     """
     get the current propgrid manager
@@ -8,6 +9,7 @@ def gcp():
     if not mgr:
         mgr = sim.propgrid()
     return mgr
+
 
 # add some shortcuts
 progrid = sim.propgrid

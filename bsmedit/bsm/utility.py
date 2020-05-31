@@ -4,6 +4,7 @@ import wx
 import wx.lib.agw.aui as aui
 from .. import c2p
 
+
 def MakeBitmap(red, green, blue, alpha=128):
     # Create the bitmap that we will stuff pixel values into using
     # the raw bitmap access classes.
@@ -27,15 +28,16 @@ def MakeBitmap(red, green, blue, alpha=128):
     for x in six.moves.range(16):
         pixels.MoveTo(pixelData, x, 0)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
-        pixels.MoveTo(pixelData, x, 16-1)
+        pixels.MoveTo(pixelData, x, 16 - 1)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
     for y in six.moves.range(16):
         pixels.MoveTo(pixelData, 0, y)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
-        pixels.MoveTo(pixelData, 16-1, y)
+        pixels.MoveTo(pixelData, 16 - 1, y)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
 
     return bmp
+
 
 def PopupMenu(wnd, menu):
     # popup a menu, and return the selected command
@@ -51,17 +53,21 @@ def PopupMenu(wnd, menu):
     wnd.PopEventHandler(True)
     return command
 
+
 class FastLoadTreeCtrl(wx.TreeCtrl):
     """
     When a treectrl tries to load a large amount of items, it will be slow.
     This class will not load the children item until the parent is expanded (
     e.g., by a click).
     """
-    def __init__(self, parent, getchildren=None, style=wx.TR_DEFAULT_STYLE,
+    def __init__(self,
+                 parent,
+                 getchildren=None,
+                 style=wx.TR_DEFAULT_STYLE,
                  sort=True):
         wx.TreeCtrl.__init__(self, parent, style=style)
         self._get_children = getchildren
-        assert(self._get_children)
+        assert (self._get_children)
         self._sort_children = sort
         self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
 
@@ -74,7 +80,8 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
 
     def FillChildren(self, item):
         """fill the node with children"""
-        if not ((self.GetWindowStyle() & wx.TR_HIDE_ROOT) and item == self.GetRootItem()):
+        if not ((self.GetWindowStyle() & wx.TR_HIDE_ROOT)
+                and item == self.GetRootItem()):
             child, _ = self.GetFirstChild(item)
             if not child.IsOk():
                 return False
@@ -85,8 +92,8 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
         children = self._get_children(item)
         for obj in children:
             # fill all the children
-            child = c2p.treeAppendItem(self, item, obj['label'], obj['img'], obj['imgsel'],
-                                       obj['data'])
+            child = c2p.treeAppendItem(self, item, obj['label'], obj['img'],
+                                       obj['imgsel'], obj['data'])
             # add the place holder for children
             if obj['is_folder']:
                 c2p.treeAppendItem(self, child, '...', -1, -1, None)

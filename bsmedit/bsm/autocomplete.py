@@ -29,13 +29,14 @@ import six
 import wx
 from .. import c2p
 
+
 class SuggestionsPopup(wx.Frame):
     def __init__(self, parent):
-        wx.Frame.__init__(
-            self, parent,
-            style=wx.NO_BORDER|wx.FRAME_TOOL_WINDOW|wx.FRAME_NO_TASKBAR|
-                  wx.FRAME_FLOAT_ON_PARENT|wx.STAY_ON_TOP
-        )
+        wx.Frame.__init__(self,
+                          parent,
+                          style=wx.NO_BORDER | wx.FRAME_TOOL_WINDOW
+                          | wx.FRAME_NO_TASKBAR | wx.FRAME_FLOAT_ON_PARENT
+                          | wx.STAY_ON_TOP)
         self._suggestions = self._listbox(self)
         self._suggestions.SetItemCount(0)
         self._unformated_suggestions = None
@@ -70,7 +71,8 @@ class SuggestionsPopup(wx.Frame):
 
     def CursorEnd(self):
         if self.IsShown():
-            self._suggestions.SetSelection(self._suggestions.GetItemCount() - 1)
+            self._suggestions.SetSelection(self._suggestions.GetItemCount() -
+                                           1)
 
     def GetSelectedSuggestion(self):
         return self._unformated_suggestions[self._suggestions.GetSelection()]
@@ -80,8 +82,13 @@ class SuggestionsPopup(wx.Frame):
 
 
 class AutocompleteTextCtrl(wx.TextCtrl):
-    def __init__(self, parent, height=300, completer=None, multiline=False,
-                 frequency=250, value=""):
+    def __init__(self,
+                 parent,
+                 height=300,
+                 completer=None,
+                 multiline=False,
+                 frequency=250,
+                 value=""):
         style = wx.TE_PROCESS_ENTER
         if multiline:
             style = style | wx.TE_MULTILINE
@@ -114,7 +121,8 @@ class AutocompleteTextCtrl(wx.TextCtrl):
         self.Bind(wx.EVT_TEXT, self.OnTextUpdate)
         self.Bind(wx.EVT_SIZE, self.OnSizeChange)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
-        self.popup._suggestions.Bind(wx.EVT_LEFT_DOWN, self.OnSuggestionClicked)
+        self.popup._suggestions.Bind(wx.EVT_LEFT_DOWN,
+                                     self.OnSuggestionClicked)
         self.popup._suggestions.Bind(wx.EVT_KEY_DOWN, self.OnSuggestionKeyDown)
 
     def AdjustPopupPosition(self):

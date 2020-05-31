@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 exec(open("bsmedit/version.py").read())
 
-long_description="""
+long_description = """
 **bsmedit** is a C/C++/SystemC Visualizer.
 - [Documentation](http://bsmedit.feiyilin.com)
 """
@@ -16,12 +16,9 @@ setup(name='bsmedit',
       license="MIT",
       platforms=["any"],
       packages=find_packages(),
-      include_package_data = True,
-      entry_points={
-          'gui_scripts': [
-              'bsmedit = bsmedit.main:main'
-          ]
-      },
-      install_requires=['wxpython', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
-                        'PyOpenGL_accelerate']
-     )
+      include_package_data=True,
+      entry_points={'gui_scripts': ['bsmedit = bsmedit.main:main']},
+      install_requires=[
+          'wxpython', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
+          'PyOpenGL_accelerate'
+      ])

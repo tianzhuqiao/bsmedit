@@ -4,6 +4,7 @@ Manage windows (originated from matplotlib).
 import gc
 import six
 
+
 class Gcm(object):
     """
     It consists of two class
@@ -97,7 +98,8 @@ class Gcm(object):
         """
         if len(self._activeQue) == 0:
             return None
-        else: return self._activeQue[-1]
+        else:
+            return self._activeQue[-1]
 
     def set_active(self, mgr):
         """
@@ -119,4 +121,3 @@ class Gcm(object):
         """return the next available num"""
         allnums = self.get_nums()
         return max(allnums) + 1 if allnums else 1
-

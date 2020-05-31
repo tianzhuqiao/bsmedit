@@ -13,7 +13,7 @@ if 'phoenix' in wx.version():
     EVT_COMMAND_FIND_REPLACE = wx.EVT_FIND_REPLACE
     EVT_COMMAND_FIND_REPLACE_ALL = wx.EVT_FIND_REPLACE_ALL
     EVT_COMMAND_FIND_CLOSE = wx.EVT_FIND_CLOSE
-    SystemSettings_GetColour= wx.SystemSettings.GetColour
+    SystemSettings_GetColour = wx.SystemSettings.GetColour
     NamedColour = wx.Colour
     StockCursor = wx.Cursor
     PyDropTarget = wx.DropTarget
@@ -33,7 +33,7 @@ else:
     EVT_COMMAND_FIND_REPLACE = wx.EVT_COMMAND_FIND_REPLACE
     EVT_COMMAND_FIND_REPLACE_ALL = wx.EVT_COMMAND_FIND_REPLACE_ALL
     EVT_COMMAND_FIND_CLOSE = wx.EVT_COMMAND_FIND_CLOSE
-    SystemSettings_GetColour= wx.SystemSettings_GetColour
+    SystemSettings_GetColour = wx.SystemSettings_GetColour
     NamedColour = wx.NamedColour
     StockCursor = wx.StockCursor
     PyDropTarget = wx.PyDropTarget
@@ -42,15 +42,18 @@ else:
     FD_OPEN = wx.OPEN
     FD_FILE_MUST_EXIST = wx.FILE_MUST_EXIST
 
+
 def SetClippingRect(dc, rc):
     if bsm_is_phoenix:
         dc.SetClippingRegion(rc)
     else:
         dc.SetClippingRect(rc)
 
+
 def BitmapFromXPM(xpm):
     xpm_b = [x.encode('utf-8') for x in xpm]
     return BitmapFromXPMData(xpm_b)
+
 
 def tbAddTool(tb, *args, **kwargs):
     if bsm_is_phoenix:
@@ -58,11 +61,13 @@ def tbAddTool(tb, *args, **kwargs):
     else:
         tb.AddLabelTool(*args, **kwargs)
 
+
 def tbAddCheckTool(tb, *args, **kwargs):
     if bsm_is_phoenix:
         tb.AddCheckTool(*args, **kwargs)
     else:
         tb.AddCheckLabelTool(*args, **kwargs)
+
 
 def treeGetData(tree, *args, **kwargs):
     if bsm_is_phoenix:
@@ -71,10 +76,12 @@ def treeGetData(tree, *args, **kwargs):
         data = tree.GetPyData(*args, **kwargs)
         return data
 
+
 def treeAppendItem(tree, parent, label, img, selimg, data):
     if not bsm_is_phoenix:
         data = wx.TreeItemData(data)
     return tree.AppendItem(parent, label, img, selimg, data)
+
 
 def menuAppend(menu, item):
     if not bsm_is_phoenix:

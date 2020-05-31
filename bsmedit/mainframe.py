@@ -18,6 +18,7 @@ from .version import *
 from . import c2p
 from .bsm.utility import PopupMenu
 
+
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):
         wx.FileDropTarget.__init__(self)
@@ -27,12 +28,16 @@ class FileDropTarget(wx.FileDropTarget):
             wx.CallAfter(dp.send, signal='frame.file_drop', filename=fname)
         return True
 
+
 class MainFrame(FramePlus):
 
     ID_VM_RENAME = wx.NewId()
     ID_CONTACT = wx.NewId()
+
     def __init__(self, parent, **kwargs):
-        FramePlus.__init__(self, parent, title='bsmedit',
+        FramePlus.__init__(self,
+                           parent,
+                           title='bsmedit',
                            size=wx.Size(800, 600),
                            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
         self.InitMenu()
@@ -62,7 +67,9 @@ class MainFrame(FramePlus):
         self.filehistory.Load(self.config)
         self.filehistory.UseMenu(self.menuRecentFiles)
         self.filehistory.AddFilesToMenu()
-        self.Bind(wx.EVT_MENU_RANGE, self.OnMenuFileHistory, id=wx.ID_FILE1,
+        self.Bind(wx.EVT_MENU_RANGE,
+                  self.OnMenuFileHistory,
+                  id=wx.ID_FILE1,
                   id2=wx.ID_FILE9)
 
         self.closing = False
@@ -127,7 +134,6 @@ class MainFrame(FramePlus):
         self.AddMenu('&Edit:Sep', kind="Separator")
         self.AddMenu('&Edit:&Select All', id=wx.ID_SELECTALL)
 
-
         self.AddMenu('&View:Toolbars', kind="Popup", autocreate=True)
         self.AddMenu('&View:Sep', kind="Separator")
         self.AddMenu('&View:Panels', kind="Popup")
@@ -181,7 +187,7 @@ class MainFrame(FramePlus):
                 if pkg in self.addon:
                     continue
                 if pkg in self.bsm_packages:
-                    pkg = 'bsmedit.bsm.%s'%pkg
+                    pkg = 'bsmedit.bsm.%s' % pkg
                 try:
                     mod = importlib.import_module(pkg)
                     if hasattr(mod, 'bsm_initialize'):
@@ -189,7 +195,7 @@ class MainFrame(FramePlus):
                         self.addon[pkg] = True
                     else:
                         self.addon[pkg] = False
-                        print("Invalid module: %s"%pkg)
+                        print("Invalid module: %s" % pkg)
                 except ImportError:
                     self.addon[pkg] = False
                     traceback.print_exc(file=sys.stdout)
@@ -203,20 +209,20 @@ class MainFrame(FramePlus):
 
     def SetConfig(self, group, **kwargs):
         if not group.startswith('/'):
-            group = '/'+group
+            group = '/' + group
         for key, value in six.iteritems(kwargs):
             if key in ['signal', 'sender']:
                 # reserved key for dp.send
                 continue
             if not isinstance(value, str):
                 # add sign to indicate that the value needs to be deserialize
-                value = '__bsm__'+json.dumps(value)
+                value = '__bsm__' + json.dumps(value)
             self.config.SetPath(group)
             self.config.Write(key, value)
 
     def GetConfig(self, group, key):
         if not group.startswith('/'):
-            group = '/'+group
+            group = '/' + group
         if self.config.HasGroup(group):
             self.config.SetPath(group)
             if self.config.HasEntry(key):
@@ -235,12 +241,13 @@ class MainFrame(FramePlus):
             force = self.closing
             if hasattr(pane.window, 'bsm_destroyonclose'):
                 force = pane.window.bsm_destroyonclose
-                assert(pane.IsDestroyOnClose() == force)
+                assert (pane.IsDestroyOnClose() == force)
             return not force
+
         # close the notebook
         if evt.pane.IsNotebookControl():
             nb = evt.pane.window
-            for idx in six.moves.range(nb.GetPageCount()-1, -1, -1):
+            for idx in six.moves.range(nb.GetPageCount() - 1, -1, -1):
                 wnd = nb.GetPage(idx)
                 page = self._mgr.GetPane(wnd)
 
@@ -303,8 +310,8 @@ class MainFrame(FramePlus):
             if not pane:
                 return
             name = pane.caption
-            name = wx.GetTextFromUser("Type in the name:", "Input Name",
-                                      name, self)
+            name = wx.GetTextFromUser("Type in the name:", "Input Name", name,
+                                      self)
             # when user click 'cancel', name will be empty, ignore it.
             if name and name != pane.caption:
                 pane.Caption(name)
@@ -339,9 +346,9 @@ class MainFrame(FramePlus):
     def ShowStatusText(self, text, index=0, width=-1):
         """set the status text"""
         if index >= len(self.statusbar_width):
-            exd = [0]*(index+1-len(self.statusbar_width))
+            exd = [0] * (index + 1 - len(self.statusbar_width))
             self.statusbar_width.extend(exd)
-            self.statusbar.SetFieldsCount(index+1)
+            self.statusbar.SetFieldsCount(index + 1)
         if self.statusbar_width[index] < width:
             self.statusbar_width[index] = width
             self.statusbar.SetStatusWidths(self.statusbar_width)
@@ -355,9 +362,10 @@ class MainFrame(FramePlus):
             raise ImportError('Not a package: %r', package_name)
 
         # Use a set because some may be both source and compiled.
-        return set([os.path.splitext(module)[0] for module in
-                    os.listdir(pathname)
-                    if module.endswith('.py') and not module.startswith('_')])
+        return set([
+            os.path.splitext(module)[0] for module in os.listdir(pathname)
+            if module.endswith('.py') and not module.startswith('_')
+        ])
 
     def OnActivate(self, event):
         if not self.closing:
@@ -416,9 +424,12 @@ class MainFrame(FramePlus):
         self.filehistory.AddFileToHistory(path)
         dp.send('frame.file_drop', filename=path)
 
+
 class AboutDialog(wx.Dialog):
     def __init__(self, parent):
-        wx.Dialog.__init__(self, parent, title="About bsmedit",
+        wx.Dialog.__init__(self,
+                           parent,
+                           title="About bsmedit",
                            style=wx.DEFAULT_DIALOG_STYLE)
 
         szAll = wx.BoxSizer(wx.VERTICAL)
@@ -432,38 +443,38 @@ class AboutDialog(wx.Dialog):
         self.header.SetBitmap(c2p.BitmapFromXPM(header_xpm))
         szPanel.Add(self.header, 0, wx.EXPAND, 0)
 
-        caption = 'bsmedit %s'%BSM_VERSION
+        caption = 'bsmedit %s' % BSM_VERSION
         self.stCaption = wx.StaticText(self.panel, wx.ID_ANY, caption)
         self.stCaption.SetFont(wx.Font(16, 74, 90, 92, False, "Arial"))
 
-        szPanel.Add(self.stCaption, 0, wx.ALL|wx.EXPAND, 5)
+        szPanel.Add(self.stCaption, 0, wx.ALL | wx.EXPAND, 5)
 
         strCopyright = '(c) 2018 Tianzhu Qiao. All rights reserved.'
 
         self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, strCopyright)
         self.stCopyright.SetMaxSize((240, -1))
         self.stCopyright.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
-        szPanel.Add(self.stCopyright, 0, wx.ALL|wx.EXPAND, 5)
+        szPanel.Add(self.stCopyright, 0, wx.ALL | wx.EXPAND, 5)
 
         build = wx.GetOsDescription() + '; wxWidgets ' + wx.version()
         self.stBuild = wx.StaticText(self.panel, wx.ID_ANY, build)
         self.stBuild.SetMaxSize((240, -1))
         self.stBuild.Wrap(240)
         self.stBuild.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
-        szPanel.Add(self.stBuild, 0, wx.ALL|wx.EXPAND, 5)
+        szPanel.Add(self.stBuild, 0, wx.ALL | wx.EXPAND, 5)
 
         stLine = wx.StaticLine(self.panel, style=wx.LI_HORIZONTAL)
-        szPanel.Add(stLine, 1, wx.EXPAND|wx.ALL, 0)
+        szPanel.Add(stLine, 1, wx.EXPAND | wx.ALL, 0)
 
         self.panel.SetSizer(szPanel)
         self.panel.Layout()
         szPanel.Fit(self.panel)
 
-        szAll.Add(self.panel, 1, wx.EXPAND|wx.ALL, 0)
+        szAll.Add(self.panel, 1, wx.EXPAND | wx.ALL, 0)
 
         szConfirm = wx.BoxSizer(wx.VERTICAL)
         self.btnOk = wx.Button(self, wx.ID_OK, u"Ok")
-        szConfirm.Add(self.btnOk, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
+        szConfirm.Add(self.btnOk, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
 
         szAll.Add(szConfirm, 0, wx.EXPAND, 5)
 

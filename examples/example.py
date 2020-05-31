@@ -16,7 +16,7 @@ s.step()
 print(s.read('top.sig_int'))
 
 # set the register to 1000
-s.write({'top.sig_int':1000})
+s.write({'top.sig_int': 1000})
 
 print(s.read('top.sig_int'))
 
@@ -33,7 +33,13 @@ s.trace_file('top.sig_sin')
 s.monitor('top.sig_double')
 
 p = s.monitor('top.sig_sc_logic')
-p.SetFormatter(fmt.ChoiceFormatter({ord('1'): '1', ord('0'):'0', ord('Z'):'Z', ord('X'):'X'}))
+p.SetFormatter(
+    fmt.ChoiceFormatter({
+        ord('1'): '1',
+        ord('0'): '0',
+        ord('Z'): 'Z',
+        ord('X'): 'X'
+    }))
 p.SetControlStyle('radiobox')
 
 # dump the register value to a numpy array
@@ -41,10 +47,10 @@ s.trace_buf('top.sig_cos', 500)
 s.trace_buf('top.sig_sin', 500)
 
 plot_trace('top.sig_sin')
-ylim([-1,1])
+ylim([-1, 1])
 figure()
 plot_trace('top.sig_cos', 'top.sig_sin', relim=False)
-xlim([-1,1])
-ylim([-1,1])
+xlim([-1, 1])
+ylim([-1, 1])
 
 s.run(to='1000us')

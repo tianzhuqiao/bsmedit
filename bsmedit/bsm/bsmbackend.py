@@ -4,6 +4,7 @@ from matplotlib.backends.backend_wx import Show
 from matplotlib import is_interactive
 from matplotlib import get_backend
 
+
 def new_figure_manager(num, *args, **kwargs):
     """
     Create a new figure manager instance
@@ -35,7 +36,6 @@ def draw_if_interactive():
 
 
 class ShowFigure(Show):
-
     def __call__(self, fig=None, block=None):
         """
         Show all figures.  If *block* is not None, then
@@ -66,5 +66,6 @@ class ShowFigure(Show):
 
         if not is_interactive() or get_backend() == 'WebAgg':
             self.mainloop()
+
 
 show = ShowFigure()

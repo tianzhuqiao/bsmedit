@@ -33,9 +33,11 @@ import six
 import wx
 from .. import c2p
 
+
 class Directory(object):
     """Simple class for using as the data object in the DirTreeCtrl"""
     __name__ = 'Directory'
+
     def __init__(self, directory=''):
         self.directory = directory
 
@@ -44,7 +46,6 @@ class DirTreeCtrl(wx.TreeCtrl):
     """A wx.TreeCtrl that is used for displaying directory structures.
     Virtually handles paths to help with memory management.
     """
-
     def __init__(self, parent, *args, **kwds):
         """Initializes the tree and binds some events we need for
         making this dynamically load its data."""
@@ -65,12 +66,15 @@ class DirTreeCtrl(wx.TreeCtrl):
         self.iconentries['default'] = -1
         self.iconentries['directory'] = -1
         self.iconentries['directoryopen'] = -1
-        self.addBitmap(c2p.ArtProvider_GetBitmap(wx.ART_FOLDER,
-                       wx.ART_OTHER, (16, 16)), 'directory')
-        self.addBitmap(c2p.ArtProvider_GetBitmap(wx.ART_FOLDER_OPEN,
-                       wx.ART_OTHER, (16, 16)), 'directoryopen')
-        self.addBitmap(c2p.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE,
-                       wx.ART_OTHER, (16, 16)), 'default')
+        self.addBitmap(
+            c2p.ArtProvider_GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, (16, 16)),
+            'directory')
+        self.addBitmap(
+            c2p.ArtProvider_GetBitmap(wx.ART_FOLDER_OPEN, wx.ART_OTHER,
+                                      (16, 16)), 'directoryopen')
+        self.addBitmap(
+            c2p.ArtProvider_GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER,
+                                      (16, 16)), 'default')
         self.SetImageList(self.imagelist)
         # # you should replace this with your own code or put the relevant
         # # images in the correct path # set directory image
@@ -163,7 +167,8 @@ class DirTreeCtrl(wx.TreeCtrl):
             files_all.sort(key=lambda y: y.lower())
             for f in folders_all:
                 # process the file extension to build image list
-                imagekey = self.processFileExtension(os.path.join(directory, f))
+                imagekey = self.processFileExtension(os.path.join(
+                    directory, f))
 
                 # add item to
                 child = self.AppendItem(item, f)
@@ -175,14 +180,17 @@ class DirTreeCtrl(wx.TreeCtrl):
 
                 # save item path for expanding later
                 if c2p.bsm_is_phoenix:
-                    self.SetItemData(child, Directory(os.path.join(directory, f)))
+                    self.SetItemData(child,
+                                     Directory(os.path.join(directory, f)))
                 else:
-                    self.SetPyData(child, Directory(os.path.join(directory, f)))
+                    self.SetPyData(child, Directory(os.path.join(directory,
+                                                                 f)))
 
             # add file nodes to tree
             for f in files_all:
                 # process the file extension to build image list
-                imagekey = self.processFileExtension(os.path.join(directory, f))
+                imagekey = self.processFileExtension(os.path.join(
+                    directory, f))
                 self.AppendItem(item, f, image=imagekey)
 
     def getFileExtension(self, filename):
@@ -215,7 +223,8 @@ class DirTreeCtrl(wx.TreeCtrl):
                 try:
                     # use mimemanager to get filetype and icon
                     # lookup extension
-                    filetype = wx.TheMimeTypesManager.GetFileTypeFromExtension(ext)
+                    filetype = wx.TheMimeTypesManager.GetFileTypeFromExtension(
+                        ext)
 
                     if hasattr(filetype, 'GetIconInfo'):
                         info = filetype.GetIconInfo()

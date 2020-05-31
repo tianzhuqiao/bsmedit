@@ -2,13 +2,13 @@
 The code is based on PythonTookit (http://pythontoolkit.sourceforge.net/)
 """
 import time
-import inspect #for debugger frame inpsection
-import sys #for set_trace etc
-import six.moves._thread as thread #for keyboard interrupt
-import os.path #for absolute filename conversions
-import ctypes #for pythonapi calls
+import inspect  #for debugger frame inpsection
+import sys  #for set_trace etc
+import six.moves._thread as thread  #for keyboard interrupt
+import os.path  #for absolute filename conversions
+import ctypes  #for pythonapi calls
 from codeop import _maybe_compile, Compile
-import traceback #for formatting errors
+import traceback  #for formatting errors
 import wx
 import wx.py.dispatcher as dp
 from .. import c2p
@@ -35,6 +35,8 @@ help_msg = """
     - interrupt the execution
 \"\"\"
 """
+
+
 class PseudoEvent(object):
     """
     An object with the same interface as a threading.Event for the internal
@@ -55,7 +57,7 @@ class PseudoEvent(object):
     def wait(self, timeout=None):
         if timeout is not None:
             raise NotImplementedError('Timeout not implemented')
-        while self._set is False: #and (self._eng._stop is False):
+        while self._set is False:  #and (self._eng._stop is False):
             wx.YieldIfNeeded()
             # send the EVT_UPDATE_UI events so the UI status has a chance to
             # update (e.g., menubar, toolbar)
@@ -65,21 +67,23 @@ class PseudoEvent(object):
                 wx.GetApp().ProcessIdle()
             time.sleep(0.05)
 
+
 class EngineDebugger(object):
     bpnum = 0
+
     def __init__(self):
         self.compiler = EngineCompiler()
         #debugger state
-        self._paused = False #is paused.
-        self._can_stepin = False #debugger is about to enter a new scope
-        self._can_stepout = False #debugger can be stepped out of a scope
+        self._paused = False  #is paused.
+        self._can_stepin = False  #debugger is about to enter a new scope
+        self._can_stepout = False  #debugger can be stepped out of a scope
 
         #debugger command flags
-        self._resume = False #debugging was resumed.
-        self._end = False #stop debugging, finish running code
-        self._stop = False #stop running code
-        self._stepin = False #debugger step in to scope
-        self._stepout = False #debugger step out of scope
+        self._resume = False  #debugging was resumed.
+        self._end = False  #stop debugging, finish running code
+        self._stop = False  #stop running code
+        self._stepin = False  #debugger step in to scope
+        self._stepout = False  #debugger step out of scope
 
         #event used to wake the trace function when paused
         self._resume_event = PseudoEvent()
@@ -90,27 +94,28 @@ class EngineDebugger(object):
 
         #debugger scopes:
         #keep track of the different scopes available for tools to query
-        self._scopes = [] #list of scope (function) names
-        self._frames = [] #list of scope frames
-        self._active_scope = 0 #the current scope level used for exec/eval/commands
+        self._scopes = []  #list of scope (function) names
+        self._frames = []  #list of scope frames
+        self._active_scope = 0  #the current scope level used for exec/eval/commands
         self._paused_active_scope = 0
         #internal variable used to keep track of where wer started debugging
         self._bottom_frame = None
 
         #files to look for when tracing...
-        self._fncache = {} #absolute filename cache
-        self._block_files = [] #list of filepaths not to trace in (or any further)
+        self._fncache = {}  #absolute filename cache
+        self._block_files = [
+        ]  #list of filepaths not to trace in (or any further)
 
         #prevent trace in all engine module files to avoid locks blocking comms threads.
-        self.set_block_file(os.path.dirname(__file__)+os.sep+'*.*')
+        self.set_block_file(os.path.dirname(__file__) + os.sep + '*.*')
 
         # break points - info on breakpoints is stored in an DictList instance
         # which allows items (the breakpoint data dict) to be retrieved by
         #filename or id. The key tcount is the breakpoint counters for hits,
         # and is reset before each user command.
         self.bpoints = DictList()
-        self._bp_hcount = {} # hit counter {id: hcount}
-        self._bp_tcount = {} # trigger counter {id: tcount}
+        self._bp_hcount = {}  # hit counter {id: hcount}
+        self._bp_tcount = {}  # trigger counter {id: tcount}
 
         #Register message handlers for the debugger
         dp.connect(self.pause, 'debugger.pause')
@@ -173,7 +178,7 @@ class EngineDebugger(object):
         Attempt to stop the running code by raising a keyboard interrupt in
         the main thread
         """
-        self._stop = True #stops the code if paused
+        self._stop = True  #stops the code if paused
         if self._paused is True:
             self.prompt()
 
@@ -281,7 +286,7 @@ class EngineDebugger(object):
         where id should be a unique identifier for this breakpoint
         """
         #check if the id to use already exists.
-        if self.bpoints.filter(('id',), (id,)):
+        if self.bpoints.filter(('id', ), (id, )):
             return False
 
         #check bpdata
@@ -327,7 +332,7 @@ class EngineDebugger(object):
             return True
 
         #check if the id to clear exists.
-        bps = self.bpoints.filter(('id',), (id,))
+        bps = self.bpoints.filter(('id', ), (id, ))
         if not bps:
             return False
 
@@ -348,7 +353,7 @@ class EngineDebugger(object):
         the breakpoint filename and lineno.
         """
         #check if the id to clear exists.
-        bps = self.bpoints.filter(('id',), (id,))
+        bps = self.bpoints.filter(('id', ), (id, ))
         if not bps:
             return False
 
@@ -383,7 +388,7 @@ class EngineDebugger(object):
         if level is None:
             level = self._active_scope
         if level > len(self._scopes) or level < 0:
-            raise Exception('Level out of range: '+str(level))
+            raise Exception('Level out of range: ' + str(level))
         #get the scope name
         name = self._scopes[level]
         frame = self._frames[level]
@@ -398,7 +403,7 @@ class EngineDebugger(object):
         if isinstance(level, int) is False:
             return False
         #check level is in range
-        if level > (len(self._scopes)-1):
+        if level > (len(self._scopes) - 1):
             return False
         #check if already in this level
         if level == self._active_scope:
@@ -418,12 +423,17 @@ class EngineDebugger(object):
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
         lineno = frame.f_lineno
         name = frame.f_code.co_name
-        return {'name':name, 'filename':self._abs_filename(filename),
-                'lineno':lineno, 'scopes':self._scopes,
-                'active_scope':self._active_scope, 'paused': self._paused,
-                'can_stepin':self._can_stepin,
-                'can_stepout':self._can_stepout,
-                'frames': self._frames}
+        return {
+            'name': name,
+            'filename': self._abs_filename(filename),
+            'lineno': lineno,
+            'scopes': self._scopes,
+            'active_scope': self._active_scope,
+            'paused': self._paused,
+            'can_stepin': self._can_stepin,
+            'can_stepout': self._can_stepout,
+            'frames': self._frames
+        }
 
     def push_line(self, line):
         """
@@ -438,6 +448,7 @@ class EngineDebugger(object):
         #this wakes the resume event and runs the code in the mainthread
         self._cmd = line
         self._resume_event.set()
+
     #filepaths
     def set_block_file(self, filepath):
         """
@@ -685,7 +696,7 @@ class EngineDebugger(object):
 
         # do not stop inside the system files
         filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
-        for f in sys.path+['<input>', '<string>']:
+        for f in sys.path + ['<input>', '<string>']:
             if filename.startswith(f):
                 return
 
@@ -831,7 +842,8 @@ class EngineDebugger(object):
         while frame is not None:
             name = frame.f_code.co_name
             if name == '<module>':
-                filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+                filename = inspect.getsourcefile(frame) or inspect.getfile(
+                    frame)
                 if filename == '<input>':
                     name = 'Main'
             scopes.append(name)
@@ -850,7 +862,7 @@ class EngineDebugger(object):
         self._frames = frames
 
         #set current scope
-        level = len(self._scopes)-1
+        level = len(self._scopes) - 1
         if self._active_scope != level:
             self.set_scope(level, True)
 
@@ -913,11 +925,11 @@ class EngineDebugger(object):
         if line.startswith('#') is False:
             return False
 
-        cmd = line.rstrip('\n') #remove the trailing newline for this check
-        parts = cmd.split(' ') #split into command and arguments
+        cmd = line.rstrip('\n')  #remove the trailing newline for this check
+        parts = cmd.split(' ')  #split into command and arguments
         cmd = parts[0]
         args = parts[1:]
-        cmd = cmd.lower() #convert to all lower case:
+        cmd = cmd.lower()  #convert to all lower case:
 
         #step
         if cmd in ['#step', '#s']:
@@ -954,7 +966,8 @@ class EngineDebugger(object):
                 level = args[0]
             res = self.set_scope(level)
             if res is False:
-                msg = 'Usage: #setscope level (0 to %d)'%(len(self._scopes)-1)
+                msg = 'Usage: #setscope level (0 to %d)' % (len(self._scopes) -
+                                                            1)
                 self.write_debug(msg)
         #resume
         elif cmd in ['#resume', '#r']:
@@ -1051,11 +1064,14 @@ class EngineDebugger(object):
     def prompt(self, ismore=False, iserr=False):
         dp.send('shell.prompt', ismore=ismore, iserr=iserr)
 
+
 """
 Engine misc.
 
 Various engine utility functions/classes
 """
+
+
 # A general purpose list type object used for storing dictionaries these can
 # then be filtered by key.
 # Used to store breakpoints in both the engine debugger (engine process) and
@@ -1207,8 +1223,9 @@ class DictList(object):
         self._dicts[index] = d
 
     def __repr__(self):
-        s = 'DictList('+self._dicts.__repr__()+')'
+        s = 'DictList(' + self._dicts.__repr__() + ')'
         return s
+
 
 """
 Engine Compiler
@@ -1216,6 +1233,8 @@ Engine Compiler
 Handles the compilation of source and formating exceptions and tracebacks for
 the engine.
 """
+
+
 class EngineCompiler(Compile):
     def __init__(self):
         Compile.__init__(self)
@@ -1260,7 +1279,7 @@ class EngineCompiler(Compile):
         for line in source.split("\n"):
             line = line.strip()
             if line and line[0] != '#':
-                break               # Leave it alone
+                break  # Leave it alone
         else:
             source = ""
         ##check that the line is not empty
@@ -1270,18 +1289,18 @@ class EngineCompiler(Compile):
         ##to enable multiple lines to be compiled at once we use a cheat...
         ##everything is enclosed in if True: block so that it will compile as a
         ##single line, but need to check that there is no indentation error...
-        if source[0] != ' ': #check for first line indentation error
+        if source[0] != ' ':  #check for first line indentation error
             self._lineadjust = -1
             lastline = source.split('\n')[-1]
             source = "if True:\n " + source.replace('\n', '\n ')
             #the old source ended with a '\n' no more to come so add '\n'
             #so that it compiles
             if source.endswith('\n '):
-                source = source+'\n'
+                source = source + '\n'
             #also if the last line is zero indent add a \n as the block is also
             #complete
-            if (len(lastline)-len(lastline.lstrip())) == 0:
-                source = source+'\n'
+            if (len(lastline) - len(lastline.lstrip())) == 0:
+                source = source + '\n'
         else:
             self._lineadjust = 0
 
@@ -1330,7 +1349,8 @@ class EngineCompiler(Compile):
         else:
             if dummy_filename == filename:
                 #(lineno-1 due to multiline hack in compile source)
-                value = errtype(msg, (filename, lineno+self._lineadjust, offset, line))
+                value = errtype(
+                    msg, (filename, lineno + self._lineadjust, offset, line))
             else:
                 value = errtype(msg, (dummy_filename, lineno, offset, line))
             sys.last_value = value
@@ -1349,13 +1369,14 @@ class EngineCompiler(Compile):
             sys.last_type = typ
             sys.last_value = value
             tblist = traceback.extract_tb(sys.last_traceback)
-            del tblist[:1] #in our code so remove
+            del tblist[:1]  #in our code so remove
 
             for n in range(0, len(tblist)):
                 filename, lineno, offset, line = tblist[n]
                 if filename == "<Engine input>":
                     #alter line number
-                    tblist[n] = (filename, lineno+self._lineadjust, offset, line)
+                    tblist[n] = (filename, lineno + self._lineadjust, offset,
+                                 line)
                 lst = traceback.format_list(tblist)
                 if lst:
                     lst.insert(0, "Traceback (most recent call last):\n")
@@ -1363,6 +1384,7 @@ class EngineCompiler(Compile):
             map(sys.stderr.write, lst)
         except:
             pass
+
     # Message handlers
     def future_flag(self, msg):
         """enable or disable a __future__ feature using flags"""
