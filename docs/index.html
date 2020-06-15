@@ -1,44 +1,46 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
-"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+<!DOCTYPE html>
+<html>
 <head>
-<meta name="generator" content="bsmdoc, see http://bsmdoc.feiyilin.com/" />
-<meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="generator" content="bsmdoc 0.0.5">
 <link rel="stylesheet" href="css/bsmdoc.css" type="text/css" />
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-tex2jax: {inlineMath: [['$','$'], ['\\(','\\)']]},
-processClass: "mathjax",
-ignoreClass: "tex2jax_ignore|nomathjax"
-});
-MathJax.Hub.Config({ TeX: { equationNumbers: {autoNumber: "all"} } });
-</script>
-<script type="text/javascript" language="javascript" src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-MML-AM_CHTML"></script>
-<script src=https://ajax.googleapis.com/ajax/libs/jquery/1.12.4/jquery.min.js></script>
-<script src="js/bsmdoc.js"></script>
 <link rel="stylesheet" href="css/menu.css" type="text/css" />
+<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js></script>
+<script src="js/bsmdoc.js"></script>
+<script src="js/menu.js"></script>
+<script>
+MathJax = {
+tex: {
+inlineMath: [['$', '$'], ['\\(', '\\)']],
+tags: "all"
+}
+};
+</script>
+
+<script id="MathJax-script" async
+src="https://cdn.jsdelivr.net/npm/mathjax@3.0.0/es5/tex-mml-chtml.js">
+</script>
 <title>bsmedit -- C/C++/SystemC Visualizer</title>
 </head>
 <body class="nomathjax">
-<div id="layout" class="">
+<div class="layout">
 
 <div class="menu">
 <ul>
 <li><a href="#sec-1">1 What is bsmedit</a></li>
-<li><a href="#sec-2">2 Get started</a> 
+<li><a href="#sec-2">2 Get started</a>
 <ul>
 <li><a href="#sec-2-1">2.1 Create a SystemC simulation</a></li>
 <li><a href="#sec-2-2">2.2 Open with bsmedit</a></li>
 </ul></li>
-<li><a href="#sec-3">3 How it works</a> 
+<li><a href="#sec-3">3 How it works</a>
 <ul>
 <li><a href="#sec-3-1">3.1 Console window</a></li>
 <li><a href="#sec-3-2">3.2 Figure</a></li>
 <li><a href="#sec-3-3">3.3 Simulation</a></li>
 <li><a href="#sec_propgrid">3.4 Propgrid window</a></li>
-<li><a href="#sec-3-5">3.5 SystemC Simulation</a> 
+<li><a href="#sec-3-5">3.5 SystemC Simulation</a>
 <ul>
 <li><a href="#sec-3-5-1">3.5.1 xsc_property</a></li>
 <li><a href="#sec-3-5-2">3.5.2 xsc_array</a></li>
@@ -87,7 +89,7 @@ $ pip install -e .
 <div class="info">
 Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/master/systemc-2.3.1/INSTALL">INSTALL</a> in the SystemC package if you are not familiar with adding SystemC support to your project.
 </div></li>
-<li><b>Implement the simulation.</b> 
+<li><b>Implement the simulation.</b>
 <ul>
 <li><p>Create a top level SystemC module <code>top</code>, which may look like</p>
 <div class="bs-example-src">
@@ -249,7 +251,7 @@ Make sure your simulation architecture match with python. For example, if your s
 <li><b>total duration</b>: the total simulation duration. bsmedit will pause the simulation if the current simulation time exceeds the total simulation time. <b>-1</b> to run simulation infinitely.</li>
 <li><b>total unit</b>: the time unit of the total simulation duration.</li>
 </ul></li>
-<li><p><b>Simulation objects</b><a name="footnote_src-2" href="#footnote-2"><sup>2</sup></a>. 
+<li><p><b>Simulation objects</b><a name="footnote_src-2" href="#footnote-2"><sup>2</sup></a>.
 This window lists all <code>objects</code> defined in the simulation. As shown in previous steps, the simulation has one top module (i.e., <code>top</code>) and 4 signals: <code>CLOCK</code>, <code>sig_cos</code>, <code>sig_sin</code>, and <code>sig_steps</code>. The tree hierarchy represents their structure in the simulation.</p></li>
 <li><b>Console window</b>. It is used to execute commands and show outputs.</li>
 <li><b>Status</b>.</li>
@@ -323,14 +325,14 @@ Your browser does not support the video tag.</video>
 <span class="n">s</span><span class="o">.</span><span class="n">trace_buf</span><span class="p">(</span><span class="s1">&#39;top.sig_sin&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">14</span><span class="p">)</span>
 
 <span class="n">plot_trace</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">,</span> <span class="n">relim</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
-<span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
-<span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span><span class="mi">1</span><span class="p">])</span>
+<span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
+<span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
 <span class="n">grid</span><span class="p">(</span><span class="n">ls</span><span class="o">=</span><span class="s1">&#39;dotted&#39;</span><span class="p">)</span>
 <span class="n">s</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">more</span><span class="o">=</span><span class="s1">&#39;1000us&#39;</span><span class="p">)</span>
 <span class="n">s</span><span class="o">.</span><span class="n">wait_until_simulation_paused</span><span class="p">()</span>
 </pre></div>
 </div>
-<p>Save the script to a file (e.g., <a href="https://github.com/tianzhuqiao/bsmedit/blob/master/examples/start.py">start.py</a>). 
+<p>Save the script to a file (e.g., <a href="https://github.com/tianzhuqiao/bsmedit/blob/master/examples/start.py">start.py</a>).
 Then, it can be opened in bsmedit</p>
 <figure class="figure">
 <img src="./images/start_sim_open.png" alt="./images/start_sim_open.png">
@@ -346,7 +348,7 @@ Then, it can be opened in bsmedit</p>
 <h1 id="sec-3">3 How it works</h1>
 <p>bsmedit was initially written in C++, which can be found <a href="https://sourceforge.net/projects/bsmedit/">here</a>. It looks like an ideal choice since the simulation is also written in C/C++/SystemC. It supports multiple platforms (e.g., windows, linux), as the GUI is based on <a href="http://www.wxwidget.org">wxWidget</a>.</p>
 <p>It is highly extensible thanks to the plugin system. Actually most functions as you seen above were implemented with the plugin system. For example, one plugin is used to control the simulation (e.g., start, pause, stop, resume), which also supports breakpoints (e.g., pause the simulation when some conditions are satisfied; thus, you can check the status of your algorithm at that time.). One plugin is to plot the data captured from the simulation, which mimics some features from Matlab <b>plot</b> function: you can visualize the data in real-time and check its trend dynamically. One plugin adds some basic DSP functions (e.g., max, min, median, addition, subtraction, multiplication (dot product), square, square root, log/exp, sin/cos, acos/asin, tan, FFT etc.). It also had a console window so that you can run python command (e.g., to control the simulation)...</p>
-<p>Following this way, we could build bsmedit block by block. At that time, I though it would work. However, such method has some significant drawbacks. One big problem is that we need to re-invert many many wheels. For example, after implement some functions, bsmedit also needs to wrap all these functions in python, so that you can call it in python script or in the console window. No need to say how tedious and error-prone such process is. How about adding a DSP function that does not exist in bsmedit (e.g., a moving average)? Basically, you will have to create a plugin project following the template, and write code to implement the processing. 
+<p>Following this way, we could build bsmedit block by block. At that time, I though it would work. However, such method has some significant drawbacks. One big problem is that we need to re-invert many many wheels. For example, after implement some functions, bsmedit also needs to wrap all these functions in python, so that you can call it in python script or in the console window. No need to say how tedious and error-prone such process is. How about adding a DSP function that does not exist in bsmedit (e.g., a moving average)? Basically, you will have to create a plugin project following the template, and write code to implement the processing.
 We try hard to make the interface as simple as possible; but it still requires some significant effort to make such plugin work. Furthermore, how about adding some features to the plot library? It will be a real nightmare to go through all the code to find the right position to add some code...</p>
 <p>To solve these issues, from version 3, bsmedit is totally rewritten with python (wxPython for GUI). But, it does not mean you need to write your simulation in python. The simulation is still in C/C++/SystemC, and bsmedit will load and run the simulation as usual. Since it is in python, all functions can be directly called by python script and no need to wrap the interfaces any more. No need to provide a custom plot library, since you can just use the existing python libraries (e.g., matplotlib). No need to write many basic DSP function, which can be easily fulfilled with numpy or scipy...</p>
 <h2 id="sec-3-1">3.1 Console window</h2>
@@ -379,7 +381,7 @@ We try hard to make the interface as simple as possible; but it still requires s
 <div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nb">alias</span> ll ls -l
 </pre></div>
 </div>
-<p>where the first parameter is the alias name (e.g., '<b>ll</b>'), and the remaining parameters are the destination (e.g. '<b>ls -l</b>'). 
+<p>where the first parameter is the alias name (e.g., '<b>ll</b>'), and the remaining parameters are the destination (e.g. '<b>ls -l</b>').
 Now, when the console sees input '<b>ll</b>', it will automatically replace it with '<b>!ls -l</b>', and execute it. If an alias definition does not include a destination, it will be deleted if exists. For example, the following code will delete the alias '<b>ll</b>'</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nb">alias</span> ll
@@ -471,11 +473,11 @@ foo
 </div>
 <p>Refer to the <a href="http://matplotlib.org/api/pyplot_api.html">Matplotlib doc</a> for more details.</p>
 <h2 id="sec-3-3">3.3 Simulation</h2>
-<p>One problem in version 2 is that the <a href="http://www.systemc.org">SystemC</a> 
-simulation runs in a thread, and it may crash, which may in turn crashes 
-bsmedit. In version 3, the simulation runs in a separate process, which 
-receives command from the main process (e.g., interactive interpreter), 
-executes it and sends the response back. In this way, the simulation can 
+<p>One problem in version 2 is that the <a href="http://www.systemc.org">SystemC</a>
+simulation runs in a thread, and it may crash, which may in turn crashes
+bsmedit. In version 3, the simulation runs in a separate process, which
+receives command from the main process (e.g., interactive interpreter),
+executes it and sends the response back. In this way, the simulation can
 gracefully exit without affecting the main process.</p>
 <p>As you have seen above, bsmedit defines functions to control the simulation</p>
 <ul>
@@ -507,7 +509,7 @@ gracefully exit without affecting the main process.</p>
 </tr>
 </tbody>
 </table>
-<p>If the function is executed successfully, it will return the handler to the simulation, which can be used to control the simulation or have access to its objects. 
+<p>If the function is executed successfully, it will return the handler to the simulation, which can be used to control the simulation or have access to its objects.
 For example</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="c1"># create a simulation and load &#39;mysimulation.dll&#39;</span>
@@ -807,7 +809,7 @@ Your browser does not support the video tag.</video>
 </pre></div>
 </div>
 <p>If <b>progprid</b> is <b>None</b> and no <b>propgrid</b> window (see Sec. <a href="#sec_propgrid">3.4</a> for details) has been created, bsmedit will create one and add the signal to it.</p></li>
-<li><p><b>Breakpoints</b>. With the simulation control functions mentioned above, you can easily pause the simulation at particular simulation time. However, in some cases, you may want to pause the simulation when some conditions meet. The breakpoint is here to rescue. 
+<li><p><b>Breakpoints</b>. With the simulation control functions mentioned above, you can easily pause the simulation at particular simulation time. However, in some cases, you may want to pause the simulation when some conditions meet. The breakpoint is here to rescue.
 To set a breakpoint,</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">add_breakpoint</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">hitcount</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
@@ -895,7 +897,7 @@ To set a breakpoint,</p>
 <p><b>Order the signals</b>. In general, the signals are shown in a propgrid window according to the order they are added. However, you can easily re-order the signals. There are two ways to do so</p>
 <ol>
 <li>drag the signal to the new destination</li>
-<li>select the signal (the selected signal will be highlighted) 
+<li>select the signal (the selected signal will be highlighted)
 <ul>
 <li><p>right click on the signal to show the context menu</p>
 <figure class="figure">
@@ -1000,7 +1002,7 @@ To set a breakpoint,</p>
 <figure class="figure">
 <img src="./images/prop_breakpoint.png" alt="./images/prop_breakpoint.png">
 </figure>
-<p>bsmedit will check the breakpoint at each SystemC <b>delta</b> cycle. Once the condition is true, it will pause the simulation. 
+<p>bsmedit will check the breakpoint at each SystemC <b>delta</b> cycle. Once the condition is true, it will pause the simulation.
 The breakpoint can also be enabled by python script:</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;1.top.sig_sin&#39;</span><span class="p">)</span>
@@ -1041,7 +1043,7 @@ The breakpoint can also be enabled by python script:</p>
 <li>std::string</li>
 </ul>
 <p>And you can use the above function to read/write all the <code>sc_signal</code>/<code>sc_out</code>/<code>sc_inout</code> objects, and read all the <code>sc_in</code> objects.</p>
-<p>To make bsmedit work, the simulation needs to implement and export some interfaces. 
+<p>To make bsmedit work, the simulation needs to implement and export some interfaces.
 <b>bsm.h/cpp</b> is the bridge between bsmedit and SystemC simulation. It implements the interfaces such that bsmedit can have access to all the objects and also control the simulation.</p>
 <ul>
 <li><p>create the top level module</p>
@@ -1247,7 +1249,7 @@ The breakpoint can also be enabled by python script:</p>
 <div class="syntax"><pre><span></span>$ make
 </pre></div>
 </div>
-<p>Now the library is ready, let's start to build the python interface so that it can communicate with bsmedit. 
+<p>Now the library is ready, let's start to build the python interface so that it can communicate with bsmedit.
 One way is to use <a href="https://docs.python.org/3.6/library/ctypes.html">ctypes</a> directly.</p>
 <ol>
 <li><p>Import the ctypes package</p>
@@ -1315,7 +1317,7 @@ One way is to use <a href="https://docs.python.org/3.6/library/ctypes.html">ctyp
 <div class="syntax"><pre><span></span><span class="n">bsmedit</span><span class="o">.</span><span class="n">bsm</span><span class="o">.</span><span class="n">csim</span><span class="o">.</span><span class="n">init_dll</span><span class="p">(</span><span class="n">dll</span><span class="p">,</span> <span class="n">header</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>where <b>dll</b> is the compiled library, and <b>header</b> is the corresponding header files, which defines all the interfaces. The function will return the python wrapper. 
+<p>where <b>dll</b> is the compiled library, and <b>header</b> is the corresponding header files, which defines all the interfaces. The function will return the python wrapper.
 Thus, the above example can be achieved by</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">bsmedit.bsm.csim</span> <span class="kn">as</span> <span class="nn">csim</span>
@@ -1329,7 +1331,7 @@ Thus, the above example can be achieved by</p>
 </pre></div>
 </div>
 <p>The nice thing is that whenever the interfaces in header file (i.e., <b>waves.h</b>) is updated, just call <b>csim.init_dll</b> again (e.g., restart simulation), which will return the updated interface.</p>
-<p>bsmedit also provides a class to to show the 3D image easily in python; the full example can be found <a href="https://github.com/tianzhuqiao/bsmedit/tree/master/examples/waves">here</a>. 
+<p>bsmedit also provides a class to to show the 3D image easily in python; the full example can be found <a href="https://github.com/tianzhuqiao/bsmedit/tree/master/examples/waves">here</a>.
 Run the following command to show wave in bsmedit</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>$ bsmedit -i -p examples/waves waves
@@ -1360,9 +1362,8 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2020-01-10 22:53:46 PST, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2019-12-07 06:43:03 GMT, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
-<script src="js/menu.js"></script>
 </body>
 </html>
