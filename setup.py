@@ -6,7 +6,7 @@ long_description = """
 - [Documentation](http://bsmedit.feiyilin.com)
 """
 setup(name='bsmedit',
-      version=BSM_VERSION,
+      version=__version__,
       description='C/C++/SystemC Visualizer',
       long_description=long_description,
       long_description_content_type="text/markdown",

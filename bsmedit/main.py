@@ -3,7 +3,7 @@ import wx
 import click
 from .mainframe import MainFrame
 from .c2p import APP_ASSERT_DIALOG
-from .version import BSM_VERSION
+from .version import __version__
 
 class RunApp(wx.App):
     def __init__(self, **kwargs):
@@ -23,7 +23,7 @@ class RunApp(wx.App):
 
 
 @click.command()
-@click.version_option(BSM_VERSION)
+@click.version_option(__version__)
 @click.option('--config',
               '-c',
               default='bsmedit',

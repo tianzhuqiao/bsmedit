@@ -13,7 +13,7 @@ import wx.py.shell as pyshell
 import wx.py.dispatcher as dp
 from wx.py.pseudo import PseudoFile
 from .debugger import EngineDebugger
-from ..version import BSM_VERSION
+from ..version import __version__
 
 
 # in linux, the multiprocessing/process.py/_bootstrap will call
@@ -798,7 +798,7 @@ class Shell(pyshell.Shell):
         ns['wx'] = wx
         ns['app'] = wx.GetApp()
         ns['frame'] = cls.frame
-        intro = 'Welcome To bsmedit ' + BSM_VERSION
+        intro = 'Welcome To bsmedit ' + __version__
         cls.panelShell = Shell(cls.frame, 1, introText=intro, locals=ns)
         active = kwargs.get('active', True)
         direction = kwargs.get('direction', 'top')

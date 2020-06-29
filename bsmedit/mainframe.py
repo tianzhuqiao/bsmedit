@@ -14,7 +14,7 @@ import wx.py
 import wx.py.dispatcher as dp
 from .frameplus import FramePlus
 from .mainframexpm import bsmedit_xpm, header_xpm
-from .version import *
+from .version import __version__
 from . import c2p
 from .bsm.utility import PopupMenu
 
@@ -443,7 +443,7 @@ class AboutDialog(wx.Dialog):
         self.header.SetBitmap(c2p.BitmapFromXPM(header_xpm))
         szPanel.Add(self.header, 0, wx.EXPAND, 0)
 
-        caption = 'bsmedit %s' % BSM_VERSION
+        caption = 'bsmedit %s' % (__version__)
         self.stCaption = wx.StaticText(self.panel, wx.ID_ANY, caption)
         self.stCaption.SetFont(wx.Font(16, 74, 90, 92, False, "Arial"))
 
