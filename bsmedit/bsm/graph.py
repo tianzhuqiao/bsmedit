@@ -1,5 +1,3 @@
-import traceback
-import sys
 import math
 import wx
 import wx.aui
@@ -15,7 +13,7 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
                     cursor_xpm, save_xpm, copy_xpm
-from .. import c2p
+from .. import to_byte
 rcParams.update({'figure.autolayout': True})
 matplotlib.interactive(True)
 
@@ -97,13 +95,12 @@ class DataCursor(object):
         # ignore the event triggered immediately after pick_event
         if self.pickEvent:
             self.pickEvent = False
-            return
+            return False
         # just created the new annotation, do not move to others
         if self.active and (not self.active.get_visible()):
             return False
         # search the closest annotation
         self.mx, self.my = x, y
-        dm = -1
         active = None
         for ant in self.annotations:
             box = ant.get_bbox_patch().get_extents()
@@ -289,16 +286,15 @@ class Toolbar(NavigationToolbar):
                 continue
             self.wx_ids[text] = wx.NewId()
             if text in ['Pan', 'Zoom', 'Datatip']:
-                c2p.tbAddCheckTool(self,
-                                   self.wx_ids[text],
-                                   text,
-                                   c2p.BitmapFromXPM(image_file),
-                                   shortHelp=text,
-                                   longHelp=tooltip_text)
+                self.AddCheckTool(self.wx_ids[text],
+                                  text,
+                                  wx.Bitmap(to_byte(image_file)),
+                                  shortHelp=text,
+                                  longHelp=tooltip_text)
             else:
-                c2p.tbAddTool(self, self.wx_ids[text], text,
-                              c2p.BitmapFromXPM(image_file), wx.NullBitmap,
-                              wx.ITEM_NORMAL, tooltip_text)
+                self.AddTool(self.wx_ids[text], text,
+                             wx.Bitmap(to_byte(image_file)),
+                             kind=wx.ITEM_NORMAL, shortHelp=tooltip_text)
             self.Bind(wx.EVT_TOOL,
                       getattr(self, callback),
                       id=self.wx_ids[text])
@@ -351,8 +347,10 @@ class MatplotPanel(wx.Panel):
     kwargs = {}
 
     def __init__(self, parent, title=None, num=-1, thisFig=None):
-        wx.Panel.__init__(self, parent)
-
+        # set the size to positive value, otherwise the toolbar will assert
+        # wxpython/ext/wxWidgets/src/gtk/bitmap.cpp(539): assert ""width > 0 &&
+        # height > 0"" failed in Create(): invalid bitmap size
+        wx.Panel.__init__(self, parent, size=(100, 100))
         # initialize matplotlib stuff
         self.figure = thisFig
         if not self.figure:
@@ -365,13 +363,14 @@ class MatplotPanel(wx.Panel):
         self.title = title
         self.isdestory = False
         szAll = wx.BoxSizer(wx.VERTICAL)
-        self.SetSizer(szAll)
 
         self.figure.set_label(title)
         self.toolbar = Toolbar(self.canvas, self.figure)
-
         szAll.Add(self.toolbar, 0, wx.EXPAND)
         szAll.Add(self.canvas, 1, wx.LEFT | wx.TOP | wx.GROW)
+
+        self.toolbar.update()
+        self.SetSizer(szAll)
         self.Bind(wx.EVT_CLOSE, self._onClose)
 
         self.canvas.mpl_connect('button_press_event', self._onClick)
@@ -380,10 +379,6 @@ class MatplotPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_DELETE)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_CLEAR)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
-
-    def Destroy(self):
-        dp.disconnect(self.simLoad, 'sim.loaded')
-        super(MatplotPanel, self).Destroy()
 
     def simLoad(self, num):
         for l in self.figure.gca().lines:
@@ -534,7 +529,7 @@ class MatplotPanel(wx.Panel):
         dp.connect(cls.OnBufferChanged, 'sim.buffer_changed')
 
     @classmethod
-    def Initialized(self):
+    def Initialized(cls):
         dp.send('shell.run',
                 command='from matplotlib.pyplot import *',
                 prompt=False,

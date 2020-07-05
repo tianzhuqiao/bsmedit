@@ -14,8 +14,7 @@ import wx.py
 import wx.py.dispatcher as dp
 from .frameplus import FramePlus
 from .mainframexpm import bsmedit_xpm, header_xpm
-from .version import __version__
-from . import c2p
+from . import __version__, to_byte
 from .bsm.utility import PopupMenu
 
 
@@ -47,8 +46,8 @@ class MainFrame(FramePlus):
                               | aui.AUI_MGR_USE_NATIVE_MINIFRAMES
                               | aui.AUI_MGR_LIVE_RESIZE)
         # set mainframe icon
-        icon = c2p.EmptyIcon()
-        icon.CopyFromBitmap(c2p.BitmapFromXPM(bsmedit_xpm))
+        icon = wx.Icon()
+        icon.CopyFromBitmap(wx.Bitmap(to_byte(bsmedit_xpm)))
         self.SetIcon(icon)
 
         # status bar
@@ -440,7 +439,7 @@ class AboutDialog(wx.Dialog):
         szPanel = wx.BoxSizer(wx.VERTICAL)
 
         self.header = wx.StaticBitmap(self.panel)
-        self.header.SetBitmap(c2p.BitmapFromXPM(header_xpm))
+        self.header.SetBitmap(wx.Bitmap(to_byte(header_xpm)))
         szPanel.Add(self.header, 0, wx.EXPAND, 0)
 
         caption = 'bsmedit %s' % (__version__)

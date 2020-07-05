@@ -4,14 +4,13 @@ The code is based on PythonTookit (http://pythontoolkit.sourceforge.net/)
 import time
 import inspect  #for debugger frame inpsection
 import sys  #for set_trace etc
-import six.moves._thread as thread  #for keyboard interrupt
 import os.path  #for absolute filename conversions
 import ctypes  #for pythonapi calls
 from codeop import _maybe_compile, Compile
 import traceback  #for formatting errors
 import wx
 import wx.py.dispatcher as dp
-from .. import c2p
+import six.moves._thread as thread  #for keyboard interrupt
 
 help_msg = """
 \"\"\"
@@ -61,10 +60,7 @@ class PseudoEvent(object):
             wx.YieldIfNeeded()
             # send the EVT_UPDATE_UI events so the UI status has a chance to
             # update (e.g., menubar, toolbar)
-            if c2p.bsm_is_phoenix:
-                wx.EventLoop.GetActive().ProcessIdle()
-            else:
-                wx.GetApp().ProcessIdle()
+            wx.EventLoop.GetActive().ProcessIdle()
             time.sleep(0.05)
 
 

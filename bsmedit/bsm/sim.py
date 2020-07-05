@@ -4,8 +4,8 @@ import multiprocessing as mp
 import time
 import traceback
 import sys
-import six
 import six.moves.queue as Queue
+import six
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.agw.aui as aui
@@ -15,12 +15,14 @@ from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
                     module_grey_xpm, switch_grey_xpm, in_grey_xpm,\
                     out_grey_xpm, inout_grey_xpm, step_xpm, run_xpm, \
                     pause_xpm, setting_xpm
-from .simprocess import *
+from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
+                        SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,\
+                        SC_OBJ_XSC_ARRAY_ITEM, SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY
 from .. import propgrid as pg
 from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
-from .. import c2p
+from .. import to_byte
 
 Gcs = Gcm()
 
@@ -173,7 +175,7 @@ class Simulation(object):
         simulation
         """
         if filename is None:
-            style = c2p.FD_OPEN | c2p.FD_FILE_MUST_EXIST
+            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
             dlg = wx.FileDialog(self.frame, "Choose a file", "", "", "*.*",
                                 style)
             if dlg.ShowModal() == wx.ID_OK:
@@ -299,7 +301,7 @@ class Simulation(object):
                     value = list(value.values())[0]
             elif command == 'get_status':
                 running = self.status['running']
-                if running == True and value.get('running', running) == False:
+                if running and not value.get('running', running):
                     # if the queues are almost empty, retrieve the data
                     self.time_stamp(insecond=False, block=False)
                     self.read(objects=[], block=False)
@@ -341,7 +343,7 @@ class ModuleTree(FastLoadTreeCtrl):
                 module_grey_xpm, switch_grey_xpm, in_grey_xpm, out_grey_xpm,
                 inout_grey_xpm
         ]:
-            imglist.Add(c2p.BitmapFromXPM(xpm))
+            imglist.Add(wx.Bitmap(to_byte(xpm)))
         self.AssignImageList(imglist)
         self.objects = None
 
@@ -426,8 +428,6 @@ class ModuleTree(FastLoadTreeCtrl):
         """return the extend object"""
         data = self.GetItemData(item)
         if data:
-            if not c2p.bsm_is_phoenix:
-                data = data.GetData()
             return self.objects.get(data, None)
         return None
 
@@ -562,7 +562,7 @@ class DumpDlg(wx.Dialog):
                             '',
                             '',
                             wildcard,
-                            style=c2p.FD_OPEN)
+                            style=wx.FD_OPEN)
         if dlg.ShowModal() == wx.ID_OK:
             self.tcFile.SetValue(dlg.GetPath())
 
@@ -610,12 +610,12 @@ class SimPanel(wx.Panel):
                                  agwStyle=aui.AUI_TB_OVERFLOW
                                  | aui.AUI_TB_PLAIN_BACKGROUND)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
-        xpm2bmp = c2p.BitmapFromXPM
-        self.tb.AddSimpleTool(self.ID_SIM_STEP, "Step", xpm2bmp(step_xpm),
+        xpm2bmp = wx.Bitmap
+        self.tb.AddSimpleTool(self.ID_SIM_STEP, "Step", xpm2bmp(to_byte(step_xpm)),
                               "Step the simulation")
-        self.tb.AddSimpleTool(self.ID_SIM_RUN, "Run", xpm2bmp(run_xpm),
+        self.tb.AddSimpleTool(self.ID_SIM_RUN, "Run", xpm2bmp(to_byte(run_xpm)),
                               "Run the simulation")
-        self.tb.AddSimpleTool(self.ID_SIM_PAUSE, "Pause", xpm2bmp(pause_xpm),
+        self.tb.AddSimpleTool(self.ID_SIM_PAUSE, "Pause", xpm2bmp(to_byte(pause_xpm)),
                               "Pause the simulation")
 
         self.tb.AddSeparator()
@@ -654,7 +654,7 @@ class SimPanel(wx.Panel):
         self.cmbUnitTotal.SetSelection(2)
         self.tb.AddControl(self.cmbUnitTotal)
         self.tb.AddStretchSpacer()
-        self.tb.AddSimpleTool(self.ID_SIM_SET, "Setting", xpm2bmp(setting_xpm),
+        self.tb.AddSimpleTool(self.ID_SIM_SET, "Setting", xpm2bmp(to_byte(setting_xpm)),
                               "Configure the simulation")
 
         self.tb.SetToolDropDown(self.ID_SIM_SET, True)
@@ -875,7 +875,7 @@ class SimPanel(wx.Panel):
             objs_name.append(ext['name'])
         # need to explicitly allow drag
         # start drag operation
-        data = c2p.PyTextDataObject(json.dumps(objs))
+        data = wx.TextDataObject(json.dumps(objs))
         source = wx.DropSource(self.tree)
         source.SetData(data)
         rtn = source.DoDragDrop(True)
@@ -1051,15 +1051,11 @@ class SimPropArt(pg.PropArtNative):
         self.gripper_width = 6
         if wx.Platform == '__WXMSW__':
             self.img_expand = wx.ImageList(12, 12, True, 2)
-            self.img_expand.Add(self.BitmapFromXPM(pg.tree_xpm))
+            self.img_expand.Add(wx.Bitmap(to_byte(pg.tree_xpm)))
             self.expansion_width = 12
         self.check_width = 16
         self.img_check = wx.ImageList(16, 16, True, 4)
-        self.img_check.Add(self.BitmapFromXPM(pg.radio_xpm))
-
-    def BitmapFromXPM(self, xpm):
-        xpm_b = [x.encode('utf-8') for x in xpm]
-        return wx.Bitmap(xpm_b)
+        self.img_check.Add(wx.Bitmap(to_byte(pg.radio_xpm)))
 
     def PrepareDrawRect(self, p):
         """calculate the rect for each section"""
@@ -1300,6 +1296,7 @@ class SimPropGrid(pg.PropGrid):
         elif eid == pg.wxEVT_PROP_CHANGED:
             # the value changed, notify the parent
             dp.send('prop.changed', prop=prop)
+        return True
 
     def OnProcessCommand(self, eid, prop):
         """process the context menu command"""
@@ -1337,6 +1334,7 @@ class SimPropGrid(pg.PropGrid):
                     self.EnsureVisible(prop)
                     self.SetSelection(prop)
                     return True
+        return False
 
 
 class BreakpointSettingsDlg(wx.Dialog):
@@ -1589,7 +1587,7 @@ class sim(object):
     @classmethod
     def _process_command(cls, command):
         if command == cls.ID_SIM_NEW:
-            style = c2p.FD_OPEN | c2p.FD_FILE_MUST_EXIST
+            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
             dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", "*.*",
                                 style)
             if dlg.ShowModal() == wx.ID_OK:
@@ -1641,7 +1639,7 @@ class sim(object):
                 'green', 'red', 'blue', 'black', 'cyan', 'yellow', 'magenta',
                 'cyan'
             ]
-            return c2p.NamedColour(color[num % len(color)])
+            return wx.Colour(color[num % len(color)])
 
         manager = Gcs.get_manager(num)
         if manager is None and create:

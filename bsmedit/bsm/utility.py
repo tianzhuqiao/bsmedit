@@ -2,13 +2,12 @@
 import six
 import wx
 import wx.lib.agw.aui as aui
-from .. import c2p
 
 
 def MakeBitmap(red, green, blue, alpha=128):
     # Create the bitmap that we will stuff pixel values into using
     # the raw bitmap access classes.
-    bmp = c2p.EmptyBitmap(16, 16, 32)
+    bmp = wx.Bitmap(16, 16, 32)
 
     # Create an object that facilitates access to the bitmap's
     # pixel buffer
@@ -67,7 +66,7 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
                  sort=True):
         wx.TreeCtrl.__init__(self, parent, style=style)
         self._get_children = getchildren
-        assert (self._get_children)
+        assert self._get_children
         self._sort_children = sort
         self.Bind(wx.EVT_TREE_ITEM_EXPANDING, self.OnTreeItemExpanding)
 
@@ -92,11 +91,11 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
         children = self._get_children(item)
         for obj in children:
             # fill all the children
-            child = c2p.treeAppendItem(self, item, obj['label'], obj['img'],
-                                       obj['imgsel'], obj['data'])
+            child = self.AppendItem(item, obj['label'], obj['img'],
+                                    obj['imgsel'], obj['data'])
             # add the place holder for children
             if obj['is_folder']:
-                c2p.treeAppendItem(self, child, '...', -1, -1, None)
+                self.AppendItem(child, '...', -1, -1, None)
             clr = obj.get('color', None)
             if clr:
                 self.SetItemTextColour(child, wx.Colour(100, 174, 100))

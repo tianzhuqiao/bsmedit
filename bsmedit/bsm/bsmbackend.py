@@ -23,7 +23,7 @@ def new_figure_manager(num, *args, **kwargs):
 
 def draw_if_interactive():
     """
-    This should be overriden in a windowing environment if drawing
+    This should be overridden in a windowing environment if drawing
     should be done in interactive python mode
     """
 

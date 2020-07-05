@@ -2,7 +2,6 @@ import six
 import wx
 import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
-from . import c2p
 
 
 class AuiManagerPlus(aui.AuiManager):
@@ -165,7 +164,7 @@ class FramePlus(wx.Frame):
                                       label,
                                       kind=wx.ITEM_RADIO)
             self.menuAddon[newid] = (rxsignal, updatesignal)
-            child = c2p.menuAppend(menu, newitem)
+            child = menu.Append(newitem)
             self.Bind(wx.EVT_MENU, self.OnMenuAddOn, id=newid)
             if updatesignal:
                 self.Bind(wx.EVT_UPDATE_UI, self.OnMenuCmdUI, id=newid)

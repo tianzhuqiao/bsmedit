@@ -10,7 +10,7 @@ import numpy as np
 import bsmedit.bsm.csim as csim
 from bsmedit.glsurface import TrackingSurface
 from .wavesxpm import run_xpm, pause_xpm, stop_xpm
-from bsmedit.c2p import BitmapFromXPM
+from bsmedit import to_byte
 
 class Wave(object):
     def __init__(self, qCmd, qResp):
@@ -83,9 +83,9 @@ class SurfacePanel(wx.Panel):
         tb = aui.AuiToolBar(self, -1, wx.DefaultPosition, wx.DefaultSize,
                             agwStyle=aui.AUI_TB_OVERFLOW|aui.AUI_TB_PLAIN_BACKGROUND)
         tb.SetToolBitmapSize(wx.Size(16, 16))
-        tb.AddSimpleTool(self.ID_RUN, "Run", BitmapFromXPM(run_xpm))
-        tb.AddSimpleTool(self.ID_PAUSE, "Pause", BitmapFromXPM(pause_xpm))
-        tb.AddSimpleTool(self.ID_STOP, "Stop", BitmapFromXPM(stop_xpm))
+        tb.AddSimpleTool(self.ID_RUN, "Run", wx.Bitmap(to_byte(run_xpm)))
+        tb.AddSimpleTool(self.ID_PAUSE, "Pause", wx.Bitmap(to_byte(pause_xpm)))
+        tb.AddSimpleTool(self.ID_STOP, "Stop", wx.Bitmap(to_byte(stop_xpm)))
         tb.Realize()
         sizer.Add(tb, 0, wx.EXPAND, 0)
 

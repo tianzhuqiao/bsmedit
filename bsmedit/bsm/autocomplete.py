@@ -27,7 +27,7 @@ __url__ = "http://bitbucket.org/raz/wxautocompletectrl"
 
 import six
 import wx
-from .. import c2p
+import wx.html
 
 
 class SuggestionsPopup(wx.Frame):
@@ -41,7 +41,7 @@ class SuggestionsPopup(wx.Frame):
         self._suggestions.SetItemCount(0)
         self._unformated_suggestions = None
 
-    class _listbox(c2p.HtmlListBox):
+    class _listbox(wx.html.HtmlListBox):
         items = None
 
         def OnGetItem(self, n):
@@ -110,10 +110,10 @@ class AutocompleteTextCtrl(wx.TextCtrl):
         """
         self.completer = completer
 
-        frame = self.Parent
+        frame = self.GetParent()
         while frame and (not isinstance(frame, wx.Frame)) and\
               (not isinstance(frame, wx.Dialog)):
-            frame = frame.Parent
+            frame = frame.GetParent()
 
         self.popup = SuggestionsPopup(frame)
 
@@ -126,7 +126,7 @@ class AutocompleteTextCtrl(wx.TextCtrl):
         self.popup._suggestions.Bind(wx.EVT_KEY_DOWN, self.OnSuggestionKeyDown)
 
     def AdjustPopupPosition(self):
-        self.popup.Position = self.ClientToScreen((0, self.Size.height)).Get()
+        self.popup.Position = self.ClientToScreen((0, self.GetSize().GetHeight())).Get()
 
     def OnMove(self, event):
         self.AdjustPopupPosition()

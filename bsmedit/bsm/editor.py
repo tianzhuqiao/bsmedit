@@ -1,6 +1,4 @@
 import os
-import sys
-import traceback  #for formatting errors
 import inspect
 import keyword
 import pprint
@@ -14,7 +12,7 @@ from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
                     dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \
                     folder_xpm, vert_xpm, horz_xpm
 from .pymgr_helpers import Gcm
-from .. import c2p
+from .. import to_byte
 
 
 class BreakpointSettingsDlg(wx.Dialog):
@@ -692,9 +690,9 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # Selection background
         self.SetSelBackground(1, '#66CCFF')
         self.SetSelBackground(
-            True, c2p.SystemSettings_GetColour(wx.SYS_COLOUR_HIGHLIGHT))
+            True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHT))
         self.SetSelForeground(
-            True, c2p.SystemSettings_GetColour(wx.SYS_COLOUR_HIGHLIGHTTEXT))
+            True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHTTEXT))
         self.SetWrapMode(stc.STC_WRAP_WORD)
         # indicator
         self.IndicatorSetStyle(0, stc.STC_INDIC_ROUNDBOX)
@@ -955,7 +953,7 @@ class PyEditorPanel(wx.Panel):
             if eid == None:
                 self.tb.AddSeparator()
                 continue
-            bmp = c2p.BitmapFromXPM(img_xpm)
+            bmp = wx.Bitmap(to_byte(img_xpm))
             if label in ['Split Vert', 'Split Horz']:
                 self.tb.AddCheckTool(eid, label, bmp, wx.NullBitmap, tooltip)
             else:
@@ -1010,23 +1008,17 @@ class PyEditorPanel(wx.Panel):
         self.num = self.Gce.get_next_num()
         self.Gce.set_active(self)
 
-    def Destroy(self):
-        dp.disconnect(self.debug_ended, 'debugger.ended')
-        dp.disconnect(self.debug_bpadded, 'debugger.breakpoint_added')
-        dp.disconnect(self.debug_bpcleared, 'debugger.breakpoint_cleared')
-        super(PyEditorPanel, self).Destroy()
-
     @classmethod
     def get_instances(cls):
         for inst in cls.Gce.get_all_managers():
             yield inst
 
-    def Destroy(self, *args, **kwargs):
+    def Destroy(self):
         """destroy the panel"""
         self.editor.ClearBreakpoint()
         self.CheckModified()
         self.Gce.destroy(self.num)
-        return super(PyEditorPanel, self).Destroy(*args, **kwargs)
+        return super(PyEditorPanel, self).Destroy()
 
     def update_bp(self):
         """update the breakpoints"""
@@ -1152,10 +1144,7 @@ class PyEditorPanel(wx.Panel):
     def OnBtnOpen(self, event):
         """open the script"""
         defaultDir = os.path.dirname(self.fileName)
-        if c2p.bsm_is_phoenix:
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-        else:
-            style = wx.OPEN | wx.FILE_MUST_EXIST
+        style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
         dlg = wx.FileDialog(self,
                             'Open',
                             defaultDir=defaultDir,
@@ -1171,10 +1160,7 @@ class PyEditorPanel(wx.Panel):
             defaultDir = os.path.dirname(self.fileName)
             # use top level frame as parent, otherwise it may crash when
             # it is called in Destroy()
-            if c2p.bsm_is_phoenix:
-                style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
-            else:
-                style = wx.SAVE | wx.OVERWRITE_PROMPT | wx.CHANGE_DIR
+            style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
             dlg = wx.FileDialog(self.GetTopLevelParent(),
                                 'Save As',
                                 defaultDir=defaultDir,
@@ -1196,10 +1182,7 @@ class PyEditorPanel(wx.Panel):
     def OnBtnSaveAs(self, event):
         """save the script with different filename"""
         defaultDir = os.path.dirname(self.fileName)
-        if c2p.bsm_is_phoenix:
-            style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
-        else:
-            style = wx.SAVE | wx.OVERWRITE_PROMPT | wx.CHANGE_DIR
+        style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
         dlg = wx.FileDialog(self,
                             'Save As',
                             defaultDir=defaultDir,
@@ -1246,12 +1229,11 @@ class PyEditorPanel(wx.Panel):
         self.findDialog = wx.FindReplaceDialog(
             self, data, 'Find & Replace', wx.FR_REPLACEDIALOG | wx.FR_NOUPDOWN)
         # bind the event to the dialog, see the example in wxPython demo
-        self.findDialog.Bind(c2p.EVT_COMMAND_FIND, self.OnFind)
-        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_NEXT, self.OnFind)
-        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_REPLACE, self.OnReplace)
-        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_REPLACE_ALL,
-                             self.OnReplaceAll)
-        self.findDialog.Bind(c2p.EVT_COMMAND_FIND_CLOSE, self.OnFindClose)
+        self.findDialog.Bind(wx.EVT_FIND, self.OnFind)
+        self.findDialog.Bind(wx.EVT_FIND_NEXT, self.OnFind)
+        self.findDialog.Bind(wx.EVT_FIND_REPLACE, self.OnReplace)
+        self.findDialog.Bind(wx.EVT_FIND_REPLACE_ALL, self.OnReplaceAll)
+        self.findDialog.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
         self.findDialog.Show(1)
         self.findDialog.data = data  # save a reference to it...
 
@@ -1311,7 +1293,6 @@ class PyEditorPanel(wx.Panel):
         if not self.fileName:
             return
         self.RunCommand('import six', verbose=False)
-        (path, _) = os.path.split(self.fileName)
         cmd = "compile(open(r'{0}', 'rb').read(), r'{0}', 'exec')".format(
             self.fileName)
         self.RunCommand('six.exec_(%s)' % cmd,
@@ -1329,7 +1310,6 @@ class PyEditorPanel(wx.Panel):
         # disable the debugger button
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, False)
 
-        (path, _) = os.path.split(self.fileName)
         cmd = "compile(open(r'{0}', 'rb').read(), r'{0}', 'exec')".format(
             self.fileName)
         self.RunCommand('six.exec_(%s)' % cmd,
@@ -1366,6 +1346,9 @@ class PyEditorPanel(wx.Panel):
                 position = self.editor.FindText(len(self.editor.GetText()),
                                                 current, strFind,
                                                 self.stcFindFlags)
+        if isinstance(position, tuple):
+            position = position[0] # wx ver 4.1.0 returns (start, end)
+
         # not found the target, do not change the current position
         if position == -1:
             self.message("'%s' not found!" % strFind)
@@ -1522,11 +1505,11 @@ class PyEditorPanel(wx.Panel):
         dp.connect(cls.ProcessCommand, 'bsm.editor.menu')
         dp.connect(cls.Uninitialize, 'frame.exit')
         dp.connect(cls.OpenScript, 'frame.file_drop')
-        dp.connect(cls.debugPaused, 'debugger.paused')
-        dp.connect(cls.debugUpdateScope, 'debugger.update_scopes')
+        dp.connect(cls.DebugPaused, 'debugger.paused')
+        dp.connect(cls.DebugUpdateScope, 'debugger.update_scopes')
 
     @classmethod
-    def debugPaused(cls):
+    def DebugPaused(cls):
         """the debugger has paused, update the editor margin marker"""
         resp = dp.send('debugger.get_status')
         if not resp or not resp[0][1]:
@@ -1542,7 +1525,7 @@ class PyEditorPanel(wx.Panel):
                 editor2.debug_paused(status)
 
     @classmethod
-    def debugUpdateScope(cls):
+    def DebugUpdateScope(cls):
         """
         the debugger scope has been changed, update the editor margin marker
         """
@@ -1566,10 +1549,7 @@ class PyEditorPanel(wx.Panel):
         elif command == cls.ID_EDITOR_OPEN:
             defaultDir = os.path.dirname(os.getcwd())
 
-            if c2p.bsm_is_phoenix:
-                style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            else:
-                style = wx.OPEN | wx.FILE_MUST_EXIST
+            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
             dlg = wx.FileDialog(cls.frame,
                                 'Open',
                                 defaultDir=defaultDir,

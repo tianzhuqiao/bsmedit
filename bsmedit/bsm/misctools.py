@@ -12,7 +12,7 @@ from .dirtreectrl import DirTreeCtrl, Directory
 from .bsmxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import FastLoadTreeCtrl
-from .. import c2p
+from .. import to_byte
 
 html_template = '''
 <html>
@@ -38,10 +38,10 @@ class HelpPanel(wx.Panel):
         agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddSimpleTool(wx.ID_BACKWARD, 'Back',
-                              c2p.BitmapFromXPM(backward_xpm),
+                              wx.Bitmap(to_byte(backward_xpm)),
                               'Go the previous page')
         self.tb.AddSimpleTool(wx.ID_FORWARD, 'Forward',
-                              c2p.BitmapFromXPM(forward_xpm),
+                              wx.Bitmap(to_byte(forward_xpm)),
                               'Go to the next page')
         self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
         item = self.tb.AddControl(self.search)
@@ -247,7 +247,7 @@ class HistoryPanel(wx.Panel):
         item, cookie = self.tree.GetFirstChild(self.root)
         if item.IsOk():
             self.tree.Expand(item)
-            child, cookie = self.tree.GetFirstChild(item)
+            child, _ = self.tree.GetFirstChild(item)
             if child.IsOk():
                 self.tree.SelectItem(child)
                 self.tree.EnsureVisible(child)
@@ -367,9 +367,9 @@ class DirPanel(wx.Panel):
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
 
         self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
-                              c2p.BitmapFromXPM(goup_xpm), 'Parent folder')
+                              wx.Bitmap(to_byte(goup_xpm)), 'Parent folder')
         self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
-                              c2p.BitmapFromXPM(home_xpm), 'Current folder')
+                              wx.Bitmap(to_byte(home_xpm)), 'Current folder')
         self.tb.Realize()
         self.dirtree = DirTreeCtrl(self,
                                    style=wx.TR_DEFAULT_STYLE
@@ -394,7 +394,7 @@ class DirPanel(wx.Panel):
         currentItem = event.GetItem()
         filename = self.dirtree.GetItemText(currentItem)
         parentItem = self.dirtree.GetItemParent(currentItem)
-        d = c2p.treeGetData(self.dirtree, parentItem)
+        d = self.dirtree.GetItemData(parentItem)
         if isinstance(d, Directory):
             filepath = os.path.join(d.directory, filename)
         else:
@@ -402,8 +402,8 @@ class DirPanel(wx.Panel):
         if self.dirtree.ItemHasChildren(currentItem):
             self.dirtree.SetRootDir(filepath)
             return
-        (path, fileExtension) = os.path.splitext(filename)
-        if fileExtension == '.py':
+        (_, ext) = os.path.splitext(filename)
+        if ext == '.py':
             dp.send(signal='frame.file_drop', filename=filepath)
         else:
             os.system("start " + filepath)
@@ -412,7 +412,7 @@ class DirPanel(wx.Panel):
         root = self.dirtree.GetRootItem()
         if not root:
             return
-        d = c2p.treeGetData(self.dirtree, root)
+        d = self.dirtree.GetItemData(root)
         if isinstance(d, Directory):
             if d.directory == os.getcwd():
                 return
@@ -422,7 +422,7 @@ class DirPanel(wx.Panel):
         root = self.dirtree.GetRootItem()
         if not root:
             return
-        d = c2p.treeGetData(self.dirtree, root)
+        d = self.dirtree.GetItemData(root)
         if isinstance(d, Directory):
             path = os.path.abspath(os.path.join(d.directory, os.path.pardir))
             if path == d.directory:

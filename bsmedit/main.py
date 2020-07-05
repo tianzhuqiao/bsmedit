@@ -2,7 +2,6 @@ import multiprocessing
 import wx
 import click
 from .mainframe import MainFrame
-from .c2p import APP_ASSERT_DIALOG
 from .version import __version__
 
 class RunApp(wx.App):
@@ -13,7 +12,7 @@ class RunApp(wx.App):
     def OnInit(self):
         wx.Log.SetActiveTarget(wx.LogStderr())
 
-        self.SetAssertMode(APP_ASSERT_DIALOG)
+        self.SetAssertMode(wx.APP_ASSERT_DIALOG)
 
         frame = MainFrame(None, **self.kwargs)
         frame.Show(True)
