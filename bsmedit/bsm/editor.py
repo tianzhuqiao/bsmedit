@@ -1297,7 +1297,7 @@ class PyEditorPanel(wx.Panel):
             self.fileName)
         self.RunCommand('six.exec_(%s)' % cmd,
                         prompt=True,
-                        verbose=True,
+                        verbose=False,
                         debug=False)
 
     def OnBtnDebugScript(self, event):
@@ -1314,7 +1314,7 @@ class PyEditorPanel(wx.Panel):
             self.fileName)
         self.RunCommand('six.exec_(%s)' % cmd,
                         prompt=True,
-                        verbose=True,
+                        verbose=False,
                         debug=True)
 
         #dp.send('debugger.ended')
