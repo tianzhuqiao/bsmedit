@@ -1,8 +1,11 @@
 {!exec|firstRunOnly||{%
+@BFunction('example')
 def bsmdoc_example(data, *args, **kwargs):
     return bsmdoc_div(data, 'bs-example')
+@BFunction('example_src')
 def bsmdoc_example_src(data, *args, **kwargs):
     return bsmdoc_div(data, 'bs-example-src')
+@BFunction('ccodesnippet')
 def bsmdoc_ccodesnippet(data, *args, **kwargs):
     with open(data.strip(), 'r') as f:
         return ''.join(f.readlines())
