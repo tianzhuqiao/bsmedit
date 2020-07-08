@@ -501,11 +501,18 @@ class MatplotPanel(wx.Panel):
     def addFigure(cls, title=None, num=None, thisFig=None):
         direction = cls.kwargs.get('direction', 'top')
         fig = cls(cls.clsFrame, title=title, num=num, thisFig=thisFig)
+        # set the minsize to be large enough to avoid some following assert; it
+        # will not eliminate all as if a page is added to a notebook, the
+        # minsize of notebook is not the max of all its children pages (check
+        # frameplus.py).
+        # wxpython/ext/wxWidgets/src/gtk/bitmap.cpp(539): assert ""width > 0 &&
+        # height > 0"" failed in Create(): invalid bitmap size
         dp.send('frame.add_panel',
                 panel=fig,
                 direction=direction,
                 title=fig.GetTitle(),
-                target=Gcf.get_active())
+                target=Gcf.get_active(),
+                minsize=(75, 75))
         return fig
 
     @classmethod

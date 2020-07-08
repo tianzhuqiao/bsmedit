@@ -25,15 +25,22 @@ class AuiManagerPlus(aui.AuiManager):
             idx = parent.GetPageIndex(window)
             parent.SetPageText(idx, pane.caption)
             if idx == parent.GetSelection():
-                for paneInfo in self.GetAllPanes():
-                    if paneInfo.IsNotebookControl() \
-                        and paneInfo.notebook_id == pane.notebook_id:
-                        paneInfo.Caption(pane.caption)
-                        self.RefreshCaptions()
-                        break
-        else:
-            self.RefreshCaptions()
-            parent.Update()
+                page_info = self.GetPane(parent)
+                page_info.Caption(pane.caption)
+        self.RefreshCaptions()
+        parent.Update()
+
+    def CreateNotebook(self):
+        """
+        Creates an automatic :class:`~wx.lib.agw.aui.auibook.AuiNotebook` when a pane is docked on
+        top of another pane.
+        """
+        nb = super(AuiManagerPlus, self).CreateNotebook()
+        # the default size is (0, 0) from previous step, set it to (100, 100) so it will not assert
+        # wxpython/ext/wxWidgets/src/gtk/bitmap.cpp(539): assert ""width > 0 &&
+        # height > 0"" failed in Create(): invalid bitmap size
+        nb.SetSize(100, 100)
+        return nb
 
     def UpdateNotebook(self):
         """ Updates the automatic :class:`~lib.agw.aui.auibook.AuiNotebook` in
@@ -41,15 +48,22 @@ class AuiManagerPlus(aui.AuiManager):
 
         super(AuiManagerPlus, self).UpdateNotebook()
 
-        # update the icon to the notebook page
-        for paneInfo in self._panes:
-            if paneInfo.IsNotebookPage():
-                notebook = self._notebooks[paneInfo.notebook_id]
-                page_id = notebook.GetPageIndex(paneInfo.window)
-                if page_id >= 0:
-                    notebook.SetPageBitmap(page_id, paneInfo.icon)
+        # set the notebook minsize to be the largest one of its children page.
+        # otherwise, when you drag the notebook, its children page's size may
+        # be zero in one dimension, which may cause some assert (e.g., invalid
+        # bitmap size as show above)
 
-                notebook.DoSizing()
+        for nb in self._notebooks:
+            pages = nb.GetPageCount()
+            nb_pane = self.GetPane(nb)
+            min_x, min_y = nb_pane.min_size
+            # Check each tab ...
+            for page in range(pages):
+                window = nb.GetPage(page)
+                page_pane = self.GetPane(window)
+                min_x = max(page_pane.min_size.x, min_x)
+                min_y = max(page_pane.min_size.y, min_y)
+            nb_pane.MinSize(min_x, min_y)
 
 
 class FramePlus(wx.Frame):
@@ -253,11 +267,14 @@ class FramePlus(wx.Frame):
                  showhidemenu=None,
                  icon=None,
                  maximize=False,
-                 direction='top'):
+                 direction='top',
+                 minsize=None):
         """add the panel to AUI"""
         if not panel:
             return False
         panel.Reparent(self)
+        # hide the window for now to avoid flicker
+        panel.Hide()
         # if the target is None, find the notebook control that has the same
         # type as panel. It tries to put the same type panels in the same
         # notebook
@@ -307,6 +324,8 @@ class FramePlus(wx.Frame):
         name = "pane-%d" % self._pane_num
         self._pane_num += 1
         auipaneinfo.Name(name)
+        if minsize:
+            auipaneinfo.MinSize(minsize)
 
         # if showhidemenu is false, the panel will be destroyed when clicking
         # the close button; otherwise it will be hidden.
