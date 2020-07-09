@@ -452,25 +452,22 @@ class PyEditor(wx.py.editwindow.EditWindow):
         current = 0
         position = -1
         flag = stc.STC_FIND_WHOLEWORD | stc.STC_FIND_MATCHCASE
-        style = 0
-        if highlight:
-            style = stc.STC_INDIC0_MASK
-        else:
-            self.StartStyling(0, stc.STC_INDICS_MASK)
-            self.SetStyling(self.GetLength(), style)
+        if not highlight:
+            self.IndicatorClearRange(0, self.GetLength())
+            self.highlightStr = ""
             return
+
+        self.highlightStr = strWord
+        self.SetIndicatorCurrent(0)
         while True:
             position = self.FindText(current, len(self.GetText()), strWord,
                                      flag)
+            if isinstance(position, tuple):
+                position = position[0] # wx ver 4.1.0 returns (start, end)
             current = position + len(strWord)
             if position == -1:
                 break
-            self.StartStyling(position, stc.STC_INDICS_MASK)
-            self.SetStyling(len(strWord), style)
-        if highlight:
-            self.highlightStr = strWord
-        else:
-            self.highlightStr = ""
+            self.IndicatorFillRange(position, len(strWord))
 
     def needsIndent(self, firstWord, lastChar):
         '''Tests if a line needs extra indenting, i.e., if, while, def, etc '''
@@ -1123,7 +1120,7 @@ class PyEditorPanel(wx.Panel):
         self.editor.SetFocus()
         if highlight:
             self.editor.SelectLine(line)
-        wx.FutureCall(1, self.editor.EnsureCaretVisible)
+        wx.CallLater(1, self.editor.EnsureCaretVisible)
 
     def OnCodeModified(self, event):
         """called when the file is modified"""
@@ -1324,30 +1321,32 @@ class PyEditorPanel(wx.Panel):
         """show the message on statusbar"""
         dp.send('frame.show_status_text', text=text)
 
+    def _find_text(self, minPos, maxPos, text, flags=0):
+        position = self.editor.FindText(minPos, maxPos, text, flags)
+        if isinstance(position, tuple):
+            position = position[0] # wx ver 4.1.0 returns (start, end)
+        return position
+
     def doFind(self, strFind, forward=True):
         """search the string"""
         current = self.editor.GetCurrentPos()
         position = -1
         if forward:
-            position = self.editor.FindText(current,
-                                            len(self.editor.GetText()),
-                                            strFind, self.stcFindFlags)
+            position = self._find_text(current, len(self.editor.GetText()),
+                                       strFind, self.stcFindFlags)
             if position == -1:
                 # wrap around
                 self.wrapped += 1
-                position = self.editor.FindText(0, current + len(strFind),
-                                                strFind, self.stcFindFlags)
+                position = self._find_text(0, current + len(strFind), strFind,
+                                           self.stcFindFlags)
         else:
-            position = self.editor.FindText(current - len(strFind), 0, strFind,
-                                            self.stcFindFlags)
+            position = self._find_text(current - len(strFind), 0, strFind,
+                                       self.stcFindFlags)
             if position == -1:
                 # wrap around
                 self.wrapped += 1
-                position = self.editor.FindText(len(self.editor.GetText()),
-                                                current, strFind,
-                                                self.stcFindFlags)
-        if isinstance(position, tuple):
-            position = position[0] # wx ver 4.1.0 returns (start, end)
+                position = self._find_text(len(self.editor.GetText()), current,
+                                           strFind, self.stcFindFlags)
 
         # not found the target, do not change the current position
         if position == -1:
