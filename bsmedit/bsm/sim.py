@@ -1708,7 +1708,11 @@ class sim(object):
         if sx:
             dx = sx.read_buf(x, block=True)
             x = {sx.global_object_name(x): dx}
+        # since matplotlib 3.1.0, get_current_fig_manager returns an instance
+        # of FigureManagerBase, and its frame is our panel
         mgr = graph.plt.get_current_fig_manager()
+        if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
+            mgr = mgr.frame
         autorelim = kwargs.pop("relim", True)
         mgr.plot_trace(x, y, autorelim, *args, **kwargs)
 

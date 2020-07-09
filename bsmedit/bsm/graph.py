@@ -8,6 +8,7 @@ matplotlib.use('module://bsmedit.bsm.bsmbackend')
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToolbar
+from matplotlib.backends.backend_wx import FigureManagerWx
 from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -356,6 +357,11 @@ class MatplotPanel(wx.Panel):
         if not self.figure:
             self.figure = Figure(None, None)
         self.canvas = FigureCanvas(self, -1, self.figure)
+        # since matplotlib 3.2, it does not allow canvas size to become smaller
+        # than MinSize in wx backend. So the canvas size (e.g., (640, 480))may
+        # be large than the window size.
+        self.canvas.SetMinSize((1, 1))
+        #self.canvas.manager = self
 
         self.num = num
         if title is None:
@@ -371,6 +377,9 @@ class MatplotPanel(wx.Panel):
 
         self.toolbar.update()
         self.SetSizer(szAll)
+
+
+        self.figmgr = FigureManagerWx(self.canvas, num, self)
         self.Bind(wx.EVT_CLOSE, self._onClose)
 
         self.canvas.mpl_connect('button_press_event', self._onClick)
@@ -379,6 +388,10 @@ class MatplotPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_DELETE)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_CLEAR)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
+
+    def GetToolBar(self):
+        """Override wxFrame::GetToolBar as we don't have managed toolbar"""
+        return self.toolbar
 
     def simLoad(self, num):
         for l in self.figure.gca().lines:
