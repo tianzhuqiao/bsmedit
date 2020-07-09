@@ -410,15 +410,25 @@ class MatplotPanel(wx.Panel):
         if self.toolbar.datacursor.ProcessCommand(evt.GetId()):
             self.canvas.draw()
 
+    def _show_context_menu(self):
+        if self.toolbar.mode != 'datatip':
+            return
+
+        menu = wx.Menu()
+        delMenu = menu.Append(wx.ID_DELETE, "Delete current datatip")
+        note = self.toolbar.datacursor.active
+        delMenu.Enable((note is not None) and note.get_visible())
+        menu.Append(wx.ID_CLEAR, "Delete all datatips")
+        self.PopupMenu(menu)
+        menu.Destroy()
+
     def OnContextMenu(self, event):
-        if self.toolbar.mode == 'datatip':
-            menu = wx.Menu()
-            delMenu = menu.Append(wx.ID_DELETE, "Delete current datatip")
-            note = self.toolbar.datacursor.active
-            delMenu.Enable((note is not None) and note.get_visible())
-            menu.Append(wx.ID_CLEAR, "Delete all datatips")
-            self.PopupMenu(menu)
-            menu.Destroy()
+        # Show menu after the current and pending event handlers have been
+        # completed, otherwise it causes the following error in some system
+        # (e.g., xubuntu, matplotlib 3.2.2, wx 4.1.0), and the menu doesn't show.
+        # GLib-GObject-CRITICAL **: g_object_set_data: assertion 'G_IS_OBJECT
+        # (object)' failed
+        wx.CallAfter(self._show_context_menu)
 
     def _onClose(self, evt):
         self.canvas.close_event()
