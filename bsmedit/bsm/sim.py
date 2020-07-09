@@ -898,14 +898,25 @@ class SimPanel(wx.Panel):
         elif eid == self.ID_SIM_PAUSE:
             event.Enable(self.sim and self.sim.is_running())
 
+    def _exit_sim(self):
+        msg = 'Do you want to kill %s?' % (self.GetLabel())
+        # use top level frame as parent, otherwise it may crash when
+        # it is called in Destroy()
+        dlg = wx.MessageDialog(self.GetTopLevelParent(), msg, 'bsmedit',
+                               wx.YES_NO)
+        result = dlg.ShowModal() == wx.ID_YES
+        dlg.Destroy()
+        if result:
+            self.sim.stop()
+            wx.CallAfter(dp.send, signal='frame.delete_panel', panel=self)
+
     def OnProcessCommand(self, event):
         """process the menu command"""
         eid = event.GetId()
         if eid == wx.ID_EXIT:
-            self.sim.stop()
             # delay destroy the simulation window so AuiToolBar can finish
             # processing the dropdown event.
-            wx.CallAfter(dp.send, signal='frame.delete_panel', panel=self)
+            wx.CallAfter(self._exit_sim)
         elif eid == wx.ID_RESET:
             self.sim.reset()
         elif eid == self.ID_SIM_STEP:
@@ -929,6 +940,8 @@ class SimPanel(wx.Panel):
             elif command == 'exit':
                 self.tree.Load(None)
                 dp.send('sim.unloaded', num=self.sim.num)
+                if Gcs.get_active() == self.sim:
+                    dp.send(signal="frame.show_status_text", text="")
             elif command == 'monitor_signal':
                 objs = [name for name, v in six.iteritems(value) if v]
                 self.sim.read(objects=objs, block=False)

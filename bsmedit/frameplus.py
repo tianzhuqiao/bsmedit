@@ -311,15 +311,18 @@ class FramePlus(wx.Frame):
             # default panel settings. dock_row = -1 to add the pane to the
             # dock with same direction and layer, and dock_pos = 99 (a large
             # number) to add it to the right side
-            auipaneinfo = aui.AuiPaneInfo().Caption(title).BestSize((300, 300))\
-                          .DestroyOnClose(not showhidemenu).Snappable()\
+            auipaneinfo = aui.AuiPaneInfo().BestSize((300, 300)).Snappable()\
                           .Dockable().MinimizeButton(True).MaximizeButton(True)\
-                          .Icon(icon).Row(-1).Direction(direction).Position(99)
+                          .Row(-1).Position(99)
 
-            if not self._mgr.GetAllPanes():
-                # set the first pane to be center pane
-                auipaneinfo.CenterPane()
-                active = True
+        auipaneinfo.Caption(title).DestroyOnClose(not showhidemenu).Icon(icon)\
+                   .Direction(direction)
+
+        if not self._mgr.GetAllPanes():
+            # set the first pane to be center pane
+            auipaneinfo.CenterPane()
+            active = True
+
         # auto generate the unique panel name
         name = "pane-%d" % self._pane_num
         self._pane_num += 1
@@ -327,9 +330,7 @@ class FramePlus(wx.Frame):
         if minsize:
             auipaneinfo.MinSize(minsize)
 
-        # if showhidemenu is false, the panel will be destroyed when clicking
-        # the close button; otherwise it will be hidden.
-        panel.bsm_destroyonclose = not showhidemenu
+        panel.SetLabel(title)
         self._mgr.AddPane(panel, auipaneinfo, target=targetpane)
         if maximize:
             self._mgr.MaximizePane(auipaneinfo)
@@ -360,7 +361,6 @@ class FramePlus(wx.Frame):
         pane = self._mgr.GetPane(panel)
         if pane is None or not pane.IsOk():
             return False
-        panel.bsm_destroyonclose = True
         pane.DestroyOnClose(True)
         self._mgr.ClosePane(pane)
         self._mgr.Update()
