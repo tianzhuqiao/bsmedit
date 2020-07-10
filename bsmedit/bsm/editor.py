@@ -1224,7 +1224,7 @@ class PyEditorPanel(wx.Panel):
         data.SetReplaceString(self.replaceStr)
         # dialog
         self.findDialog = wx.FindReplaceDialog(
-            self, data, 'Find & Replace', wx.FR_REPLACEDIALOG | wx.FR_NOUPDOWN)
+            self, data, 'Find & Replace', wx.FR_REPLACEDIALOG)
         # bind the event to the dialog, see the example in wxPython demo
         self.findDialog.Bind(wx.EVT_FIND, self.OnFind)
         self.findDialog.Bind(wx.EVT_FIND_NEXT, self.OnFind)
@@ -1367,7 +1367,7 @@ class PyEditorPanel(wx.Panel):
         if wx.FR_MATCHCASE & self.findFlags:
             flags |= stc.STC_FIND_MATCHCASE
         self.stcFindFlags = flags
-        return self.doFind(self.findStr)
+        return self.doFind(self.findStr, wx.FR_DOWN & self.findFlags)
 
     def OnFindClose(self, event):
         """close find & replace dialog"""
