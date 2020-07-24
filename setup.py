@@ -17,7 +17,7 @@ setup(name='bsmedit',
       platforms=["any"],
       packages=find_packages(),
       include_package_data=True,
-      entry_points={'gui_scripts': ['bsmedit = bsmedit.main:main']},
+      entry_points={'gui_scripts': ['bsmedit = bsmedit.__main__:main']},
       install_requires=[
           'wxpython>=4.0.4', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
           'PyOpenGL_accelerate'
