@@ -3,45 +3,41 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="bsmdoc 0.0.5">
-<link rel="stylesheet" href="css/bsmdoc.css" type="text/css" />
-<link rel="stylesheet" href="css/menu.css" type="text/css" />
-<script src=https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js></script>
-<script src="js/bsmdoc.js"></script>
-<script src="js/menu.js"></script>
+<meta name="generator" content="bsmdoc 0.0.8">
+<link rel="stylesheet" href="css/bsmdoc.css" type="text/css">
+<link rel="stylesheet" href="css/menu.css" type="text/css">
 <script>
 MathJax = {
 tex: {
-inlineMath: [['$', '$'], ['\\(', '\\)']],
+inlineMath: [['\\(', '\\)']],
 tags: "all"
 }
 };
 </script>
-
 <script id="MathJax-script" async
 src="https://cdn.jsdelivr.net/npm/mathjax@3.0.0/es5/tex-mml-chtml.js">
 </script>
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"
+integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
+crossorigin="anonymous"></script>
+<script type="text/javascript" language="javascript" src="js/menu.js"></script>
 <title>bsmedit -- C/C++/SystemC Visualizer</title>
 </head>
 <body class="nomathjax">
 <div class="layout">
-
 <div class="menu">
 <ul>
 <li><a href="#sec-1">1 What is bsmedit</a></li>
-<li><a href="#sec-2">2 Get started</a>
-<ul>
+<li><a href="#sec-2">2 Get started</a><ul>
 <li><a href="#sec-2-1">2.1 Create a SystemC simulation</a></li>
 <li><a href="#sec-2-2">2.2 Open with bsmedit</a></li>
 </ul></li>
-<li><a href="#sec-3">3 How it works</a>
-<ul>
+<li><a href="#sec-3">3 How it works</a><ul>
 <li><a href="#sec-3-1">3.1 Console window</a></li>
 <li><a href="#sec-3-2">3.2 Figure</a></li>
 <li><a href="#sec-3-3">3.3 Simulation</a></li>
 <li><a href="#sec_propgrid">3.4 Propgrid window</a></li>
-<li><a href="#sec-3-5">3.5 SystemC Simulation</a>
-<ul>
+<li><a href="#sec-3-5">3.5 SystemC Simulation</a><ul>
 <li><a href="#sec-3-5-1">3.5.1 xsc_property</a></li>
 <li><a href="#sec-3-5-2">3.5.2 xsc_array</a></li>
 </ul></li>
@@ -51,7 +47,7 @@ src="https://cdn.jsdelivr.net/npm/mathjax@3.0.0/es5/tex-mml-chtml.js">
 </div>
 <div class="main">
 <div class="toptitle">
-bsmedit -- C/C++/SystemC Visualizer <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32" height="32"></a>
+bsmedit -- C/C++/SystemC Visualizer (ver 3.2.4) <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32" height="32"></a>
 </div>
 <div class="content">
 <h1 id="sec-1">1 What is bsmedit</h1>
@@ -132,10 +128,10 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 </div>
 <p>The top module is derived from <code>sc_module</code>. It defines several signals used in the module</p>
 <ul>
-<li><b>clock</b>: the module is triggered by the positive edge of the clock, whose period is $10ns$ with 50% duty cycle. One thing to notice is that the signal clock is given a name <code>CLOCK</code>. bsmedit will use this name to have access to this signal. At shown in the example, the name of the signal (i.e., CLOCK) may not be same as the variable name (i.e., clock), although in practice they are often same for convenience.</li>
+<li><b>clock</b>: the module is triggered by the positive edge of the clock, whose period is \(10ns\) with 50% duty cycle. One thing to notice is that the signal clock is given a name <code>CLOCK</code>. bsmedit will use this name to have access to this signal. At shown in the example, the name of the signal (i.e., CLOCK) may not be same as the variable name (i.e., clock), although in practice they are often same for convenience.</li>
 <li><b>sig_sin</b>: the signal for the sine waveform, whose name is <code>sig_sin</code>.</li>
 <li><b>sig_cos</b>: the signal for the cos waveform, whose name is <code>sig_cos</code>.</li>
-<li><b>sig_steps</b>: the phase step for each clock, which is increased by $\frac{\pi}{\textrm{sig_steps}}$. The phase is initialized to be zero.</li>
+<li><b>sig_steps</b>: the phase step for each clock, which is increased by \(\frac{\pi}{\textrm{sig_steps}}\). The phase is initialized to be zero.</li>
 </ul>
 <p>The module also defines a process method (i.e., <code>Action</code>). It is triggered at each rising edge of <b>clock</b> (also called positive edge), where all calculations are conducted.</p></li>
 <li><p>The <code>top.cpp</code> may look like</p>
@@ -164,7 +160,7 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 <span class="p">}</span>
 </pre></div>
 </div>
-<p>In the process method (<code>Action</code>), we simply update the sin/cos signals based on the current phase. Then, update the phase for the next step. In this demo, the maximum step is assumed to be $\frac{\pi}{256}$.</p></li>
+<p>In the process method (<code>Action</code>), we simply update the sin/cos signals based on the current phase. Then, update the phase for the next step. In this demo, the maximum step is assumed to be \(\frac{\pi}{256}\).</p></li>
 <li><p>The <code>main</code> function may look like</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;systemc.h&quot;</span><span class="cp"></span>
@@ -291,7 +287,7 @@ Your browser does not support the video tag.</video>
 &gt;&gt;&gt; ylim<span class="o">([</span>-1,1<span class="o">])</span>
 </pre></div>
 </div>
-<p>The first command tells bsmedit to start tracing the signal <code>top.sig_cos</code>; and the buffer length is 4096. In other words, its latest 4096 values will be stored in a numpy array. Similarly, the second command traces the signal <code>top.sig_sin</code>. The third command creates a figure to plot <code>top.sig_cos</code> as $x$ axis value and <code>top.sig_sin</code> as $y$ axis. The last two lines set the limits of $x$ axis and $y$ axis, respectively. The created figure looks like</p>
+<p>The first command tells bsmedit to start tracing the signal <code>top.sig_cos</code>; and the buffer length is 4096. In other words, its latest 4096 values will be stored in a numpy array. Similarly, the second command traces the signal <code>top.sig_sin</code>. The third command creates a figure to plot <code>top.sig_cos</code> as \(x\) axis value and <code>top.sig_sin</code> as \(y\) axis. The last two lines set the limits of \(x\) axis and \(y\) axis, respectively. The created figure looks like</p>
 <figure class="figure">
 <img src="./images/start_sim_plot.png" alt="./images/start_sim_plot.png">
 </figure>
@@ -305,7 +301,7 @@ Your browser does not support the video tag.</video>
 <div class="syntax"><pre><span></span><span class="kn">from</span> <span class="nn">bsmedit.bsm.pysim</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">bsmedit.propgrid</span> <span class="kn">import</span> <span class="n">formatters</span> <span class="k">as</span> <span class="n">fmt</span>
 <span class="c1"># create a simulation</span>
-<span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="bp">None</span><span class="p">,</span> <span class="s1">&#39;./examples/libstart.so&#39;</span><span class="p">)</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;./examples/libstart.so&#39;</span><span class="p">)</span>
 
 <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(),</span> <span class="s2">&quot;Failed to load simulation&quot;</span>
 <span class="c1"># set the simulation parameters: step = 100us, run infinitely</span>
@@ -324,7 +320,7 @@ Your browser does not support the video tag.</video>
 <span class="n">s</span><span class="o">.</span><span class="n">trace_buf</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">14</span><span class="p">)</span>
 <span class="n">s</span><span class="o">.</span><span class="n">trace_buf</span><span class="p">(</span><span class="s1">&#39;top.sig_sin&#39;</span><span class="p">,</span> <span class="mi">2</span><span class="o">**</span><span class="mi">14</span><span class="p">)</span>
 
-<span class="n">plot_trace</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">,</span> <span class="n">relim</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<span class="n">plot_trace</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">,</span> <span class="n">relim</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 <span class="n">xlim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
 <span class="n">ylim</span><span class="p">([</span><span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">])</span>
 <span class="n">grid</span><span class="p">(</span><span class="n">ls</span><span class="o">=</span><span class="s1">&#39;dotted&#39;</span><span class="p">)</span>
@@ -412,7 +408,7 @@ foo
 </div>
 <p>One major constraint of version 3 is that it executes the command in the main GUI thread. Thus, if a dead loop is feed into the interpreter, it will never return and can not be interrupted, for example:</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="k">while</span> <span class="bp">True</span><span class="p">:</span>
+<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
 <span class="o">...</span>    <span class="k">pass</span>
 </pre></div>
 </div>
@@ -483,7 +479,7 @@ gracefully exit without affecting the main process.</p>
 <ul>
 <li><p><b>Create a simulation.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="n">num</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="bp">False</span><span class="p">,</span> <span class="n">create</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="n">activate</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="n">num</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">silent</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">create</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">activate</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where</p>
@@ -520,14 +516,14 @@ For example</p>
 </div></li>
 <li><p><b>Load the simulation.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">filename</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where the parameter <b>filename</b> is the path to the simulation. If a simulation has already been loaded, <b>load</b> will unload it first.</p>
 <p>If <b>filename</b> is <b>None</b>, a file-select dialog will be shown to select the simulation.</p></li>
 <li><p><b>Set simulation parameters.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">more</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">more</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where</p>
@@ -673,10 +669,10 @@ For example</p>
 <p>Due to the two-step mechanism in SystemC, in most cases, the value will be updated after the next delta cycle. That is, if a <b>read</b> is called after <b>write</b> immediately, it may return the previous value.</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">)</span>
-<span class="il">256L</span>
+<span class="mi">256</span><span class="n">L</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">write</span><span class="p">({</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="p">})</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">)</span>
-<span class="il">256L</span>
+<span class="mi">256</span><span class="n">L</span>
 </pre></div>
 </div>
 <p>Like <b>read</b>, there is also a shortcut to write the signal</p>
@@ -709,12 +705,12 @@ For example</p>
 <span class="o">&lt;</span><span class="nb">type</span> <span class="s1">&#39;numpy.ndarray&#39;</span><span class="o">&gt;</span>
 </pre></div>
 </div>
-<p>The buffer will be filled with the most recent 10 samples, where $\textrm{buf}[9]$ is current one and $\textrm{buf}[0]$ is the oldest. One thing we haven't talked about is how these samples are saved. By default, a samples is saved to the buffer only when the value is changed, for example, either <b>rising edge</b> or <b>falling edge</b>. For <b>rising edge</b>, it means the current value is larger than the last value; while for <b>falling edge</b>, the current value is smaller than the last value.</p>
+<p>The buffer will be filled with the most recent 10 samples, where \(\textrm{buf}[9]\) is current one and \(\textrm{buf}[0]\) is the oldest. One thing we haven't talked about is how these samples are saved. By default, a samples is saved to the buffer only when the value is changed, for example, either <b>rising edge</b> or <b>falling edge</b>. For <b>rising edge</b>, it means the current value is larger than the last value; while for <b>falling edge</b>, the current value is smaller than the last value.</p>
 <p>In some application, it may work well. For example, if the output of the signal is shown as the following figure,</p>
 <figure class="figure">
 <img src="./images/dump1.svg" alt="./images/dump1.svg">
 </figure>
-<p>then at time $t=9$, the buffer will be $[0, 1, 0, 1, 0, 1, 0, 1, 0, 1]$, as expected. However, if the signal output is as the one shown in the figure below. The data in buffer may look like $[x, x, x, x, x, x, x, 0, 1, 0]$, where $x$ is the value either from the buffer initialization or previous samples, rather than $[0, 1, 0, 0, 0, 0, 0, 0, 0, 0]$. The result is not surprising since the simulation will only push the data to the buffer whenever the data is changed. However, the value does not changed within $t=[2,3,...10]$</p>
+<p>then at time \(t=9\), the buffer will be \([0, 1, 0, 1, 0, 1, 0, 1, 0, 1]\), as expected. However, if the signal output is as the one shown in the figure below. The data in buffer may look like \([x, x, x, x, x, x, x, 0, 1, 0]\), where \(x\) is the value either from the buffer initialization or previous samples, rather than \([0, 1, 0, 0, 0, 0, 0, 0, 0, 0]\). The result is not surprising since the simulation will only push the data to the buffer whenever the data is changed. However, the value does not changed within \(t=[2,3,...10]\)</p>
 <figure class="figure">
 <img src="./images/dump2.svg" alt="./images/dump2.svg">
 </figure>
@@ -723,7 +719,7 @@ For example</p>
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">trace_buf</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">trigger</span><span class="o">=</span><span class="s1">&#39;pos&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Then the buffer will only be filled when the signal value is increased (compared to the last value). In particular, for the above figure, at $t=9$, the buffer will be $[x,x,x,x,x,x,x,x,x,1]$.</p>
+<p>Then the buffer will only be filled when the signal value is increased (compared to the last value). In particular, for the above figure, at \(t=9\), the buffer will be \([x,x,x,x,x,x,x,x,x,1]\).</p>
 <p>Similarly, you can also dump the signal only at its falling edge</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">trace_buf</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="n">size</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">trigger</span><span class="o">=</span><span class="s1">&#39;neg&#39;</span><span class="p">)</span>
@@ -738,10 +734,10 @@ For example</p>
 <figure class="figure">
 <img src="./images/dump3.svg" alt="./images/dump3.svg">
 </figure>
-<p>For example, for the signals shown in above figure, at $t=9$, the buffer will be $[2, 3, 2, 2, 2, 2, 2, 2, 2, 2]$.</p>
+<p>For example, for the signals shown in above figure, at \(t=9\), the buffer will be \([2, 3, 2, 2, 2, 2, 2, 2, 2, 2]\).</p>
 <p>Since the value is dumped to a numpy, you can process the data with all the functions available (e.g., signal processing with <a href="https://docs.scipy.org/doc/scipy/reference/signal.html">scipy.signal</a> or plot with <a href="http://www.matoplotlib.org">matplotlib</a>) . And bsmedit also provides a function to plot the trace dynamically</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">plot_trace</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">relim</span><span class="o">=</span><span class="bp">True</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">plot_trace</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">relim</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where</p>
@@ -775,7 +771,7 @@ Your browser does not support the video tag.</video>
 </div></li>
 <li><p><b>Dump signal to a file.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">trace_file</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">ttype</span><span class="o">=</span><span class="s1">&#39;bsm&#39;</span><span class="p">,</span> <span class="n">valid</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">trigger</span><span class="o">=</span><span class="s1">&#39;posneg&#39;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">trace_file</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">ttype</span><span class="o">=</span><span class="s1">&#39;bsm&#39;</span><span class="p">,</span> <span class="n">valid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">trigger</span><span class="o">=</span><span class="s1">&#39;posneg&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where</p>
@@ -805,14 +801,14 @@ Your browser does not support the video tag.</video>
 </table></li>
 <li><p><b>Monitor signal in a propgrid window.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">propgrid</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">index</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">propgrid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">index</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
 </pre></div>
 </div>
 <p>If <b>progprid</b> is <b>None</b> and no <b>propgrid</b> window (see Sec. <a href="#sec_propgrid">3.4</a> for details) has been created, bsmedit will create one and add the signal to it.</p></li>
 <li><p><b>Breakpoints</b>. With the simulation control functions mentioned above, you can easily pause the simulation at particular simulation time. However, in some cases, you may want to pause the simulation when some conditions meet. The breakpoint is here to rescue.
 To set a breakpoint,</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">add_breakpoint</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="bp">None</span><span class="p">,</span> <span class="n">hitcount</span><span class="o">=</span><span class="bp">None</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">add_breakpoint</span><span class="p">(</span><span class="n">name</span><span class="p">,</span> <span class="n">condition</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">hitcount</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where</p>
@@ -832,7 +828,7 @@ To set a breakpoint,</p>
 <p>bsmedit will check the breakpoint at each SystemC <b>delta</b> cycle. Once the breakpoint condition is true (or signal value is changed if condition is <b>None</b>), it will pause the simulation.</p>
 <p>The breakpoint condition can be any valid python statement, for example</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">add_breakpoint</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="s1">&#39;$&gt;=0.9&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">add_breakpoint</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="s1">&#39;$&gt;=0.9&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Here <code>$</code> will be replaced with the signal value before checking breakpoint condition. Then, bsmedit will pause the simulation whenever its value is larger than <b>0.9</b>.</p>
@@ -850,7 +846,7 @@ To set a breakpoint,</p>
 </div>
 <p>To delete a breakpoint,</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">del_breakpoint</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="bp">None</span><span class="p">,</span> <span class="bp">None</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">del_breakpoint</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">,</span> <span class="kc">None</span><span class="p">,</span> <span class="kc">None</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Here you also need to provide the full definition of the breakpoint, since multiple breakpoints may share the same signal, and/or breakpoint condition, and/or hit-count condition.</p>
@@ -934,9 +930,9 @@ To set a breakpoint,</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s2">&quot;1.top.sig_steps&quot;</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># show the children signals</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">p</span><span class="o">.</span><span class="n">SetExpand</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">p</span><span class="o">.</span><span class="n">SetExpand</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># hide the children signals</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">p</span><span class="o">.</span><span class="n">SetExpand</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">p</span><span class="o">.</span><span class="n">SetExpand</span><span class="p">(</span><span class="kc">False</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><b>Use the control to set the signal</b>. As you see before, each signal in the <b>propgrid</b> has two sections: name and value. The value section shows its current value. When click on the <code>value</code> section, if the signal is writable, the signal will be in <b>edit</b> mode; by default, an editbox will be shown so that you can type the value. By typing <b>Enter</b> after modifying the value, bsmedit will send the change to the simulation.</p>
@@ -1006,7 +1002,7 @@ To set a breakpoint,</p>
 The breakpoint can also be enabled by python script:</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;1.top.sig_sin&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetChecked</span><span class="p">(</span><span class="bp">True</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">SetChecked</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>Then, if you run the simulation, it will be paused once the signal value is changed or the simulation time is reached. You can also set the breakpoint conditions here. Right clock on the signal and click '<b>Breakpoint Condition</b>' (the menu item is not clickable unless the radio button is checked)</p>
@@ -1129,7 +1125,7 @@ The breakpoint can also be enabled by python script:</p>
   <span class="p">};</span>
 </pre></div>
 </div>
-<p>The above example show to use <code>xsc_array</code> in a <code>sc_module</code>. It define an integer <code>xsc_array</code> with size 5. In the module's constructor, the <code>xsc_arrary</code> is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of <code>xsc_property</code>. You can use the <code>[i]</code> to have access to the $i^{th}$ item in the array.</p>
+<p>The above example show to use <code>xsc_array</code> in a <code>sc_module</code>. It define an integer <code>xsc_array</code> with size 5. In the module's constructor, the <code>xsc_arrary</code> is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of <code>xsc_property</code>. You can use the <code>[i]</code> to have access to the \(i^{th}\) item in the array.</p>
 <p>Same as <code>xsc_property</code>, <code>xsc_array</code> also supports a callback function. For example</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="k">class</span> <span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span> <span class="n">sc_module</span>
@@ -1278,7 +1274,7 @@ One way is to use <a href="https://docs.python.org/3.6/library/ctypes.html">ctyp
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">get_frame</span> <span class="o">=</span> <span class="n">dll</span><span class="o">.</span><span class="n">get_frame</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">get_frame</span><span class="o">.</span><span class="n">argtypes</span> <span class="o">=</span> <span class="p">[</span><span class="n">POINTER</span><span class="p">(</span><span class="n">wave_frame</span><span class="p">)]</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">get_frame</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="bp">None</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">get_frame</span><span class="o">.</span><span class="n">restype</span> <span class="o">=</span> <span class="kc">None</span>
 </pre></div>
 </div></li>
 <li><p>Call the interface to get the data dimension, which is done by calling <b>get_frame</b> without allocating data memory</p>
@@ -1320,7 +1316,7 @@ One way is to use <a href="https://docs.python.org/3.6/library/ctypes.html">ctyp
 <p>where <b>dll</b> is the compiled library, and <b>header</b> is the corresponding header files, which defines all the interfaces. The function will return the python wrapper.
 Thus, the above example can be achieved by</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">bsmedit.bsm.csim</span> <span class="kn">as</span> <span class="nn">csim</span>
+<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">bsmedit.bsm.csim</span> <span class="k">as</span> <span class="nn">csim</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">sim</span> <span class="o">=</span> <span class="n">csim</span><span class="o">.</span><span class="n">init_dll</span><span class="p">(</span><span class="s1">&#39;./libwaves.so&#39;</span><span class="p">,</span> <span class="s1">&#39;./waves.h&#39;</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">f</span> <span class="o">=</span> <span class="n">sim</span><span class="o">.</span><span class="n">wave_frame</span><span class="p">()</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">sim</span><span class="o">.</span><span class="n">get_frame</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
@@ -1343,7 +1339,6 @@ Your browser does not support the video tag.</video>
 </div>
 </div>
 </div>
-
 <div class="footer">
 <div class="footnote">
 <ol>
@@ -1362,7 +1357,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2019-12-07 06:43:03 GMT, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2020-07-20 18:25:24 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 </body>
