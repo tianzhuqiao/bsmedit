@@ -187,6 +187,7 @@ class Shell(pyshell.Shell):
         # variables used in push, which may be called by
         # wx.py.shell.Shell.__init__ when execStartupScript is True
         self.enable_debugger = False
+        self.silent = True
         pyshell.Shell.__init__(self, parent, id, pos, size, style, introText,
                                locals, InterpClass, startupScript,
                                execStartupScript, *args, **kwds)
