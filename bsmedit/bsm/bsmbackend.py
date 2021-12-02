@@ -1,4 +1,4 @@
-from matplotlib.backends.backend_wx import DEBUG_MSG, Figure
+from matplotlib.backends.backend_wx import Figure
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backends.backend_wx import Show
 from matplotlib import is_interactive
@@ -14,7 +14,6 @@ def new_figure_manager(num, *args, **kwargs):
     # interface we need to create the figure here
 
     from .graph import MatplotPanel
-    DEBUG_MSG('new_figure_manager()', 3, None)
     FigureClass = kwargs.pop('FigureClass', Figure)
     thisFig = FigureClass(*args, **kwargs)
 
@@ -26,8 +25,6 @@ def draw_if_interactive():
     This should be overridden in a windowing environment if drawing
     should be done in interactive python mode
     """
-
-    DEBUG_MSG('draw_if_interactive()', 1, None)
 
     if is_interactive():
         figManager = Gcf.get_active()

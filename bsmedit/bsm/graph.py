@@ -156,7 +156,7 @@ class DataCursor(object):
 
     def ProcessCommand(self, cmd):
         """process the context menu command"""
-        if cmd == wx.ID_DELETE:
+        if cmd == MatplotPanel.clsID_delete_datatip:
             if not self.active:
                 return False
             idx = self.annotations.index(self.active)
@@ -164,7 +164,7 @@ class DataCursor(object):
             del self.annotations[idx]
             self.active = None
             return True
-        elif cmd == wx.ID_CLEAR:
+        elif cmd == MatplotPanel.clsID_clear_datatip:
             for ant in self.annotations:
                 try:
                     # the call may fail. For example,
@@ -194,6 +194,7 @@ class Toolbar(NavigationToolbar):
         self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
+        self.init_toolbar()
 
     def OnPressed(self, event):
         if self.mode != 'datatip':
@@ -262,6 +263,9 @@ class Toolbar(NavigationToolbar):
         self.canvas.draw()
 
     def _init_toolbar(self):
+        # deprecated in 3.3.4
+        pass
+    def init_toolbar(self):
         toolitems = (
             ('Home', 'Reset original view', home_xpm, 'home'),
             ('Back', 'Back to  previous view', back_xpm, 'back'),
@@ -279,7 +283,7 @@ class Toolbar(NavigationToolbar):
         )
 
         self._parent = self.canvas.GetParent()
-
+        self.ClearTools()
         self.wx_ids = {}
         for (text, tooltip_text, image_file, callback) in toolitems:
             if text is None:
@@ -324,8 +328,11 @@ class Toolbar(NavigationToolbar):
         self.ToggleTool(self.wx_ids['Zoom'], False)
         self.ToggleTool(self.wx_ids['Pan'], False)
         self._active = None
-        self._idPress = self.canvas.mpl_disconnect(self._idPress)
-        self._idRelease = self.canvas.mpl_disconnect(self._idRelease)
+        if hasattr(self, '_idPress'):
+            self._idPress = self.canvas.mpl_disconnect(self._idPress)
+
+        if hasattr(self, '_idRelease'):
+            self._idRelease = self.canvas.mpl_disconnect(self._idRelease)
         self.canvas.widgetlock.release(self)
         for a in self.canvas.figure.get_axes():
             a.set_navigate_mode(self._active)
@@ -346,6 +353,8 @@ class MatplotPanel(wx.Panel):
     clsID_new_figure = wx.NOT_FOUND
     isInitialized = False
     kwargs = {}
+    clsID_delete_datatip = wx.NewId()
+    clsID_clear_datatip = wx.NewId()
 
     def __init__(self, parent, title=None, num=-1, thisFig=None):
         # set the size to positive value, otherwise the toolbar will assert
@@ -385,8 +394,8 @@ class MatplotPanel(wx.Panel):
         self.canvas.mpl_connect('button_press_event', self._onClick)
         dp.connect(self.simLoad, 'sim.loaded')
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_DELETE)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_CLEAR)
+        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.clsID_delete_datatip)
+        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.clsID_clear_datatip)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
 
     def GetToolBar(self):
@@ -415,10 +424,10 @@ class MatplotPanel(wx.Panel):
             return
 
         menu = wx.Menu()
-        delMenu = menu.Append(wx.ID_DELETE, "Delete current datatip")
+        delMenu = menu.Append(self.clsID_delete_datatip, "Delete current datatip")
         note = self.toolbar.datacursor.active
         delMenu.Enable((note is not None) and note.get_visible())
-        menu.Append(wx.ID_CLEAR, "Delete all datatips")
+        menu.Append(self.clsID_clear_datatip, "Delete all datatips")
         self.PopupMenu(menu)
         menu.Destroy()
 
@@ -513,6 +522,8 @@ class MatplotPanel(wx.Panel):
             l.trace = [list(x.keys())[0], list(y.keys())[0]]
         l.autorelim = autorelim
         self.canvas.draw()
+    def set_window_title(self, label):
+        pass
 
     @classmethod
     def setactive(cls, pane):
