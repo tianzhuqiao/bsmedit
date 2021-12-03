@@ -184,7 +184,9 @@ class DataCursor(object):
 class Toolbar(NavigationToolbar):
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
-            sself._init_toolbar = self.init_toolbar
+            self._init_toolbar = self.init_toolbar
+        else:
+            self._init_toolbar = self.init_toolbar_empty
         NavigationToolbar.__init__(self, canvas)
 
         if matplotlib.__version__ >= '3.3.0':
@@ -266,8 +268,8 @@ class Toolbar(NavigationToolbar):
                 [ydata - new_height * (1 - rely), ydata + new_height * (rely)])
         self.canvas.draw()
 
-    def _init_toolbar(self):
-        # deprecated in 3.3.4
+    def init_toolbar_empty(self):
+        # deprecated in 3.3.0
         pass
     def init_toolbar(self):
         toolitems = (
