@@ -183,7 +183,12 @@ class DataCursor(object):
 
 class Toolbar(NavigationToolbar):
     def __init__(self, canvas, figure):
+        if matplotlib.__version__ < '3.3.0':
+            sself._init_toolbar = self.init_toolbar
         NavigationToolbar.__init__(self, canvas)
+
+        if matplotlib.__version__ >= '3.3.0':
+            self.init_toolbar()
         self.SetWindowStyle(wx.TB_HORIZONTAL | wx.TB_FLAT)
         self.figure = figure
         self.datacursor = DataCursor()
@@ -194,7 +199,6 @@ class Toolbar(NavigationToolbar):
         self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
-        self.init_toolbar()
 
     def OnPressed(self, event):
         if self.mode != 'datatip':
