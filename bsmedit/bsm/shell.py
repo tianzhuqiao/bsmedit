@@ -190,7 +190,7 @@ class Shell(pyshell.Shell):
         self.silent = True
         pyshell.Shell.__init__(self, parent, id, pos, size, style, introText,
                                locals, InterpClass, startupScript,
-                               execStartupScript, *args, **kwds)
+                               execStartupScript, useStockId=False, *args, **kwds)
         self.redirectStdout(True)
         self.redirectStderr(True)
         # the default sx function (!cmd to run external command) does not work
@@ -315,6 +315,37 @@ class Shell(pyshell.Shell):
                     return mod
                 except:
                     return None
+
+    def Paste(self):
+        """Replace selection with clipboard contents."""
+        if self.CanPaste() and wx.TheClipboard.Open():
+            ps2 = str(sys.ps2)
+            # on mac 11.4, it always return false
+            if True:#wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                data = wx.TextDataObject()
+                if wx.TheClipboard.GetData(data):
+                    self.ReplaceSelection('')
+                    command = data.GetText()
+                    command = command.rstrip()
+                    command = self.fixLineEndings(command)
+                    command = self.lstripPrompt(text=command)
+                    command = command.replace(os.linesep + ps2, '\n')
+                    command = command.replace(os.linesep, '\n')
+                    command = command.replace('\n', os.linesep + ps2)
+                    self.write(command)
+            wx.TheClipboard.Close()
+
+    def PasteAndRun(self):
+        """Replace selection with clipboard contents, run commands."""
+        text = ''
+        if wx.TheClipboard.Open():
+            if True:#wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+                data = wx.TextDataObject()
+                if wx.TheClipboard.GetData(data):
+                    text = data.GetText()
+            wx.TheClipboard.Close()
+        if text:
+            self.Execute(text)
 
     def getAutoCompleteKeys(self):
         return self.interp.getAutoCompleteKeys()
