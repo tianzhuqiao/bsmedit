@@ -14,7 +14,8 @@ from . import graph
 from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
                     module_grey_xpm, switch_grey_xpm, in_grey_xpm,\
                     out_grey_xpm, inout_grey_xpm, step_xpm, run_xpm, \
-                    pause_xpm, setting_xpm
+                    pause_xpm, setting_xpm, radio_disabled_svg, \
+                    radio_activated_svg, radio_checked_svg, radio_unchecked_svg
 from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
                         SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,\
                         SC_OBJ_XSC_ARRAY_ITEM, SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY
@@ -23,6 +24,7 @@ from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
 from .. import to_byte
+from .utility import svg_to_bitmap
 
 Gcs = Gcm()
 
@@ -1067,8 +1069,13 @@ class SimPropArt(pg.PropArtNative):
             self.img_expand.Add(wx.Bitmap(to_byte(pg.tree_xpm)))
             self.expansion_width = 12
         self.check_width = 16
-        self.img_check = wx.ImageList(16, 16, True, 4)
-        self.img_check.Add(wx.Bitmap(to_byte(pg.radio_xpm)))
+        sx, sy = 16, 16
+        self.img_check = wx.ImageList(sx, sy, True, 4)
+        self.img_check.Add(svg_to_bitmap(radio_unchecked_svg, width=sx, height=sy))
+        self.img_check.Add(svg_to_bitmap(radio_disabled_svg, width=sx, height=sy))
+        self.img_check.Add(svg_to_bitmap(radio_checked_svg, width=sx, height=sy))
+        self.img_check.Add(svg_to_bitmap(radio_activated_svg, width=sx, height=sy))
+        #self.img_check.Add(wx.Bitmap(to_byte(pg.radio_xpm)))
 
     def PrepareDrawRect(self, p):
         """calculate the rect for each section"""
@@ -1180,7 +1187,7 @@ class SimPropArt(pg.PropArtNative):
 
     def DrawExpansion(self, dc, p):
         if p.HasChildren():
-            if self.img_expand.GetImageCount() == 2:
+            if hasattr(self, 'img_expand') and self.img_expand.GetImageCount() == 2:
                 (w, h) = self.img_expand.GetSize(0)
                 rc = p.regions['expander']
                 x = rc.x + (rc.width - w) / 2

@@ -8,10 +8,12 @@ import wx
 import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
 import wx.html2 as html
+import wx.svg
 from .dirtreectrl import DirTreeCtrl, Directory
-from .bsmxpm import backward_xpm, forward_xpm, goup_xpm, home_xpm
+from .bsmxpm import backward_svg, forward_svg, goup_xpm, home_xpm
 from .autocomplete import AutocompleteTextCtrl
-from .utility import FastLoadTreeCtrl
+from .utility import FastLoadTreeCtrl, svg_to_bitmap
+
 from .. import to_byte
 
 html_template = '''
@@ -38,10 +40,11 @@ class HelpPanel(wx.Panel):
         agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddSimpleTool(wx.ID_BACKWARD, 'Back',
-                              wx.Bitmap(to_byte(backward_xpm)),
+                              svg_to_bitmap(backward_svg),
                               'Go the previous page')
+
         self.tb.AddSimpleTool(wx.ID_FORWARD, 'Forward',
-                              wx.Bitmap(to_byte(forward_xpm)),
+                              svg_to_bitmap(forward_svg),
                               'Go to the next page')
         self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
         item = self.tb.AddControl(self.search)
@@ -50,8 +53,8 @@ class HelpPanel(wx.Panel):
 
         # Setup the layout
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.tb, 0, wx.ALL | wx.EXPAND, 5)
-        sizer.Add(self.html, 1, wx.ALL | wx.EXPAND, 5)
+        sizer.Add(self.tb, 0, wx.ALL | wx.EXPAND, 0)
+        sizer.Add(self.html, 1, wx.ALL | wx.EXPAND, 0)
         self.SetSizer(sizer)
 
         self.history = []
@@ -174,7 +177,7 @@ class HistoryPanel(wx.Panel):
                                      sort=False)
         self.history = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
-        sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 5)
+        sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 0)
         self.SetSizer(sizer)
         dp.connect(receiver=self.AddHistory, signal='Shell.addHistory')
         self.root = self.tree.AddRoot('The Root Item')
@@ -365,7 +368,6 @@ class DirPanel(wx.Panel):
 
         agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
-
         self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
                               wx.Bitmap(to_byte(goup_xpm)), 'Parent folder')
         self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
@@ -377,8 +379,8 @@ class DirPanel(wx.Panel):
                                    | wx.TR_HIDE_ROOT)
         self.dirtree.SetRootDir(os.getcwd())
         self.box = wx.BoxSizer(wx.VERTICAL)
-        self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(wx.StaticLine(self), 0, wx.EXPAND)
+        self.box.Add(self.tb, 0, wx.EXPAND, 0)
+        #self.box.Add(wx.StaticLine(self), 0, wx.EXPAND)
         self.box.Add(self.dirtree, 1, wx.EXPAND)
 
         self.box.Fit(self)

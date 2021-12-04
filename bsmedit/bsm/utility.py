@@ -2,7 +2,7 @@
 import six
 import wx
 import wx.lib.agw.aui as aui
-
+import wx.svg
 
 def MakeBitmap(red, green, blue, alpha=128):
     # Create the bitmap that we will stuff pixel values into using
@@ -102,3 +102,7 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
         if self._sort_children:
             self.SortChildren(item)
         return True
+
+def svg_to_bitmap(svg, width=16, height=16):
+    bmp = wx.svg.SVGimage.CreateFromBytes(str.encode(svg))
+    return bmp.ConvertToScaledBitmap((width, height))
