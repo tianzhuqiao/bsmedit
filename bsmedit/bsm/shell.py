@@ -191,8 +191,10 @@ class Shell(pyshell.Shell):
         pyshell.Shell.__init__(self, parent, id, pos, size, style, introText,
                                locals, InterpClass, startupScript,
                                execStartupScript, useStockId=False, *args, **kwds)
-        self.redirectStdout(True)
-        self.redirectStderr(True)
+        wx.CallAfter(self.redirectStdout, True)
+        wx.CallAfter(self.redirectStderr, True)
+        #self.redirectStdout(True)
+        #self.redirectStderr(True)
         # the default sx function (!cmd to run external command) does not work
         # on windows
         __builtin__.sx = sx
@@ -556,27 +558,35 @@ class Shell(pyshell.Shell):
     def writeOut(self, text):
         """Replacement for stdout."""
         # only output the text when it is not silent
-        if not self.silent:
-            # move the cursor to the end to protect the readonly section
-            endpos = self.GetTextLength()
-            if not self.CanEdit():
-                self.SetCurrentPos(endpos)
-            if not self.waiting:
-                # if the shell is in idle status, output the text right before the prompt
-                self.SetCurrentPos(self.promptPosStart)
-                self.write(text)
-                self.promptPosStart += self.GetTextLength() - endpos
-                self.promptPosEnd += self.GetTextLength() - endpos
+        try:
+            if not self.silent:
+                # move the cursor to the end to protect the readonly section
+                endpos = self.GetTextLength()
+                if not self.CanEdit():
+                    self.SetCurrentPos(endpos)
+                if not self.waiting:
+                    # if the shell is in idle status, output the text right before the prompt
+                    self.SetCurrentPos(self.promptPosStart)
+                    self.write(text)
+                    self.promptPosStart += self.GetTextLength() - endpos
+                    self.promptPosEnd += self.GetTextLength() - endpos
+                else:
+                    if self.GetCurrentLine() \
+                                    == self.LineFromPosition(self.promptPosEnd):
+                        self.write(os.linesep)
+                    self.write(text)
+                # disable undo
+                self.EmptyUndoBuffer()
+                # move the caret to the end
+                self.GotoPos(self.GetTextLength())
+                self.Update()
             else:
-                if self.GetCurrentLine() \
-                                == self.LineFromPosition(self.promptPosEnd):
-                    self.write(os.linesep)
-                self.write(text)
-            # disable undo
-            self.EmptyUndoBuffer()
-            # move the caret to the end
-            self.GotoPos(self.GetTextLength())
-            self.Update()
+                print(text, file=self.stdout)
+                #for line in traceback.format_stack():
+                #    print(line.strip(), file=self.stdout)
+        except:
+            print(text, file=self.stdout)
+            traceback.print_exc(file=self.stdout)
 
     def writeErr(self, text):
         """Replacement for stderror"""
@@ -831,7 +841,7 @@ class Shell(pyshell.Shell):
         ns['app'] = wx.GetApp()
         ns['frame'] = cls.frame
         intro = 'Welcome To bsmedit ' + __version__
-        cls.panelShell = Shell(cls.frame, 1, introText=intro, locals=ns)
+        cls.panelShell = Shell(cls.frame, introText=intro, locals=ns)
         active = kwargs.get('active', True)
         direction = kwargs.get('direction', 'top')
         dp.send(signal="frame.add_panel",
