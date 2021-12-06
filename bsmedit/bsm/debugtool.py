@@ -4,9 +4,10 @@ import wx
 import wx.py.dispatcher as dp
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.agw.aui as aui
-from .bsmxpm import run_xpm, step_over_xpm, step_into_xpm, step_out_xpm, stop_xpm
-from .. import to_byte
+from .bsmxpm import (run_svg, run_grey_svg, step_over_svg, step_over_grey_svg, step_into_svg, \
+                     step_into_grey_svg, step_out_svg, step_out_grey_svg, step_over_svg, stop_svg, stop_grey_svg)
 
+from .utility import svg_to_bitmap
 
 class StackListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
                     listmix.ListRowHighlighter):
@@ -110,17 +111,16 @@ class DebugTool(object):
                 path='Tools:Debug',
                 rxsignal='',
                 kind='Popup')
-        cls.tbDebug = aui.AuiToolBar(frame,
-                                     style=wx.TB_FLAT | wx.TB_HORIZONTAL)
+        cls.tbDebug = aui.AuiToolBar(frame, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
         items = (
-            ('Run\tF5', 'resume', run_xpm, 'paused'),
-            ('Stop\tShift-F5', 'stop', stop_xpm, 'paused'),
-            ('Step\tF10', 'step', step_over_xpm, 'paused'),
-            ('Step Into\tF11', 'step_into', step_into_xpm, 'can_stepin'),
-            ('Step Out\tShift-F11', 'step_out', step_out_xpm, 'can_stepout'),
+            ('Run\tF5', 'resume', run_svg, run_grey_svg, 'paused'),
+            ('Stop\tShift-F5', 'stop', stop_svg, stop_grey_svg, 'paused'),
+            ('Step\tF10', 'step', step_over_svg, step_over_grey_svg, 'paused'),
+            ('Step Into\tF11', 'step_into', step_into_svg, step_into_grey_svg, 'can_stepin'),
+            ('Step Out\tShift-F11', 'step_out', step_out_svg, step_out_grey_svg, 'can_stepout'),
         )
         cls.menus = {}
-        for label, signal, xpm, status in items:
+        for label, signal, xpm, xpm_grey, status in items:
             resp = dp.send('frame.add_menu',
                            path='Tools:Debug:' + label,
                            rxsignal='debugger.' + signal,
@@ -128,8 +128,8 @@ class DebugTool(object):
             if not resp:
                 continue
             cls.menus[resp[0][1]] = status
-            cls.tbDebug.AddSimpleTool(resp[0][1], label,
-                                      wx.Bitmap(to_byte(xpm)), label)
+            cls.tbDebug.AddTool(resp[0][1], label, svg_to_bitmap(xpm),
+                                svg_to_bitmap(xpm_grey), wx.ITEM_NORMAL, label)
         cls.tbDebug.Realize()
 
         dp.send('frame.add_panel',
