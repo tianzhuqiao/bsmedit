@@ -13,8 +13,8 @@ from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
 from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
                     module_grey_xpm, switch_grey_xpm, in_grey_xpm,\
-                    out_grey_xpm, inout_grey_xpm, step_xpm, run_xpm, \
-                    pause_xpm, setting_xpm, radio_disabled_svg, \
+                    out_grey_xpm, inout_grey_xpm, step_svg, step_grey_svg, run_svg, run_grey_svg, \
+                    pause_svg, pause_grey_svg, setting_xpm, radio_disabled_svg, \
                     radio_activated_svg, radio_checked_svg, radio_unchecked_svg
 from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
                         SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,\
@@ -613,12 +613,15 @@ class SimPanel(wx.Panel):
                                  | aui.AUI_TB_PLAIN_BACKGROUND)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
         xpm2bmp = wx.Bitmap
-        self.tb.AddSimpleTool(self.ID_SIM_STEP, "Step", xpm2bmp(to_byte(step_xpm)),
-                              "Step the simulation")
-        self.tb.AddSimpleTool(self.ID_SIM_RUN, "Run", xpm2bmp(to_byte(run_xpm)),
-                              "Run the simulation")
-        self.tb.AddSimpleTool(self.ID_SIM_PAUSE, "Pause", xpm2bmp(to_byte(pause_xpm)),
-                              "Pause the simulation")
+        self.tb.AddTool(self.ID_SIM_STEP, "Step", svg_to_bitmap(step_svg),
+                        svg_to_bitmap(step_grey_svg), wx.ITEM_NORMAL,
+                        "Step the simulation")
+        self.tb.AddTool(self.ID_SIM_RUN, "Run", svg_to_bitmap(run_svg),
+                        svg_to_bitmap(run_grey_svg), wx.ITEM_NORMAL,
+                        "Run the simulation")
+        self.tb.AddTool(self.ID_SIM_PAUSE, "Pause", svg_to_bitmap(pause_svg),
+                        svg_to_bitmap(pause_grey_svg), wx.ITEM_NORMAL,
+                        "Pause the simulation")
 
         self.tb.AddSeparator()
 
@@ -974,6 +977,7 @@ class SimPanel(wx.Panel):
                 if isinstance(value, six.string_types):
                     dp.send(signal="frame.show_status_text", text=value)
             elif command == 'breakpoint_triggered':
+                SimPropGrid.ClearAllTrigger()
                 bp = value  #[name, condition, hitcount, hitsofar]
                 gname = self.sim.global_object_name
                 for grid in SimPropGrid.GCM.get_all_managers():
@@ -1005,6 +1009,7 @@ class SimProperty(pg.Property):
         self.show_check = True
         self.checked = False
         self.condition = ("", "")
+        self.triggered = False
 
     def duplicate(self):
         p = super(SimProperty, self).duplicate()
@@ -1059,6 +1064,11 @@ class SimProperty(pg.Property):
     def GetBpCondition(self):
         return self.condition
 
+    def SetTriggered(self, triggered):
+        self.triggered = triggered
+
+    def IsTriggered(self):
+        return self.triggered
 
 class SimPropArt(pg.PropArtNative):
     def __init__(self):
@@ -1172,7 +1182,7 @@ class SimPropArt(pg.PropArtNative):
                 state = 1
             elif p.IsChecked():
                 state = 2
-                if p.IsActivated():
+                if p.IsTriggered():
                     state = 3
 
             if self.img_check.GetImageCount() == 4:
@@ -1345,12 +1355,21 @@ class SimPropGrid(pg.PropGrid):
         for prop in self._props:
             if prop and prop.IsChecked():
                 prop.SetChecked(False)
+    @classmethod
+    def ClearAllTrigger(cls):
+        for grid in SimPropGrid.GCM.get_all_managers():
+            grid.ClearTrigger()
+
+    def ClearTrigger(self):
+        for prop in self._props:
+            prop.SetTriggered(False)
 
     def TriggerBreakPoint(self, name, cond, hitcount):
         """check whether the breakpoints are triggered"""
         for prop in self._props:
             if name == prop.GetName():
                 if (cond, hitcount) == prop.GetBpCondition():
+                    prop.SetTriggered(True)
                     self.EnsureVisible(prop)
                     self.SetSelection(prop)
                     return True
