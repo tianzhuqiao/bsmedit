@@ -16,6 +16,7 @@ from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
                     cursor_xpm, save_xpm, copy_xpm
 from .. import to_byte
 rcParams.update({'figure.autolayout': True})
+rcParams.update({'toolbar': 'None'})
 matplotlib.interactive(True)
 
 
@@ -291,6 +292,7 @@ class Toolbar(NavigationToolbar):
         self._parent = self.canvas.GetParent()
         self.ClearTools()
         self.wx_ids = {}
+        self.SetToolBitmapSize((16, 16))
         for (text, tooltip_text, image_file, callback) in toolitems:
             if text is None:
                 self.AddSeparator()
@@ -313,7 +315,16 @@ class Toolbar(NavigationToolbar):
         self.Realize()
 
     def copy_figure(self, evt):
-        self.canvas.Copy_to_Clipboard(event=evt)
+        # self.canvas.Copy_to_Clipboard(event=evt)
+        bmp_obj = wx.BitmapDataObject()
+        bmp_obj.SetBitmap(self.canvas.bitmap)
+
+        if not wx.TheClipboard.IsOpened():
+            open_success = wx.TheClipboard.Open()
+            if open_success:
+                wx.TheClipboard.SetData(bmp_obj)
+                wx.TheClipboard.Flush()
+                wx.TheClipboard.Close()
 
     def print_figure(self, evt):
         self.canvas.Printer_Print(event=evt)

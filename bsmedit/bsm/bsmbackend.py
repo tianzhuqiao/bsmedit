@@ -1,8 +1,9 @@
-from matplotlib.backends.backend_wx import Figure
+from matplotlib.figure import Figure
 from matplotlib._pylab_helpers import Gcf
 from matplotlib.backends.backend_wx import Show
 from matplotlib import is_interactive
 from matplotlib import get_backend
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 
 
 def new_figure_manager(num, *args, **kwargs):
