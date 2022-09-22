@@ -10,7 +10,7 @@ import wx.lib.agw.aui as aui
 from ..auibarpopup import AuiToolBarPopupArt
 from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
                     dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \
-                    folder_xpm, vert_xpm, horz_xpm
+                    folder_xpm, vert_xpm, horz_xpm, reload_xpm
 from .pymgr_helpers import Gcm
 from .. import to_byte
 
@@ -915,6 +915,7 @@ class PyEditorPanel(wx.Panel):
         self.findDialog = None
         item = (
             (wx.ID_OPEN, 'Open', open_xpm, 'Open Python script'),
+            (wx.ID_REFRESH, 'Reload', reload_xpm, 'Reload current script'),
             (wx.ID_SAVE, 'Save', save_xpm, 'Save current document (Ctrl+S)'),
             (wx.ID_SAVEAS, 'Save As', saveas_xpm, 'Save current document as'),
             (None, None, None, None),
@@ -970,6 +971,7 @@ class PyEditorPanel(wx.Panel):
         self.SetSizer(self.box)
         # Connect Events
         self.Bind(wx.EVT_TOOL, self.OnBtnOpen, id=wx.ID_OPEN)
+        self.Bind(wx.EVT_TOOL, self.OnBtnReload, id=wx.ID_REFRESH)
         self.Bind(wx.EVT_TOOL, self.OnBtnSave, id=wx.ID_SAVE)
         self.Bind(wx.EVT_TOOL, self.OnBtnSaveAs, id=wx.ID_SAVEAS)
         self.tb.Bind(wx.EVT_UPDATE_UI, self.OnUpdateBtn)
@@ -1152,6 +1154,11 @@ class PyEditorPanel(wx.Panel):
             self.LoadFile(path)
         dlg.Destroy()
 
+    def OnBtnReload(self, event):
+        """reload file"""
+        if self.fileName:
+            self.LoadFile(self.fileName)
+
     def saveFile(self):
         if self.fileName == "":
             defaultDir = os.path.dirname(self.fileName)
@@ -1203,6 +1210,8 @@ class PyEditorPanel(wx.Panel):
             resp = dp.send('debugger.debugging')
             if resp:
                 event.Enable(not resp[0][1])
+        elif eid == wx.ID_REFRESH:
+            event.Enable(self.fileName != "")
 
     def OnShowFindReplace(self, event):
         """Find and Replace dialog and action."""
