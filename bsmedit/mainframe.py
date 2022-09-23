@@ -10,12 +10,12 @@ import wx
 import wx.lib.agw.aui as aui
 import wx.py
 import wx.py.dispatcher as dp
+import wx.adv
 from .frameplus import FramePlus
-from .mainframexpm import bsmedit_xpm, header_xpm
+from .mainframexpm import bsmedit_xpm, header_xpm, bsmedit_svg
 from . import __version__, to_byte
-from .bsm.utility import PopupMenu
+from .bsm.utility import PopupMenu, svg_to_bitmap
 from .bsm import auto_load_module
-
 
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):
@@ -25,6 +25,64 @@ class FileDropTarget(wx.FileDropTarget):
         for fname in filenames:
             wx.CallAfter(dp.send, signal='frame.file_drop', filename=fname)
         return True
+
+class TaskBarIcon(wx.adv.TaskBarIcon):
+    TBMENU_RESTORE = wx.NewId()
+    TBMENU_CLOSE   = wx.NewId()
+    TBMENU_CHANGE  = wx.NewId()
+    TBMENU_REMOVE  = wx.NewId()
+
+    def __init__(self, frame, icon):
+        wx.adv.TaskBarIcon.__init__(self, iconType=wx.adv.TBI_DOCK)
+        self.frame = frame
+
+        # Set the image
+        self.SetIcon(icon, "bsmedit")
+        self.imgidx = 1
+
+        # bind some events
+        #self.Bind(wx.EVT_TASKBAR_LEFT_DCLICK, self.OnTaskBarActivate)
+        self.Bind(wx.EVT_MENU, self.OnTaskBarActivate, id=self.TBMENU_RESTORE)
+        self.Bind(wx.EVT_MENU, self.OnTaskBarClose, id=self.TBMENU_CLOSE)
+
+
+    def CreatePopupMenu(self):
+        """
+        This method is called by the base class when it needs to popup
+        the menu for the default EVT_RIGHT_DOWN event.  Just create
+        the menu how you want it and return it from this function,
+        the base class takes care of the rest.
+        """
+        menu = wx.Menu()
+        menu.Append(self.TBMENU_RESTORE, "Restore bsmedit")
+        menu.Append(self.TBMENU_CLOSE,   "Close bsmedit")
+        return menu
+
+
+    def MakeIcon(self, img):
+        """
+        The various platforms have different requirements for the
+        icon size...
+        """
+        if "wxMSW" in wx.PlatformInfo:
+            img = img.Scale(16, 16)
+        elif "wxGTK" in wx.PlatformInfo:
+            img = img.Scale(22, 22)
+        # wxMac can be any size upto 128x128, so leave the source img alone....
+        icon = wx.Icon(img.ConvertToBitmap() )
+        return icon
+
+
+    def OnTaskBarActivate(self, evt):
+        if self.frame.IsIconized():
+            self.frame.Iconize(False)
+        if not self.frame.IsShown():
+            self.frame.Show(True)
+        self.frame.Raise()
+
+
+    def OnTaskBarClose(self, evt):
+        wx.CallAfter(self.frame.Close)
 
 
 class MainFrame(FramePlus):
@@ -46,8 +104,12 @@ class MainFrame(FramePlus):
                               | aui.AUI_MGR_LIVE_RESIZE)
         # set mainframe icon
         icon = wx.Icon()
-        icon.CopyFromBitmap(wx.Bitmap(to_byte(bsmedit_xpm)))
+        icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg))
         self.SetIcon(icon)
+
+        if 'wxMac' in wx.PlatformInfo:
+            icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, 1024, 1024))
+            self.tbicon = TaskBarIcon(self, icon)
 
         # status bar
         self.statusbar = wx.StatusBar(self)
@@ -273,6 +335,10 @@ class MainFrame(FramePlus):
             item = menuitem.FindItemById(pid)
             if item and pane.caption != item.GetItemLabelText():
                 item.SetItemLabel(pane.caption)
+
+    def OnCloseWindow(self, evt):
+        self.tbicon.Destroy()
+        evt.Skip()
 
     def OnClose(self, event):
         """close the main program"""
