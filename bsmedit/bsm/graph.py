@@ -26,6 +26,7 @@ class DataCursor(object):
 
     def __init__(self):
         self.annotations = []
+        self.lines = []
         self.enable = False
         self.active = None
         self.mx, self.my = None, None
@@ -46,7 +47,10 @@ class DataCursor(object):
             if self.active.axes != line.axes:
                 self.active = None
         if self.active is None:
-            self.create_annotation(line.axes)
+            self.create_annotation(line)
+        idx = self.annotations.index(self.active)
+        self.lines[idx] = line
+
         # find the closest point on the line
         x, y = line.get_xdata(), line.get_ydata()
         xc, yc = event.mouseevent.xdata, event.mouseevent.ydata
@@ -58,6 +62,29 @@ class DataCursor(object):
             self.active.set_visible(True)
             event.canvas.draw()
         self.pickEvent = True
+
+    def keyboard_move(self, left, step=1):
+        if not self.active:
+            return
+        idx = self.annotations.index(self.active)
+        line = self.lines[idx]
+        x, y = line.get_xdata(), line.get_ydata()
+        xc, yc = self.active.xy
+        idx = (numpy.square(x - xc)).argmin()
+        idx_new = idx
+        if left:
+            idx_new -= step
+        else:
+            idx_new += step
+        idx_new = min(len(x)-1, idx_new)
+        idx_new = max(0, idx_new)
+        if idx == idx_new:
+            return
+        xn, yn = x[idx_new], y[idx_new]
+        if xn is not None:
+            self.active.xy = xn, yn
+            self.active.set_text(self.text_template % (xn, yn))
+            self.active.set_visible(True)
 
     def set_enable(self, enable):
         self.enable = enable
@@ -138,9 +165,9 @@ class DataCursor(object):
         """return all the annotations"""
         return self.annotations
 
-    def create_annotation(self, ax):
+    def create_annotation(self, line):
         """create the annotation and set it active"""
-        ant = ax.annotate(self.text_template,
+        ant = line.axes.annotate(self.text_template,
                           xy=(0, 0),
                           xytext=(self.xoffset, self.yoffset),
                           textcoords='offset points',
@@ -153,6 +180,7 @@ class DataCursor(object):
                                           connectionstyle='arc3,rad=0'))
         ant.set_visible(False)
         self.annotations.append(ant)
+        self.lines.append(line)
         self.set_active(ant)
 
     def ProcessCommand(self, cmd):
@@ -163,6 +191,7 @@ class DataCursor(object):
             idx = self.annotations.index(self.active)
             self.active.remove()
             del self.annotations[idx]
+            del self.lines[idx]
             self.active = None
             return True
         elif cmd == MatplotPanel.clsID_clear_datatip:
@@ -177,6 +206,7 @@ class DataCursor(object):
                 except:
                     pass
             self.annotations = []
+            self.lines = []
             self.active = None
             return True
         return False
@@ -414,6 +444,7 @@ class MatplotPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.clsID_delete_datatip)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.clsID_clear_datatip)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
+        self.Bind(wx.EVT_CHAR_HOOK, self.OnKeyDown)
 
     def GetToolBar(self):
         """Override wxFrame::GetToolBar as we don't have managed toolbar"""
@@ -431,6 +462,20 @@ class MatplotPanel(wx.Panel):
     def _onClick(self, event):
         if event.dblclick:
             self.toolbar.home()
+
+    def OnKeyDown(self, evt):
+        if self.toolbar.mode != 'datatip':
+            return
+        keycode = evt.GetKeyCode()
+        step = 1
+        if evt.ShiftDown():
+            step = 10
+        if keycode == wx.WXK_LEFT:
+            self.toolbar.datacursor.keyboard_move(True, step=step)
+        elif keycode == wx.WXK_RIGHT:
+            self.toolbar.datacursor.keyboard_move(False, step=step)
+        else:
+            evt.Skip()
 
     def OnProcessCommand(self, evt):
         if self.toolbar.datacursor.ProcessCommand(evt.GetId()):
