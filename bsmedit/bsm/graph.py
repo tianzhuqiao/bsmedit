@@ -39,6 +39,11 @@ class DataCursor(object):
             return
         if not event.artist:
             return
+        xm, ym = event.mouseevent.x, event.mouseevent.y
+        if self.get_annotation(xm, ym) is not None:
+            # click in the box of existing annotation, ignore it
+            return
+
         line = event.artist
         if self.active and self.active.get_visible():
             # Check whether the axes of active annotation is same as line,
@@ -117,6 +122,13 @@ class DataCursor(object):
             return True
         return False
 
+    def get_annotation(self, x, y):
+        for ant in self.annotations:
+            box = ant.get_bbox_patch().get_extents()
+            if box.contains(x, y):
+                return ant
+        return None
+
     def mouse_pressed(self, x, y):
         """
         select the active annotation which is closest to the mouse position
@@ -130,12 +142,7 @@ class DataCursor(object):
             return False
         # search the closest annotation
         self.mx, self.my = x, y
-        active = None
-        for ant in self.annotations:
-            box = ant.get_bbox_patch().get_extents()
-            if box.contains(x, y):
-                active = ant
-                break
+        active = self.get_annotation(x, y)
         self.set_active(active)
         # return True for the parent to redraw
         return True
