@@ -11,6 +11,7 @@ import six
 import wx
 import wx.py.shell as pyshell
 import wx.py.dispatcher as dp
+from wx import stc
 from wx.py.pseudo import PseudoFile
 from .debugger import EngineDebugger
 from ..version import __version__
@@ -831,6 +832,11 @@ class Shell(pyshell.Shell):
             else:
                 self.SetCurrentPos(thepos)
                 self.SetAnchor(thepos)
+
+    def setStyles(self, faces):
+        super().setStyles(faces)
+        self.StyleSetSpec(stc.STC_STYLE_LINENUMBER,
+                          'fore:#3C3C43,back:#F2F2F7')
 
     @classmethod
     def Initialize(cls, frame, **kwargs):

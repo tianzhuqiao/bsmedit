@@ -603,10 +603,10 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetMarginSensitive(MARK_MARGIN, True)
         self.SetMarginWidth(MARK_MARGIN, 12)
         # break point
-        self.MarkerDefine(0, stc.STC_MARK_CIRCLE, 'BLACK', 'RED')
+        self.MarkerDefine(0, stc.STC_MARK_CIRCLE, '#8E8E93', '#FF3B30')
         # paused at marker
-        self.MarkerDefine(1, stc.STC_MARK_SHORTARROW, 'BLACK', 'GREEN')
-        self.MarkerDefine(2, stc.STC_MARK_SHORTARROW, 'BLACK', 'WHITE')
+        self.MarkerDefine(1, stc.STC_MARK_SHORTARROW, '#8E8E93', '#34C759')
+        self.MarkerDefine(2, stc.STC_MARK_SHORTARROW, '#8E8E93', 'WHITE')
 
         # Setup a margin to hold fold markers
         self.SetMarginType(FOLD_MARGIN, stc.STC_MARGIN_SYMBOL)
@@ -615,28 +615,28 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetMarginWidth(FOLD_MARGIN, 12)
         # and now set up the fold markers
         self.MarkerDefine(stc.STC_MARKNUM_FOLDEREND,
-                          stc.STC_MARK_BOXPLUSCONNECTED, 'white', 'black')
+                          stc.STC_MARK_BOXPLUSCONNECTED, 'white', '#8E8E93')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDEROPENMID,
-                          stc.STC_MARK_BOXMINUSCONNECTED, 'white', 'black')
+                          stc.STC_MARK_BOXMINUSCONNECTED, 'white', '#8E8E93')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDERMIDTAIL, stc.STC_MARK_TCORNER,
-                          'white', 'black')
+                          'white', '#8E8E93')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDERTAIL, stc.STC_MARK_LCORNER,
-                          'white', 'black')
+                          'white', '#8E8E93')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDERSUB, stc.STC_MARK_VLINE,
-                          'white', 'black')
+                          'white', '#8E8E93')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDER, stc.STC_MARK_BOXPLUS,
-                          'white', 'black')
+                          'white', '#8E8E93')
         self.MarkerDefine(stc.STC_MARKNUM_FOLDEROPEN, stc.STC_MARK_BOXMINUS,
-                          'white', 'black')
+                          'white', '#8E8E93')
         # Global default style
         if wx.Platform == '__WXMSW__':
             self.StyleSetSpec(stc.STC_STYLE_DEFAULT,
-                              'fore:#000000,back:#FFFFFF,face:Courier New')
+                              'fore:#1D1D1D,back:#FFFFFF,face:Courier New')
         elif wx.Platform == '__WXMAC__':
             # TODO: if this looks fine on Linux too, remove the Mac-specific case
             # and use this whenever OS != MSW.
             self.StyleSetSpec(stc.STC_STYLE_DEFAULT,
-                              'fore:#000000,back:#FFFFFF,face:Monaco')
+                              'fore:#1D1D1D,back:#FFFFFF,face:Monaco')
         else:
             #defsize = \
             #    wx.SystemSettings.GetFont(wx.SYS_ANSI_FIXED_FONT).GetPointSize()
@@ -650,7 +650,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # The rest remains unchanged.
         # Line numbers in margin
         self.StyleSetSpec(stc.STC_STYLE_LINENUMBER,
-                          'fore:#000000,back:#99A9C2')
+                          'fore:#3C3C43,back:#F2F2F7')
         # Highlighted brace
         self.StyleSetSpec(stc.STC_STYLE_BRACELIGHT,
                           'fore:#00009D,back:#FFFF00')
@@ -683,7 +683,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # to be an identifier if it doesn't match the above criterae
         self.StyleSetSpec(stc.STC_P_IDENTIFIER, 'fore:#000000')
         # Caret color
-        self.SetCaretForeground('BLUE')
+        self.SetCaretForeground('#007AFF')
         # Selection background
         self.SetSelBackground(1, '#66CCFF')
         self.SetSelBackground(
@@ -693,7 +693,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetWrapMode(stc.STC_WRAP_WORD)
         # indicator
         self.IndicatorSetStyle(0, stc.STC_INDIC_ROUNDBOX)
-        self.IndicatorSetForeground(0, wx.RED)
+        self.IndicatorSetForeground(0, '#FF3B30')
 
     def prepandText(self, text):
         """Comment section"""
