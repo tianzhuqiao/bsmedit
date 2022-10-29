@@ -208,7 +208,6 @@ class Shell(pyshell.Shell):
         self.LoadHistory()
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
-        self.Bind(wx.EVT_MENU, self.OnProcessMenu)
         self.interp.locals['clear'] = self.clear
         self.interp.locals['help'] = _help
         self.interp.locals['on'] = True
@@ -225,37 +224,8 @@ class Shell(pyshell.Shell):
         dp.connect(self.OnActivate, 'frame.activate')
         dp.connect(self.OnFrameClosing, 'frame.closing')
 
-    def OnContextMenu(self, evt):
-        menu = wx.Menu()
-        menu.Append(wx.ID_UNDO, "Undo")
-        menu.Append(wx.ID_REDO, "Redo")
-        menu.AppendSeparator()
-        menu.Append(wx.ID_CUT, "Cut")
-        menu.Append(wx.ID_COPY, "Copy")
-        menu.Append(self.ID_COPY_PLUS, "Copy with prompt")
-        menu.Append(wx.ID_PASTE, "Paste")
-        menu.Append(self.ID_PASTE_PLUS, "Paste & run")
-        menu.Append(wx.ID_CLEAR, "Clear")
-        menu.AppendSeparator()
-        menu.Append(wx.ID_SELECTALL, "Select All")
-        self.PopupMenu(menu)
-
-    def OnProcessMenu(self, event):
-        eid = event.GetId()
-        cmd = {
-            wx.ID_CUT: self.Cut,
-            wx.ID_CLEAR: self.Clear,
-            wx.ID_COPY: self.Copy,
-            self.ID_COPY_PLUS: self.CopyWithPrompts,
-            wx.ID_PASTE: self.Paste,
-            self.ID_PASTE_PLUS: self.PasteAndRun,
-            wx.ID_UNDO: self.Undo,
-            wx.ID_REDO: self.Redo,
-            wx.ID_SELECTALL: self.SelectAll
-        }
-        fun = cmd.get(eid, None)
-        if fun:
-            fun()
+        self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_UNDO)
+        self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
 
     def Destroy(self):
         self.debugger.release()

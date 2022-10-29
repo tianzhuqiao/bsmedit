@@ -157,6 +157,9 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCommandUI)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent)
 
+        self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_UNDO)
+        self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
+
     def ClearBreakpoint(self):
         """clear all the breakpoint"""
         for key in list(self.breakpointlist):
@@ -1506,7 +1509,7 @@ class PyEditorPanel(wx.Panel):
         if resp:
             cls.ID_EDITOR_NEW = resp[0][1]
         resp = dp.send('frame.add_menu',
-                       path='File:Open:Python script\tctrl+O',
+                       path='File:Open:Python script\tCtrl+O',
                        rxsignal='bsm.editor.menu')
         if resp:
             cls.ID_EDITOR_OPEN = resp[0][1]

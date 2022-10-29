@@ -181,18 +181,6 @@ class MainFrame(FramePlus):
         self.AddMenu('&File:Sep', kind="Separator")
         self.AddMenu('&File:&Quit', id=wx.ID_CLOSE)
 
-        # add the common Edit menus to menubar; otherwise, the context-menu
-        # from shell or editor may not work (e.g., Mac)
-        self.AddMenu('&Edit:&Undo', id=wx.ID_UNDO, autocreate=True)
-        self.AddMenu('&Edit:&Redo', id=wx.ID_REDO)
-        self.AddMenu('&Edit:Sep', kind="Separator")
-        self.AddMenu('&Edit:&Cut', id=wx.ID_CUT)
-        self.AddMenu('&Edit:&Copy', id=wx.ID_COPY)
-        self.AddMenu('&Edit:&Paste', id=wx.ID_PASTE)
-        self.AddMenu('&Edit:&Clear', id=wx.ID_CLEAR)
-        self.AddMenu('&Edit:Sep', kind="Separator")
-        self.AddMenu('&Edit:&Select All', id=wx.ID_SELECTALL)
-
         self.AddMenu('&View:Toolbars', kind="Popup", autocreate=True)
         self.AddMenu('&View:Sep', kind="Separator")
         self.AddMenu('&View:Panels', kind="Popup")
