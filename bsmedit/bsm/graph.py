@@ -312,8 +312,8 @@ class Toolbar(NavigationToolbar):
     def init_toolbar(self):
         toolitems = (
             ('Home', 'Reset original view', home_xpm, 'home'),
-            ('Back', 'Back to  previous view', back_xpm, 'back'),
-            ('Forward', 'Forward to next view', forward_xpm, 'forward'),
+            ('Back', 'Back to  previous view', back_xpm, 'OnBack'),
+            ('Forward', 'Forward to next view', forward_xpm, 'OnForward'),
             (None, None, None, None),
             ('Pan', 'Pan axes with left mouse, zoom with right', pan_xpm,
              'pan'),
@@ -375,6 +375,22 @@ class Toolbar(NavigationToolbar):
         """activated the pan mode"""
         self.ToggleTool(self.wx_ids['Datatip'], False)
         super(Toolbar, self).pan(*args)
+
+    def OnBack(self, *args):
+        super().back(*args)
+
+    def back(self, *args):
+        if self.mode == 'datatip':
+            return
+        super().back(*args)
+
+    def OnForward(self, *args):
+        super().forward(*args)
+
+    def forward(self, *args):
+        if self.mode == 'datatip':
+            return
+        super().forward(*args)
 
     def datatip(self, evt):
         """activate the datatip mode"""
