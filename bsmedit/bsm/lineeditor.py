@@ -8,6 +8,7 @@ class LineEditor():
     ID_Y_MODE = wx.NewId()
     ID_ROUND_Y = wx.NewId()
     ID_EXPORT_TO_TERM = wx.NewId()
+    ID_LINES = []
     def __init__(self, ax, lines=None):
         self.ax = ax
         if lines is None:
@@ -65,9 +66,9 @@ class LineEditor():
             return
 
         mx, my = event.xdata, event.ydata
-        self.set_cross_hair_visible(True)
-        self.horizontal_line.set_ydata(my)
-        self.vertical_line.set_xdata(mx)
+        #self.set_cross_hair_visible(True)
+        #self.horizontal_line.set_ydata(my)
+        #self.vertical_line.set_xdata(mx)
 
         if self.draggable:
             if self.round_y_to is not None:
@@ -164,7 +165,14 @@ class LineEditor():
                [self.ID_Y_MODE, 'y only mode', True, self.mode == 'y'],
                [self.ID_ROUND_Y, 'Round y to', True, self.round_y_to != None],
                [self.ID_EXPORT_TO_TERM, 'Export to shell ...', self.active_line_index != None],
+               [],
               ]
+
+        self.lines = self.ax.lines[3:]
+        for i, line in enumerate(self.lines):
+            while i>= len(self.ID_LINES):
+                self.ID_LINES.append(wx.NewId())
+            cmd.append([self.ID_LINES[i], line.get_label(), True, self.active_line_index == i])
         return cmd
 
     def ProcessCommand(self, cmd):
@@ -192,3 +200,5 @@ class LineEditor():
                     prompt=True,
                     verbose=True,
                     history=False)
+        elif cmd in self.ID_LINES:
+            self.active_line_index = self.ID_LINES.index(cmd)

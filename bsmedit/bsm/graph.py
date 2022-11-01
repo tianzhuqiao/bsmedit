@@ -614,8 +614,10 @@ class MatplotPanel(wx.Panel):
                 # checkable item
                 item = menu.AppendCheckItem(m[0], m[1])
                 item.Check(m[3])
-
-            item.Enable(m[2])
+            elif len(m) == 0:
+                item = menu.AppendSeparator()
+            if len(m)>2:
+                item.Enable(m[2])
         mid = PopupMenu(self, menu)
         if mid > 0 :
             self.toolbar.ProcessCommand(mid)
@@ -747,7 +749,7 @@ class MatplotPanel(wx.Panel):
         cls.clsFrame = frame
         cls.kwargs = kwargs
         resp = dp.send('frame.add_menu',
-                       path='File:New:Figure\tCtrl+F',
+                       path='File:New:Figure\tCtrl+P',
                        rxsignal='bsm.figure')
         if resp:
             cls.clsID_new_figure = resp[0][1]
