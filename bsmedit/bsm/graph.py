@@ -12,8 +12,10 @@ from matplotlib.backends.backend_wx import FigureManagerWx
 from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from .lineeditor import LineEditor
+from .utility import PopupMenu
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
-                    cursor_xpm, save_xpm, copy_xpm
+                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm
 from .. import to_byte
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'toolbar': 'None'})
@@ -24,6 +26,8 @@ class DataCursor(object):
     xoffset, yoffset = -20, 20
     text_template = 'x: %0.2f\ny: %0.2f'
 
+    ID_DELETE_DATATIP = wx.NewId()
+    ID_CLEAR_DATATIP = wx.NewId()
     def __init__(self):
         self.annotations = []
         self.lines = []
@@ -32,7 +36,7 @@ class DataCursor(object):
         self.mx, self.my = None, None
         self.pickEvent = False
 
-    def __call__(self, event):
+    def pick(self, event):
         if not self.enable:
             return
         if not event.mouseevent.xdata or not event.mouseevent.ydata:
@@ -99,12 +103,13 @@ class DataCursor(object):
             else:
                 self.active.get_bbox_patch().set_facecolor('white')
 
-    def mouse_move(self, x, y):
+    def mouse_move(self, event):
         """move the annotation position"""
         # return if no active annotation or the mouse is not pressed
         if self.mx is None or self.my is None or self.active is None:
             return False
         # re-position the active annotation based on the mouse movement
+        x, y = event.x, event.y
         dx = x - self.mx
         dy = y - self.my
         dis = math.sqrt(dx**2 + dy**2)
@@ -129,7 +134,7 @@ class DataCursor(object):
                 return ant
         return None
 
-    def mouse_pressed(self, x, y):
+    def mouse_pressed(self, event):
         """
         select the active annotation which is closest to the mouse position
         """
@@ -137,17 +142,19 @@ class DataCursor(object):
         if self.pickEvent:
             self.pickEvent = False
             return False
+        print('press')
         # just created the new annotation, do not move to others
         if self.active and (not self.active.get_visible()):
             return False
         # search the closest annotation
+        x, y = event.x, event.y
         self.mx, self.my = x, y
         active = self.get_annotation(x, y)
         self.set_active(active)
         # return True for the parent to redraw
         return True
 
-    def mouse_released(self, x, y):
+    def mouse_released(self, event):
         """release the mouse"""
         self.mx, self.my = None, None
 
@@ -190,9 +197,16 @@ class DataCursor(object):
         self.lines.append(line)
         self.set_active(ant)
 
+    def GetMenu(self):
+        cmd = [[self.ID_DELETE_DATATIP, 'Delete current datatip',
+                self.active is not None and self.active.get_visible()],
+               [self.ID_CLEAR_DATATIP, 'Delete all datatip', len(self.annotations)>0]
+              ]
+        return cmd
+
     def ProcessCommand(self, cmd):
         """process the context menu command"""
-        if cmd == MatplotPanel.clsID_delete_datatip:
+        if cmd == self.ID_DELETE_DATATIP:
             if not self.active:
                 return False
             idx = self.annotations.index(self.active)
@@ -201,7 +215,7 @@ class DataCursor(object):
             del self.lines[idx]
             self.active = None
             return True
-        elif cmd == MatplotPanel.clsID_clear_datatip:
+        elif cmd == self.ID_CLEAR_DATATIP:
             for ant in self.annotations:
                 try:
                     # the call may fail. For example,
@@ -218,6 +232,10 @@ class DataCursor(object):
             return True
         return False
 
+    def activated(self):
+        pass
+    def deactivated(self):
+        pass
 
 class Toolbar(NavigationToolbar):
     def __init__(self, canvas, figure):
@@ -232,32 +250,65 @@ class Toolbar(NavigationToolbar):
         self.SetWindowStyle(wx.TB_HORIZONTAL | wx.TB_FLAT)
         self.figure = figure
         self.datacursor = DataCursor()
-        self.canvas.mpl_connect('pick_event', self.datacursor)
+        self.lineeditor = LineEditor(self.figure.gca())
+
+        self.actions = {'datatip': self.datacursor,
+                        'edit': self.lineeditor}
+
+        self.canvas.mpl_connect('pick_event', self.OnPick)
         self.canvas.mpl_connect('motion_notify_event', self.OnMove)
         self.canvas.mpl_connect('button_press_event', self.OnPressed)
         self.canvas.mpl_connect('button_release_event', self.OnReleased)
         self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
+        self.canvas.mpl_connect('key_press_event', self.OnKeyPressed)
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
 
+    def GetMenu(self):
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'GetMenu'):
+            return []
+        return action.GetMenu()
+
+    def ProcessCommand(self, cmd):
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'ProcessCommand'):
+            return
+        action.ProcessCommand(cmd)
+
+    def OnPick(self, event):
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'pick'):
+            return
+        action.pick(event)
+
+    def OnKeyPressed(self, event):
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'key_pressed'):
+            return
+        action.key_pressed(event)
+
     def OnPressed(self, event):
-        if self.mode != 'datatip':
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'mouse_pressed'):
             return
         # some lines may be added
         for l in self.figure.gca().lines:
             l.set_picker(5)
-        if self.datacursor.mouse_pressed(event.x, event.y):
+        if action.mouse_pressed(event):
             self.canvas.draw()
 
     def OnReleased(self, event):
-        if self.mode != 'datatip':
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'mouse_released'):
             return
-        self.datacursor.mouse_released(event.x, event.y)
+        action.mouse_released(event)
 
     def OnMove(self, event):
-        if self.mode != 'datatip':
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'mouse_move'):
             return
-        if self.datacursor.mouse_move(event.x, event.y):
+        if action.mouse_move(event):
             self.canvas.draw()
 
     def OnZoomFun(self, event):
@@ -322,6 +373,8 @@ class Toolbar(NavigationToolbar):
             (None, None, None, None),
             ('Save', 'Save the figure', save_xpm, 'save_figure'),
             ('Copy', 'Copy to clipboard', copy_xpm, 'copy_figure'),
+            (None, None, None, None),
+            ('Edit', 'Edit curve', line_edit_xpm, 'edit_figure'),
             #(None, None, None, None),
             #('Print', 'Print the figure', print_xpm, 'print_figure'),
         )
@@ -335,7 +388,7 @@ class Toolbar(NavigationToolbar):
                 self.AddSeparator()
                 continue
             self.wx_ids[text] = wx.NewId()
-            if text in ['Pan', 'Zoom', 'Datatip']:
+            if text in ['Pan', 'Zoom', 'Datatip', 'Edit']:
                 self.AddCheckTool(self.wx_ids[text],
                                   text,
                                   wx.Bitmap(to_byte(image_file)),
@@ -366,14 +419,38 @@ class Toolbar(NavigationToolbar):
     def print_figure(self, evt):
         self.canvas.Printer_Print(event=evt)
 
+    def set_mode(self, mode):
+        if mode != 'datatip':
+            self.ToggleTool(self.wx_ids['Datatip'], False)
+        if mode != 'edit':
+            self.ToggleTool(self.wx_ids['Edit'], False)
+        if mode != 'pan':
+            self.ToggleTool(self.wx_ids['Pan'], False)
+        if mode != 'zoom':
+            self.ToggleTool(self.wx_ids['Zoom'], False)
+
+        action = self.actions.get(self.mode, None)
+        if action is not  None and  hasattr(action, 'deactivated'):
+            action.deactivated()
+
+        if mode in ['pan', 'zoom']:
+            # these mode handled by the base class
+            return
+
+        self.mode = mode
+
+        action = self.actions.get(self.mode, None)
+        if action is not None and hasattr(action, 'activated'):
+            action.activated()
+
     def zoom(self, *args):
         """activate the zoom mode"""
-        self.ToggleTool(self.wx_ids['Datatip'], False)
+        self.set_mode('zoom')
         super(Toolbar, self).zoom(*args)
 
     def pan(self, *args):
         """activated the pan mode"""
-        self.ToggleTool(self.wx_ids['Datatip'], False)
+        self.set_mode('pan')
         super(Toolbar, self).pan(*args)
 
     def OnBack(self, *args):
@@ -395,8 +472,6 @@ class Toolbar(NavigationToolbar):
     def datatip(self, evt):
         """activate the datatip mode"""
         # disable the pan/zoom mode
-        self.ToggleTool(self.wx_ids['Zoom'], False)
-        self.ToggleTool(self.wx_ids['Pan'], False)
         self._active = None
         if hasattr(self, '_idPress'):
             self._idPress = self.canvas.mpl_disconnect(self._idPress)
@@ -409,9 +484,35 @@ class Toolbar(NavigationToolbar):
 
         for l in self.figure.gca().lines:
             l.set_picker(5)
-        self.mode = "datatip"
+        if self.mode == 'datatip':
+            self.set_mode('')
+        else:
+            self.set_mode("datatip")
         self.set_message(self.mode)
         self.datacursor.set_enable(evt.GetInt())
+
+    def edit_figure(self, evt):
+        """activate the curve editting  mode"""
+        # disable the pan/zoom mode
+        self.set_message(self.mode)
+
+        self._active = None
+        if hasattr(self, '_idPress'):
+            self._idPress = self.canvas.mpl_disconnect(self._idPress)
+
+        if hasattr(self, '_idRelease'):
+            self._idRelease = self.canvas.mpl_disconnect(self._idRelease)
+        self.canvas.widgetlock.release(self)
+        for a in self.canvas.figure.get_axes():
+            a.set_navigate_mode(self._active)
+
+        for l in self.figure.gca().lines:
+            l.set_picker(5)
+        if self.mode == "edit":
+            self.set_mode("")
+        else:
+            self.set_mode("edit")
+        self.set_message(self.mode)
 
     def set_message(self, s):
         """show the status message"""
@@ -423,8 +524,6 @@ class MatplotPanel(wx.Panel):
     clsID_new_figure = wx.NOT_FOUND
     isInitialized = False
     kwargs = {}
-    clsID_delete_datatip = wx.NewId()
-    clsID_clear_datatip = wx.NewId()
 
     def __init__(self, parent, title=None, num=-1, thisFig=None):
         # set the size to positive value, otherwise the toolbar will assert
@@ -464,8 +563,6 @@ class MatplotPanel(wx.Panel):
         self.canvas.mpl_connect('button_press_event', self._onClick)
         dp.connect(self.simLoad, 'sim.loaded')
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.clsID_delete_datatip)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=self.clsID_clear_datatip)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
         self.Bind(wx.EVT_CHAR_HOOK, self.OnKeyDown)
 
@@ -505,15 +602,23 @@ class MatplotPanel(wx.Panel):
             self.canvas.draw()
 
     def _show_context_menu(self):
-        if self.toolbar.mode != 'datatip':
+        menus = self.toolbar.GetMenu()
+        if len(menus) == 0:
             return
-
         menu = wx.Menu()
-        delMenu = menu.Append(self.clsID_delete_datatip, "Delete current datatip")
-        note = self.toolbar.datacursor.active
-        delMenu.Enable((note is not None) and note.get_visible())
-        menu.Append(self.clsID_clear_datatip, "Delete all datatips")
-        self.PopupMenu(menu)
+        for m in menus:
+            if len(m) == 3:
+                # normal item
+                item = menu.Append(m[0], m[1])
+            elif len(m) == 4:
+                # checkable item
+                item = menu.AppendCheckItem(m[0], m[1])
+                item.Check(m[3])
+
+            item.Enable(m[2])
+        mid = PopupMenu(self, menu)
+        if mid > 0 :
+            self.toolbar.ProcessCommand(mid)
         menu.Destroy()
 
     def OnContextMenu(self, event):
@@ -642,7 +747,7 @@ class MatplotPanel(wx.Panel):
         cls.clsFrame = frame
         cls.kwargs = kwargs
         resp = dp.send('frame.add_menu',
-                       path='File:New:Figure',
+                       path='File:New:Figure\tCtrl+F',
                        rxsignal='bsm.figure')
         if resp:
             cls.clsID_new_figure = resp[0][1]
