@@ -470,6 +470,8 @@ class Shell(pyshell.Shell):
     def OnKillFocus(self, event):
         if self.CallTipActive():
             self.CallTipCancel()
+        if self.AutoCompActive():
+            wx.CallAfter(self.AutoCompCancel)
         event.Skip()
 
     def OnActivate(self, activate):
