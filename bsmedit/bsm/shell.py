@@ -227,6 +227,97 @@ class Shell(pyshell.Shell):
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_UNDO)
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
 
+        # find dialog
+        eid = wx.NewId()
+        self.Bind(wx.EVT_MENU, self.OnShowFindReplace, id=eid)
+        accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL, ord('F'), eid)])
+        self.SetAcceleratorTable(accel_tbl)
+        self.findDialog = None
+        self.findStr = ""
+        self.findFlags = 1
+        self.stcFindFlags = 0
+
+    def OnShowFindReplace(self, event):
+        """Find and Replace dialog and action."""
+        # find string
+        findStr = self.GetSelectedText()
+        if findStr and self.findDialog:
+            self.findDialog.Destroy()
+            self.findDialog = None
+        # dialog already open, if yes give focus
+        if self.findDialog:
+            self.findDialog.Show(1)
+            self.findDialog.Raise()
+            return
+        if not findStr:
+            findStr = self.findStr
+        # find data
+        data = wx.FindReplaceData(self.findFlags)
+        data.SetFindString(findStr)
+        # dialog
+        self.findDialog = wx.FindReplaceDialog(
+            self, data, 'Find')
+        # bind the event to the dialog, see the example in wxPython demo
+        self.findDialog.Bind(wx.EVT_FIND, self.OnFind)
+        self.findDialog.Bind(wx.EVT_FIND_NEXT, self.OnFind)
+        self.findDialog.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
+        self.findDialog.Show(1)
+        self.findDialog.data = data  # save a reference to it...
+
+    def message(self, text):
+        """show the message on statusbar"""
+        dp.send('frame.show_status_text', text=text)
+
+    def _find_text(self, minPos, maxPos, text, flags=0):
+        position = self.FindText(minPos, maxPos, text, flags)
+        if isinstance(position, tuple):
+            position = position[0] # wx ver 4.1.0 returns (start, end)
+        return position
+
+    def doFind(self, strFind, forward=True):
+        """search the string"""
+        current = self.GetCurrentPos()
+        position = -1
+        if forward:
+            position = self._find_text(current, len(self.GetText()),
+                                       strFind, self.stcFindFlags)
+            if position == -1:
+                # wrap around
+                position = self._find_text(0, current + len(strFind), strFind,
+                                           self.stcFindFlags)
+        else:
+            position = self._find_text(current - len(strFind), 0, strFind,
+                                       self.stcFindFlags)
+            if position == -1:
+                # wrap around
+                position = self._find_text(len(self.GetText()), current,
+                                           strFind, self.stcFindFlags)
+
+        # not found the target, do not change the current position
+        if position == -1:
+            self.message("'%s' not found!" % strFind)
+            position = current
+            strFind = """"""
+        self.GotoPos(position)
+        self.SetSelection(position, position + len(strFind))
+        return position
+
+    def OnFind(self, event):
+        """search the string"""
+        self.findStr = event.GetFindString()
+        self.findFlags = event.GetFlags()
+        flags = 0
+        if wx.FR_WHOLEWORD & self.findFlags:
+            flags |= stc.STC_FIND_WHOLEWORD
+        if wx.FR_MATCHCASE & self.findFlags:
+            flags |= stc.STC_FIND_MATCHCASE
+        self.stcFindFlags = flags
+        return self.doFind(self.findStr, wx.FR_DOWN & self.findFlags)
+
+    def OnFindClose(self, event):
+        """close find & replace dialog"""
+        event.GetDialog().Destroy()
+
     def Destroy(self):
         self.debugger.release()
         # save command history
@@ -531,8 +622,11 @@ class Shell(pyshell.Shell):
         # only output the text when it is not silent
         try:
             if not self.silent:
+                wx.CallAfter(self.AutoCompCancel)
                 # move the cursor to the end to protect the readonly section
                 endpos = self.GetTextLength()
+                # remember the current position (relative to end)
+                offset = endpos - self.GetCurrentPos()
                 if not self.CanEdit():
                     self.SetCurrentPos(endpos)
                 if not self.waiting:
@@ -548,8 +642,8 @@ class Shell(pyshell.Shell):
                     self.write(text)
                 # disable undo
                 self.EmptyUndoBuffer()
-                # move the caret to the end
-                self.GotoPos(self.GetTextLength())
+                # move the caret to the previous position
+                self.GotoPos(self.GetTextLength()-offset)
                 self.Update()
             else:
                 print(text, file=self.stdout)
