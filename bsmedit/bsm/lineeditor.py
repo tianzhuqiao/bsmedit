@@ -106,17 +106,34 @@ class LineEditor():
     def mouse_released(self, event):
         self.draggable = False
 
+    def get_xy_dis_gain(self):
+        # the gain applied to x/y when calculate the distance between to point
+        # e.g., a data point to the mouse position
+        # for example, if the figure is square (width == height), but
+        # x range is [0, 100], and y range is [0, 0.1], the physical distance
+        # in y axis will be `ignored` as x is 1000 times larger than y.
+        xlim = self.ax.get_xlim()
+        ylim = self.ax.get_ylim()
+        box = self.ax.get_window_extent()
+        if xlim[1] - xlim[0] == 0 or ylim[1] - ylim[0] == 0:
+            return 1, 1
+        gx = box.width / (xlim[1] - xlim[0])
+        gy = box.height / (ylim[1] - ylim[0])
+        return gx, gy
+
     def update(self, event):
         # ignore the first 3 lines (marker + 2 cross hair)
         self.lines = self.ax.lines[3:]
         if self.active_line_index is None:
             min_dis = float("inf")
             index = -1
+            gx, gy = self.get_xy_dis_gain()
+            print(gx, gy)
             for i, line in enumerate(self.lines):
                 if not line.get_visible():
                     continue
                 _, x, y = self.get_closest(line, event.xdata, event.ydata)
-                dis = (x-event.xdata)**2 + (y-event.ydata)**2
+                dis = (x-event.xdata)**2 * gx**2 + (y-event.ydata)**2 * gy**2
                 if dis < min_dis:
                     min_dis = dis
                     index = i
@@ -138,7 +155,8 @@ class LineEditor():
         elif mx is None:
             mini = np.argmin((y-my)**2)
         else:
-            mini = np.argmin((x-mx)**2 + (y-my)**2)
+            gx, gy = self.get_xy_dis_gain()
+            mini = np.argmin((x-mx)**2 * gx**2 + (y-my)**2 * gy**2)
         return mini, x[mini], y[mini]
 
     def key_pressed(self, event):
