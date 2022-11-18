@@ -562,6 +562,9 @@ class MatplotPanel(wx.Panel):
         szAll.Add(self.canvas, 1, wx.LEFT | wx.TOP | wx.GROW)
 
         self.toolbar.update()
+        # set the toolbar tool size again, otherwise the separator is not
+        # aligned correctly on macOS.
+        self.toolbar.SetToolBitmapSize((16, 16))
         self.SetSizer(szAll)
 
 
