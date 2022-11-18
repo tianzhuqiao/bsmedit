@@ -15,7 +15,7 @@ from matplotlib import rcParams
 from .lineeditor import LineEditor
 from .utility import PopupMenu
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
-                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm
+                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm
 from .. import to_byte
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'toolbar': 'None'})
@@ -361,6 +361,8 @@ class Toolbar(NavigationToolbar):
         pass
     def init_toolbar(self):
         toolitems = (
+            ('New', 'New figure', page_add_xpm, 'OnNewFigure'),
+            (None, None, None, None),
             ('Home', 'Reset original view', home_xpm, 'home'),
             ('Back', 'Back to  previous view', back_xpm, 'OnBack'),
             ('Forward', 'Forward to next view', forward_xpm, 'OnForward'),
@@ -402,6 +404,13 @@ class Toolbar(NavigationToolbar):
                       id=self.wx_ids[text])
 
         self.Realize()
+
+    def OnNewFigure(self, evt):
+        dp.send('shell.run',
+                command='figure();',
+                prompt=True,
+                verbose=False,
+                debug=False)
 
     def copy_figure(self, evt):
         # self.canvas.Copy_to_Clipboard(event=evt)
