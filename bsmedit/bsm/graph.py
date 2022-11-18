@@ -612,23 +612,31 @@ class MatplotPanel(wx.Panel):
         if self.toolbar.datacursor.ProcessCommand(evt.GetId()):
             self.canvas.draw()
 
-    def _show_context_menu(self):
-        menus = self.toolbar.GetMenu()
-        if len(menus) == 0:
-            return
+    def _create_context_menu(self, menus):
         menu = wx.Menu()
         for m in menus:
-            if len(m) == 3:
+            if len(m) == 0:
+                item = menu.AppendSeparator()
+            elif isinstance(m[0], str):
+                child = self._create_context_menu(m[1])
+                menu.AppendSubMenu(child, m[0])
+            elif len(m) == 3:
                 # normal item
                 item = menu.Append(m[0], m[1])
+                item.Enable(m[2])
             elif len(m) == 4:
                 # checkable item
                 item = menu.AppendCheckItem(m[0], m[1])
                 item.Check(m[3])
-            elif len(m) == 0:
-                item = menu.AppendSeparator()
-            if len(m)>2:
                 item.Enable(m[2])
+        return menu
+
+    def _show_context_menu(self):
+        menus = self.toolbar.GetMenu()
+        if len(menus) == 0:
+            return
+        menu = self._create_context_menu(menus)
+
         mid = PopupMenu(self, menu)
         if mid > 0 :
             self.toolbar.ProcessCommand(mid)

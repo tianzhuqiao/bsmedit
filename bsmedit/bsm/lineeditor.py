@@ -182,15 +182,19 @@ class LineEditor():
                [self.ID_X_MODE, 'x only mode', True, self.mode == 'x'],
                [self.ID_Y_MODE, 'y only mode', True, self.mode == 'y'],
                [self.ID_ROUND_Y, 'Round y to', True, self.round_y_to != None],
-               [self.ID_EXPORT_TO_TERM, 'Export to shell ...', self.active_line_index != None],
                [],
               ]
 
         self.lines = self.figure.gca().lines[3:]
+        lines = []
+        lines.append([self.ID_EXPORT_TO_TERM, 'Export active line to shell ...', self.active_line_index != None])
+        lines.append([])
         for i, line in enumerate(self.lines):
             while i>= len(self.ID_LINES):
                 self.ID_LINES.append(wx.NewId())
-            cmd.append([self.ID_LINES[i], line.get_label(), True, self.active_line_index == i])
+            lines.append([self.ID_LINES[i], line.get_label(), True, self.active_line_index == i])
+        if lines:
+            cmd.append(['Lines', lines])
         return cmd
 
     def ProcessCommand(self, cmd):
@@ -201,10 +205,21 @@ class LineEditor():
         elif cmd == self.ID_Y_MODE:
             self.mode = 'y'
         elif cmd == self.ID_ROUND_Y:
-            if self.round_y_to is None:
-                self.round_y_to = 1
-            else:
-                self.round_y_to = None
+            msg = 'Rounded y to ndigits precision after the decimal point:'
+            ry = self.round_y_to
+            if ry is None:
+                ry = 0
+            ry = wx.GetTextFromUser(message=msg, caption="bsmedit", default_value=f'{ry}')
+            if not ry:
+                # cancel is clicked
+                return
+
+            try:
+                ry = int(ry)
+            except:
+                ry = None
+            self.round_y_to = ry
+
         elif cmd == self.ID_EXPORT_TO_TERM:
             x, y = self.lines[self.active_line_index].get_data()
             np.save('_lineeditor.npy', (x, y))
