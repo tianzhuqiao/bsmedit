@@ -655,11 +655,13 @@ class Shell(pyshell.Shell):
                 self.GotoPos(self.GetTextLength()-offset)
                 self.Update()
             else:
-                print(text, file=self.stdout)
+                if self.stdout:
+                    print(text, file=self.stdout)
                 #for line in traceback.format_stack():
                 #    print(line.strip(), file=self.stdout)
         except:
-            print(text, file=self.stdout)
+            if self.stdout:
+                print(text, file=self.stdout)
             traceback.print_exc(file=self.stdout)
 
     def writeErr(self, text):
