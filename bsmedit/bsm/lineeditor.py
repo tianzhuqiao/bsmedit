@@ -9,21 +9,21 @@ class LineEditor():
     ID_ROUND_Y = wx.NewId()
     ID_EXPORT_TO_TERM = wx.NewId()
     ID_LINES = []
-    def __init__(self, ax, lines=None):
-        self.ax = ax
+    def __init__(self, figure, lines=None):
+        self.figure = figure
         if lines is None:
-            self.lines = self.ax.lines
+            self.lines = self.figure.gca().lines
         else:
             self.lines = lines
         self.lines = self.lines[:]
 
         # marker
         # set larger zorder, so always on top
-        self.marker = self.ax.plot([0], [0], marker="o", color="red", zorder=10)[0]
+        self.marker = self.figure.gca().plot([0], [0], marker="o", color="red", zorder=10)[0]
 
         # cross hair
-        self.horizontal_line = self.ax.axhline(color='g', lw=0.8, ls='--', zorder=10)
-        self.vertical_line = self.ax.axvline(color='g', lw=0.8, ls='--', zorder=10)
+        self.horizontal_line = self.figure.gca().axhline(color='g', lw=0.8, ls='--', zorder=10)
+        self.vertical_line = self.figure.gca().axvline(color='g', lw=0.8, ls='--', zorder=10)
 
         self.draggable = False
         self.marker.set_visible(self.draggable)
@@ -56,19 +56,19 @@ class LineEditor():
         self.marker.set_visible(self.draggable)
         self.prev_pos = [event.xdata, event.ydata]
 
-        self.ax.figure.canvas.draw_idle()
+        self.figure.canvas.draw_idle()
 
     def mouse_move(self, event):
         if not event.inaxes:
             need_redraw = self.set_cross_hair_visible(False)
             if need_redraw:
-                self.ax.figure.canvas.draw_idle()
+                self.figure.canvas.draw_idle()
             return
 
         mx, my = event.xdata, event.ydata
-        #self.set_cross_hair_visible(True)
-        #self.horizontal_line.set_ydata(my)
-        #self.vertical_line.set_xdata(mx)
+        self.set_cross_hair_visible(True)
+        self.horizontal_line.set_ydata(my)
+        self.vertical_line.set_xdata(mx)
 
         if self.draggable:
             if self.round_y_to is not None:
@@ -101,7 +101,7 @@ class LineEditor():
                 y[self.index] = my
             self.marker.set_data([x[self.index]], [y[self.index]])
             line.set_data(x, y)
-        self.ax.figure.canvas.draw_idle()
+        self.figure.canvas.draw_idle()
 
     def mouse_released(self, event):
         self.draggable = False
@@ -112,9 +112,9 @@ class LineEditor():
         # for example, if the figure is square (width == height), but
         # x range is [0, 100], and y range is [0, 0.1], the physical distance
         # in y axis will be `ignored` as x is 1000 times larger than y.
-        xlim = self.ax.get_xlim()
-        ylim = self.ax.get_ylim()
-        box = self.ax.get_window_extent()
+        xlim = self.figure.gca().get_xlim()
+        ylim = self.figure.gca().get_ylim()
+        box = self.figure.gca().get_window_extent()
         if xlim[1] - xlim[0] == 0 or ylim[1] - ylim[0] == 0:
             return 1, 1
         gx = box.width / (xlim[1] - xlim[0])
@@ -123,12 +123,11 @@ class LineEditor():
 
     def update(self, event):
         # ignore the first 3 lines (marker + 2 cross hair)
-        self.lines = self.ax.lines[3:]
+        self.lines = self.figure.gca().lines[3:]
         if self.active_line_index is None:
             min_dis = float("inf")
             index = -1
             gx, gy = self.get_xy_dis_gain()
-            print(gx, gy)
             for i, line in enumerate(self.lines):
                 if not line.get_visible():
                     continue
@@ -166,7 +165,7 @@ class LineEditor():
         if event.key == 'escape':
             self.active_line_index = None
             self.marker.set_visible(False)
-            self.ax.figure.canvas.draw_idle()
+            self.figure.canvas.draw_idle()
 
     def activated(self):
         pass
@@ -186,7 +185,7 @@ class LineEditor():
                [],
               ]
 
-        self.lines = self.ax.lines[3:]
+        self.lines = self.figure.gca().lines[3:]
         for i, line in enumerate(self.lines):
             while i>= len(self.ID_LINES):
                 self.ID_LINES.append(wx.NewId())

@@ -142,7 +142,6 @@ class DataCursor(object):
         if self.pickEvent:
             self.pickEvent = False
             return False
-        print('press')
         # just created the new annotation, do not move to others
         if self.active and (not self.active.get_visible()):
             return False
@@ -250,7 +249,7 @@ class Toolbar(NavigationToolbar):
         self.SetWindowStyle(wx.TB_HORIZONTAL | wx.TB_FLAT)
         self.figure = figure
         self.datacursor = DataCursor()
-        self.lineeditor = LineEditor(self.figure.gca())
+        self.lineeditor = LineEditor(self.figure)
 
         self.actions = {'datatip': self.datacursor,
                         'edit': self.lineeditor}
