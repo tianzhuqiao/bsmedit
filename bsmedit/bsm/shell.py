@@ -227,6 +227,9 @@ class Shell(pyshell.Shell):
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_UNDO)
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
 
+        self.Bind(wx.EVT_UPDATE_UI, lambda evt: evt.Enable(True), id=self.ID_CLEAR)
+        self.Bind(wx.EVT_MENU, lambda evt: self.clear(), id=self.ID_CLEAR)
+
         # find dialog
         eid = wx.NewId()
         self.Bind(wx.EVT_MENU, self.OnShowFindReplace, id=eid)
@@ -236,6 +239,10 @@ class Shell(pyshell.Shell):
         self.findStr = ""
         self.findFlags = 1
         self.stcFindFlags = 0
+
+    def clear(self):
+        super().clear()
+        self.prompt()
 
     def OnShowFindReplace(self, event):
         """Find and Replace dialog and action."""
