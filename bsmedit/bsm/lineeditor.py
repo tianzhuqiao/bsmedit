@@ -24,6 +24,7 @@ class LineEditor():
         # cross hair
         self.horizontal_line = self.figure.gca().axhline(color='g', lw=0.8, ls='--', zorder=10)
         self.vertical_line = self.figure.gca().axvline(color='g', lw=0.8, ls='--', zorder=10)
+        self.show_cross_hair = False
 
         self.draggable = False
         self.marker.set_visible(self.draggable)
@@ -66,7 +67,7 @@ class LineEditor():
             return
 
         mx, my = event.xdata, event.ydata
-        self.set_cross_hair_visible(True)
+        self.set_cross_hair_visible(self.show_cross_hair)
         self.horizontal_line.set_ydata(my)
         self.vertical_line.set_xdata(mx)
 
@@ -208,12 +209,12 @@ class LineEditor():
             x, y = self.lines[self.active_line_index].get_data()
             np.save('_lineeditor.npy', (x, y))
             dp.send('shell.run',
-                    command=f'le_data = np.load("_lineeditor.npy", allow_pickle=True)',
+                    command='le_data = np.load("_lineeditor.npy", allow_pickle=True)',
                     prompt=False,
                     verbose=False,
                     history=False)
             dp.send('shell.run',
-                    command=f'le_data',
+                    command='le_data',
                     prompt=True,
                     verbose=True,
                     history=False)
