@@ -181,16 +181,16 @@ class DataCursor(object):
     def create_annotation(self, line):
         """create the annotation and set it active"""
         ant = line.axes.annotate(self.text_template,
-                          xy=(0, 0),
-                          xytext=(self.xoffset, self.yoffset),
-                          textcoords='offset points',
-                          ha='right',
-                          va='bottom',
-                          bbox=dict(boxstyle='round,pad=0.5',
-                                    fc='yellow',
-                                    alpha=0.5),
-                          arrowprops=dict(arrowstyle='->',
-                                          connectionstyle='arc3,rad=0'))
+                                 xy=(0, 0),
+                                 xytext=(self.xoffset, self.yoffset),
+                                 textcoords='offset points',
+                                 ha='right',
+                                 va='bottom',
+                                 bbox=dict(boxstyle='round,pad=0.5',
+                                           fc='yellow',
+                                           alpha=0.5),
+                                 arrowprops=dict(arrowstyle='->',
+                                                 connectionstyle='arc3,rad=0'))
         ant.set_visible(False)
         self.annotations.append(ant)
         self.lines.append(line)
@@ -199,7 +199,7 @@ class DataCursor(object):
     def GetMenu(self):
         cmd = [[self.ID_DELETE_DATATIP, 'Delete current datatip',
                 self.active is not None and self.active.get_visible()],
-               [self.ID_CLEAR_DATATIP, 'Delete all datatip', len(self.annotations)>0]
+               [self.ID_CLEAR_DATATIP, 'Delete all datatip', len(self.annotations) > 0]
               ]
         return cmd
 
@@ -638,7 +638,7 @@ class MatplotPanel(wx.Panel):
         menu = self._create_context_menu(menus)
 
         mid = PopupMenu(self, menu)
-        if mid > 0 :
+        if mid > 0:
             self.toolbar.ProcessCommand(mid)
         menu.Destroy()
 

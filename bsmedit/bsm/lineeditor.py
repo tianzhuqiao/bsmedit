@@ -190,7 +190,7 @@ class LineEditor():
         lines.append([self.ID_EXPORT_TO_TERM, 'Export active line to shell ...', self.active_line_index != None])
         lines.append([])
         for i, line in enumerate(self.lines):
-            while i>= len(self.ID_LINES):
+            while i >= len(self.ID_LINES):
                 self.ID_LINES.append(wx.NewId())
             lines.append([self.ID_LINES[i], line.get_label(), True, self.active_line_index == i])
         if lines:
