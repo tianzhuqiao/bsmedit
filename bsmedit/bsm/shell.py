@@ -227,6 +227,13 @@ class Shell(pyshell.Shell):
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_UNDO)
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
 
+        self.CmdKeyAssign(ord('E'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_LINEEND)
+        self.CmdKeyAssign(ord('A'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_VCHOME)
+        if wx.Platform == '__WXMAC__':
+            # ctrl+E/A on macOS
+            self.CmdKeyAssign(ord('E'), wx.stc.STC_SCMOD_META, wx.stc.STC_CMD_LINEEND)
+            self.CmdKeyAssign(ord('A'), wx.stc.STC_SCMOD_META, wx.stc.STC_CMD_VCHOME)
+
         self.Bind(wx.EVT_UPDATE_UI, lambda evt: evt.Enable(True), id=self.ID_CLEAR)
         self.Bind(wx.EVT_MENU, lambda evt: self.clear(), id=self.ID_CLEAR)
 
