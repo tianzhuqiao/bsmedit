@@ -64,15 +64,16 @@ class DirTreeCtrl(wx.TreeCtrl):
         self.iconentries['default'] = -1
         self.iconentries['directory'] = -1
         self.iconentries['directoryopen'] = -1
-        self.addBitmap(
-            wx.ArtProvider.GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, (16, 16)),
-            'directory')
-        self.addBitmap(
-            wx.ArtProvider.GetBitmap(wx.ART_FOLDER_OPEN, wx.ART_OTHER,
-                                     (16, 16)), 'directoryopen')
-        self.addBitmap(
-            wx.ArtProvider.GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER,
-                                     (16, 16)), 'default')
+        scale = self.GetContentScaleFactor()
+        bmp = wx.ArtProvider.GetBitmap(wx.ART_FOLDER, wx.ART_OTHER, (16*scale, 16*scale))
+        bmp.SetScaleFactor(scale)
+        self.addBitmap(bmp, 'directory')
+        bmp = wx.ArtProvider.GetBitmap(wx.ART_FOLDER_OPEN, wx.ART_OTHER, (16*scale, 16*scale))
+        bmp.SetScaleFactor(scale)
+        self.addBitmap(bmp, 'directoryopen')
+        bmp = wx.ArtProvider.GetBitmap(wx.ART_NORMAL_FILE, wx.ART_OTHER, (16*scale, 16*scale))
+        bmp.SetScaleFactor(scale)
+        self.addBitmap(bmp, 'default')
         self.SetImageList(self.imagelist)
         # # you should replace this with your own code or put the relevant
         # # images in the correct path # set directory image
