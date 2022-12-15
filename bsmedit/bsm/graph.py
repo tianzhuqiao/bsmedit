@@ -22,6 +22,25 @@ rcParams.update({'toolbar': 'None'})
 matplotlib.interactive(True)
 
 
+class Pan():
+    def __init__(self, figure):
+        self.figure = figure
+
+    def key_down(self, event):
+        keycode = event.GetKeyCode()
+        xlims = numpy.array(self.figure.gca().get_xlim())
+        rng = xlims[1] - xlims[0]
+        if keycode == wx.WXK_LEFT:
+            xlims -= rng
+        elif keycode == wx.WXK_RIGHT:
+            xlims += rng
+        else:
+            event.Skip()
+        self.figure.gca().set_xlim(xlims)
+        # rescale y to show data
+        self.figure.gca().autoscale(axis='y')
+        self.figure.canvas.draw_idle()
+
 class DataCursor(object):
     xoffset, yoffset = -20, 20
     text_template = 'x: %0.2f\ny: %0.2f'
@@ -203,6 +222,19 @@ class DataCursor(object):
               ]
         return cmd
 
+    def key_down(self, event):
+        keycode = event.GetKeyCode()
+        return
+        step = 1
+        if event.ShiftDown():
+            step = 10
+        if keycode == wx.WXK_LEFT:
+            self.keyboard_move(True, step=step)
+        elif keycode == wx.WXK_RIGHT:
+            self.keyboard_move(False, step=step)
+        else:
+            event.Skip()
+
     def ProcessCommand(self, cmd):
         """process the context menu command"""
         if cmd == self.ID_DELETE_DATATIP:
@@ -250,9 +282,11 @@ class Toolbar(NavigationToolbar):
         self.figure = figure
         self.datacursor = DataCursor()
         self.lineeditor = LineEditor(self.figure)
+        self.pan_action = Pan(self.figure)
 
         self.actions = {'datatip': self.datacursor,
-                        'edit': self.lineeditor}
+                        'edit': self.lineeditor,
+                        'pan/zoom': self.pan_action}
 
         self.canvas.mpl_connect('pick_event', self.OnPick)
         self.canvas.mpl_connect('motion_notify_event', self.OnMove)
@@ -268,6 +302,12 @@ class Toolbar(NavigationToolbar):
         if action is None or not hasattr(action, 'GetMenu'):
             return []
         return action.GetMenu()
+
+    def key_down(self, event):
+        action = self.actions.get(self.mode, None)
+        if action is None or not hasattr(action, 'key_down'):
+            return
+        action.key_down(event)
 
     def ProcessCommand(self, cmd):
         action = self.actions.get(self.mode, None)
@@ -465,7 +505,8 @@ class Toolbar(NavigationToolbar):
         super().back(*args)
 
     def back(self, *args):
-        if self.mode == 'datatip':
+        action = self.actions.get(self.mode, None)
+        if action is not None:
             return
         super().back(*args)
 
@@ -473,7 +514,8 @@ class Toolbar(NavigationToolbar):
         super().forward(*args)
 
     def forward(self, *args):
-        if self.mode == 'datatip':
+        action = self.actions.get(self.mode, None)
+        if action is not None:
             return
         super().forward(*args)
 
@@ -595,18 +637,7 @@ class MatplotPanel(wx.Panel):
             self.toolbar.home()
 
     def OnKeyDown(self, evt):
-        if self.toolbar.mode != 'datatip':
-            return
-        keycode = evt.GetKeyCode()
-        step = 1
-        if evt.ShiftDown():
-            step = 10
-        if keycode == wx.WXK_LEFT:
-            self.toolbar.datacursor.keyboard_move(True, step=step)
-        elif keycode == wx.WXK_RIGHT:
-            self.toolbar.datacursor.keyboard_move(False, step=step)
-        else:
-            evt.Skip()
+        self.toolbar.key_down(evt)
 
     def OnProcessCommand(self, evt):
         if self.toolbar.datacursor.ProcessCommand(evt.GetId()):
