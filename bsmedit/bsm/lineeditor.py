@@ -1,8 +1,9 @@
 import wx
 import wx.py.dispatcher as dp
 import numpy as np
+from .graph_common import GraphObject
 
-class LineEditor():
+class LineEditor(GraphObject):
     ID_XY_MODE = wx.NewId()
     ID_X_MODE = wx.NewId()
     ID_Y_MODE = wx.NewId()
@@ -10,7 +11,8 @@ class LineEditor():
     ID_EXPORT_TO_TERM = wx.NewId()
     ID_LINES = []
     def __init__(self, figure, lines=None):
-        self.figure = figure
+        super().__init__(figure)
+
         if lines is None:
             self.lines = self.figure.gca().lines
         else:
@@ -23,7 +25,9 @@ class LineEditor():
 
         # cross hair
         self.horizontal_line = self.figure.gca().axhline(color='g', lw=0.8, ls='--', zorder=10)
+        self.horizontal_line.set_picker(False)
         self.vertical_line = self.figure.gca().axvline(color='g', lw=0.8, ls='--', zorder=10)
+        self.vertical_line.set_picker(False)
         self.show_cross_hair = False
 
         self.draggable = False
@@ -106,21 +110,6 @@ class LineEditor():
 
     def mouse_released(self, event):
         self.draggable = False
-
-    def get_xy_dis_gain(self):
-        # the gain applied to x/y when calculate the distance between to point
-        # e.g., a data point to the mouse position
-        # for example, if the figure is square (width == height), but
-        # x range is [0, 100], and y range is [0, 0.1], the physical distance
-        # in y axis will be `ignored` as x is 1000 times larger than y.
-        xlim = self.figure.gca().get_xlim()
-        ylim = self.figure.gca().get_ylim()
-        box = self.figure.gca().get_window_extent()
-        if xlim[1] - xlim[0] == 0 or ylim[1] - ylim[0] == 0:
-            return 1, 1
-        gx = box.width / (xlim[1] - xlim[0])
-        gy = box.height / (ylim[1] - ylim[0])
-        return gx, gy
 
     def update(self, event):
         # ignore the first 3 lines (marker + 2 cross hair)

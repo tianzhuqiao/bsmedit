@@ -12,6 +12,7 @@ from matplotlib.backends.backend_wx import FigureManagerWx
 from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .utility import PopupMenu
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
@@ -22,9 +23,9 @@ rcParams.update({'toolbar': 'None'})
 matplotlib.interactive(True)
 
 
-class Pan():
+class Pan(GraphObject):
     def __init__(self, figure):
-        self.figure = figure
+        super().__init__(figure)
 
     def key_down(self, event):
         keycode = event.GetKeyCode()
@@ -41,13 +42,14 @@ class Pan():
         self.figure.gca().autoscale(axis='y')
         self.figure.canvas.draw_idle()
 
-class DataCursor(object):
+class DataCursor(GraphObject):
     xoffset, yoffset = -20, 20
     text_template = 'x: %0.2f\ny: %0.2f'
 
     ID_DELETE_DATATIP = wx.NewId()
     ID_CLEAR_DATATIP = wx.NewId()
-    def __init__(self):
+    def __init__(self, figure):
+        super().__init__(figure)
         self.annotations = []
         self.lines = []
         self.enable = False
@@ -82,7 +84,8 @@ class DataCursor(object):
         # find the closest point on the line
         x, y = line.get_xdata(), line.get_ydata()
         xc, yc = event.mouseevent.xdata, event.mouseevent.ydata
-        idx = (numpy.square(x - xc) + numpy.square(y - yc)).argmin()
+        gx, gy = self.get_xy_dis_gain()
+        idx = (numpy.square(x - xc) * gx**2 + numpy.square(y - yc) * gy**2).argmin()
         xn, yn = x[idx], y[idx]
         if xn is not None:
             self.active.xy = xn, yn
@@ -280,7 +283,7 @@ class Toolbar(NavigationToolbar):
             self.init_toolbar()
         self.SetWindowStyle(wx.TB_HORIZONTAL | wx.TB_FLAT)
         self.figure = figure
-        self.datacursor = DataCursor()
+        self.datacursor = DataCursor(self.figure)
         self.lineeditor = LineEditor(self.figure)
         self.pan_action = Pan(self.figure)
 
@@ -333,7 +336,8 @@ class Toolbar(NavigationToolbar):
             return
         # some lines may be added
         for l in self.figure.gca().lines:
-            l.set_picker(5)
+            if l.get_picker() is None:
+                l.set_picker(5)
         if action.mouse_pressed(event):
             self.canvas.draw()
 
@@ -533,7 +537,8 @@ class Toolbar(NavigationToolbar):
             a.set_navigate_mode(self._active)
 
         for l in self.figure.gca().lines:
-            l.set_picker(5)
+            if l.get_picker() is None:
+                l.set_picker(5)
         if self.mode == 'datatip':
             self.set_mode('')
         else:
@@ -557,7 +562,8 @@ class Toolbar(NavigationToolbar):
             a.set_navigate_mode(self._active)
 
         for l in self.figure.gca().lines:
-            l.set_picker(5)
+            if l.get_picker() is None:
+                l.set_picker(5)
         if self.mode == "edit":
             self.set_mode("")
         else:
