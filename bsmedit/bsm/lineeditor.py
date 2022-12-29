@@ -97,7 +97,7 @@ class LineEditor(GraphObject):
                     self.index = idx
                 elif self.index > 0 and idx > self.index:
                     # move to right
-                    y[self.index:idx] = y[self.index - 1]
+                    y[self.index:idx+1] = y[self.index - 1]
                     self.index = idx
             elif mode == 'y':
                 y[self.index] = my
