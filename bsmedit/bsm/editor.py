@@ -897,6 +897,7 @@ class PyEditorPanel(wx.Panel):
     ID_DBG_STEP = wx.NewId()
     ID_DBG_STEP_INTO = wx.NewId()
     ID_DBG_STEP_OUT = wx.NewId()
+    ID_PANE_COPY_PATH = wx.NewId()
     wildcard = 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
     frame = None
 
@@ -1514,10 +1515,27 @@ class PyEditorPanel(wx.Panel):
         if resp:
             cls.ID_EDITOR_OPEN = resp[0][1]
         dp.connect(cls.ProcessCommand, 'bsm.editor.menu')
+        dp.connect(cls.PaneMenu, 'bsm.editor.pane_menu')
         dp.connect(cls.Uninitialize, 'frame.exit')
         dp.connect(cls.OpenScript, 'frame.file_drop')
         dp.connect(cls.DebugPaused, 'debugger.paused')
         dp.connect(cls.DebugUpdateScope, 'debugger.update_scopes')
+        dp.connect(cls.SetActive, 'frame.activate_panel')
+
+    @classmethod
+    def PaneMenu(cls, pane, command):
+        if not pane or not isinstance(pane, PyEditorPanel):
+            return
+        if command == cls.ID_PANE_COPY_PATH:
+            if wx.TheClipboard.Open():
+                wx.TheClipboard.SetData(wx.TextDataObject(pane.fileName))
+                wx.TheClipboard.Close()
+
+    @classmethod
+    def SetActive(cls, pane):
+        """set the active figure"""
+        if pane and isinstance(pane, PyEditorPanel):
+            cls.Gce.set_active(pane)
 
     @classmethod
     def DebugPaused(cls):
@@ -1581,7 +1599,9 @@ class PyEditorPanel(wx.Panel):
                 panel=editor,
                 title=title,
                 active=activated,
-                direction=direction)
+                direction=direction,
+                pane_menu={'rxsignal': 'bsm.editor.pane_menu',
+                           'menu': [[cls.ID_PANE_COPY_PATH, 'Copy Path']]})
         return editor
 
     @classmethod

@@ -85,6 +85,7 @@ class FramePlus(wx.Frame):
         self._mgr.SetManagedWindow(self)
         self.menuAddon = {}
         self.paneAddon = {}
+        self.paneMenu = {}
         self._pane_num = 0
         dp.connect(self.AddMenu, 'frame.add_menu')
         dp.connect(self.DeleteMenu, 'frame.delete_menu')
@@ -268,7 +269,9 @@ class FramePlus(wx.Frame):
                  icon=None,
                  maximize=False,
                  direction='top',
-                 minsize=None):
+                 minsize=None,
+                 pane_menu=None,
+                 ):
         """add the panel to AUI"""
         if not panel:
             return False
@@ -346,6 +349,8 @@ class FramePlus(wx.Frame):
                                autocreate=True)
             if mid != wx.NOT_FOUND:
                 self.paneAddon[mid] = {'panel': panel, 'path': showhidemenu}
+        if pane_menu is not None:
+            self.paneMenu[panel] = pane_menu
         return True
 
     def DeletePanel(self, panel):
@@ -356,6 +361,9 @@ class FramePlus(wx.Frame):
                 self.DeleteMenu(pane['path'], pid)
                 del self.paneAddon[pid]
                 break
+
+        # delete the pane menu
+        self.paneMenu.pop(panel, None)
 
         # delete the panel from the manager
         pane = self._mgr.GetPane(panel)

@@ -28,9 +28,9 @@ class FileDropTarget(wx.FileDropTarget):
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
     TBMENU_RESTORE = wx.NewId()
-    TBMENU_CLOSE   = wx.NewId()
-    TBMENU_CHANGE  = wx.NewId()
-    TBMENU_REMOVE  = wx.NewId()
+    TBMENU_CLOSE = wx.NewId()
+    TBMENU_CHANGE = wx.NewId()
+    TBMENU_REMOVE = wx.NewId()
 
     def __init__(self, frame, icon):
         wx.adv.TaskBarIcon.__init__(self, iconType=wx.adv.TBI_DOCK)
@@ -55,7 +55,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         """
         menu = wx.Menu()
         menu.Append(self.TBMENU_RESTORE, "Restore bsmedit")
-        menu.Append(self.TBMENU_CLOSE,   "Close bsmedit")
+        menu.Append(self.TBMENU_CLOSE, "Close bsmedit")
         return menu
 
 
@@ -69,7 +69,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
         elif "wxGTK" in wx.PlatformInfo:
             img = img.Scale(22, 22)
         # wxMac can be any size upto 128x128, so leave the source img alone....
-        icon = wx.Icon(img.ConvertToBitmap() )
+        icon = wx.Icon(img.ConvertToBitmap())
         return icon
 
 
@@ -296,11 +296,14 @@ class MainFrame(FramePlus):
     def RenamePanel(self, panel):
         if not panel:
             return
-
         menu = wx.Menu()
         menu.Append(self.ID_VM_RENAME, "&Rename")
+        pane_menu = None
+        if panel in self.paneMenu:
+            pane_menu = self.paneMenu[panel]
+            for m in pane_menu['menu']:
+                menu.Append(m[0], m[1])
         command = PopupMenu(self, menu)
-
         if command == self.ID_VM_RENAME:
             pane = self._mgr.GetPane(panel)
             if not pane:
@@ -311,6 +314,11 @@ class MainFrame(FramePlus):
             # when user click 'cancel', name will be empty, ignore it.
             if name and name != pane.caption:
                 self.SetPanelTitle(pane.window, name)
+        elif command != 0 and pane_menu is not None:
+            for m in pane_menu['menu']:
+                if command == m[0]:
+                    dp.send(signal=pane_menu['rxsignal'], command=command, pane=panel)
+                    break
 
     def UpdatePaneMenuLabel(self):
         # update the menu
