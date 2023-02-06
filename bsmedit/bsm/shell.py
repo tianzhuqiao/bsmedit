@@ -239,8 +239,11 @@ class Shell(pyshell.Shell):
 
         # find dialog
         eid = wx.NewId()
+        eid_ctl_c = wx.NewId()
         self.Bind(wx.EVT_MENU, self.OnShowFindReplace, id=eid)
-        accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL, ord('F'), eid)])
+        self.Bind(wx.EVT_MENU, self.OnCtrlC, id=eid_ctl_c)
+        accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL, ord('F'), eid),
+                                         (wx.ACCEL_RAW_CTRL, ord('C'), eid_ctl_c)])
         self.SetAcceleratorTable(accel_tbl)
         self.findDialog = None
         self.findStr = ""
@@ -250,6 +253,14 @@ class Shell(pyshell.Shell):
     def clear(self):
         super().clear()
         self.prompt()
+
+    def OnCtrlC(self, event):
+        if self.CanCopy():
+            self.Copy()
+        else:
+            endpos = self.GetTextLength()
+            self.GotoPos(endpos)
+            self.push('', history=False)
 
     def OnShowFindReplace(self, event):
         """Find and Replace dialog and action."""
