@@ -29,6 +29,7 @@
 
 import os
 import traceback
+import fnmatch
 import wx
 
 
@@ -111,7 +112,7 @@ class DirTreeCtrl(wx.TreeCtrl):
         if isinstance(selection, bool):
             self.DELETEONCOLLAPSE = selection
 
-    def SetRootDir(self, directory):
+    def SetRootDir(self, directory, pattern=None):
         """Sets the root directory for the tree. Throws an exception
         if the directory is invalid.
         @param directory: directory to load
@@ -133,9 +134,9 @@ class DirTreeCtrl(wx.TreeCtrl):
                           wx.TreeItemIcon_Expanded)
         #self.Expand(root)
         # load items
-        self._loadDir(root, directory)
+        self._loadDir(root, directory, pattern=pattern)
 
-    def _loadDir(self, item, directory):
+    def _loadDir(self, item, directory, pattern=None):
         """Private function that gets called to load the file list
         for the given directory and append the items to the tree.
         Throws an exception if the directory is invalid.
@@ -159,6 +160,9 @@ class DirTreeCtrl(wx.TreeCtrl):
                     folders_all.append(f)
                 else:
                     files_all.append(f)
+            if pattern:
+                files_all = fnmatch.filter(files_all, pattern)
+
             folders_all.sort(key=lambda y: y.lower())
             files_all.sort(key=lambda y: y.lower())
             for f in folders_all:

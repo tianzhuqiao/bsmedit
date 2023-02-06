@@ -3,6 +3,7 @@ import os
 import time
 import traceback
 import sys
+import re
 import six
 import wx
 import wx.lib.agw.aui as aui
@@ -175,9 +176,20 @@ class HistoryPanel(wx.Panel):
                                      getchildren=self.get_children,
                                      style=style,
                                      sort=False)
+
+        agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
+        self.tb = aui.AuiToolBar(self)
+        self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
+        self.search.SetHint('command pattern (*)')
+        item = self.tb.AddControl(self.search)
+        item.SetProportion(1)
+        self.tb.SetMargins(right=15)
+        self.tb.Realize()
+
         self.history = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 0)
+        sizer.Add(self.tb, 0, wx.ALL | wx.EXPAND, 0)
         self.SetSizer(sizer)
         dp.connect(receiver=self.AddHistory, signal='Shell.addHistory')
         self.root = self.tree.AddRoot('The Root Item')
@@ -188,6 +200,7 @@ class HistoryPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_EXECUTE)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_DELETE)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CLEAR)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
 
         accel = [
             (wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
@@ -198,6 +211,16 @@ class HistoryPanel(wx.Panel):
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
         self.LoadHistory()
+
+    def completer(self, query):
+        response = dp.send(signal='shell.auto_complete_list', command=query)
+        if response:
+            root = query[0:query.rfind('.') + 1]
+            remain = query[query.rfind('.') + 1:]
+            remain = remain.lower()
+            objs = [o for o in response[0][1] if o.lower().startswith(remain)]
+            return objs, objs, len(query) - len(root)
+        return [], [], 0
 
     def Destroy(self):
         dp.disconnect(receiver=self.AddHistory, signal='Shell.addHistory')
@@ -231,11 +254,21 @@ class HistoryPanel(wx.Panel):
             children.append(child)
         return children
 
+    def filterHistory(self, history):
+        pattern = self.search.GetValue()
+        if not pattern:
+            return history
+
+        pattern = re.compile(pattern)
+        return [h for h in history if h.startswith(self.TIME_STAMP_HEADER) or pattern.search(h) is not None]
+
     def LoadHistory(self):
         resp = dp.send('frame.get_config', group='shell', key='history')
         history = []
         if resp and resp[0][1]:
             history = resp[0][1]
+
+        history = self.filterHistory(history)
 
         stamp = time.strftime('#%Y/%m/%d')
         for i in six.moves.range(len(history) - 1, -1, -1):
@@ -245,7 +278,7 @@ class HistoryPanel(wx.Panel):
                 self.history[stamp] = self.history.get(stamp, [])
             elif self.history.get(stamp, None) is not None:
                 self.history[stamp].append(value)
-
+        self.tree.DeleteChildren(self.root)
         self.tree.FillChildren(self.root)
         item, cookie = self.tree.GetFirstChild(self.root)
         if item.IsOk():
@@ -288,6 +321,10 @@ class HistoryPanel(wx.Panel):
             return
         if not stamp:
             stamp = time.strftime('#%Y/%m/%d')
+
+        if not self.filterHistory([command]):
+            # not match the pattern
+            return
 
         # search the time stamp
         pos = 0
@@ -357,6 +394,8 @@ class HistoryPanel(wx.Panel):
         elif evtId == wx.ID_CLEAR:
             self.tree.DeleteAllItems()
 
+    def OnDoSearch(self, evt):
+        self.LoadHistory()
 
 class DirPanel(wx.Panel):
 
@@ -378,10 +417,21 @@ class DirPanel(wx.Panel):
                                    | wx.TR_HAS_VARIABLE_ROW_HEIGHT
                                    | wx.TR_HIDE_ROOT)
         self.dirtree.SetRootDir(os.getcwd())
+
+        agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
+        self.tb2 = aui.AuiToolBar(self)
+        self.search = AutocompleteTextCtrl(self.tb2)
+        self.search.SetHint('pattern (*.*)')
+        item = self.tb2.AddControl(self.search)
+        item.SetProportion(1)
+        self.tb2.SetMargins(right=15)
+        self.tb2.Realize()
+
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 0)
         #self.box.Add(wx.StaticLine(self), 0, wx.EXPAND)
         self.box.Add(self.dirtree, 1, wx.EXPAND)
+        self.box.Add(self.tb2, 0, wx.EXPAND)
 
         self.box.Fit(self)
         self.SetSizer(self.box)
@@ -391,6 +441,8 @@ class DirPanel(wx.Panel):
 
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnItemActivated,
                   self.dirtree)
+
+        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
 
     def OnItemActivated(self, event):
         currentItem = event.GetItem()
@@ -402,7 +454,7 @@ class DirPanel(wx.Panel):
         else:
             return
         if self.dirtree.ItemHasChildren(currentItem):
-            self.dirtree.SetRootDir(filepath)
+            self.dirtree.SetRootDir(filepath, pattern=self.search.GetValue())
             return
         (_, ext) = os.path.splitext(filename)
         if ext == '.py':
@@ -418,7 +470,7 @@ class DirPanel(wx.Panel):
         if isinstance(d, Directory):
             if d.directory == os.getcwd():
                 return
-        self.dirtree.SetRootDir(os.getcwd())
+        self.dirtree.SetRootDir(os.getcwd(), pattern=self.search.GetValue())
 
     def OnGotoParent(self, event):
         root = self.dirtree.GetRootItem()
@@ -429,8 +481,10 @@ class DirPanel(wx.Panel):
             path = os.path.abspath(os.path.join(d.directory, os.path.pardir))
             if path == d.directory:
                 return
-            self.dirtree.SetRootDir(path)
+            self.dirtree.SetRootDir(path, pattern=self.search.GetValue())
 
+    def OnDoSearch(self, evt):
+        self.dirtree.SetRootDir(os.getcwd(), pattern=self.search.GetValue())
 
 class MiscTools(object):
     frame = None
