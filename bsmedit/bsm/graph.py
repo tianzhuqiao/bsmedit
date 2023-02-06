@@ -227,7 +227,6 @@ class DataCursor(GraphObject):
 
     def key_down(self, event):
         keycode = event.GetKeyCode()
-        return
         step = 1
         if event.ShiftDown():
             step = 10
