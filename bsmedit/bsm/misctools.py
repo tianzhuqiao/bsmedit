@@ -76,6 +76,20 @@ class HelpPanel(wx.Panel):
         accel = [(wx.ACCEL_CTRL, ord('F'), wx.ID_FIND)]
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
+        self.LoadConfig()
+        command = self.search.GetValue()
+        if command:
+            self.show_help(command)
+
+    def LoadConfig(self):
+        resp = dp.send('frame.get_config', group='helppanel', key='search')
+        if resp and resp[0][1] is not None:
+            # use ChangeValue, instead of SetValue, otherwise a suggestion
+            # window may popup
+            self.search.ChangeValue(resp[0][1])
+
+    def SaveConfig(self):
+        dp.send('frame.set_config', group='helppanel', search=self.search.GetValue())
 
     def OnShowFind(self, evt):
         self.html.Find("")
@@ -127,6 +141,7 @@ class HelpPanel(wx.Panel):
             traceback.print_exc(file=sys.stdout)
 
     def OnDoSearch(self, evt):
+        self.SaveConfig()
         command = self.search.GetValue()
         self.show_help(command)
 
@@ -212,7 +227,16 @@ class HistoryPanel(wx.Panel):
         ]
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
+        self.LoadConfig()
         self.LoadHistory()
+
+    def LoadConfig(self):
+        resp = dp.send('frame.get_config', group='historypanel', key='file_pattern')
+        if resp and resp[0][1] is not None:
+            self.search.SetValue(resp[0][1])
+
+    def SaveConfig(self):
+        dp.send('frame.set_config', group='historypanel', file_pattern=self.search.GetValue())
 
     def completer(self, query):
         response = dp.send(signal='shell.auto_complete_list', command=query)
@@ -397,6 +421,7 @@ class HistoryPanel(wx.Panel):
             self.tree.DeleteAllItems()
 
     def OnDoSearch(self, evt):
+        self.SaveConfig()
         self.LoadHistory()
 
 class DirPanel(wx.Panel):
@@ -448,6 +473,7 @@ class DirPanel(wx.Panel):
         self.box.Fit(self)
         self.SetSizer(self.box)
 
+        self.LoadConfig()
         self.SetRootDir(os.getcwd())
 
         self.Bind(wx.EVT_TOOL, self.OnGotoHome, id=self.ID_GOTO_HOME)
@@ -474,6 +500,19 @@ class DirPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_PASTE_FOLDER)
 
         self.active_items = []
+
+    def LoadConfig(self):
+        resp = dp.send('frame.get_config', group='dirpanel', key='show_hidden')
+        if resp and resp[0][1] is not None:
+            self.cbShowHidden.SetValue(resp[0][1]=='True')
+        resp = dp.send('frame.get_config', group='dirpanel', key='file_pattern')
+        if resp and resp[0][1] is not None:
+            self.search.SetValue(resp[0][1])
+
+    def SaveConfig(self):
+        dp.send('frame.set_config', group='dirpanel', show_hidden=self.cbShowHidden.IsChecked())
+        dp.send('frame.set_config', group='dirpanel', file_pattern=self.search.GetValue())
+
     def get_file_path(self, item):
         if item == self.dirtree.GetRootItem():
             d = self.dirtree.GetItemData(item)
@@ -539,7 +578,8 @@ class DirPanel(wx.Panel):
             self.SetRootDir(path)
 
     def OnDoSearch(self, evt):
-        self.SetRootDir(os.getcwd())
+        self.SaveConfig()
+        self.SetRootDir()
 
     def OnRightClick(self, event):
         self.active_items = [self.dirtree.GetRootItem()]
@@ -702,6 +742,7 @@ class DirPanel(wx.Panel):
         self.dirtree.SetRootDir(root_dir, pattern=pattern, show_hidden=show_hidden)
 
     def OnShowHidden(self, event):
+        self.SaveConfig()
         self.SetRootDir()
 
 class MiscTools(object):
