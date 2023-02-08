@@ -300,6 +300,7 @@ class MainFrame(FramePlus):
         menu.Append(self.ID_VM_RENAME, "&Rename")
         pane_menu = None
         if panel in self.paneMenu:
+            menu.AppendSeparator()
             pane_menu = self.paneMenu[panel]
             for m in pane_menu['menu']:
                 menu.Append(m[0], m[1])

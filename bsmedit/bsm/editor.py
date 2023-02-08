@@ -898,6 +898,7 @@ class PyEditorPanel(wx.Panel):
     ID_DBG_STEP_INTO = wx.NewId()
     ID_DBG_STEP_OUT = wx.NewId()
     ID_PANE_COPY_PATH = wx.NewId()
+    ID_PANE_COPY_PATH_REL = wx.NewId()
     wildcard = 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
     frame = None
 
@@ -1526,9 +1527,12 @@ class PyEditorPanel(wx.Panel):
     def PaneMenu(cls, pane, command):
         if not pane or not isinstance(pane, PyEditorPanel):
             return
-        if command == cls.ID_PANE_COPY_PATH:
+        if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
             if wx.TheClipboard.Open():
-                wx.TheClipboard.SetData(wx.TextDataObject(pane.fileName))
+                filepath = pane.fileName
+                if command == cls.ID_PANE_COPY_PATH_REL:
+                    filepath = os.path.relpath(filepath, os.getcwd())
+                wx.TheClipboard.SetData(wx.TextDataObject(filepath))
                 wx.TheClipboard.Close()
 
     @classmethod
@@ -1601,7 +1605,8 @@ class PyEditorPanel(wx.Panel):
                 active=activated,
                 direction=direction,
                 pane_menu={'rxsignal': 'bsm.editor.pane_menu',
-                           'menu': [[cls.ID_PANE_COPY_PATH, 'Copy Path']]})
+                           'menu': [[cls.ID_PANE_COPY_PATH, 'Copy Path'],
+                                    [cls.ID_PANE_COPY_PATH_REL, 'Copy Relative Path']]})
         return editor
 
     @classmethod
