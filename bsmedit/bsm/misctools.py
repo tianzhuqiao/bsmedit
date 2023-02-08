@@ -4,16 +4,18 @@ import time
 import traceback
 import sys
 import re
+import shutil
 import six
 import wx
-import wx.lib.agw.aui as aui
+from  wx.lib.agw import aui
 import wx.py.dispatcher as dp
 import wx.html2 as html
 import wx.svg
 from .dirtreectrl import DirTreeCtrl, Directory
 from .bsmxpm import backward_svg, forward_svg, goup_xpm, home_xpm
 from .autocomplete import AutocompleteTextCtrl
-from .utility import FastLoadTreeCtrl, svg_to_bitmap
+from .utility import FastLoadTreeCtrl, svg_to_bitmap, open_file_with_default_app, \
+                     show_file_in_finder
 
 from .. import to_byte
 
@@ -401,6 +403,11 @@ class DirPanel(wx.Panel):
 
     ID_GOTO_PARENT = wx.NewId()
     ID_GOTO_HOME = wx.NewId()
+    ID_COPY_PATH = wx.NewId()
+    ID_COPY_PATH_REL = wx.NewId()
+    ID_OPEN_IN_FINDER = wx.NewId()
+    ID_RENAME = wx.NewId()
+    ID_PASTE_FOLDER = wx.NewId()
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
@@ -411,17 +418,22 @@ class DirPanel(wx.Panel):
                               wx.Bitmap(to_byte(goup_xpm)), 'Parent folder')
         self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
                               wx.Bitmap(to_byte(home_xpm)), 'Current folder')
+        self.tb.AddSeparator()
+        self.cbShowHidden = wx.CheckBox(self.tb, wx.ID_ANY, 'Show hidden file/folder')
+        self.cbShowHidden.SetValue(True)
+        self.tb.AddControl(self.cbShowHidden)
+
         self.tb.Realize()
         self.dirtree = DirTreeCtrl(self,
                                    style=wx.TR_DEFAULT_STYLE
                                    | wx.TR_HAS_VARIABLE_ROW_HEIGHT
-                                   | wx.TR_HIDE_ROOT)
-        self.dirtree.SetRootDir(os.getcwd())
+                                   | wx.TR_HIDE_ROOT
+                                   | wx.TR_EDIT_LABELS)
 
         agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
         self.tb2 = aui.AuiToolBar(self)
         self.search = AutocompleteTextCtrl(self.tb2)
-        self.search.SetHint('pattern (*.*)')
+        self.search.SetHint('file pattern (*.*)')
         item = self.tb2.AddControl(self.search)
         item.SetProportion(1)
         self.tb2.SetMargins(right=15)
@@ -436,6 +448,8 @@ class DirPanel(wx.Panel):
         self.box.Fit(self)
         self.SetSizer(self.box)
 
+        self.SetRootDir(os.getcwd())
+
         self.Bind(wx.EVT_TOOL, self.OnGotoHome, id=self.ID_GOTO_HOME)
         self.Bind(wx.EVT_TOOL, self.OnGotoParent, id=self.ID_GOTO_PARENT)
 
@@ -443,24 +457,65 @@ class DirPanel(wx.Panel):
                   self.dirtree)
 
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
+        self.Bind(wx.EVT_CONTEXT_MENU, self.OnRightClick, self.dirtree)
+        self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnRightClickItem, self.dirtree)
+        self.Bind(wx.EVT_TREE_END_LABEL_EDIT, self.OnRename, self.dirtree)
+        self.Bind(wx.EVT_CHECKBOX, self.OnShowHidden, self.cbShowHidden)
 
-    def OnItemActivated(self, event):
-        currentItem = event.GetItem()
-        filename = self.dirtree.GetItemText(currentItem)
-        parentItem = self.dirtree.GetItemParent(currentItem)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_OPEN)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_COPY)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_CUT)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_DELETE)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_OPEN_IN_FINDER)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_COPY_PATH)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_COPY_PATH_REL)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_RENAME)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_NEW)
+        self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_PASTE_FOLDER)
+
+        self.active_items = []
+    def get_file_path(self, item):
+        if item == self.dirtree.GetRootItem():
+            d = self.dirtree.GetItemData(item)
+            if isinstance(d, Directory):
+                return d.directory
+            return None
+
+        filename = self.dirtree.GetItemText(item)
+        parentItem = self.dirtree.GetItemParent(item)
         d = self.dirtree.GetItemData(parentItem)
         if isinstance(d, Directory):
             filepath = os.path.join(d.directory, filename)
         else:
-            return
-        if self.dirtree.ItemHasChildren(currentItem):
-            self.dirtree.SetRootDir(filepath, pattern=self.search.GetValue())
-            return
-        (_, ext) = os.path.splitext(filename)
-        if ext == '.py':
-            dp.send(signal='frame.file_drop', filename=filepath)
-        else:
-            os.system("start " + filepath)
+            return None
+        return filepath
+
+    def open(self, items):
+        for item in items:
+            filename = self.dirtree.GetItemText(item)
+            parentItem = self.dirtree.GetItemParent(item)
+            d = self.dirtree.GetItemData(parentItem)
+            if isinstance(d, Directory):
+                filepath = os.path.join(d.directory, filename)
+            else:
+                return
+            if self.dirtree.ItemHasChildren(item):
+                self.SetRootDir(filepath)
+                return
+            (_, ext) = os.path.splitext(filename)
+            if ext == '.py':
+                dp.send(signal='frame.file_drop', filename=filepath)
+            else:
+                open_file_with_default_app(filepath)
+
+    def open_in_finder(self, items):
+        for item in items:
+            filepath = self.get_file_path(item)
+            show_file_in_finder(filepath)
+
+    def OnItemActivated(self, event):
+        currentItem = event.GetItem()
+        self.open([currentItem])
 
     def OnGotoHome(self, event):
         root = self.dirtree.GetRootItem()
@@ -470,7 +525,7 @@ class DirPanel(wx.Panel):
         if isinstance(d, Directory):
             if d.directory == os.getcwd():
                 return
-        self.dirtree.SetRootDir(os.getcwd(), pattern=self.search.GetValue())
+        self.SetRootDir(os.getcwd())
 
     def OnGotoParent(self, event):
         root = self.dirtree.GetRootItem()
@@ -481,10 +536,173 @@ class DirPanel(wx.Panel):
             path = os.path.abspath(os.path.join(d.directory, os.path.pardir))
             if path == d.directory:
                 return
-            self.dirtree.SetRootDir(path, pattern=self.search.GetValue())
+            self.SetRootDir(path)
 
     def OnDoSearch(self, evt):
-        self.dirtree.SetRootDir(os.getcwd(), pattern=self.search.GetValue())
+        self.SetRootDir(os.getcwd())
+
+    def OnRightClick(self, event):
+        self.active_items = [self.dirtree.GetRootItem()]
+        menu = wx.Menu()
+        menu.Append(wx.ID_NEW, "New Folder")
+        menu.Append(self.ID_OPEN_IN_FINDER, "Reveal in Finder\tAlt+Ctrl+R")
+        menu.AppendSeparator()
+        item = menu.Append(self.ID_PASTE_FOLDER, "Paste\tCtrl+V")
+        item.Enable(False)
+        if wx.TheClipboard.Open():
+            data = wx.FileDataObject()
+            item.Enable(wx.TheClipboard.GetData(data))
+            wx.TheClipboard.Close()
+
+        menu.AppendSeparator()
+        menu.Append(self.ID_COPY_PATH, "Copy Path\tAlt+Ctrl+C")
+        menu.Append(self.ID_COPY_PATH_REL, "Copy Relative Path\tAlt+Shift+Ctrl+C")
+        self.PopupMenu(menu)
+        menu.Destroy()
+
+    def OnRightClickItem(self, event):
+        self.active_items = self.dirtree.GetSelections()
+        menu = wx.Menu()
+        menu.Append(wx.ID_OPEN, "Open\tRAWCTRL+Return")
+        menu.Append(self.ID_OPEN_IN_FINDER, "Reveal in Finder\tAlt+Ctrl+R")
+        menu.AppendSeparator()
+        menu.Append(wx.ID_CUT, "Cut\tCtrl+X")
+        menu.Append(wx.ID_COPY, "Copy\tCtrl+C")
+        menu.AppendSeparator()
+        menu.Append(self.ID_COPY_PATH, "Copy Path\tAlt+Ctrl+C")
+        menu.Append(self.ID_COPY_PATH_REL, "Copy Relative Path\tAlt+Shift+Ctrl+C")
+        menu.AppendSeparator()
+        menu.Append(self.ID_RENAME, "Rename\tReturn")
+        menu.Append(wx.ID_DELETE, "Delete\tCtrl+Delete")
+        self.PopupMenu(menu)
+        menu.Destroy()
+
+    def copy(self, items):
+        data = wx.FileDataObject()
+        for item in items:
+            data.AddFile(self.get_file_path(item))
+
+        wx.TheClipboard.Open()
+        wx.TheClipboard.SetData(data)
+        wx.TheClipboard.Close()
+
+    def delete(self, items):
+        for item in items:
+            os.remove(self.get_file_path(item))
+            self.dirtree.Delete(item)
+
+    def OnProcessEvent(self, event):
+        evtId = event.GetId()
+        self.do_process(evtId, self.active_items)
+        self.active_items = []
+
+    def do_process(self, evtId, items):
+        if evtId == wx.ID_OPEN:
+            self.open(items)
+        elif evtId == self.ID_OPEN_IN_FINDER:
+            self.open_in_finder(items)
+        elif evtId in (wx.ID_COPY, wx.ID_CUT):
+            self.copy(items)
+            if evtId == wx.ID_CUT:
+                self.delete(items)
+        elif evtId == wx.ID_DELETE:
+            self.delete(items)
+        elif evtId == wx.ID_CLEAR:
+            self.tree.DeleteAllItems()
+        elif evtId in (self.ID_COPY_PATH, self.ID_COPY_PATH_REL):
+            self.copy_path(items, relative=self.ID_COPY_PATH_REL==evtId)
+        elif evtId == self.ID_RENAME:
+            if items:
+                # only edit the first item
+                self.dirtree.EditLabel(items[0])
+        elif evtId == wx.ID_NEW:
+            self.new_folder()
+        elif evtId == self.ID_PASTE_FOLDER:
+            if wx.TheClipboard.Open():
+                data = wx.FileDataObject()
+                files_copied = []
+                root_item = self.dirtree.GetRootItem()
+                if wx.TheClipboard.GetData(data):
+                    root_dir = self.get_file_path(root_item)
+                    for src in data.GetFilenames():
+                        des = os.path.join(root_dir, os.path.basename(src))
+                        shutil.copy2(src, des)
+                        files_copied.append(os.path.basename(src))
+                wx.TheClipboard.Close()
+                if files_copied:
+                    self.SetRootDir(root_dir)
+                    root_item = self.dirtree.GetRootItem()
+                    item, cookie = self.dirtree.GetFirstChild(root_item)
+                    while item.IsOk():
+                        text = self.dirtree.GetItemText(item)
+                        if text in files_copied:
+                            self.dirtree.SelectItem(item)
+                            self.dirtree.EnsureVisible(item)
+                        item, cookie = self.dirtree.GetNextChild(root_item, cookie)
+
+    def new_folder(self):
+        dlg = wx.TextEntryDialog(self, "Folder name", caption='bsmedit', value='')
+        dlg.ShowModal()
+        filename = dlg.GetValue()
+        dlg.Destroy()
+        if not filename:
+            return
+        root_item = self.dirtree.GetRootItem()
+        root_dir = self.get_file_path(root_item)
+        new_folder = os.path.join(root_dir, filename)
+        if  os.path.exists(new_folder):
+            msg = f"{filename} already exists. Please choose a different name."
+            dlg = wx.GenericMessageDialog(self, msg, 'bsmedit', style=wx.OK)
+            dlg.ShowModal()
+            dlg.Destroy()
+            return
+
+        os.makedirs(new_folder)
+        self.SetRootDir(root_dir)
+
+        item, cookie = self.dirtree.GetFirstChild(root_item)
+        while item.IsOk():
+            text = self.dirtree.GetItemText(item)
+            if text.lower() == filename.lower():
+                self.dirtree.SelectItem(item)
+                self.dirtree.EnsureVisible(item)
+                break
+            item, cookie = self.dirtree.GetNextChild(root_item, cookie)
+
+
+    def copy_path(self, items, relative=False):
+        file_path = []
+        for item in items:
+            path = self.get_file_path(item)
+            if relative:
+                path = os.path.relpath(path, os.getcwd())
+            file_path.append(path)
+
+        clipData = wx.TextDataObject()
+        clipData.SetText("\n".join(file_path))
+        wx.TheClipboard.Open()
+        wx.TheClipboard.SetData(clipData)
+        wx.TheClipboard.Close()
+
+    def OnRename(self, event):
+        label = event.GetLabel()
+        item = event.GetItem()
+        old_label = self.dirtree.GetItemText(item)
+        if label == old_label:
+            return
+        old_path = self.get_file_path(item)
+        new_path = os.path.join(os.path.dirname(old_path), label)
+        os.rename(old_path, new_path)
+
+    def SetRootDir(self, root_dir=None):
+        if not root_dir:
+            root_dir = self.get_file_path(self.dirtree.GetRootItem())
+        pattern = self.search.GetValue()
+        show_hidden =  self.cbShowHidden.IsChecked()
+        self.dirtree.SetRootDir(root_dir, pattern=pattern, show_hidden=show_hidden)
+
+    def OnShowHidden(self, event):
+        self.SetRootDir()
 
 class MiscTools(object):
     frame = None
@@ -531,7 +749,6 @@ class MiscTools(object):
     @classmethod
     def Uninitialize(cls):
         """destroy the module"""
-        pass
 
 
 def bsm_initialize(frame, **kwargs):

@@ -1,7 +1,10 @@
 """define some utility functions"""
+import os
+import subprocess
+import platform
 import six
 import wx
-import wx.lib.agw.aui as aui
+from wx.lib.agw import aui
 import wx.svg
 
 def MakeBitmap(red, green, blue, alpha=128):
@@ -106,3 +109,20 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
 def svg_to_bitmap(svg, width=16, height=16):
     bmp = wx.svg.SVGimage.CreateFromBytes(str.encode(svg))
     return bmp.ConvertToScaledBitmap((width, height))
+
+
+def open_file_with_default_app(filepath):
+    if platform.system() == 'Darwin':       # macOS
+        subprocess.call(('open', filepath))
+    elif platform.system() == 'Windows':    # Windows
+        os.startfile(filepath)
+    else:                                   # linux variants
+        subprocess.call(('xdg-open', filepath))
+
+def show_file_in_finder(filepath):
+    if platform.system() == 'Darwin':       # macOS
+        subprocess.call(('open', '-R', filepath))
+    elif platform.system() == 'Windows':    # Windows
+        subprocess.Popen( f"explorer '{filepath}'" )
+    else:                                   # linux variants
+        subprocess.call(('nautilus', '-s', filepath))

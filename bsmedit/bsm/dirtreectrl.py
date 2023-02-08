@@ -28,10 +28,22 @@
 """
 
 import os
+import platform
+import stat
 import traceback
 import fnmatch
 import wx
 
+
+def is_hidden(filepath):
+    filepath = os.path.abspath(filepath)
+    name = os.path.basename(filepath)
+    if platform.system() == 'Darwin':       # macOS
+        return name.startswith('.')
+    elif platform.system() == 'Windows':    # Windows
+        return bool(os.stat(filepath).st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+    else:                                   # linux variants
+        return name.startswith('.')
 
 class Directory(object):
     """Simple class for using as the data object in the DirTreeCtrl"""
@@ -96,8 +108,8 @@ class DirTreeCtrl(wx.TreeCtrl):
         just by passing in the value stored in self.iconentries[name]
         @param filepath: path to the image
         @param wxBitmapType: wx constant for the file type - eg wx.BITMAP_TYPE_PNG
-        @param name: name to use as a key in the self.iconentries dict - get your imagekey by calling
-            self.iconentries[name]
+        @param name: name to use as a key in the self.iconentries dict -
+                     get your imagekey by calling self.iconentries[name]
         """
         try:
             if os.path.exists(filepath):
@@ -112,7 +124,7 @@ class DirTreeCtrl(wx.TreeCtrl):
         if isinstance(selection, bool):
             self.DELETEONCOLLAPSE = selection
 
-    def SetRootDir(self, directory, pattern=None):
+    def SetRootDir(self, directory, pattern=None, show_hidden=True):
         """Sets the root directory for the tree. Throws an exception
         if the directory is invalid.
         @param directory: directory to load
@@ -134,9 +146,9 @@ class DirTreeCtrl(wx.TreeCtrl):
                           wx.TreeItemIcon_Expanded)
         #self.Expand(root)
         # load items
-        self._loadDir(root, directory, pattern=pattern)
+        self._loadDir(root, directory, pattern=pattern, show_hidden=show_hidden)
 
-    def _loadDir(self, item, directory, pattern=None):
+    def _loadDir(self, item, directory, pattern=None, show_hidden=True):
         """Private function that gets called to load the file list
         for the given directory and append the items to the tree.
         Throws an exception if the directory is invalid.
@@ -162,6 +174,9 @@ class DirTreeCtrl(wx.TreeCtrl):
                     files_all.append(f)
             if pattern:
                 files_all = fnmatch.filter(files_all, pattern)
+            if not show_hidden:
+                folders_all = [f for f in folders_all if not is_hidden(f)]
+                files_all = [f for f in files_all if not is_hidden(f)]
 
             folders_all.sort(key=lambda y: y.lower())
             files_all.sort(key=lambda y: y.lower())
