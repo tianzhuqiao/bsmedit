@@ -16,7 +16,8 @@ from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .utility import PopupMenu
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
-                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm
+                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm, \
+                    wand_xpm
 from .. import to_byte
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'toolbar': 'None'})
@@ -419,6 +420,8 @@ class Toolbar(NavigationToolbar):
             ('Copy', 'Copy to clipboard', copy_xpm, 'copy_figure'),
             (None, None, None, None),
             ('Edit', 'Edit curve', line_edit_xpm, 'edit_figure'),
+            (None, None, None, "stretch"),
+            ('Auto Scale', 'Auto Scale', wand_xpm, 'auto_scale'),
             #(None, None, None, None),
             #('Print', 'Print the figure', print_xpm, 'print_figure'),
         )
@@ -429,7 +432,10 @@ class Toolbar(NavigationToolbar):
         self.SetToolBitmapSize((16, 16))
         for (text, tooltip_text, image_file, callback) in toolitems:
             if text is None:
-                self.AddSeparator()
+                if callback == "stretch":
+                    self.AddStretchableSpace()
+                else:
+                    self.AddSeparator()
                 continue
             self.wx_ids[text] = wx.NewId()
             if text in ['Pan', 'Zoom', 'Datatip', 'Edit']:
@@ -454,6 +460,10 @@ class Toolbar(NavigationToolbar):
                 prompt=True,
                 verbose=False,
                 debug=False)
+
+    def auto_scale(self, evt):
+        self.figure.gca().autoscale()
+        self.figure.canvas.draw_idle()
 
     def copy_figure(self, evt):
         # self.canvas.Copy_to_Clipboard(event=evt)
