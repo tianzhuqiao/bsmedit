@@ -2,7 +2,7 @@ import math
 import wx
 import wx.aui
 import wx.py.dispatcher as dp
-import numpy
+import numpy as np
 import matplotlib
 matplotlib.use('module://bsmedit.bsm.bsmbackend')
 from matplotlib.figure import Figure
@@ -31,7 +31,7 @@ class Pan(GraphObject):
 
     def key_down(self, event):
         keycode = event.GetKeyCode()
-        xlims = numpy.array(self.figure.gca().get_xlim())
+        xlims = np.array(self.figure.gca().get_xlim())
         rng = xlims[1] - xlims[0]
         if keycode == wx.WXK_LEFT:
             xlims -= rng
@@ -50,6 +50,7 @@ class DataCursor(GraphObject):
 
     ID_DELETE_DATATIP = wx.NewId()
     ID_CLEAR_DATATIP = wx.NewId()
+    ID_EXPORT_DATATIP = wx.NewId()
     def __init__(self, figure):
         super().__init__(figure)
         self.annotations = []
@@ -87,7 +88,7 @@ class DataCursor(GraphObject):
         x, y = line.get_xdata(), line.get_ydata()
         xc, yc = event.mouseevent.xdata, event.mouseevent.ydata
         gx, gy = self.get_xy_dis_gain()
-        idx = (numpy.square(x - xc) * gx**2 + numpy.square(y - yc) * gy**2).argmin()
+        idx = (np.square(x - xc) * gx**2 + np.square(y - yc) * gy**2).argmin()
         xn, yn = x[idx], y[idx]
         if xn is not None:
             self.active.xy = xn, yn
@@ -103,7 +104,7 @@ class DataCursor(GraphObject):
         line = self.lines[idx]
         x, y = line.get_xdata(), line.get_ydata()
         xc, yc = self.active.xy
-        idx = (numpy.square(x - xc)).argmin()
+        idx = (np.square(x - xc)).argmin()
         idx_new = idx
         if left:
             idx_new -= step
@@ -223,8 +224,10 @@ class DataCursor(GraphObject):
     def GetMenu(self):
         cmd = [[self.ID_DELETE_DATATIP, 'Delete current datatip',
                 self.active is not None and self.active.get_visible()],
-               [self.ID_CLEAR_DATATIP, 'Delete all datatip', len(self.annotations) > 0]
-              ]
+               [self.ID_CLEAR_DATATIP, 'Delete all datatip', len(self.annotations) > 0],
+               [],
+               [self.ID_EXPORT_DATATIP, 'Export datatip data...', len(self.annotations) > 0],
+               ]
         return cmd
 
     def key_down(self, event):
@@ -264,6 +267,24 @@ class DataCursor(GraphObject):
             self.annotations = []
             self.lines = []
             self.active = None
+            return True
+        elif cmd == self.ID_EXPORT_DATATIP:
+            datatip_data = []
+            for ant in self.annotations:
+                datatip_data.append(ant.xy)
+            datatip_data = np.array(datatip_data)
+
+            np.save('_datatip.npy', datatip_data)
+            dp.send('shell.run',
+                    command='datatip_data = np.load("_datatip.npy", allow_pickle=True)',
+                    prompt=False,
+                    verbose=False,
+                    history=False)
+            dp.send('shell.run',
+                    command='datatip_data',
+                    prompt=True,
+                    verbose=True,
+                    history=False)
             return True
         return False
 
@@ -357,7 +378,7 @@ class Toolbar(GraphToolbar):
 
     def OnZoomFun(self, event):
         # get the current x and y limits
-        if not self.GetToolState(self.wx_ids['Zoom']):
+        if not self.GetToolToggled(self.wx_ids['Zoom']):
             return
         if self._nav_stack.empty():
             self.push_current()
@@ -742,7 +763,7 @@ class MatplotPanel(wx.Panel):
                 y = l.trace[1]
                 if x is None:
                     if y in bufs:
-                        l.set_data(numpy.arange(len(bufs[y])), bufs[y])
+                        l.set_data(np.arange(len(bufs[y])), bufs[y])
                 elif x in bufs or y in bufs:
                     xd = l.get_xdata()
                     yd = l.get_ydata()
