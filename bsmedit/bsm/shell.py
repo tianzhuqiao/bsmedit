@@ -947,7 +947,7 @@ class Shell(pyshell.Shell):
                 panel=cls.panelShell,
                 active=active,
                 title="Shell",
-                showhidemenu="View:Panels:Console",
+                #showhidemenu="View:Panels:Console",
                 direction=direction)
 
     @classmethod

@@ -323,7 +323,7 @@ class FramePlus(wx.Frame):
 
         if not self._mgr.GetAllPanes():
             # set the first pane to be center pane
-            auipaneinfo.CenterPane()
+            auipaneinfo.DestroyOnClose(False).CenterPane()
             active = True
 
         # auto generate the unique panel name
