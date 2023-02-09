@@ -19,6 +19,7 @@ from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
                     cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm, \
                     wand_xpm
 from .. import to_byte
+from .graph_toolbar import GraphToolbar
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'toolbar': 'None'})
 matplotlib.interactive(True)
@@ -271,13 +272,13 @@ class DataCursor(GraphObject):
     def deactivated(self):
         pass
 
-class Toolbar(NavigationToolbar):
+class Toolbar(GraphToolbar):
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
             self._init_toolbar = self.init_toolbar
         else:
             self._init_toolbar = self.init_toolbar_empty
-        NavigationToolbar.__init__(self, canvas)
+        GraphToolbar.__init__(self, canvas)
 
         if matplotlib.__version__ >= '3.3.0':
             self.init_toolbar()
@@ -420,6 +421,7 @@ class Toolbar(NavigationToolbar):
             ('Copy', 'Copy to clipboard', copy_xpm, 'copy_figure'),
             (None, None, None, None),
             ('Edit', 'Edit curve', line_edit_xpm, 'edit_figure'),
+            (None, None, None, None),
             (None, None, None, "stretch"),
             ('Auto Scale', 'Auto Scale', wand_xpm, 'auto_scale'),
             #(None, None, None, None),
@@ -433,7 +435,7 @@ class Toolbar(NavigationToolbar):
         for (text, tooltip_text, image_file, callback) in toolitems:
             if text is None:
                 if callback == "stretch":
-                    self.AddStretchableSpace()
+                    self.AddStretchSpacer()
                 else:
                     self.AddSeparator()
                 continue
@@ -442,12 +444,14 @@ class Toolbar(NavigationToolbar):
                 self.AddCheckTool(self.wx_ids[text],
                                   text,
                                   wx.Bitmap(to_byte(image_file)),
-                                  shortHelp=text,
-                                  longHelp=tooltip_text)
+                                  disabled_bitmap=wx.NullBitmap,
+                                  short_help_string=text,
+                                  long_help_string=tooltip_text)
             else:
                 self.AddTool(self.wx_ids[text], text,
                              wx.Bitmap(to_byte(image_file)),
-                             kind=wx.ITEM_NORMAL, shortHelp=tooltip_text)
+                             disabled_bitmap=wx.NullBitmap,
+                             kind=wx.ITEM_NORMAL, short_help_string=tooltip_text)
             self.Bind(wx.EVT_TOOL,
                       getattr(self, callback),
                       id=self.wx_ids[text])

@@ -11,6 +11,7 @@ from  wx.lib.agw import aui
 import wx.py.dispatcher as dp
 import wx.html2 as html
 import wx.svg
+from ..auibarpopup import AuiToolBarPopupArt
 from .dirtreectrl import DirTreeCtrl, Directory
 from .bsmxpm import backward_svg, forward_svg, goup_xpm, home_xpm
 from .autocomplete import AutocompleteTextCtrl
@@ -40,7 +41,8 @@ class HelpPanel(wx.Panel):
 
         self.html = html.WebView.New(self)
 
-        agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
+        self.toolbarart = AuiToolBarPopupArt(self)
+        agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddSimpleTool(wx.ID_BACKWARD, 'Back',
                               svg_to_bitmap(backward_svg),
@@ -52,6 +54,7 @@ class HelpPanel(wx.Panel):
         self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
         item = self.tb.AddControl(self.search)
         item.SetProportion(1)
+        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
 
         # Setup the layout
@@ -194,8 +197,8 @@ class HistoryPanel(wx.Panel):
                                      style=style,
                                      sort=False)
 
-        agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
-        self.tb = aui.AuiToolBar(self)
+        agwStyle = aui.AUI_TB_OVERFLOW
+        self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
         self.search.SetHint('command pattern (*)')
         item = self.tb.AddControl(self.search)
@@ -437,7 +440,9 @@ class DirPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
+
+        self.toolbarart = AuiToolBarPopupArt(self)
+        agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
                               wx.Bitmap(to_byte(goup_xpm)), 'Parent folder')
@@ -448,6 +453,7 @@ class DirPanel(wx.Panel):
         self.cbShowHidden.SetValue(True)
         self.tb.AddControl(self.cbShowHidden)
 
+        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
         self.dirtree = DirTreeCtrl(self,
                                    style=wx.TR_DEFAULT_STYLE
@@ -728,7 +734,7 @@ class DirPanel(wx.Panel):
         label = event.GetLabel()
         item = event.GetItem()
         old_label = self.dirtree.GetItemText(item)
-        if label == old_label:
+        if label == old_label or not label:
             return
         old_path = self.get_file_path(item)
         new_path = os.path.join(os.path.dirname(old_path), label)
