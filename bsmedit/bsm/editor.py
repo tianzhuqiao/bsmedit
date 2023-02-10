@@ -1457,7 +1457,7 @@ class PyEditorPanel(wx.Panel):
 
     def OnSplitVert(self, event):
         """show splitter window vertically"""
-        show = self.tb.GetToolState(self.ID_SPLIT_VERT)
+        show = self.tb.GetToolToggled(self.ID_SPLIT_VERT)
         if not show:
             # hide the splitter window
             if self.editor2:
@@ -1478,7 +1478,7 @@ class PyEditorPanel(wx.Panel):
 
     def OnSplitHorz(self, event):
         """show splitter window horizontally"""
-        show = self.tb.GetToolState(self.ID_SPLIT_HORZ)
+        show = self.tb.GetToolToggled(self.ID_SPLIT_HORZ)
         if not show:
             # hide the splitter window
             if self.editor2:
