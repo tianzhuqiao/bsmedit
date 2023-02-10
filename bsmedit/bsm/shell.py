@@ -348,6 +348,7 @@ class Shell(pyshell.Shell):
         # save command history
         dp.send('frame.set_config', group='shell', history=self.history)
         dp.send('frame.set_config', group='shell', alias=aliasDict)
+        dp.send('frame.set_config', group='shell', zoom=self.GetZoom())
 
         dp.disconnect(self.writeOut, 'shell.write_out')
         dp.disconnect(self.runCommand, 'shell.run')
@@ -491,6 +492,12 @@ class Shell(pyshell.Shell):
         resp = dp.send('frame.get_config', group='shell', key='alias')
         if resp and resp[0][1]:
             aliasDict.update(resp[0][1])
+        resp = dp.send('frame.get_config', group='shell', key='zoom')
+        if resp and resp[0][1]:
+            try:
+                self.SetZoom(int(resp[0][1]))
+            except:
+                pass
 
     def OnKillFocus(self, event):
         if self.CallTipActive():
