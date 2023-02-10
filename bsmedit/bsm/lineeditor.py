@@ -21,19 +21,10 @@ class LineEditor(GraphObject):
 
         # marker
         # set larger zorder, so always on top
-        self.marker = self.figure.gca().plot([0], [0], marker="o", color="red", zorder=10)[0]
-
-        # cross hair
-        self.horizontal_line = self.figure.gca().axhline(color='g', lw=0.8, ls='--', zorder=10)
-        self.horizontal_line.set_picker(False)
-        self.vertical_line = self.figure.gca().axvline(color='g', lw=0.8, ls='--', zorder=10)
-        self.vertical_line.set_picker(False)
-        self.show_cross_hair = False
+        self.marker = self.figure.gca().plot([], [], marker="o", color="red", zorder=10)[0]
 
         self.draggable = False
         self.marker.set_visible(self.draggable)
-        self.horizontal_line.set_visible(False)
-        self.vertical_line.set_visible(False)
 
         self.active_line_index = None
         self.index = None
@@ -41,13 +32,6 @@ class LineEditor(GraphObject):
         self.mode = 'x'
         self.prev_pos = None
         self.round_y_to = 0
-
-    def set_cross_hair_visible(self, visible):
-        need_redraw = self.horizontal_line.get_visible() != visible
-        self.horizontal_line.set_visible(visible)
-        self.vertical_line.set_visible(visible)
-        #self.text.set_visible(visible)
-        return need_redraw
 
     def mouse_pressed(self, event):
         if not event.inaxes:
@@ -65,15 +49,9 @@ class LineEditor(GraphObject):
 
     def mouse_move(self, event):
         if not event.inaxes:
-            need_redraw = self.set_cross_hair_visible(False)
-            if need_redraw:
-                self.figure.canvas.draw_idle()
             return
 
         mx, my = event.xdata, event.ydata
-        self.set_cross_hair_visible(self.show_cross_hair)
-        self.horizontal_line.set_ydata(my)
-        self.vertical_line.set_xdata(mx)
 
         if self.draggable:
             if self.round_y_to is not None:
@@ -111,9 +89,12 @@ class LineEditor(GraphObject):
     def mouse_released(self, event):
         self.draggable = False
 
+    def update_line(self):
+        # ignore the internal lines (e.g., marker)
+        self.lines = [l for l in self.figure.gca().lines if l not in [self.marker]]
+
     def update(self, event):
-        # ignore the first 3 lines (marker + 2 cross hair)
-        self.lines = self.figure.gca().lines[3:]
+        self.update_line()
         if self.active_line_index is None:
             min_dis = float("inf")
             index = -1
@@ -163,20 +144,19 @@ class LineEditor(GraphObject):
     def deactivated(self):
         self.draggable = False
         self.marker.set_visible(self.draggable)
-        self.horizontal_line.set_visible(False)
-        self.vertical_line.set_visible(False)
 
     def GetMenu(self):
         cmd = [[self.ID_XY_MODE, 'x/y mode', True, self.mode == ''],
                [self.ID_X_MODE, 'x only mode', True, self.mode == 'x'],
                [self.ID_Y_MODE, 'y only mode', True, self.mode == 'y'],
-               [self.ID_ROUND_Y, 'Round y to', True, self.round_y_to != None],
+               [self.ID_ROUND_Y, 'Round y to', True, self.round_y_to is not None],
                [],
               ]
 
-        self.lines = self.figure.gca().lines[3:]
+        self.update_line()
         lines = []
-        lines.append([self.ID_EXPORT_TO_TERM, 'Export active line to shell ...', self.active_line_index != None])
+        lines.append([self.ID_EXPORT_TO_TERM, 'Export active line to shell ...',
+                      self.active_line_index is not None])
         lines.append([])
         for i, line in enumerate(self.lines):
             while i >= len(self.ID_LINES):
