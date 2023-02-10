@@ -482,7 +482,7 @@ class Toolbar(GraphToolbar):
     def OnNewFigure(self, evt):
         dp.send('shell.run',
                 command='figure();',
-                prompt=True,
+                prompt=False,
                 verbose=False,
                 debug=False)
 
