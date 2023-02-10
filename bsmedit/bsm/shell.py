@@ -914,6 +914,7 @@ class Shell(pyshell.Shell):
             else:
                 self.push(command)
                 wx.CallAfter(self.EnsureCaretVisible)
+                wx.CallAfter(self.SetFocus)
         # Or replace the current command with the other command.
         else:
             # If the line contains a command (even an invalid one).
