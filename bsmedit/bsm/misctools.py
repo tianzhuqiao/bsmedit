@@ -5,6 +5,7 @@ import traceback
 import sys
 import re
 import shutil
+import platform
 import six
 import wx
 from  wx.lib.agw import aui
@@ -259,6 +260,7 @@ class HistoryPanel(wx.Panel):
         """ callback function to return the children of item """
         if item == self.tree.GetRootItem():
             childlist = list(six.iterkeys(self.history))
+            childlist = [c for c in childlist if len(self.history[c]) > 0]
             # sort by time-stamp
             childlist.sort()
             is_folder = True
@@ -298,7 +300,7 @@ class HistoryPanel(wx.Panel):
             history = resp[0][1]
 
         history = self.filterHistory(history)
-
+        self.history = {}
         stamp = time.strftime('#%Y/%m/%d')
         for i in six.moves.range(len(history) - 1, -1, -1):
             value = history[i]
@@ -591,7 +593,13 @@ class DirPanel(wx.Panel):
         self.active_items = [self.dirtree.GetRootItem()]
         menu = wx.Menu()
         menu.Append(wx.ID_NEW, "New Folder")
-        menu.Append(self.ID_OPEN_IN_FINDER, "Reveal in Finder\tAlt+Ctrl+R")
+        if platform.system() == 'Darwin':       # macOS
+            manager = 'Finder'
+        elif platform.system() == 'Windows':    # Windows
+            manager = 'Explorer'
+        else:                         # linux variants
+            manager = 'File Explorer'
+        menu.Append(self.ID_OPEN_IN_FINDER, f"Reveal in {manager}\tAlt+Ctrl+R")
         menu.AppendSeparator()
         item = menu.Append(self.ID_PASTE_FOLDER, "Paste\tCtrl+V")
         item.Enable(False)
