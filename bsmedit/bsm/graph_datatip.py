@@ -43,6 +43,7 @@ class DataCursor(GraphObject):
                 [1, 'color', 'clr_face', 'Face color', '#ffffff80', None],
                 [1, 'color', 'clr_face_selected', 'Selected face color', '#ffff0080', None],
                 ]
+        self.LoadConfig()
 
     def pick(self, event):
         if not self.enable:
@@ -80,7 +81,8 @@ class DataCursor(GraphObject):
             self.active.xy_orig = xs[idx], ys[idx]
             #self.active.set_text(self.text_template % (xs[idx], ys[idx]))
             self.active.set_text(self.xy_to_annotation(xs[idx], ys[idx]))
-            wx.CallAfter(self.set_annotation_position, self.active, -1, 1)
+            x, y = self.active.config['pos_xy']
+            wx.CallAfter(self.set_annotation_position, self.active, x, y)
             self.active.set_visible(True)
             event.canvas.draw()
         self.pickEvent = True
@@ -385,7 +387,15 @@ class DataCursor(GraphObject):
     def SaveConfig(self, settings):
         config = self.get_config(settings)
         print(config)
-        #dp.send('frame.set_config', group='graph_datatip', **settings)
+        dp.send('frame.set_config', group='graph_datatip', **config)
+
+    def LoadConfig(self):
+        resp = dp.send('frame.get_config', group='graph_datatip')
+        if resp and resp[0][1] is not None:
+            config = resp[0][1]
+            for idx, (i, t, n, l, v, f) in enumerate(self.settings):
+                if n in config:
+                    self.settings[idx][4] = config[n]
 
 
 class DatatipSettingDlg(wx.Dialog):
@@ -423,18 +433,6 @@ class DatatipSettingDlg(wx.Dialog):
             else:
                 raise ValueError()
             p.SetIndent(i)
-        p = g.InsertProperty('test', 'test', (-1, 1))
-        p.SetFormatter(
-            fmt.ChoiceFormatter({
-                (-1, 1): 'top left',
-                (0, 1): 'top',
-                (1, 1): 'top right',
-                (1, 0): 'right',
-                (1, -1): 'bottom right',
-                (0, -1): 'bottom',
-                (-1, -1): 'bottom left',
-                (-1, 0): 'left',
-            }))
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
