@@ -65,6 +65,10 @@ class AuiManagerPlus(aui.AuiManager):
                 min_y = max(page_pane.min_size.y, min_y)
             nb_pane.MinSize(min_x, min_y)
 
+    def OnClose(self, event):
+        # AuiManager will call UnInit(), skip it and will be called by the
+        # main frame
+        event.Skip()
 
 class FramePlus(wx.Frame):
     def __init__(self,
@@ -98,7 +102,7 @@ class FramePlus(wx.Frame):
 
     def OnClose(self, event):
         self._mgr.UnInit()
-        del self._mgr
+        #del self._mgr
         event.Skip()
 
     def GetMenu(self, pathlist, autocreate=False):
