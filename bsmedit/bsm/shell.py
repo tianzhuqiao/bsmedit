@@ -192,10 +192,6 @@ class Shell(pyshell.Shell):
         pyshell.Shell.__init__(self, parent, id, pos, size, style, introText,
                                locals, InterpClass, startupScript,
                                execStartupScript, useStockId=False, *args, **kwds)
-        wx.CallAfter(self.redirectStdout, True)
-        wx.CallAfter(self.redirectStderr, True)
-        #self.redirectStdout(True)
-        #self.redirectStderr(True)
         # the default sx function (!cmd to run external command) does not work
         # on windows
         __builtin__.sx = sx
@@ -503,7 +499,7 @@ class Shell(pyshell.Shell):
         if self.CallTipActive():
             self.CallTipCancel()
         if self.AutoCompActive():
-            wx.CallAfter(self.AutoCompCancel)
+            self.AutoCompCancel()
         event.Skip()
 
     def OnActivate(self, activate):
@@ -512,12 +508,12 @@ class Shell(pyshell.Shell):
             return
 
         if self.AutoCompActive():
-            wx.CallAfter(self.AutoCompCancel)
+            self.AutoCompCancel()
 
     def OnActivatePanel(self, pane):
         if pane != self:
             if self.AutoCompActive():
-                wx.CallAfter(self.AutoCompCancel)
+                self.AutoCompCancel()
 
     def OnUpdateUI(self, evt):
         eid = evt.GetId()
@@ -620,10 +616,13 @@ class Shell(pyshell.Shell):
         """Search up the history buffer for the text in front of the cursor."""
         if not self.CanEdit():
             return
+        startpos = self.promptPosEnd
+        endpos = self.GetTextLength()
+        fullText = self.GetTextRange(startpos, endpos)
         startpos = self.GetCurrentPos()
         # The text up to the cursor is what we search for.
         numCharsAfterCursor = self.GetTextLength() - startpos
-        searchText = self.getCommand(rstrip=False)
+        searchText = fullText
         if numCharsAfterCursor > 0:
             searchText = searchText[:-numCharsAfterCursor]
         if not searchText or self.searchHistory == False:
@@ -639,7 +638,8 @@ class Shell(pyshell.Shell):
             searchOrder = six.moves.range(self.historyIndex - 1, -1, -1)
         for i in searchOrder:
             command = self.history[i]
-            if command[:len(searchText)] == searchText:
+            if command[:len(searchText)] == searchText and fullText != command:
+                # ignore the exact same command
                 # Replace the current selection with the one we found.
                 endpos = self.GetTextLength()
                 self.SetSelection(startpos, endpos)
@@ -656,7 +656,10 @@ class Shell(pyshell.Shell):
         # only output the text when it is not silent
         try:
             if not self.silent:
-                wx.CallAfter(self.AutoCompCancel)
+                # not use wx.CallAfter in this function, otherwise it may
+                # crash when close the app (e.g., shell is destroyed when
+                # wx.CallAfter function is called
+                self.AutoCompCancel()
                 # move the cursor to the end to protect the readonly section
                 endpos = self.GetTextLength()
                 # remember the current position (relative to end)
@@ -942,6 +945,7 @@ class Shell(pyshell.Shell):
     @classmethod
     def Initialize(cls, frame, **kwargs):
         cls.frame = frame
+        dp.connect(receiver=cls.initialized, signal='frame.initialized')
         dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
         ns = {}
         ns['wx'] = wx
@@ -955,12 +959,19 @@ class Shell(pyshell.Shell):
                 panel=cls.panelShell,
                 active=active,
                 title="Shell",
-                #showhidemenu="View:Panels:Console",
                 direction=direction)
+
+    @classmethod
+    def initialized(cls):
+        if cls.panelShell:
+            cls.panelShell.redirectStdout(True)
+            cls.panelShell.redirectStderr(True)
 
     @classmethod
     def Uninitialize(cls):
         if cls.panelShell:
+            cls.panelShell.redirectStdout(False)
+            cls.panelShell.redirectStderr(False)
             dp.send('frame.delete_panel', panel=cls.panelShell)
 
 
