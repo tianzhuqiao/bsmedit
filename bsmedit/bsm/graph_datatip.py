@@ -40,8 +40,13 @@ class DataCursor(GraphObject):
                 [1, 'string', 'fmt_number', 'Number', '.2f', None],
                 [1, 'string', 'fmt_datetime', 'Datetime', '%Y-%m-%d %H:%M:%S', None],
                 [0, 'separator', 'sep_clr', 'Color', '', None],
-                [1, 'color', 'clr_face', 'Face color', '#ffffff80', None],
-                [1, 'color', 'clr_face_selected', 'Selected face color', '#ffff0080', None],
+                [1, 'color', 'clr_edge', 'Edge', '#8E8E93', None],
+                [1, 'color', 'clr_face', 'Face', '#ffffff', None],
+                [1, 'spin', 'clr_alpha', 'Opacity', 50, (0, 100)],
+                [0, 'separator', 'sep_clr_selected', 'Selected color', '', None],
+                [1, 'color', 'clr_edge_selected', 'Edge', '#8E8E93', None],
+                [1, 'color', 'clr_face_selected', 'Face', '#ffff00', None],
+                [1, 'spin', 'clr_alpha_selected', 'Opacity', 5, (0, 100)],
                 ]
         self.LoadConfig()
 
@@ -156,7 +161,7 @@ class DataCursor(GraphObject):
             cy += py
             cx = max(min(cx, 1), -1)
             cy = max(min(cy, 1), -1)
-
+            self.active.config['pos_xy'] = (cx, cy)
             self.set_annotation_position(self.active, cx, cy)
             return True
         return False
@@ -213,13 +218,12 @@ class DataCursor(GraphObject):
 
         if self.active == ant:
             return True
-        if self.active:
-            config = self.active.config
-            self.active.get_bbox_patch().set_facecolor(config['clr_face'])
+        old_active = self.active
         self.active = ant
+        if old_active:
+            self.ApplyConfig(old_active)
         if self.active:
-            config = self.active.config
-            self.active.get_bbox_patch().set_facecolor(config['clr_face_selected'])
+            self.ApplyConfig(self.active)
         self.figure.canvas.draw_idle()
         return True
 
@@ -368,15 +372,20 @@ class DataCursor(GraphObject):
 
     def ApplyConfig(self, ant, config=None):
         if not config:
-            config = self.get_config()
+            config = ant.config
         clr = None
+        alpha = 50
         if self.active == ant:
-            clr = config['clr_face_selected']
+            clr_edge = config['clr_edge_selected']
+            clr_face = config['clr_face_selected']
+            alpha = config['clr_alpha_selected']
         else:
-            clr = config['clr_face']
-        alpha = wx.Colour(clr).alpha/256
-        ant.get_bbox_patch().set_facecolor(clr)
-        ant.get_bbox_patch().set_alpha(alpha)
+            clr_edge = config['clr_edge']
+            clr_face = config['clr_face']
+            alpha = config['clr_alpha']
+        ant.get_bbox_patch().set_edgecolor(clr_edge)
+        ant.get_bbox_patch().set_facecolor(clr_face)
+        ant.get_bbox_patch().set_alpha(alpha/100)
 
         xs, ys = ant.xy_orig
         ant.set_text(self.xy_to_annotation(xs, ys, config))
@@ -386,7 +395,6 @@ class DataCursor(GraphObject):
 
     def SaveConfig(self, settings):
         config = self.get_config(settings)
-        print(config)
         dp.send('frame.set_config', group='graph_datatip', **config)
 
     def LoadConfig(self):
@@ -430,6 +438,10 @@ class DatatipSettingDlg(wx.Dialog):
             elif t == 'choice':
                 p = g.InsertProperty(n, l, v)
                 p.SetFormatter(fmt.ChoiceFormatter(f))
+            elif t == 'spin':
+                p = g.InsertProperty(n, l, v)
+                p.SetControlStyle('spin')
+                p.SetFormatter(fmt.IntFormatter(f[0], f[1]))
             else:
                 raise ValueError()
             p.SetIndent(i)
@@ -443,7 +455,6 @@ class DatatipSettingDlg(wx.Dialog):
         self.cbSaveAsDefaultCurrent.Show(active)
         self.cbSaveAsDefault = wx.CheckBox(self, label="Save settings as default for new figures")
 
-        # global options
         sizer.Add(self.cbApplyAll, 0, wx.EXPAND|wx.ALL, 5)
         sizer.Add(self.cbSaveAsDefaultCurrent, 0, wx.EXPAND|wx.ALL, 5)
         sizer.Add(self.cbSaveAsDefault, 0, wx.EXPAND|wx.ALL, 5)
@@ -464,6 +475,7 @@ class DatatipSettingDlg(wx.Dialog):
 
         self.SetSizer(sizer)
         #sizer.Fit(self)
+        #self.Layout()
         self.Bind(pg.EVT_PROP_CHANGED, self.OnPropChanged)
 
     def OnPropChanged(self, evt):
