@@ -45,8 +45,8 @@ class DataCursor(GraphObject):
                 [1, 'spin', 'clr_alpha', 'Opacity', 50, (0, 100)],
                 [0, 'separator', 'sep_clr_selected', 'Selected color', '', None],
                 [1, 'color', 'clr_edge_selected', 'Edge', '#8E8E93', None],
-                [1, 'color', 'clr_face_selected', 'Face', '#ffff00', None],
-                [1, 'spin', 'clr_alpha_selected', 'Opacity', 5, (0, 100)],
+                [1, 'color', 'clr_face_selected', 'Face', '#FF9500', None],
+                [1, 'spin', 'clr_alpha_selected', 'Opacity', 50, (0, 100)],
                 ]
         self.LoadConfig()
 
@@ -95,19 +95,24 @@ class DataCursor(GraphObject):
     def xy_to_annotation(self, x, y, fmt=None):
         if fmt is None:
             fmt = self.get_config()
-        anno = ""
+        x_str = ""
+        y_str = ""
         if isinstance(x, datetime.datetime):
-            anno = f'x: {x.strftime(fmt["fmt_datetime"])}\ny: {y.strftime(fmt["fmt_datetime"])}'
+            x_str = f'x: {x.strftime(fmt["fmt_datetime"])}'
         else:
-            anno = f'x: {x:{fmt["fmt_number"]}}\ny: {y:{fmt["fmt_number"]}}'
-        return anno
+            x_str= f'x: {x:{fmt["fmt_number"]}}'
+        if isinstance(y, datetime.datetime):
+            y_str = f'y: {y.strftime(fmt["fmt_datetime"])}'
+        else:
+            y_str= f'y: {y:{fmt["fmt_number"]}}'
+        return '\n'.join([x_str, y_str])
 
     def keyboard_move(self, left, step=1):
         if not self.active:
             return
         idx = self.annotations.index(self.active)
         line = self.lines[idx]
-        x, y = line.get_xdata(True), line.get_ydata(True)
+        x, y = line.get_xdata(False), line.get_ydata(False)
         xc, yc = self.active.xy
         idx = (np.square(x - xc)).argmin()
         idx_new = idx
