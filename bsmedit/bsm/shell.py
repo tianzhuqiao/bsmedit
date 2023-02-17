@@ -204,6 +204,8 @@ class Shell(pyshell.Shell):
         self.LoadHistory()
         self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
+        self.Bind(stc.EVT_STC_DO_DROP, self.OnDoDrop)
+        self.Bind(stc.EVT_STC_START_DRAG, self.OnStartDrag)
         self.interp.locals['clear'] = self.clear
         self.interp.locals['help'] = _help
         self.interp.locals['on'] = True
@@ -941,6 +943,15 @@ class Shell(pyshell.Shell):
         super().setStyles(faces)
         self.StyleSetSpec(stc.STC_STYLE_LINENUMBER,
                           'fore:#3C3C43,back:#F2F2F7')
+
+    def OnStartDrag(self, event):
+        event.SetText('')
+
+    def OnDoDrop(self, event):
+        allow = self.CanEdit() and (event.GetPosition() >= self.promptPosEnd)
+        if allow:
+            self.InsertText(event.GetPosition(), event.GetText())
+        event.SetText('')
 
     @classmethod
     def Initialize(cls, frame, **kwargs):
