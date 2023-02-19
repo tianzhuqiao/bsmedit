@@ -595,6 +595,8 @@ class Shell(pyshell.Shell):
             return
         else:
             self.searchHistory = True
+            # Reset the history position.
+            self.historyIndex = -1
             super(Shell, self).OnKeyDown(event)
 
     def OnLeftDClick(self, event):
