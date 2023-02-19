@@ -26,7 +26,7 @@ class DataCursor(GraphObject):
         self.window = win
         self.settings = [
                 #[indent, type, name, label, value, fmt]
-                [0, 'choice', 'pos_xy', 'position', (-1, 1), {
+                [0, 'choice', 'pos_xy', 'Position', (-1, 1), {
                     (-1, 1): 'top left',
                     (0, 1): 'top',
                     (1, 1): 'top right',
@@ -334,7 +334,7 @@ class DataCursor(GraphObject):
                     settings[idx][4] = active.config.get(n, v)
             dlg = DatatipSettingDlg(settings, active is not None,
                                     self.window.GetParent(),
-                                    size=(600, 400))
+                                    size=(600, 480))
             dlg.CenterOnParent()
 
             # this does not return until the dialog is closed.
