@@ -458,7 +458,8 @@ class MatplotPanel(wx.Panel):
         if len(menus) == 0:
             return
         menu = self._create_context_menu(menus)
-
+        if self.canvas.HasCapture():
+            self.canvas.ReleaseMouse()
         mid = PopupMenu(self, menu)
         if mid > 0:
             self.toolbar.ProcessCommand(mid)

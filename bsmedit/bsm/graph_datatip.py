@@ -49,6 +49,7 @@ class DataCursor(GraphObject):
                 [1, 'spin', 'clr_alpha_selected', 'Opacity', 50, (0, 100)],
                 ]
         self.LoadConfig()
+        self.cx, self.cy = None, None
 
     def pick(self, event):
         if not self.enable:
@@ -147,7 +148,8 @@ class DataCursor(GraphObject):
     def mouse_move(self, event):
         """move the annotation position"""
         # return if no active annotation or the mouse is not pressed
-        if self.mx is None or self.my is None or self.active is None:
+        if self.mx is None or self.my is None or self.active is None or \
+                self.cx is None or self.cy is None:
             return False
         # re-position the active annotation based on the mouse movement
         x, y = event.x, event.y
@@ -330,16 +332,13 @@ class DataCursor(GraphObject):
             if active:
                 for idx, (i, t, n, l, v, f) in enumerate(settings):
                     settings[idx][4] = active.config.get(n, v)
-
             dlg = DatatipSettingDlg(settings, active is not None,
-                                    self.window.GetTopLevelParent(),
+                                    self.window.GetParent(),
                                     size=(600, 400))
             dlg.CenterOnParent()
-            self.window.Enable(False)
 
             # this does not return until the dialog is closed.
             val = dlg.ShowModal()
-            self.window.Enable(True)
             if val == wx.ID_OK:
                 settings = dlg.get_settings()
                 save_as_default = settings.get('save_as_default', False)
@@ -422,6 +421,7 @@ class DatatipSettingDlg(wx.Dialog):
         self.settings = settings
         self.propgrid = pg.PropGrid(self)
         g = self.propgrid
+        g.Draggable(False)
 
         for i, t, n, l, v, f in settings:
             if t == 'separator':
@@ -479,9 +479,21 @@ class DatatipSettingDlg(wx.Dialog):
         sizer.Add(btnsizer, 0, wx.ALL|wx.EXPAND, 5)
 
         self.SetSizer(sizer)
-        #sizer.Fit(self)
-        #self.Layout()
+
         self.Bind(pg.EVT_PROP_CHANGED, self.OnPropChanged)
+        self.Bind(pg.EVT_PROP_RIGHT_CLICK, self.OnPropEventsHandler)
+        self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
+
+    def OnContextMenu(self, event):
+        # it is necessary, otherwise when right click on the dialog, the context
+        # menu of the MatplotPanel will show; it may be due to some 'bug' in
+        # CaptureMouse/ReleaseMouse (canvas is a panel that capture mouse)
+        # and we also need to release the mouse before show the MatplotPanel
+        # context menu (wchich will eventually show this dialog)
+        pass
+
+    def OnPropEventsHandler(self, event):
+        event.Veto()
 
     def OnPropChanged(self, evt):
         p = evt.GetProperty()
