@@ -235,7 +235,8 @@ class Toolbar(GraphToolbar):
                 command='figure();',
                 prompt=False,
                 verbose=False,
-                debug=False)
+                debug=False,
+                history=False)
 
     def auto_scale(self, evt):
         self.figure.gca().autoscale()
