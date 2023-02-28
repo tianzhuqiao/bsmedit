@@ -123,11 +123,11 @@ class MainFrame(FramePlus):
                               | aui.AUI_MGR_LIVE_RESIZE)
         # set mainframe icon
         icon = wx.Icon()
-        icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg))
+        icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, win=self))
         self.SetIcon(icon)
 
         if 'wxMac' in wx.PlatformInfo:
-            icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, 1024, 1024))
+            icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, 1024, 1024, win=self))
             self.tbicon = TaskBarIcon(self, icon)
 
         # status bar

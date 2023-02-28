@@ -5574,6 +5574,113 @@ wand_xpm = [
 " $.             "
 ]
 
+refresh_xpm = [
+"16 16 88 1 ",
+"  c None",
+". c #23611F",
+"X c #246320",
+"o c #256522",
+"O c #276623",
+"+ c #296824",
+"@ c #2A6B26",
+"# c #2C6D27",
+"$ c #32742C",
+"% c #33762E",
+"& c #377B32",
+"* c #3A7E34",
+"= c #3C8035",
+"- c #3E8337",
+"; c #408639",
+": c #42883B",
+"> c #448B3D",
+", c #4A8B45",
+"< c #4C8D47",
+"1 c #499141",
+"2 c #4D9645",
+"3 c #4F9947",
+"4 c #4F9049",
+"5 c #51924B",
+"6 c #54954E",
+"7 c #519B49",
+"8 c #539E4B",
+"9 c #569750",
+"0 c #55A14D",
+"q c #57A34E",
+"w c #5AA650",
+"e c #5EAB54",
+"r c #5FAD56",
+"t c #62A25B",
+"y c #63A45D",
+"u c #65A75E",
+"i c #65B45B",
+"p c #67B65C",
+"a c #68B95E",
+"s c #6ABB5F",
+"d c #68A860",
+"f c #68AA61",
+"g c #6BAC63",
+"h c #6CAD65",
+"j c #6EB066",
+"k c #6CBC60",
+"l c #6DBE62",
+"z c #76B36F",
+"x c #7CBD73",
+"c c #7EBF75",
+"v c #6EC063",
+"b c #7FC179",
+"n c #81BE7A",
+"m c #81C277",
+"M c #83C379",
+"N c #82C27A",
+"B c #83C479",
+"V c #85C77B",
+"C c #85C47E",
+"Z c #87C480",
+"A c #89C380",
+"S c #8BC383",
+"D c #8AC483",
+"F c #89C682",
+"G c #8BC683",
+"H c #8BC785",
+"J c #8DC786",
+"K c #8EC686",
+"L c #8EC985",
+"P c #8FC987",
+"I c #8FC988",
+"U c #90CA88",
+"Y c #92CA89",
+"T c #91CA8A",
+"R c #94CB8C",
+"E c #95CC8D",
+"W c #96CD8F",
+"Q c #98CE8F",
+"! c #99CF90",
+"~ c #9ACF92",
+"^ c #9CCF94",
+"/ c #9CD094",
+"( c #9ED195",
+") c #9FD196",
+"_ c #9FD297",
+"` c #A1D298",
+"' c #A4D49B",
+"] c #A7D79E",
+"                ",
+"         31     ",
+"    iiw82dt*    ",
+"  aMU///RLD6#   ",
+" pL'Q~EUDCb<o   ",
+" c`^Ju;=%4,X    ",
+"eAED>=   O.     ",
+"031:=           ",
+"           031:=",
+"     lk   82KIz%",
+"    lVMew7gSIF9 ",
+"   lB]'_~RLMCy@ ",
+"   ic)^WRFnh5+  ",
+"    qjf:-&$#    ",
+"     1:         ",
+"                "
+]
 
 forward_svg = '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="24px" viewBox="0 0 24 24" width="24px" fill="#000000"><g><path d="M0,0h24v24H0V0z" fill="none"/></g><g><polygon points="6.23,20.23 8,22 18,12 8,2 6.23,3.77 14.46,12"/></g></svg>'
 backward_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 0 24 24" width="48px" fill="#000000"><path d="M0 0h24v24H0V0z" fill="none" opacity=".87"/><path d="M17.51 3.87L15.73 2.1 5.84 12l9.9 9.9 1.77-1.77L9.38 12l8.13-8.13z"/></svg>'
@@ -5583,17 +5690,17 @@ radio_disabled_svg = '<svg xmlns="http://www.w3.org/2000/svg" enable-background=
 radio_checked_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 0 24 24" width="48px" fill="#8E8E93"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/><circle cx="12" cy="12" r="5"/></svg>'
 radio_activated_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 0 24 24" width="48px" fill="#FF9500"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/><circle cx="12" cy="12" r="5"/></svg>'
 
-run_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" width="48px" viewBox="0 0 24 24" fill="#007AFF"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M5,20 l14 -8 L5,4 V14 z"/></svg>'
+run_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" width="48px" viewBox="0 0 24 24" fill="#32a1e6"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M5,20 l14 -8 L5,4 V14 z"/></svg>'
 run_grey_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" width="48px" viewBox="0 0 24 24" fill="#8E8E93"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M5,20 l14 -8 L5,4 V14 z"/></svg>'
-stop_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#007AFF" ><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><rect height="14" rx="0" width="14" x="5" y="5"/></svg>'
+stop_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#32a1e6" ><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><rect height="14" rx="0" width="14" x="5" y="5"/></svg>'
 stop_grey_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#8E8E93" ><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><rect height="14" rx="0" width="14" x="5" y="5"/></svg>'
-pause_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#007AFF"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><g><rect height="16" rx="0" width="4" x="6" y="4"/><rect height="16" rx="0" width="4" x="14" y="4"/></g></svg>'
+pause_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#32a1e6"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><g><rect height="16" rx="0" width="4" x="6" y="4"/><rect height="16" rx="0" width="4" x="14" y="4"/></g></svg>'
 pause_grey_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#8E8E93"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><g><rect height="16" rx="0" width="4" x="6" y="4"/><rect height="16" rx="0" width="4" x="14" y="4"/></g></svg>'
-step_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" width="48px" viewBox="0 0 24 24" fill="#007AFF"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M5,20 l14 -8 L5,4 V14 z"/><rect height="16" rx="0" width="4 " x="16" y="4"/></svg>'
+step_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" width="48px" viewBox="0 0 24 24" fill="#32a1e6"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M5,20 l14 -8 L5,4 V14 z"/><rect height="16" rx="0" width="4 " x="16" y="4"/></svg>'
 step_grey_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" width="48px" viewBox="0 0 24 24" fill="#8E8E93"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M5,20 l14 -8 L5,4 V14 z"/><rect height="16" rx="0" width="4 " x="16" y="4"/></svg>'
-step_over_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#007AFF"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M12,14A2,2 0 0,1 14,16A2,2 0 0,1 12,18A2,2 0 0,1 10,16A2,2 0 0,1 12,14M23.46,8.86L21.87,15.75L15,14.16L18.8,11.78C17.39,9.5 14.87,8 12,8C8.05,8 4.77,10.86 4.12,14.63L2.15,14.28C2.96,9.58 7.06,6 12,6C15.58,6 18.73,7.89 20.5,10.72L23.46,8.86Z" /></svg>'
+step_over_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#32a1e6"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M12,14A2,2 0 0,1 14,16A2,2 0 0,1 12,18A2,2 0 0,1 10,16A2,2 0 0,1 12,14M23.46,8.86L21.87,15.75L15,14.16L18.8,11.78C17.39,9.5 14.87,8 12,8C8.05,8 4.77,10.86 4.12,14.63L2.15,14.28C2.96,9.58 7.06,6 12,6C15.58,6 18.73,7.89 20.5,10.72L23.46,8.86Z" /></svg>'
 step_over_grey_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#8E8E93"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M12,14A2,2 0 0,1 14,16A2,2 0 0,1 12,18A2,2 0 0,1 10,16A2,2 0 0,1 12,14M23.46,8.86L21.87,15.75L15,14.16L18.8,11.78C17.39,9.5 14.87,8 12,8C8.05,8 4.77,10.86 4.12,14.63L2.15,14.28C2.96,9.58 7.06,6 12,6C15.58,6 18.73,7.89 20.5,10.72L23.46,8.86Z" /></svg>'
-step_into_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#007AFF"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M12,22A2,2 0 0,1 10,20A2,2 0 0,1 12,18A2,2 0 0,1 14,20A2,2 0 0,1 12,22M13,2V13L17.5,8.5L18.92,9.92L12,16.84L5.08,9.92L6.5,8.5L11,13V2H13Z" /></svg>'
+step_into_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#32a1e6"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M12,22A2,2 0 0,1 10,20A2,2 0 0,1 12,18A2,2 0 0,1 14,20A2,2 0 0,1 12,22M13,2V13L17.5,8.5L18.92,9.92L12,16.84L5.08,9.92L6.5,8.5L11,13V2H13Z" /></svg>'
 step_into_grey_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#8E8E93"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)" /><path d="M12,22A2,2 0 0,1 10,20A2,2 0 0,1 12,18A2,2 0 0,1 14,20A2,2 0 0,1 12,22M13,2V13L17.5,8.5L18.92,9.92L12,16.84L5.08,9.92L6.5,8.5L11,13V2H13Z" /></svg>'
-step_out_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#007AFF"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)"/><path d="M12,22A2,2 0 0,1 10,20A2,2 0 0,1 12,18A2,2 0 0,1 14,20A2,2 0 0,1 12,22M13,16H11V6L6.5,10.5L5.08,9.08L12,2.16L18.92,9.08L17.5,10.5L13,6V16Z" /></svg>'
+step_out_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#32a1e6"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)"/><path d="M12,22A2,2 0 0,1 10,20A2,2 0 0,1 12,18A2,2 0 0,1 14,20A2,2 0 0,1 12,22M13,16H11V6L6.5,10.5L5.08,9.08L12,2.16L18.92,9.08L17.5,10.5L13,6V16Z" /></svg>'
 step_out_grey_svg = '<svg xmlns="http://www.w3.org/2000/svg" width="48px" height="48px" viewBox="0 0 24 24" fill="#8E8E93"><rect width="24" height="24" style="fill:none;stroke-width:0;stroke:rgb(0,0,0)"/><path d="M12,22A2,2 0 0,1 10,20A2,2 0 0,1 12,18A2,2 0 0,1 14,20A2,2 0 0,1 12,22M13,16H11V6L6.5,10.5L5.08,9.08L12,2.16L18.92,9.08L17.5,10.5L13,6V16Z" /></svg>'

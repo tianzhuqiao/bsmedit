@@ -46,11 +46,11 @@ class HelpPanel(wx.Panel):
         agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddSimpleTool(wx.ID_BACKWARD, 'Back',
-                              svg_to_bitmap(backward_svg),
+                              svg_to_bitmap(backward_svg, win=self),
                               'Go the previous page')
 
         self.tb.AddSimpleTool(wx.ID_FORWARD, 'Forward',
-                              svg_to_bitmap(forward_svg),
+                              svg_to_bitmap(forward_svg, win=self),
                               'Go to the next page')
         self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
         item = self.tb.AddControl(self.search)

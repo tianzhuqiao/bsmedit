@@ -5,9 +5,10 @@ import wx.py.dispatcher as dp
 import wx.lib.mixins.listctrl as listmix
 import wx.lib.agw.aui as aui
 from .bsmxpm import (run_svg, run_grey_svg, step_over_svg, step_over_grey_svg, step_into_svg, \
-                     step_into_grey_svg, step_out_svg, step_out_grey_svg, step_over_svg, stop_svg, stop_grey_svg)
+                     step_into_grey_svg, step_out_svg, step_out_grey_svg, stop_svg, stop_grey_svg)
 
 from .utility import svg_to_bitmap
+from ..auibarpopup import AuiToolBarPopupArt
 
 class StackListCtrl(wx.ListCtrl, listmix.ListCtrlAutoWidthMixin,
                     listmix.ListRowHighlighter):
@@ -111,7 +112,8 @@ class DebugTool(object):
                 path='Tools:Debug',
                 rxsignal='',
                 kind='Popup')
-        cls.tbDebug = aui.AuiToolBar(frame, style=wx.TB_FLAT | wx.TB_HORIZONTAL)
+        cls.tbDebug = aui.AuiToolBar(frame, agwStyle=aui.AUI_TB_OVERFLOW)
+        cls.toolbarart = AuiToolBarPopupArt(frame)
         items = (
             ('Run\tF5', 'resume', run_svg, run_grey_svg, 'paused'),
             ('Stop\tShift-F5', 'stop', stop_svg, stop_grey_svg, 'paused'),
@@ -128,8 +130,9 @@ class DebugTool(object):
             if not resp:
                 continue
             cls.menus[resp[0][1]] = status
-            cls.tbDebug.AddTool(resp[0][1], label, svg_to_bitmap(xpm),
-                                svg_to_bitmap(xpm_grey), wx.ITEM_NORMAL, label)
+            cls.tbDebug.AddTool(resp[0][1], label, svg_to_bitmap(xpm, win=cls.tbDebug),
+                                svg_to_bitmap(xpm_grey, win=cls.tbDebug), wx.ITEM_NORMAL, label)
+        cls.tbDebug.SetArtProvider(cls.toolbarart)
         cls.tbDebug.Realize()
 
         dp.send('frame.add_panel',

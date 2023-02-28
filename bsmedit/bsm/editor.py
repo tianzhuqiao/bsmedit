@@ -949,9 +949,7 @@ class PyEditorPanel(wx.Panel):
         )
 
         self.toolbarart = AuiToolBarPopupArt(self)
-        self.tb = aui.AuiToolBar(self,
-                                 agwStyle=aui.AUI_TB_OVERFLOW
-                                 | aui.AUI_TB_PLAIN_BACKGROUND)
+        self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW)
         for (eid, label, img_xpm, tooltip) in item:
             if eid == None:
                 self.tb.AddSeparator()
