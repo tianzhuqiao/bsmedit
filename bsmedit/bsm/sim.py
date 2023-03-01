@@ -8,7 +8,7 @@ import six.moves.queue as Queue
 import six
 import wx
 import wx.py.dispatcher as dp
-import wx.lib.agw.aui as aui
+from wx.lib.agw import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
 from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
@@ -29,7 +29,7 @@ from .utility import svg_to_bitmap
 Gcs = Gcm()
 
 
-class Simulation(object):
+class Simulation():
     def __init__(self, parent, num=None):
         if num is not None and isinstance(num, int) and \
            num not in Gcs.get_all_managers():
@@ -102,6 +102,8 @@ class Simulation(object):
         except:
             traceback.print_exc(file=sys.stdout)
 
+        return False
+
     def is_valid(self):
         return self.status['valid']
 
@@ -142,7 +144,7 @@ class Simulation(object):
                                       args=(self.qresp, self.qcmd))
         self.sim_process.start()
         self._interfaces = self._send_command('get_interfaces')
-        if self._set_interfaces:
+        if self._interfaces:
             self._set_interfaces(self._interfaces)
 
     def _set_interfaces(self, interfaces):
@@ -159,10 +161,9 @@ class Simulation(object):
             for arg in formatted_args.split(','):
                 if '=' in arg:
                     # remove the default value
-                    arg = arg[:arg.find('=')]
-                    arg = "{0}={0}".format(arg)
+                    arg = arg[:arg.find('=')].strip()
+                    arg = f"{arg}={arg}"
                 formatted_args2.append(arg)
-
             fndef = 'lambda %s: wrapper("%s", %s)' % (
                 formatted_args, item, ','.join(formatted_args2))
             fake_fn = eval(fndef, {'wrapper': wrapper, 'item': item})
@@ -234,10 +235,10 @@ class Simulation(object):
     def global_object_name(self, obj):
         """generate the global name for simulation object (num.name)"""
         if obj in self.objects:
-            return "%d." % self.num + obj
+            return f"{self.num}.{obj}"
         return None
 
-    def monitor(self, objects, grid=None, index=-1):
+    def monitor(self, objects, grid=None, index=-1, style='Text', **kwargs):
         """
         show the register in a propgrid window
 
@@ -262,16 +263,14 @@ class Simulation(object):
                 print("invalid object: ", name)
                 continue
             if obj['kind'] == 'sc_module':
-                prop = grid.InsertSeparator(
-                    self.global_object_name(obj['name']), obj['basename'],
-                    index)
+                prop = grid.Insert(PropSim('Separator', label=obj['basename'], **kwargs), index)
+                prop.Name(self.global_object_name(obj['name']))
             else:
-                prop = grid.InsertProperty(
-                    self.global_object_name(obj['name']), obj['basename'],
-                    obj['value'], index)
+                prop = grid.Insert(PropSim(style, label=obj['basename'], **kwargs), index)
+                prop.Name(self.global_object_name(obj['name'])).Value(obj['value'])
                 prop.SetGripperColor(self.frame.GetColor())
                 if not obj['writable']:
-                    prop.SetControlStyle('none')
+                    prop.Editing(False)
                 prop.SetShowCheck(obj['readable'])
                 # set value invalid since obj['value'] may have garbage value
                 # (not read the actual value from simulation yet.);
@@ -312,6 +311,8 @@ class Simulation(object):
             return value
         except:
             traceback.print_exc(file=sys.stdout)
+
+        return None
 
     def process_response(self):
         if not self.qresp:
@@ -517,12 +518,17 @@ class DumpDlg(wx.Dialog):
         self.m_staticline1 = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
         szAll.Add(self.m_staticline1, 0, wx.EXPAND | wx.ALL, 5)
 
-        szConfirm = wx.BoxSizer(wx.HORIZONTAL)
-        self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
-        szConfirm.Add(self.btnOK, 0, wx.ALL, 5)
-        self.btnCancel = wx.Button(self, wx.ID_CANCEL, u"Cancel")
-        szConfirm.Add(self.btnCancel, 0, wx.ALL, 5)
-        szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
+        btnsizer = wx.StdDialogButtonSizer()
+
+        self.btnOK = wx.Button(self, wx.ID_OK)
+        self.btnOK.SetDefault()
+        btnsizer.AddButton(self.btnOK)
+
+        self.btnCancel = wx.Button(self, wx.ID_CANCEL)
+        btnsizer.AddButton(self.btnCancel)
+        btnsizer.Realize()
+
+        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 5)
 
         self.SetSizer(szAll)
         self.Layout()
@@ -607,20 +613,17 @@ class SimPanel(wx.Panel):
         self.is_destroying = False
         self._color = wx.Colour(178, 34, 34)
         self.toolbarart = AuiToolBarPopupArt(self)
-        self.tb = aui.AuiToolBar(self,
-                                 -1,
-                                 agwStyle=aui.AUI_TB_OVERFLOW
-                                 | aui.AUI_TB_PLAIN_BACKGROUND)
+        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
         xpm2bmp = wx.Bitmap
-        self.tb.AddTool(self.ID_SIM_STEP, "Step", svg_to_bitmap(step_svg),
-                        svg_to_bitmap(step_grey_svg), wx.ITEM_NORMAL,
+        self.tb.AddTool(self.ID_SIM_STEP, "Step", svg_to_bitmap(step_svg, win=self),
+                        svg_to_bitmap(step_grey_svg, win=self), wx.ITEM_NORMAL,
                         "Step the simulation")
-        self.tb.AddTool(self.ID_SIM_RUN, "Run", svg_to_bitmap(run_svg),
-                        svg_to_bitmap(run_grey_svg), wx.ITEM_NORMAL,
+        self.tb.AddTool(self.ID_SIM_RUN, "Run", svg_to_bitmap(run_svg, win=self),
+                        svg_to_bitmap(run_grey_svg, win=self), wx.ITEM_NORMAL,
                         "Run the simulation")
-        self.tb.AddTool(self.ID_SIM_PAUSE, "Pause", svg_to_bitmap(pause_svg),
-                        svg_to_bitmap(pause_grey_svg), wx.ITEM_NORMAL,
+        self.tb.AddTool(self.ID_SIM_PAUSE, "Pause", svg_to_bitmap(pause_svg, win=self),
+                        svg_to_bitmap(pause_grey_svg, win=self), wx.ITEM_NORMAL,
                         "Pause the simulation")
 
         self.tb.AddSeparator()
@@ -733,7 +736,7 @@ class SimPanel(wx.Panel):
         self.is_destroying = True
         self.sim.release()
         self.sim = None
-        super(SimPanel, self).Destroy()
+        super().Destroy()
 
     def SetColor(self, clr):
         self._color = clr
@@ -752,7 +755,7 @@ class SimPanel(wx.Panel):
         total = self.tcTotal.GetValue()
         unitTotal = self.cmbUnitTotal.GetString(
             self.cmbUnitTotal.GetSelection())
-        total = "%f%s" % (total, unitTotal)
+        total = f"%f%s" % (total, unitTotal)
         self.sim.set_parameter(step=step, total=total, block=block)
 
     def OnTreeSelChanged(self, event):
@@ -773,9 +776,9 @@ class SimPanel(wx.Panel):
         if not item.IsOk():
             return
         menu = wx.Menu()
-        menu.Append(self.ID_MP_DUMP, "&Dump file")
+        menu.Append(self.ID_MP_DUMP, "&Dump to file")
         menu.AppendSeparator()
-        menu.Append(self.ID_MP_TRACE_BUF, "&Trace buffer")
+        menu.Append(self.ID_MP_TRACE_BUF, "&Trace to buffer")
         menu.AppendSeparator()
         submenu = wx.Menu()
         submenu.Append(self.ID_MP_ADD_TO_NEW_VIEWER, "&Add to new propgrid")
@@ -904,7 +907,7 @@ class SimPanel(wx.Panel):
             event.Enable(self.sim and self.sim.is_running())
 
     def _exit_sim(self):
-        msg = 'Do you want to kill %s?' % (self.GetLabel())
+        msg = f'Do you want to kill {self.GetLabel()}?'
         # use top level frame as parent, otherwise it may crash when
         # it is called in Destroy()
         dlg = wx.MessageDialog(self.GetTopLevelParent(), msg, 'bsmedit',
@@ -985,7 +988,7 @@ class SimPanel(wx.Panel):
                         dp.send(signal='frame.show_panel', panel=grid)
                         break
                 else:
-                    txt = "Breakpoint triggered: %s\n" % (json.dumps(bp))
+                    txt = f"Breakpoint triggered: {json.dumps(bp)}\n"
                     dp.send(signal='shell.write_out', text=txt)
             elif command == 'write_out':
                 dp.send(signal='shell.write_out', text=value)
@@ -1002,27 +1005,54 @@ wxEVT_PROP_CLICK_CHECK = wx.NewEventType()
 EVT_PROP_CLICK_CHECK = wx.PyEventBinder(wxEVT_PROP_CLICK_CHECK, 1)
 
 
-class SimProperty(pg.Property):
-    def __init__(self, grid, name, label, value):
-        pg.Property.__init__(self, grid, name, label, value)
-        self.gripper_clr = wx.RED
-        self.show_check = True
-        self.checked = False
-        self.condition = ("", "")
-        self.triggered = False
+class PropSim(pg.PropBase):
+    def __init__(self, style='Text', *args, **kwargs):
+        self.prop = None
+        self.SetControlStyle(style, *args, **kwargs)
 
-    def duplicate(self):
-        p = super(SimProperty, self).duplicate()
-        p.gripper_clr = self.gripper_clr
-        p.show_check = self.show_check
-        p.checked = self.checked
-        return p
 
+    def all_subclasses(self):
+        def _sub_classes(cls):
+            return set(cls.__subclasses__()).union(
+                    [s for c in cls.__subclasses__() for s in _sub_classes(c)])
+        sub =  _sub_classes(pg.PropBase)
+        return {s.__name__: s for s in sub if sub != PropSim}
+
+    def __getattr__(self, name):
+        return getattr(self.prop, name)
+
+    def SetControlStyle(self, style, *args, **kwargs):
+        sub = self.all_subclasses()
+        cls = sub.get(style, None)
+        if cls is None:
+            cls = sub.get(f'Prop{style}', None)
+        if cls is None:
+            cls = sub.get(f'Prop{style.title()}', None)
+        if cls is None:
+            return False
+
+        if isinstance(self.prop, cls):
+            return True
+        prop = cls(*args, **kwargs)
+        if self.prop:
+            prop.copy(self.prop)
+        self.prop = prop
+        return True
+
+
+def PropGenericUdpate():
+    pg.PropGeneric.gripper_clr = wx.RED
+    pg.PropGeneric.show_check = True
+    pg.PropGeneric.checked = False
+    pg.PropGeneric.condition = ("", "")
+    pg.PropGeneric.triggered = False
     def SetGripperColor(self, clr=None):
         self.gripper_clr = clr
+    pg.PropGeneric.SetGripperColor = SetGripperColor
 
     def GetGripperColor(self):
         return self.gripper_clr
+    pg.PropGeneric.GetGripperColor = GetGripperColor
 
     def SetShowCheck(self, show=True, silent=True):
         """show/hide radio button"""
@@ -1031,10 +1061,12 @@ class SimProperty(pg.Property):
         self.show_check = show
         if not silent:
             self.Refresh()
+    pg.PropGeneric.SetShowCheck = SetShowCheck
 
     def IsShowCheck(self):
         """return whether the icon is shown"""
         return self.show_check
+    pg.PropGeneric.IsShowCheck = IsShowCheck
 
     def SetChecked(self, check=True, silent=False):
         """check/uncheck the radio button"""
@@ -1045,9 +1077,13 @@ class SimProperty(pg.Property):
             if not silent:
                 self.Refresh()
 
+    pg.PropGeneric.SetChecked = SetChecked
+
     def IsChecked(self):
         """return true if the radio button is checked"""
         return self.checked
+
+    pg.PropGeneric.IsChecked = IsChecked
 
     def OnMouseUp(self, pt):
         ht = self.HitTest(pt)
@@ -1057,22 +1093,27 @@ class SimProperty(pg.Property):
                 checked = self.IsChecked()
                 self.SetChecked(not checked)
         return ht
+    pg.PropGeneric.OnMouseUp = OnMouseUp
 
     def SetBpConditon(self, cond, hitcount):
         self.condition = (cond, hitcount)
+    pg.PropGeneric.SetBpConditon = SetBpConditon
 
     def GetBpCondition(self):
         return self.condition
+    pg.PropGeneric.GetBpCondition = GetBpCondition
 
     def SetTriggered(self, triggered):
         self.triggered = triggered
+    pg.PropGeneric.SetTriggered = SetTriggered
 
     def IsTriggered(self):
         return self.triggered
+    pg.PropGeneric.IsTriggered = IsTriggered
 
 class SimPropArt(pg.PropArtNative):
-    def __init__(self):
-        super(SimPropArt, self).__init__()
+    def __init__(self, win=None):
+        super().__init__()
         self.gripper_width = 6
         if wx.Platform == '__WXMSW__':
             self.img_expand = wx.ImageList(12, 12, True, 2)
@@ -1081,10 +1122,10 @@ class SimPropArt(pg.PropArtNative):
         self.check_width = 16
         sx, sy = 16, 16
         self.img_check = wx.ImageList(sx, sy, True, 4)
-        self.img_check.Add(svg_to_bitmap(radio_unchecked_svg, width=sx, height=sy))
-        self.img_check.Add(svg_to_bitmap(radio_disabled_svg, width=sx, height=sy))
-        self.img_check.Add(svg_to_bitmap(radio_checked_svg, width=sx, height=sy))
-        self.img_check.Add(svg_to_bitmap(radio_activated_svg, width=sx, height=sy))
+        self.img_check.Add(svg_to_bitmap(radio_unchecked_svg, width=sx, height=sy, win=win))
+        self.img_check.Add(svg_to_bitmap(radio_disabled_svg, width=sx, height=sy, win=win))
+        self.img_check.Add(svg_to_bitmap(radio_checked_svg, width=sx, height=sy, win=win))
+        self.img_check.Add(svg_to_bitmap(radio_activated_svg, width=sx, height=sy, win=win))
         #self.img_check.Add(wx.Bitmap(to_byte(pg.radio_xpm)))
 
     def PrepareDrawRect(self, p):
@@ -1208,10 +1249,10 @@ class SimPropArt(pg.PropArtNative):
                 self.img_expand.Draw(idx, dc, x, y,
                                      wx.IMAGELIST_DRAW_TRANSPARENT)
             else:
-                super(SimPropArt, self).DrawExpansion(dc, p)
+                super().DrawExpansion(dc, p)
 
     def DrawItem(self, dc, p):
-        super(SimPropArt, self).DrawItem(dc, p)
+        super().DrawItem(dc, p)
         self.DrawGripper(dc, p)
         self.DrawCheck(dc, p)
 
@@ -1229,8 +1270,7 @@ class SimPropGrid(pg.PropGrid):
             num = SimPropGrid.GCM.get_next_num()
         self.num = num
         SimPropGrid.GCM.set_active(self)
-        self.SetArtProvider(SimPropArt())
-        self._prop_cls = SimProperty
+        self.SetArtProvider(SimPropArt(self))
         self.Bind(EVT_PROP_CLICK_CHECK, self.OnPropEventsHandler)
 
         dp.connect(self.OnSimLoad, 'sim.loaded')
@@ -1241,18 +1281,18 @@ class SimPropGrid(pg.PropGrid):
         dp.disconnect(self.OnSimLoad, 'sim.loaded')
         dp.disconnect(self.OnSimUnload, 'sim.unloaded')
         dp.disconnect(self.OnSimUpdate, 'sim.update')
-        self.DeleteAllProperties()
+        self.DeleteAll()
         SimPropGrid.GCM.destroy_mgr(self)
-        super(SimPropGrid, self).Destroy()
+        super().Destroy()
 
     def OnSimUpdate(self, objs):
         for name, v in six.iteritems(objs):
-            p = self.GetProperty(name)
+            p = self.Get(name)
             if isinstance(p, list):
                 for prop in p:
                     prop.SetValue(v)
                     prop.SetValueValid(True)
-            elif isinstance(p, pg.Property):
+            elif isinstance(p, pg.PropBase):
                 p.SetValue(v)
                 p.SetValueValid(True)
 
@@ -1274,16 +1314,16 @@ class SimPropGrid(pg.PropGrid):
             if not resp:
                 return
             status = resp[0][1]
-            if status == False:
+            if status is False:
                 return
             for obj in objs:
                 # enable props that is monitored successfully
                 if isinstance(status, dict) and not status.get(obj, False):
                     continue
-                p = self.GetProperty(s + obj)
+                p = self.Get(s + obj)
                 if not p:
                     continue
-                if isinstance(p, pg.Property):
+                if isinstance(p, pg.PropBase):
                     p = [p]
                 for prop in p:
                     prop.SetReadonly(False)
@@ -1300,7 +1340,7 @@ class SimPropGrid(pg.PropGrid):
             p.Enable(False)
 
     def GetContextMenu(self, prop):
-        menu = super(SimPropGrid, self).GetContextMenu(prop)
+        menu = super().GetContextMenu(prop)
         if not menu:
             menu = wx.Menu()
         else:
@@ -1312,10 +1352,10 @@ class SimPropGrid(pg.PropGrid):
         return menu
 
     def OnPropEventsHandler(self, evt):
-        if not super(SimPropGrid, self).OnPropEventsHandler(evt):
+        if not super().OnPropEventsHandler(evt):
             return False
 
-        prop = evt.GetProperty()
+        prop = evt.GetProp()
         eid = evt.GetEventType()
         if eid == wxEVT_PROP_CLICK_CHECK:
             # turn on/off breakpoint
@@ -1348,7 +1388,7 @@ class SimPropGrid(pg.PropGrid):
         elif eid == self.ID_PROP_BREAKPOINT_CLEAR:
             self.ClearBreakPoints()
         else:
-            super(SimPropGrid, self).OnProcessCommand(eid, prop)
+            super().OnProcessCommand(eid, prop)
 
     def ClearBreakPoints(self):
         """clear all the breakpoints"""
@@ -1422,15 +1462,17 @@ class BreakpointSettingsDlg(wx.Dialog):
         self.stLine = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
         szAll.Add(self.stLine, 0, wx.EXPAND | wx.ALL, 5)
 
-        szConfirm = wx.BoxSizer(wx.HORIZONTAL)
+        btnsizer = wx.StdDialogButtonSizer()
 
-        self.btnOK = wx.Button(self, wx.ID_OK, u"OK")
-        szConfirm.Add(self.btnOK, 0, wx.ALL, 5)
+        self.btnOK = wx.Button(self, wx.ID_OK)
+        self.btnOK.SetDefault()
+        btnsizer.AddButton(self.btnOK)
 
-        self.btnCancel = wx.Button(self, wx.ID_CANCEL, u"Cancel")
-        szConfirm.Add(self.btnCancel, 0, wx.ALL, 5)
+        self.btnCancel = wx.Button(self, wx.ID_CANCEL)
+        btnsizer.AddButton(self.btnCancel)
+        btnsizer.Realize()
 
-        szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
+        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 5)
 
         self.SetSizer(szAll)
         self.Layout()
@@ -1485,13 +1527,14 @@ class BreakpointSettingsDlg(wx.Dialog):
         return (self.condition, self.hitcount)
 
 
-class sim(object):
+class sim:
     frame = None
     ID_SIM_NEW = wx.NOT_FOUND
     ID_PROP_NEW = wx.NOT_FOUND
 
     @classmethod
     def initialize(cls, frame):
+        PropGenericUdpate()
         cls.frame = frame
 
         resp = dp.send(signal='frame.add_menu',
@@ -1688,13 +1731,13 @@ class sim(object):
             manager.SetColor(clr)
             page_bmp = MakeBitmap(clr.red, clr.green,
                                   clr.blue)  #178,  34,  34)
-            title = "Simulation-%d" % manager.sim.num
+            title = f"Simulation-{manager.sim.num}"
             dp.send(signal="frame.add_panel",
                     panel=manager,
                     title=title,
                     target="History",
                     icon=page_bmp,
-                    showhidemenu="View:Simulations:%s" % title)
+                    showhidemenu=f"View:Simulations:{title}")
             return manager.sim
         # activate the manager
         elif manager and activate:
@@ -1712,7 +1755,7 @@ class sim(object):
         mgr = SimPropGrid.GCM.get_manager(num)
         if not mgr and create:
             mgr = SimPropGrid(cls.frame)
-            mgr.SetLabel("Propgrid-%d" % mgr.num)
+            mgr.SetLabel(f"Propgrid-{mgr.num}")
             dp.send(signal="frame.add_panel", panel=mgr, title=mgr.GetLabel())
         elif mgr and activate:
             # activate the window

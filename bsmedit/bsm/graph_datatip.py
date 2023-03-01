@@ -1,12 +1,11 @@
 import datetime
-import copy
 import math
 import wx
 import wx.py.dispatcher as dp
 import numpy as np
 from .graph_common import GraphObject
 from .. import propgrid as pg
-from ..propgrid import formatters as fmt
+from ..propgrid import prop
 
 class DataCursor(GraphObject):
     xoffset, yoffset = -20, 20
@@ -26,7 +25,7 @@ class DataCursor(GraphObject):
         self.window = win
         self.settings = [
                 #[indent, type, name, label, value, fmt]
-                [0, 'choice', 'pos_xy', 'Position', (-1, 1), {
+                prop.PropChoice({
                     (-1, 1): 'top left',
                     (0, 1): 'top',
                     (1, 1): 'top right',
@@ -35,18 +34,18 @@ class DataCursor(GraphObject):
                     (0, -1): 'bottom',
                     (-1, -1): 'bottom left',
                     (-1, 0): 'left',
-                    }],
-                [0, 'separator', 'sep_fmt', 'Format', '', None],
-                [1, 'string', 'fmt_number', 'Number', '.2f', None],
-                [1, 'string', 'fmt_datetime', 'Datetime', '%Y-%m-%d %H:%M:%S', None],
-                [0, 'separator', 'sep_clr', 'Color', '', None],
-                [1, 'color', 'clr_edge', 'Edge', '#8E8E93', None],
-                [1, 'color', 'clr_face', 'Face', '#ffffff', None],
-                [1, 'spin', 'clr_alpha', 'Opacity', 50, (0, 100)],
-                [0, 'separator', 'sep_clr_selected', 'Selected color', '', None],
-                [1, 'color', 'clr_edge_selected', 'Edge', '#8E8E93', None],
-                [1, 'color', 'clr_face_selected', 'Face', '#FF9500', None],
-                [1, 'spin', 'clr_alpha_selected', 'Opacity', 50, (0, 100)],
+                    }, 'Position').Name('pos_xy').Value((-1, 1)),
+                prop.PropSeparator('Format').Name('sep_fmt'),
+                prop.PropText('Number').Value('.2f').Name('fmt_number').Indent(1),
+                prop.PropText('Datetime').Value('%Y-%m-%d %H:%M:%S').Name('fmt_datetime').Indent(1),
+                prop.PropSeparator('Color').Name('sep_color'),
+                prop.PropColor('Edge').Value('#8E8E93').Name('clr_edge').Indent(1),
+                prop.PropColor('Face').Value('#ffffff').Name('clr_face').Indent(1),
+                prop.PropSpin(0, 100, 'Opacity').Name('clr_alpha').Value(50).Indent(1),
+                prop.PropSeparator('Selected color').Name('sep_clr_selected'),
+                prop.PropColor('Edge').Value('#8E8E93').Name('clr_edge_selected').Indent(1),
+                prop.PropColor('Face').Value('#FF9500').Name('clr_face_selected').Indent(1),
+                prop.PropSpin(0, 100, 'Opacity').Name('clr_alpha_selected').Value(50).Indent(1),
                 ]
         self.LoadConfig()
         self.cx, self.cy = None, None
@@ -327,11 +326,13 @@ class DataCursor(GraphObject):
                     history=False)
             return True
         elif cmd == wx.ID_PREFERENCES:
-            settings = copy.deepcopy(self.settings)
+            settings = [s.duplicate() for s in  self.settings]
             active = self.active
             if active:
-                for idx, (i, t, n, l, v, f) in enumerate(settings):
-                    settings[idx][4] = active.config.get(n, v)
+                for idx, p in enumerate(settings):
+                    n = settings[idx].GetName()
+                    if n in active.config:
+                        settings[idx].SetValue(active.config[n], True)
             dlg = DatatipSettingDlg(settings, active is not None,
                                     self.window.GetParent(),
                                     size=(600, 480))
@@ -366,8 +367,9 @@ class DataCursor(GraphObject):
     def get_config(self, settings=None):
         if settings is None:
             settings = self.settings
-
-        config = {n:v for i, t, n, l, v, f in settings if t != 'separator'}
+        if isinstance(settings, dict):
+            return settings
+        config = {p.GetName():p.GetValue() for p in settings if not p.IsSeparator()}
         return config
 
     def ApplyConfigAll(self, config=None):
@@ -405,9 +407,10 @@ class DataCursor(GraphObject):
         resp = dp.send('frame.get_config', group='graph_datatip')
         if resp and resp[0][1] is not None:
             config = resp[0][1]
-            for idx, (i, t, n, l, v, f) in enumerate(self.settings):
+            for idx, p in enumerate(self.settings):
+                n = p.GetName()
                 if n in config:
-                    self.settings[idx][4] = config[n]
+                    self.settings[idx].SetValue(config[n], True)
 
 
 class DatatipSettingDlg(wx.Dialog):
@@ -423,37 +426,12 @@ class DatatipSettingDlg(wx.Dialog):
         g = self.propgrid
         g.Draggable(False)
 
-        for i, t, n, l, v, f in settings:
-            if t == 'separator':
-                p = g.InsertSeparator(n, l)
-            elif t == 'string':
-                p = g.InsertProperty(n, l, v)
-            elif t == 'color':
-                c = v
-                p = g.InsertProperty(n, l, c)
-                p.SetBgColor(c, c, c)
-                p.SetFormatter(fmt.ColorFormatter())
-                t = wx.Colour(c)
-                t.SetRGB(t.GetRGB() ^ 0xFFFFFF)
-                t = t.GetAsString(wx.C2S_HTML_SYNTAX)
-                p.SetTextColor(t, t, t)
-            elif t == 'int':
-                p = g.InsertProperty(n, l, v)
-                p.SetFormatter(fmt.IntFormatter(-1, 1))
-            elif t == 'choice':
-                p = g.InsertProperty(n, l, v)
-                p.SetFormatter(fmt.ChoiceFormatter(f))
-            elif t == 'spin':
-                p = g.InsertProperty(n, l, v)
-                p.SetControlStyle('spin')
-                p.SetFormatter(fmt.IntFormatter(f[0], f[1]))
-            else:
-                raise ValueError()
-            p.SetIndent(i)
+        for p in settings:
+            g.Insert(p)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
-        sizer.Add(g, 1, wx.EXPAND|wx.ALL, 5)
+        sizer.Add(g, 1, wx.EXPAND|wx.ALL, 1)
 
         self.cbApplyAll = wx.CheckBox(self, label="Apply settings to existing datatips in this figure")
         self.cbSaveAsDefaultCurrent = wx.CheckBox(self, label="Save settings as default for this figure")
@@ -480,8 +458,8 @@ class DatatipSettingDlg(wx.Dialog):
 
         self.SetSizer(sizer)
 
-        self.Bind(pg.EVT_PROP_CHANGED, self.OnPropChanged)
-        self.Bind(pg.EVT_PROP_RIGHT_CLICK, self.OnPropEventsHandler)
+        #self.Bind(pg.EVT_PROP_CHANGED, self.OnPropChanged)
+        #self.Bind(pg.EVT_PROP_RIGHT_CLICK, self.OnPropEventsHandler)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
     def OnContextMenu(self, event):
@@ -515,12 +493,11 @@ class DatatipSettingDlg(wx.Dialog):
         settings['apply_all'] = self.cbApplyAll.IsChecked()
         settings['save_as_default'] = self.cbSaveAsDefault.IsChecked()
         settings['save_as_default_cur'] = self.cbSaveAsDefaultCurrent.IsChecked()
-        settings['settings'] = self.settings.copy()
+        settings['settings'] = {}
         for i in range(0, len(self.settings)):
-            _, t, n, l, v, f = self.settings[i]
-            if t == 'seperator':
+            p = self.settings[i]
+            if p.IsSeparator():
                 continue
-
-            self.settings[i][4] = self.propgrid.GetProperty(n).GetValue()
+            n = p.GetName()
+            settings['settings'][n] = self.propgrid.Get(n).GetValue()
         return settings
-
