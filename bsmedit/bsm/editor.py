@@ -4,9 +4,9 @@ import keyword
 import pprint
 import six
 import wx
-import wx.stc as stc
+from wx import stc
 import wx.py.dispatcher as dp
-import wx.lib.agw.aui as aui
+from wx.lib.agw import  aui
 from ..auibarpopup import AuiToolBarPopupArt
 from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
                     dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \
@@ -1252,7 +1252,8 @@ class PyEditorPanel(wx.Panel):
                 command=command,
                 prompt=prompt,
                 verbose=verbose,
-                debug=debug)
+                debug=debug,
+                history=False)
 
     def OnBtnRun(self, event):
         """execute the selection or current line"""
@@ -1520,6 +1521,7 @@ class PyEditorPanel(wx.Panel):
         dp.connect(cls.DebugPaused, 'debugger.paused')
         dp.connect(cls.DebugUpdateScope, 'debugger.update_scopes')
         dp.connect(cls.SetActive, 'frame.activate_panel')
+        dp.connect(receiver=cls.Initialized, signal='frame.initialized')
 
     @classmethod
     def PaneMenu(cls, pane, command):
@@ -1568,9 +1570,21 @@ class PyEditorPanel(wx.Panel):
             editor.debug_paused(status)
 
     @classmethod
+    def Initialized(cls):
+        resp = dp.send('frame.get_config', group='editor', key='opened')
+        if resp and resp[0][1]:
+            files = resp[0][1]
+            for f, line in files:
+                cls.OpenScript(f, activated=False, lineno=line)
+
+    @classmethod
     def Uninitialize(cls):
         """unload the module"""
-        pass
+        files = []
+        for panel in cls.Gce.get_all_managers():
+            editor = panel.editor
+            files.append([editor.filename, editor.GetCurrentLine()])
+        dp.send('frame.set_config', group='editor', opened=files)
 
     @classmethod
     def ProcessCommand(cls, command):
