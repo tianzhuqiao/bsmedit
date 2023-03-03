@@ -263,12 +263,16 @@ class Simulation():
                 print("invalid object: ", name)
                 continue
             if obj['kind'] == 'sc_module':
-                prop = grid.Insert(PropSim('Separator', label=obj['basename'], **kwargs), index)
+                prop = PropSim('Separator', label=obj['basename'], **kwargs)
                 prop.Name(self.global_object_name(obj['name']))
+                # call insert after set the name as "Insert" will trigger
+                # the monitor_signal command
+                prop = grid.Insert(prop, index)
             else:
-                prop = grid.Insert(PropSim(style, label=obj['basename'], **kwargs), index)
+                prop = PropSim(style, label=obj['basename'], **kwargs)
                 prop.Name(self.global_object_name(obj['name'])).Value(obj['value'])
                 prop.SetGripperColor(self.frame.GetColor())
+                prop = grid.Insert(prop, index)
                 if not obj['writable']:
                     prop.Editing(False)
                 prop.SetShowCheck(obj['readable'])
