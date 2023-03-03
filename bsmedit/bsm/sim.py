@@ -11,10 +11,10 @@ import wx.py.dispatcher as dp
 from wx.lib.agw import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
-from .bsmxpm import module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,\
+from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
                     module_grey_xpm, switch_grey_xpm, in_grey_xpm,\
                     out_grey_xpm, inout_grey_xpm, step_svg, step_grey_svg, run_svg, run_grey_svg, \
-                    pause_svg, pause_grey_svg, setting_xpm, radio_disabled_svg, \
+                    pause_svg, pause_grey_svg, setting_svg, radio_disabled_svg, \
                     radio_activated_svg, radio_checked_svg, radio_unchecked_svg
 from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
                         SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,\
@@ -341,12 +341,10 @@ class ModuleTree(FastLoadTreeCtrl):
                 wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
         FastLoadTreeCtrl.__init__(self, parent, self.get_children, style=style)
         imglist = wx.ImageList(16, 16, True, 10)
-        for xpm in [
-                module_xpm, switch_xpm, in_xpm, out_xpm, inout_xpm,
-                module_grey_xpm, switch_grey_xpm, in_grey_xpm, out_grey_xpm,
-                inout_grey_xpm
+        for svg in [
+                module_svg, signal_svg, input_svg, output_svg, inout_svg,
         ]:
-            imglist.Add(wx.Bitmap(to_byte(xpm)))
+            imglist.Add(svg_to_bitmap(svg, win=self))
         self.AssignImageList(imglist)
         self.objects = None
 
@@ -390,14 +388,24 @@ class ModuleTree(FastLoadTreeCtrl):
         """compare the two items for sorting"""
         def SortByName(obj1, obj2):
             """compare the two items based on its type and name"""
-            type1 = obj1['nkind'] in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]
-            type2 = obj2['nkind'] in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]
-            if type1 == type2:
-                if obj1['name'] > obj2['name']:
-                    return 1
-            elif type1 < type2:
-                return 1
-            return -1
+            type1 = obj1['nkind']# in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]
+            type2 = obj2['nkind']# in [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY]
+            order = [SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY, SC_OBJ_CLOCK, SC_OBJ_INPUT,
+                     SC_OBJ_INOUT, SC_OBJ_OUTPUT, SC_OBJ_SIGNAL, SC_OBJ_XSC_PROP,
+                     SC_OBJ_XSC_ARRAY_ITEM, SC_OBJ_UNKNOWN]
+            type1_order = len(order)
+            type2_order = len(order)
+            if type1 in order:
+                type1_order = order.index(type1)
+            if type2 in order:
+                type2_order = order.index(type2)
+
+            if type1_order == type2_order and obj1['name'] == obj2['name']:
+                return 0
+            if type1_order == type2_order:
+                return 1 if obj1['name'] > obj2['name'] else -1
+
+            return 1 if type1_order > type2_order else -1
 
         data1 = self.GetExtendObj(item1)
         data2 = self.GetExtendObj(item2)
@@ -662,7 +670,7 @@ class SimPanel(wx.Panel):
         self.cmbUnitTotal.SetSelection(2)
         self.tb.AddControl(self.cmbUnitTotal)
         self.tb.AddStretchSpacer()
-        self.tb.AddSimpleTool(self.ID_SIM_SET, "Setting", xpm2bmp(to_byte(setting_xpm)),
+        self.tb.AddSimpleTool(self.ID_SIM_SET, "Setting", svg_to_bitmap(setting_svg, win=self),
                               "Configure the simulation")
 
         self.tb.SetToolDropDown(self.ID_SIM_SET, True)
