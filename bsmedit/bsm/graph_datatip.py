@@ -458,8 +458,6 @@ class DatatipSettingDlg(wx.Dialog):
 
         self.SetSizer(sizer)
 
-        #self.Bind(pg.EVT_PROP_CHANGED, self.OnPropChanged)
-        #self.Bind(pg.EVT_PROP_RIGHT_CLICK, self.OnPropEventsHandler)
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
 
     def OnContextMenu(self, event):
@@ -469,19 +467,6 @@ class DatatipSettingDlg(wx.Dialog):
         # and we also need to release the mouse before show the MatplotPanel
         # context menu (wchich will eventually show this dialog)
         pass
-
-    def OnPropEventsHandler(self, event):
-        event.Veto()
-
-    def OnPropChanged(self, evt):
-        p = evt.GetProperty()
-        if 'clr_' in p.GetName():
-            t = wx.Colour(p.GetValue())
-            c = t.GetAsString(wx.C2S_HTML_SYNTAX)
-            p.SetBgColor(c, c, c)
-            t.SetRGB(t.GetRGB() ^ 0xFFFFFF)
-            t = t.GetAsString(wx.C2S_HTML_SYNTAX)
-            p.SetTextColor(t, t, t)
 
     def rgb2hex(self, clr):
         clr = np.sum(clr * 255 * [2**16, 2**8, 1], 1).astype(np.int32)
