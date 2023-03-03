@@ -20,23 +20,23 @@ class BreakpointSettingsDlg(wx.Dialog):
         wx.Dialog.__init__(self,
                            parent,
                            title="Breakpoint Condition",
-                           size=wx.Size(431, 290),
+                           size=wx.DefaultSize,
                            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
-        self.SetSizeHintsSz(wx.DefaultSize, wx.DefaultSize)
+        #self.SetSizeHints(wx.DefaultSize, wx.DefaultSize)
         szAll = wx.BoxSizer(wx.VERTICAL)
         label = ('When the breakkpoint location is reached, the expression is '
-                 'evaluated and the breakpoint is hit only if the expression '
+                 'evaluated, and the breakpoint is hit only if the expression '
                  'is true.')
         self.stInfo = wx.StaticText(self, label=label)
-        self.stInfo.Wrap(-1)
-        szAll.Add(self.stInfo, 1, wx.ALL, 15)
-        szCnd = wx.BoxSizer(wx.HORIZONTAL)
+        self.stInfo.SetMaxSize((420, -1))
+        self.stInfo.Wrap(420)
+        szAll.Add(self.stInfo, 0, wx.ALL|wx.EXPAND, 15)
 
-        szCnd.AddSpacer((20, 0), 0, wx.EXPAND, 5)
+        szCnd = wx.BoxSizer(wx.HORIZONTAL)
+        szCnd.Add(20, 0, 0)
 
         szCond = wx.BoxSizer(wx.VERTICAL)
-
         self.cbCond = wx.CheckBox(self, label="Is true")
         szCond.Add(self.cbCond, 0, wx.ALL | wx.EXPAND, 5)
 
@@ -54,30 +54,31 @@ class BreakpointSettingsDlg(wx.Dialog):
         szCond.Add(self.stHtCount, 0, wx.ALL | wx.EXPAND, 5)
 
         szCnd.Add(szCond, 1, wx.EXPAND, 5)
-
-        szAll.Add(szCnd, 1, wx.EXPAND, 5)
+        szCnd.Add(20, 0, 0)
+        szAll.Add(szCnd, 0, wx.EXPAND, 5)
 
         self.stLine = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
         szAll.Add(self.stLine, 0, wx.EXPAND | wx.ALL, 5)
 
-        szConfirm = wx.BoxSizer(wx.HORIZONTAL)
+        btnsizer = wx.StdDialogButtonSizer()
 
-        self.btnOK = wx.Button(self, wx.ID_OK, "OK")
-        szConfirm.Add(self.btnOK, 0, wx.ALL, 5)
+        self.btnOK = wx.Button(self, wx.ID_OK)
+        self.btnOK.SetDefault()
+        btnsizer.AddButton(self.btnOK)
 
-        self.btnCancel = wx.Button(self, wx.ID_CANCEL, "Cancel")
-        szConfirm.Add(self.btnCancel, 0, wx.ALL, 5)
+        self.btnCancel = wx.Button(self, wx.ID_CANCEL)
+        btnsizer.AddButton(self.btnCancel)
+        btnsizer.Realize()
 
-        szAll.Add(szConfirm, 0, wx.ALIGN_RIGHT, 5)
-
-        self.SetSizer(szAll)
-        self.Layout()
+        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 5)
 
         # initialize the controls
         self.condition = condition
         self.hitcount = hitcount
         self.SetSizer(szAll)
         self.Layout()
+        szAll.Fit(self)
+
         if self.condition == '':
             self.cbCond.SetValue(False)
             self.tcCond.Disable()
