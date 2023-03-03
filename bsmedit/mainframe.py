@@ -4,6 +4,7 @@ import sys
 import importlib
 import traceback
 import json
+import datetime
 import six
 import six.moves
 import wx
@@ -461,46 +462,58 @@ class AboutDialog(wx.Dialog):
         self.panel = wx.Panel(self, style=wx.TAB_TRAVERSAL)
         self.panel.SetBackgroundColour(wx.WHITE)
 
-        szPanel = wx.BoxSizer(wx.VERTICAL)
+        szPanelAll = wx.BoxSizer(wx.HORIZONTAL)
 
         self.header = wx.StaticBitmap(self.panel)
-        self.header.SetBitmap(wx.Bitmap(to_byte(header_xpm)))
-        szPanel.Add(self.header, 0, wx.EXPAND, 0)
+        self.header.SetBitmap(svg_to_bitmap(bsmedit_svg, 128, 128,  win=self))
+        szPanelAll.Add(self.header, 0, wx.EXPAND, 0)
 
+
+        szPanel = wx.BoxSizer(wx.VERTICAL)
+        szPanel.AddStretchSpacer(1)
+        MAX_SIZE = 300
         caption = 'bsmedit %s' % (__version__)
         self.stCaption = wx.StaticText(self.panel, wx.ID_ANY, caption)
+        self.stCaption.SetMaxSize((MAX_SIZE, -1))
+        self.stCaption.Wrap(MAX_SIZE)
         self.stCaption.SetFont(wx.Font(16, 74, 90, 92, False, "Arial"))
 
         szPanel.Add(self.stCaption, 0, wx.ALL | wx.EXPAND, 5)
 
-        strCopyright = '(c) 2018 Tianzhu Qiao. All rights reserved.'
-
+        strCopyright = f'(c) 2018-{datetime.datetime.now().year} Tianzhu Qiao. All rights reserved.'
         self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, strCopyright)
-        self.stCopyright.SetMaxSize((240, -1))
-        self.stCopyright.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
+        self.stCopyright.SetMaxSize((MAX_SIZE, -1))
+        self.stCopyright.Wrap(MAX_SIZE)
+        self.stCopyright.SetFont(wx.Font(10, 74, 90, 90, False, "Arial"))
         szPanel.Add(self.stCopyright, 0, wx.ALL | wx.EXPAND, 5)
 
         build = wx.GetOsDescription() + '; wxWidgets ' + wx.version()
         self.stBuild = wx.StaticText(self.panel, wx.ID_ANY, build)
-        self.stBuild.SetMaxSize((240, -1))
-        self.stBuild.Wrap(240)
-        self.stBuild.SetFont(wx.Font(8, 74, 90, 90, False, "Arial"))
+        self.stBuild.SetMaxSize((MAX_SIZE, -1))
+        self.stBuild.Wrap(MAX_SIZE)
+        self.stBuild.SetFont(wx.Font(10, 74, 90, 90, False, "Arial"))
         szPanel.Add(self.stBuild, 0, wx.ALL | wx.EXPAND, 5)
 
         stLine = wx.StaticLine(self.panel, style=wx.LI_HORIZONTAL)
-        szPanel.Add(stLine, 1, wx.EXPAND | wx.ALL, 0)
+        szPanel.Add(stLine, 0, wx.EXPAND | wx.ALL, 0)
+        szPanel.AddStretchSpacer(1)
 
-        self.panel.SetSizer(szPanel)
+        szPanelAll.Add(szPanel, 1, wx.EXPAND | wx.ALL, 0)
+
+        self.panel.SetSizer(szPanelAll)
         self.panel.Layout()
         szPanel.Fit(self.panel)
 
         szAll.Add(self.panel, 1, wx.EXPAND | wx.ALL, 0)
 
-        szConfirm = wx.BoxSizer(wx.VERTICAL)
-        self.btnOk = wx.Button(self, wx.ID_OK, u"Ok")
-        szConfirm.Add(self.btnOk, 0, wx.ALIGN_RIGHT | wx.ALL, 5)
+        btnsizer = wx.StdDialogButtonSizer()
 
-        szAll.Add(szConfirm, 0, wx.EXPAND, 5)
+        self.btnOK = wx.Button(self, wx.ID_OK)
+        self.btnOK.SetDefault()
+        btnsizer.AddButton(self.btnOK)
+        btnsizer.Realize()
+
+        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 5)
 
         self.SetSizer(szAll)
         self.Layout()
