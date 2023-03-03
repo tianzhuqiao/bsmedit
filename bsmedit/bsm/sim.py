@@ -12,8 +12,7 @@ from wx.lib.agw import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
 from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
-                    module_grey_xpm, switch_grey_xpm, in_grey_xpm,\
-                    out_grey_xpm, inout_grey_xpm, step_svg, step_grey_svg, run_svg, run_grey_svg, \
+                    step_svg, step_grey_svg, run_svg, run_grey_svg, \
                     pause_svg, pause_grey_svg, setting_svg, radio_disabled_svg, \
                     radio_activated_svg, radio_checked_svg, radio_unchecked_svg
 from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
@@ -608,6 +607,76 @@ class DumpDlg(wx.Dialog):
     def GetTrace(self):
         return self.trace
 
+class DumpManageDlg(wx.Dialog):
+    ID_MP_DUMP_STOP = wx.NewId()
+    def __init__(self, sim, parent, id=-1, title='Manage dump files',
+                 size=wx.DefaultSize, pos=wx.DefaultPosition,
+                 style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER):
+        wx.Dialog.__init__(self)
+        self.SetExtraStyle(wx.DIALOG_EX_CONTEXTHELP)
+        self.Create(parent, id, title, pos, size, style)
+
+        self.propgrid = pg.PropGrid(self)
+        g = self.propgrid
+        g.Draggable(False)
+        g.Configurable(False)
+        self.sim = sim
+
+        dumps = sim.get_trace_files()
+        for f, opt in dumps.items():
+            g.Insert(pg.PropSeparator(f)).Expand(False)
+            for name, value in self.GetDumpDescription(opt):
+                g.Insert(pg.PropText(name)).Value(value).Editing(False).Indent(1).Readyonly(True)
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        sizer.Add(g, 1, wx.EXPAND|wx.ALL, 1)
+
+        # ok/cancel button
+        btnsizer = wx.StdDialogButtonSizer()
+        btnsizer.AddStretchSpacer(1)
+
+        btn = wx.Button(self, wx.ID_OK)
+        btn.SetDefault()
+        btnsizer.AddButton(btn)
+
+        btn = wx.Button(self, wx.ID_CANCEL)
+        btnsizer.AddButton(btn)
+        btnsizer.Realize()
+
+        sizer.Add(btnsizer, 0, wx.ALL|wx.EXPAND, 5)
+
+        self.SetSizer(sizer)
+
+        g.Bind(pg.EVT_PROP_RIGHT_CLICK, self.OnPropEventsHandler)
+
+    def OnPropEventsHandler(self, event):
+        menu = wx.Menu()
+        menu.Append(self.ID_MP_DUMP_STOP, 'Stop dumpping file')
+        cmd = PopupMenu(self, menu)
+
+        prop = event.GetProp()
+        if cmd == self.ID_MP_DUMP_STOP:
+            filename = prop.GetLabel()
+            msg = f"Do you want to stop dumping {filename}?"
+            dlg = wx.MessageDialog(self, msg, 'bsmedit', wx.YES_NO)
+            result = dlg.ShowModal() == wx.ID_YES
+            dlg.Destroy()
+            if result:
+                if self.sim.close_trace_file(filename):
+                    prop.SetEnable(False)
+
+    def GetDumpDescription(self, dump):
+        formats = {0: 'VCD', 1:'BSM'}
+        edge = {0:"pos edge", 1: "neg edge", 2:"both edge"}
+        trigger = dump[3]
+        if trigger is None:
+            trigger = ''
+        info = [['signal', dump[1]],
+                ['trigger', f'{trigger} @ {edge.get(dump[4], "unknown edge")}'],
+                ['format', formats.get(dump[2], 'unknown')]
+                ]
+        return info
 
 class SimPanel(wx.Panel):
     ID_SIM_STEP = wx.NewId()
@@ -618,6 +687,7 @@ class SimPanel(wx.Panel):
     ID_MP_TRACE_BUF = wx.NewId()
     ID_MP_ADD_TO_NEW_VIEWER = wx.NewId()
     ID_MP_ADD_TO_VIEWER_START = wx.NewId()
+    ID_MP_DUMP_MANAGE = wx.NewId()
 
     def __init__(self, parent, num=None, filename=None, silent=False):
         wx.Panel.__init__(self, parent)
@@ -721,6 +791,10 @@ class SimPanel(wx.Panel):
     def OnMenuDropDown(self, event):
         if event.IsDropDownClicked():
             menu = wx.Menu()
+            item = menu.Append(self.ID_MP_DUMP_MANAGE, "&Manage dump files")
+            if not self.sim.get_trace_files():
+                item.Enable(False)
+            menu.AppendSeparator()
             menu.Append(wx.ID_RESET, "&Reset")
             menu.AppendSeparator()
             menu.Append(wx.ID_EXIT, "&Exit")
@@ -922,8 +996,7 @@ class SimPanel(wx.Panel):
         msg = f'Do you want to kill {self.GetLabel()}?'
         # use top level frame as parent, otherwise it may crash when
         # it is called in Destroy()
-        dlg = wx.MessageDialog(self.GetTopLevelParent(), msg, 'bsmedit',
-                               wx.YES_NO)
+        dlg = wx.MessageDialog(self.GetTopLevelParent(), msg, 'bsmedit', wx.YES_NO)
         result = dlg.ShowModal() == wx.ID_YES
         dlg.Destroy()
         if result:
@@ -947,6 +1020,10 @@ class SimPanel(wx.Panel):
             self.sim.run()
         elif eid == self.ID_SIM_PAUSE:
             self.sim.pause()
+        elif eid == self.ID_MP_DUMP_MANAGE:
+            dlg = DumpManageDlg(self.sim, self, size=(600, 480))
+            # this does not return until the dialog is closed.
+            val = dlg.ShowModal()
 
     def _process_response(self, resp):
         if self.is_destroying:
@@ -1623,6 +1700,8 @@ class sim:
 
     @classmethod
     def _prop_insert(cls, prop):
+        if not isinstance(prop, PropSim):
+            return
         mgr, name = cls._find_object(prop.GetName())
         if mgr:
             mgr.monitor_signal(name)
