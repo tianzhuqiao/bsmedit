@@ -142,10 +142,11 @@ def sx(cmd, *args, **kwds):
     # try the standalone command first
     try:
         if wait:
-            p = sp.Popen(cmd.split(' '),
+            p = sp.Popen(cmd,
                          startupinfo=startupinfo,
                          stdout=sp.PIPE,
-                         stderr=sp.PIPE)
+                         stderr=sp.PIPE,
+                         shell=True)
             dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo)
