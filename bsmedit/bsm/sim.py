@@ -626,7 +626,7 @@ class DumpManageDlg(wx.Dialog):
         for f, opt in dumps.items():
             g.Insert(pg.PropSeparator(f)).Expand(False)
             for name, value in self.GetDumpDescription(opt):
-                g.Insert(pg.PropText(name)).Value(value).Editing(False).Indent(1).Readyonly(True)
+                g.Insert(pg.PropText(name)).Value(value).Editing(False).Indent(1)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -651,20 +651,21 @@ class DumpManageDlg(wx.Dialog):
         g.Bind(pg.EVT_PROP_RIGHT_CLICK, self.OnPropEventsHandler)
 
     def OnPropEventsHandler(self, event):
-        menu = wx.Menu()
-        menu.Append(self.ID_MP_DUMP_STOP, 'Stop dumpping file')
-        cmd = PopupMenu(self, menu)
-
         prop = event.GetProp()
-        if cmd == self.ID_MP_DUMP_STOP:
-            filename = prop.GetLabel()
-            msg = f"Do you want to stop dumping {filename}?"
-            dlg = wx.MessageDialog(self, msg, 'bsmedit', wx.YES_NO)
-            result = dlg.ShowModal() == wx.ID_YES
-            dlg.Destroy()
-            if result:
-                if self.sim.close_trace_file(filename):
-                    prop.SetEnable(False)
+        if isinstance(prop, pg.PropSeparator):
+            menu = wx.Menu()
+            menu.Append(self.ID_MP_DUMP_STOP, 'Stop dumpping file')
+            cmd = PopupMenu(self, menu)
+
+            if cmd == self.ID_MP_DUMP_STOP:
+                filename = prop.GetLabel()
+                msg = f"Do you want to stop dumping {filename}?"
+                dlg = wx.MessageDialog(self, msg, 'bsmedit', wx.YES_NO)
+                result = dlg.ShowModal() == wx.ID_YES
+                dlg.Destroy()
+                if result:
+                    if self.sim.close_trace_file(filename):
+                        prop.SetEnable(False)
 
     def GetDumpDescription(self, dump):
         formats = {0: 'VCD', 1:'BSM'}
@@ -1099,7 +1100,6 @@ class PropSim(pg.PropBase):
         self.prop = None
         self.SetControlStyle(style, *args, **kwargs)
 
-
     def all_subclasses(self):
         def _sub_classes(cls):
             return set(cls.__subclasses__()).union(
@@ -1128,6 +1128,11 @@ class PropSim(pg.PropBase):
         self.prop = prop
         return True
 
+    def duplicate(self):
+        p = PropSim()
+        if self.prop:
+            p.prop = self.prop.duplicate()
+        return p
 
 def PropGenericUdpate():
     pg.PropGeneric.gripper_clr = wx.RED
@@ -1504,6 +1509,15 @@ class SimPropGrid(pg.PropGrid):
                     return True
         return False
 
+    def Index(self, prop):
+        """return the index of prop, or -1 if not found"""
+        if isinstance(prop, pg.PropBase) and not isinstance(prop, PropSim):
+            for i, p in enumerate(self._props):
+                if prop == p.prop:
+                    return i
+            return -1
+
+        return super().Index(prop)
 
 class BreakpointSettingsDlg(wx.Dialog):
     def __init__(self, parent, condition='', hitcount=''):
