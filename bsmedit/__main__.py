@@ -3,6 +3,12 @@ import wx
 import click
 from .mainframe import MainFrame
 from .version import __version__
+import ctypes
+try:
+    ctypes.windll.shcore.SetProcessDpiAwareness(True)
+except:
+    pass
+
 
 class RunApp(wx.App):
     def __init__(self, **kwargs):
