@@ -81,6 +81,7 @@ class HelpPanel(wx.Panel):
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
         self.LoadConfig()
+        self.Fit()
         command = self.search.GetValue()
         if command:
             self.show_help(command)
@@ -185,7 +186,7 @@ class HelpPanel(wx.Panel):
 
 class HistoryPanel(wx.Panel):
     ID_EXECUTE = wx.NewId()
-    TIME_STAMP_HEADER = "#bsm"
+    TIME_STAMP_HEADER = "#bsm#"
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
@@ -207,6 +208,7 @@ class HistoryPanel(wx.Panel):
         self.tb.SetMargins(right=15)
         self.tb.Realize()
 
+        self.clr_folder = wx.Colour(100, 174, 100)
         self.history = {}
         sizer = wx.BoxSizer(wx.VERTICAL)
         sizer.Add(self.tree, 1, wx.ALL | wx.EXPAND, 0)
@@ -264,14 +266,14 @@ class HistoryPanel(wx.Panel):
             # sort by time-stamp
             childlist.sort()
             is_folder = True
-            clr = wx.Colour(100, 174, 100)
+            clr = self.clr_folder
         else:
             stamp = self.tree.GetItemText(item)
             childlist = self.history.get(stamp, [])
             is_folder = False
             clr = None
             # free the list
-            self.history.pop(stamp, None)
+            #self.history.pop(stamp, None)
         children = []
         for obj in reversed(childlist):
             child = {
@@ -301,7 +303,7 @@ class HistoryPanel(wx.Panel):
 
         history = self.filterHistory(history)
         self.history = {}
-        stamp = time.strftime('#%Y/%m/%d')
+        stamp = time.strftime('%Y/%m/%d')
         for i in six.moves.range(len(history) - 1, -1, -1):
             value = history[i]
             if value.startswith(self.TIME_STAMP_HEADER):
@@ -351,7 +353,7 @@ class HistoryPanel(wx.Panel):
         if not command:
             return
         if not stamp:
-            stamp = time.strftime('#%Y/%m/%d')
+            stamp = time.strftime('%Y/%m/%d')
 
         if not self.filterHistory([command]):
             # not match the pattern
@@ -363,16 +365,17 @@ class HistoryPanel(wx.Panel):
         while item.IsOk():
             if self.tree.GetItemText(item) == stamp:
                 break
-            elif self.tree.GetItemText(item) > stamp:
-                item = self.tree.InsertItemBefore(self.root, pos, stamp)
-                self.tree.SetItemTextColour(item, wx.Colour(100, 174, 100))
+            elif self.tree.GetItemText(item) < stamp:
+                item = self.tree.InsertItem(self.root, pos, stamp)
+                self.tree.SetItemTextColour(item, self.clr_folder)
                 break
             pos = pos + 1
             (item, cookie) = self.tree.GetNextChild(self.root, cookie)
         # not find the time stamp, create one
         if not item.IsOk():
             item = self.tree.PrependItem(self.root, stamp)
-            self.tree.SetItemTextColour(item, wx.Colour(100, 174, 100))
+            self.tree.SetItemTextColour(item, self.clr_folder)
+        self.history[stamp].append(command)
         # append the history
         if item.IsOk():
             self.tree.Expand(item)
@@ -397,6 +400,16 @@ class HistoryPanel(wx.Panel):
         self.PopupMenu(menu)
         menu.Destroy()
 
+    def GetChildIndex(self, parent, child):
+        item, cookie = self.tree.GetFirstChild(parent)
+        index = 0
+        while item.IsOk():
+            index += 1
+            if item == child:
+                return index
+            item, cookie = self.tree.GetNextChild(parent, cookie)
+        return -1
+
     def OnProcessEvent(self, event):
         items = self.tree.GetSelections()
         cmd = []
@@ -419,11 +432,31 @@ class HistoryPanel(wx.Panel):
                 dp.send(signal='shell.run', command=c)
         elif evtId == wx.ID_DELETE:
             for item in items:
+                cmd = self.tree.GetItemText(item)
+                timestamp = ""
+                parent = self.tree.GetItemParent(item)
+                index = -1
+                if parent != self.root:
+                    timestamp = self.tree.GetItemText(parent)
+                    index = self.GetChildIndex(parent, item)
+                    if index > 0:
+                        index = len(self.history[timestamp]) - index
+                        assert self.history[timestamp][index] == cmd
+                        del self.history[timestamp][index]
+                    timestamp = f"#bsm#{timestamp}"
+                else:
+                    self.history.pop(cmd, None)
+                    cmd = f"#bsm#{cmd}"
+                    timestamp = cmd
+                dp.send(signal='shell.delete_history', command=cmd, timestamp=timestamp, \
+                        index=index)
                 if self.tree.ItemHasChildren(item):
                     self.tree.DeleteChildren(item)
                 self.tree.Delete(item)
         elif evtId == wx.ID_CLEAR:
+            dp.send(signal='shell.clear_history')
             self.tree.DeleteAllItems()
+            self.history = {}
 
     def OnDoSearch(self, evt):
         self.SaveConfig()

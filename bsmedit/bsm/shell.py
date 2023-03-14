@@ -215,6 +215,8 @@ class Shell(pyshell.Shell):
         dp.connect(self.runCommand, 'shell.run')
         dp.connect(self.debugPrompt, 'shell.prompt')
         dp.connect(self.addHistory, 'shell.add_to_history')
+        dp.connect(self.clearHistory, 'shell.clear_history')
+        dp.connect(self.deleteHistory, 'shell.delete_history')
         dp.connect(self.IsDebuggerOn, 'debugger.debugging')
         dp.connect(self.getAutoCompleteList, 'shell.auto_complete_list')
         dp.connect(self.getAutoCompleteKeys, 'shell.auto_complete_keys')
@@ -707,6 +709,22 @@ class Shell(pyshell.Shell):
         if stamp not in self.history:
             self.history.insert(0, stamp)
         super(Shell, self).addHistory(command)
+
+    def deleteHistory(self, command, timestamp="", index=-1):
+        for i in six.moves.range(len(self.history) - 1, -1, -1):
+            if self.history[i] == timestamp:
+                if command == timestamp:
+                    # delete folder
+                    m = 1
+                    while(i-m>=0 and not self.history[i-m].startswith('#bsm#')):
+                        del self.history[i-m]
+                        break
+                    break
+                else:
+                    idx = i-index-1
+                    if idx>=0 and self.history[idx] == command:
+                        del self.history[idx]
+                    break
 
     def runCommand(self,
                    command,
