@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=67.6.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bsmedit"
+authors = [
+  { name="Tianzhu Qiao", email="tq@feiyilin.com" },
+]
+license = {file = "LICENSE"}
+description='C/C++/SystemC Visualizer'
+readme = "README.md"
+requires-python = ">=3.0"
+classifiers = [
+    "Operating System :: OS Independent",
+]
+dependencies = [
+          'wxpython>=4.0.0', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
+          'PyOpenGL_accelerate'
+      ]
+dynamic = ["version"]
+
+[tool.setuptools.dynamic]
+version = {attr = "bsmedit.__version__"}
+
+[project.urls]
+"Homepage" = "http://bsmedit.feiyilin.com"
+
+[project.gui-scripts]
+bsmedit = "bsmedit.__main__:main"
+
+[tool.setuptools.packages]
+find = {}
+
+[options]
+include_package_data = true
