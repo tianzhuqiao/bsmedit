@@ -472,7 +472,10 @@ class MatplotPanel(wx.Panel):
         # (e.g., xubuntu, matplotlib 3.2.2, wx 4.1.0), and the menu doesn't show.
         # GLib-GObject-CRITICAL **: g_object_set_data: assertion 'G_IS_OBJECT
         # (object)' failed
-        wx.CallAfter(self._show_context_menu)
+        # remove the wx.CallAfter, as the problem doesn't show on xubuntu
+        # 22.04/matplotlib 3.7.1/wx 4.2.0, and on xubuntu 22.04, wx.CallAfter
+        # will cause the menu to disappear as soon as the right button is up
+        self._show_context_menu()
 
     def _onClose(self, evt):
         self.canvas.close_event()
