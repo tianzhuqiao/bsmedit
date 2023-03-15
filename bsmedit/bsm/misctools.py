@@ -81,10 +81,22 @@ class HelpPanel(wx.Panel):
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
         self.LoadConfig()
-        self.Fit()
+
         command = self.search.GetValue()
         if command:
             self.show_help(command)
+
+        # for some unknown reason, the html/tb will show (e.g., on top of other
+        # window (e.g., history panel)) on MacOS, even if the Panel is hidden.
+        # So hide them here, and show later.
+        self.tb.Hide()
+        self.html.Hide()
+        wx.CallAfter(self.PostInit)
+
+    def PostInit(self):
+        self.html.Show()
+        self.tb.Show()
+        self.Fit()
 
     def LoadConfig(self):
         resp = dp.send('frame.get_config', group='helppanel', key='search')
@@ -375,6 +387,8 @@ class HistoryPanel(wx.Panel):
         if not item.IsOk():
             item = self.tree.PrependItem(self.root, stamp)
             self.tree.SetItemTextColour(item, self.clr_folder)
+        if stamp not in self.history:
+            self.history[stamp] = []
         self.history[stamp].append(command)
         # append the history
         if item.IsOk():
