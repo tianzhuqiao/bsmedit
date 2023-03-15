@@ -5,7 +5,8 @@ long_description = """
 **bsmedit** is a C/C++/SystemC Visualizer.
 - [Documentation](http://bsmedit.feiyilin.com)
 """
-setup(name='bsmedit',
+setup(python_requires='>=3.0',
+      name='bsmedit',
       version=__version__,
       description='C/C++/SystemC Visualizer',
       long_description=long_description,
@@ -19,6 +20,6 @@ setup(name='bsmedit',
       include_package_data=True,
       entry_points={'gui_scripts': ['bsmedit = bsmedit.__main__:main']},
       install_requires=[
-          'wxpython>=4.0.4', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
+          'wxpython>=4.2.0', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
           'PyOpenGL_accelerate'
       ])
