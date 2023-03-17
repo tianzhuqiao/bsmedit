@@ -717,8 +717,8 @@ class Shell(pyshell.Shell):
                     # delete folder
                     m = 1
                     while(i-m>=0 and not self.history[i-m].startswith('#bsm#')):
-                        del self.history[i-m]
-                        break
+                        m += 1
+                    del self.history[i-m+1:i]
                     break
                 else:
                     idx = i-index-1
