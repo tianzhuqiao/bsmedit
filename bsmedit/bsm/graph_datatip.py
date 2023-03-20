@@ -259,13 +259,15 @@ class DataCursor(GraphObject):
         self.set_active(ant)
 
     def GetMenu(self):
-        cmd = [[self.ID_DELETE_DATATIP, 'Delete current datatip',
-                self.active is not None and self.active.get_visible()],
-               [self.ID_CLEAR_DATATIP, 'Delete all datatip', len(self.annotations) > 0],
-               [],
-               [self.ID_EXPORT_DATATIP, 'Export datatip data...', len(self.annotations) > 0],
-               [],
-               [wx.ID_PREFERENCES, 'Settings ...', True],
+        cmd = [{'id': self.ID_DELETE_DATATIP, 'label': 'Delete current datatip',
+                'enable': self.active is not None and self.active.get_visible()},
+               {'id': self.ID_CLEAR_DATATIP, 'label': 'Delete all datatip',
+                'enable': len(self.annotations) > 0},
+               {'type': wx.ITEM_SEPARATOR},
+               {'id': self.ID_EXPORT_DATATIP, 'label': 'Export datatip data...',
+                'enable': len(self.annotations) > 0},
+               {'type': wx.ITEM_SEPARATOR},
+               {'id': wx.ID_PREFERENCES, 'label': 'Settings ...'},
                ]
         return cmd
 

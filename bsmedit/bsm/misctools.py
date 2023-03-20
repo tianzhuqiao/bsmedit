@@ -17,7 +17,7 @@ from .dirtreectrl import DirTreeCtrl, Directory
 from .bsmxpm import backward_svg, forward_svg, goup_xpm, home_xpm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import FastLoadTreeCtrl, svg_to_bitmap, open_file_with_default_app, \
-                     show_file_in_finder
+                     show_file_in_finder, get_file_finder_name
 
 from .. import to_byte
 
@@ -640,12 +640,7 @@ class DirPanel(wx.Panel):
         self.active_items = [self.dirtree.GetRootItem()]
         menu = wx.Menu()
         menu.Append(wx.ID_NEW, "New Folder")
-        if platform.system() == 'Darwin':       # macOS
-            manager = 'Finder'
-        elif platform.system() == 'Windows':    # Windows
-            manager = 'Explorer'
-        else:                         # linux variants
-            manager = 'File Explorer'
+        manager = get_file_finder_name()
         menu.Append(self.ID_OPEN_IN_FINDER, f"Reveal in {manager}\tAlt+Ctrl+R")
         menu.AppendSeparator()
         item = menu.Append(self.ID_PASTE_FOLDER, "Paste\tCtrl+V")

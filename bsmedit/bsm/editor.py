@@ -13,6 +13,7 @@ from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
                     folder_xpm, vert_xpm, horz_xpm, reload_xpm
 from .pymgr_helpers import Gcm
 from .. import to_byte
+from .utility import get_file_finder_name, show_file_in_finder
 
 
 class BreakpointSettingsDlg(wx.Dialog):
@@ -900,6 +901,8 @@ class PyEditorPanel(wx.Panel):
     ID_DBG_STEP_OUT = wx.NewId()
     ID_PANE_COPY_PATH = wx.NewId()
     ID_PANE_COPY_PATH_REL = wx.NewId()
+    ID_PANE_SHOW_IN_FINDER = wx.NewId()
+
     wildcard = 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
     frame = None
 
@@ -1535,6 +1538,8 @@ class PyEditorPanel(wx.Panel):
                     filepath = os.path.relpath(filepath, os.getcwd())
                 wx.TheClipboard.SetData(wx.TextDataObject(filepath))
                 wx.TheClipboard.Close()
+        elif command == cls.ID_PANE_SHOW_IN_FINDER:
+            show_file_in_finder(pane.fileName)
 
     @classmethod
     def SetActive(cls, pane):
@@ -1618,8 +1623,10 @@ class PyEditorPanel(wx.Panel):
                 active=activated,
                 direction=direction,
                 pane_menu={'rxsignal': 'bsm.editor.pane_menu',
-                           'menu': [[cls.ID_PANE_COPY_PATH, 'Copy Path'],
-                                    [cls.ID_PANE_COPY_PATH_REL, 'Copy Relative Path']]})
+                           'menu': [{'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path'},
+                                    {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path'},
+                                    {'type': wx.ITEM_SEPARATOR},
+                                    {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}'}]})
         return editor
 
     @classmethod

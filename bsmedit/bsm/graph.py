@@ -14,7 +14,7 @@ from matplotlib import rcParams
 from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
-from .utility import PopupMenu
+from .utility import PopupMenu, build_menu_from_list
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
                     cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm, \
                     wand_xpm
@@ -435,30 +435,11 @@ class MatplotPanel(wx.Panel):
         if self.toolbar.datacursor.ProcessCommand(evt.GetId()):
             self.canvas.draw()
 
-    def _create_context_menu(self, menus):
-        menu = wx.Menu()
-        for m in menus:
-            if len(m) == 0:
-                item = menu.AppendSeparator()
-            elif isinstance(m[0], str):
-                child = self._create_context_menu(m[1])
-                menu.AppendSubMenu(child, m[0])
-            elif len(m) == 3:
-                # normal item
-                item = menu.Append(m[0], m[1])
-                item.Enable(m[2])
-            elif len(m) == 4:
-                # checkable item
-                item = menu.AppendCheckItem(m[0], m[1])
-                item.Check(m[3])
-                item.Enable(m[2])
-        return menu
-
     def _show_context_menu(self):
         menus = self.toolbar.GetMenu()
         if len(menus) == 0:
             return
-        menu = self._create_context_menu(menus)
+        menu = build_menu_from_list(menus)
         if self.canvas.HasCapture():
             self.canvas.ReleaseMouse()
         mid = PopupMenu(self, menu)

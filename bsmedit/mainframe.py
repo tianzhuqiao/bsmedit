@@ -8,14 +8,14 @@ import datetime
 import six
 import six.moves
 import wx
-import wx.lib.agw.aui as aui
+from wx.lib.agw import aui
 import wx.py
 import wx.py.dispatcher as dp
 import wx.adv
 from .frameplus import FramePlus
-from .mainframexpm import bsmedit_xpm, header_xpm, bsmedit_svg
-from . import __version__, to_byte
-from .bsm.utility import PopupMenu, svg_to_bitmap
+from .mainframexpm import  bsmedit_svg
+from . import __version__
+from .bsm.utility import PopupMenu, svg_to_bitmap, build_menu_from_list
 from .bsm import auto_load_module
 
 class FileDropTarget(wx.FileDropTarget):
@@ -334,8 +334,7 @@ class MainFrame(FramePlus):
         if panel in self.paneMenu:
             menu.AppendSeparator()
             pane_menu = self.paneMenu[panel]
-            for m in pane_menu['menu']:
-                menu.Append(m[0], m[1])
+            build_menu_from_list(pane_menu['menu'], menu)
         command = PopupMenu(self, menu)
         if command == self.ID_VM_RENAME:
             pane = self._mgr.GetPane(panel)
@@ -349,7 +348,7 @@ class MainFrame(FramePlus):
                 self.SetPanelTitle(pane.window, name)
         elif command != 0 and pane_menu is not None:
             for m in pane_menu['menu']:
-                if command == m[0]:
+                if command == m.get('id', None):
                     dp.send(signal=pane_menu['rxsignal'], command=command, pane=panel)
                     break
 

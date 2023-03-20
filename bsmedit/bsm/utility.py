@@ -7,10 +7,16 @@ import wx
 from wx.lib.agw import aui
 import wx.svg
 
-def MakeBitmap(red, green, blue, alpha=128):
+def MakeBitmap(red, green, blue, alpha=128, size=None, scale_factor=1):
     # Create the bitmap that we will stuff pixel values into using
+    w, h = 16, 16
+    if size is not None:
+        w, h = size[0], size[1]
+    w = int(round(w*scale_factor))
+    h = int(round(h*scale_factor))
     # the raw bitmap access classes.
-    bmp = wx.Bitmap(16, 16, 32)
+    bmp = wx.Bitmap(w, h, 32)
+    bmp.SetScaleFactor(scale_factor)
 
     # Create an object that facilitates access to the bitmap's
     # pixel buffer
@@ -27,15 +33,15 @@ def MakeBitmap(red, green, blue, alpha=128):
     # Next we'll use the pixel accessor to set the border pixels
     # to be fully opaque
     pixels = pixelData.GetPixels()
-    for x in six.moves.range(16):
+    for x in six.moves.range(w):
         pixels.MoveTo(pixelData, x, 0)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
-        pixels.MoveTo(pixelData, x, 16 - 1)
+        pixels.MoveTo(pixelData, x, w - 1)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
-    for y in six.moves.range(16):
+    for y in six.moves.range(h):
         pixels.MoveTo(pixelData, 0, y)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
-        pixels.MoveTo(pixelData, 16 - 1, y)
+        pixels.MoveTo(pixelData, h - 1, y)
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
 
     return bmp
@@ -122,6 +128,16 @@ def open_file_with_default_app(filepath):
     else:                                   # linux variants
         subprocess.call(('xdg-open', filepath))
 
+def get_file_finder_name():
+
+    if platform.system() == 'Darwin':       # macOS
+        manager = 'Finder'
+    elif platform.system() == 'Windows':    # Windows
+        manager = 'Explorer'
+    else:                         # linux variants
+        manager = 'File Explorer'
+    return manager
+
 def show_file_in_finder(filepath):
     if platform.system() == 'Darwin':       # macOS
         subprocess.call(('open', '-R', filepath))
@@ -129,6 +145,35 @@ def show_file_in_finder(filepath):
         subprocess.Popen( f"explorer '{filepath}'" )
     else:                                   # linux variants
         subprocess.call(('nautilus', '-s', filepath))
+
+def build_menu_from_list(items, menu=None):
+    # for each item in items
+    # {'type': ITEM_SEPARATOR}
+    # {'type': ITEM_NORMAL, 'id': , 'label': , 'enable':}
+    # {'type': ITEM_CHECK, 'id': , 'label': , 'enable':, 'check'}
+    # {'type': ITEM_RADIO, 'id': , 'label': , 'enable':, 'check'}
+    # {'type': ITEM_DROPDOWN, 'label':, 'items': []]
+    if menu is None:
+        menu = wx.Menu()
+    for m in items:
+        mtype = m.get('type', wx.ITEM_NORMAL)
+        if mtype == wx.ITEM_SEPARATOR:
+            item = menu.AppendSeparator()
+        elif mtype == wx.ITEM_DROPDOWN:
+            child = build_menu_from_list(m['items'])
+            menu.AppendSubMenu(child, m['label'])
+        elif mtype == wx.ITEM_NORMAL:
+            item = menu.Append(m['id'], m['label'])
+            item.Enable(m.get('enable', True))
+        elif mtype == wx.ITEM_CHECK:
+            item = menu.AppendCheckItem(m['id'], m['label'])
+            item.Check(m.get('check', True))
+            item.Enable(m.get('enable', True))
+        elif mtype == wx.ITEM_RADIO:
+            item = menu.AppendRadioItem(m['id'], m['label'])
+            item.Check(m.get('check', True))
+            item.Enable(m.get('enable', True))
+    return menu
 
 def patch_aui_toolbar_art():
 

@@ -146,24 +146,29 @@ class LineEditor(GraphObject):
         self.marker.set_visible(self.draggable)
 
     def GetMenu(self):
-        cmd = [[self.ID_XY_MODE, 'x/y mode', True, self.mode == ''],
-               [self.ID_X_MODE, 'x only mode', True, self.mode == 'x'],
-               [self.ID_Y_MODE, 'y only mode', True, self.mode == 'y'],
-               [self.ID_ROUND_Y, 'Round y to', True, self.round_y_to is not None],
-               [],
+        cmd = [{'type': wx.ITEM_CHECK, 'id': self.ID_XY_MODE, 'label': 'x/y mode',
+                'check': self.mode == ''},
+               {'type': wx.ITEM_CHECK, 'id': self.ID_X_MODE, 'label': 'x only mode',
+                'check': self.mode == 'x'},
+               {'type': wx.ITEM_CHECK, 'id': self.ID_Y_MODE, 'label': 'y only mode',
+                'check': self.mode == 'y'},
+               {'type': wx.ITEM_CHECK, 'id': self.ID_ROUND_Y, 'label': 'Round y to',
+                'check': self.round_y_to is not None},
+               {'type': wx.ITEM_SEPARATOR},
               ]
 
         self.update_line()
         lines = []
-        lines.append([self.ID_EXPORT_TO_TERM, 'Export active line to shell ...',
-                      self.active_line_index is not None])
-        lines.append([])
+        lines.append({'id': self.ID_EXPORT_TO_TERM, 'label': 'Export active line to shell ...',
+                      'enable': self.active_line_index is not None})
+        lines.append({'type': wx.ITEM_SEPARATOR})
         for i, line in enumerate(self.lines):
             while i >= len(self.ID_LINES):
                 self.ID_LINES.append(wx.NewId())
-            lines.append([self.ID_LINES[i], line.get_label(), True, self.active_line_index == i])
+            lines.append({'type': wx.ITEM_CHECK, 'id': self.ID_LINES[i],
+                          'label': line.get_label(), 'check': self.active_line_index == i})
         if lines:
-            cmd.append(['Lines', lines])
+            cmd.append({'type': wx.ITEM_DROPDOWN, 'label': 'Lines', 'items': lines})
         return cmd
 
     def ProcessCommand(self, cmd):
