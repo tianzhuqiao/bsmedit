@@ -145,6 +145,11 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.highlightStr = ""
         self.SetMouseDwellTime(500)
 
+        self.trim_trailing_whitespace = True
+        resp = dp.send('frame.get_config', group='editor', key='trim_trailing_whitespace')
+        if resp and resp[0][1] is not None:
+            self.trim_trailing_whitespace = resp[0][1]
+
         # Assign handlers for keyboard events.
         self.Bind(wx.EVT_CHAR, self.OnChar)
         self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
@@ -168,8 +173,19 @@ class PyEditor(wx.py.editwindow.EditWindow):
             ids = self.breakpointlist[key]['id']
             dp.send('debugger.clear_breakpoint', id=ids)
 
+    def TrimTrailingWhiteSpace(self):
+        for i in range(self.GetLineCount()):
+            line=self.GetLine(i).rstrip()
+            if len(line) != self.GetLineLength(i):
+                start = self.PositionFromLine(i)
+                end = start + self.GetLineLength(i)
+                self.Replace(start, end, line)
+
     def SaveFile(self, filename):
         """save file"""
+        if self.trim_trailing_whitespace:
+            self.TrimTrailingWhiteSpace()
+
         if super(PyEditor, self).SaveFile(filename):
             # remember the filename
             fname = os.path.abspath(filename)
