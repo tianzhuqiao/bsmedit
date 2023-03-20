@@ -284,12 +284,12 @@ class Toolbar(GraphToolbar):
     def zoom(self, *args):
         """activate the zoom mode"""
         self.set_mode('zoom')
-        super(Toolbar, self).zoom(*args)
+        super().zoom(*args)
 
     def pan(self, *args):
         """activated the pan mode"""
         self.set_mode('pan')
-        super(Toolbar, self).pan(*args)
+        super().pan(*args)
 
     def OnBack(self, *args):
         super().back(*args)
@@ -366,6 +366,9 @@ class MatplotPanel(wx.Panel):
     clsID_new_figure = wx.NOT_FOUND
     isInitialized = False
     kwargs = {}
+    ID_PANE_CLOSE = wx.NewId()
+    ID_PANE_CLOSE_OTHERS = wx.NewId()
+    ID_PANE_CLOSE_ALL = wx.NewId()
 
     def __init__(self, parent, title=None, num=-1, thisFig=None):
         # set the size to positive value, otherwise the toolbar will assert
@@ -473,7 +476,7 @@ class MatplotPanel(wx.Panel):
         self.canvas.close_event()
         self.canvas.stop_event_loop()
         Gcf.destroy(self.num)
-        return super(MatplotPanel, self).Destroy(*args, **kwargs)
+        return super().Destroy(*args, **kwargs)
 
     def GetTitle(self):
         """return the figure title"""
@@ -565,7 +568,13 @@ class MatplotPanel(wx.Panel):
                 direction=direction,
                 title=fig.GetTitle(),
                 target=Gcf.get_active(),
-                minsize=(75, 75))
+                minsize=(75, 75),
+                pane_menu={'rxsignal': 'bsm.graph.pane_menu',
+                           'menu': [
+                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
+                               {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
+                               {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
+                               ]})
         return fig
 
     @classmethod
@@ -587,6 +596,24 @@ class MatplotPanel(wx.Panel):
         dp.connect(cls.Initialized, 'frame.initialized')
         dp.connect(cls.setactive, 'frame.activate_panel')
         dp.connect(cls.OnBufferChanged, 'sim.buffer_changed')
+        dp.connect(cls.PaneMenu, 'bsm.graph.pane_menu')
+
+    @classmethod
+    def PaneMenu(cls, pane, command):
+        if not pane or not isinstance(pane, MatplotPanel):
+            return
+        if command == cls.ID_PANE_CLOSE:
+            dp.send(signal='frame.delete_panel', panel=pane)
+        elif command == cls.ID_PANE_CLOSE_OTHERS:
+            mgrs =  cls.Gcf.get_all_managers()
+            for mgr in mgrs:
+                if mgr == pane:
+                    continue
+                dp.send(signal='frame.delete_panel', panel=mgr)
+        elif command == cls.ID_PANE_CLOSE_ALL:
+            mgrs =  cls.Gcf.get_all_managers()
+            for mgr in mgrs:
+                dp.send(signal='frame.delete_panel', panel=mgr)
 
     @classmethod
     def Initialized(cls):
