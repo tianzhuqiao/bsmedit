@@ -918,6 +918,10 @@ class PyEditorPanel(wx.Panel):
     ID_PANE_COPY_PATH = wx.NewId()
     ID_PANE_COPY_PATH_REL = wx.NewId()
     ID_PANE_SHOW_IN_FINDER = wx.NewId()
+    ID_PANE_SHOW_IN_BROWSING = wx.NewId()
+    ID_PANE_CLOSE = wx.NewId()
+    ID_PANE_CLOSE_OTHERS = wx.NewId()
+    ID_PANE_CLOSE_ALL = wx.NewId()
 
     wildcard = 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
     frame = None
@@ -1556,6 +1560,20 @@ class PyEditorPanel(wx.Panel):
                 wx.TheClipboard.Close()
         elif command == cls.ID_PANE_SHOW_IN_FINDER:
             show_file_in_finder(pane.fileName)
+        elif command == cls.ID_PANE_SHOW_IN_BROWSING:
+            dp.send(signal='dirpanel.goto', filepath=pane.fileName, show=True)
+        elif command == cls.ID_PANE_CLOSE:
+            dp.send(signal='frame.delete_panel', panel=pane)
+        elif command == cls.ID_PANE_CLOSE_OTHERS:
+            mgrs =  PyEditorPanel.Gce.get_all_managers()
+            for mgr in mgrs:
+                if mgr == pane:
+                    continue
+                dp.send(signal='frame.delete_panel', panel=mgr)
+        elif command == cls.ID_PANE_CLOSE_ALL:
+            mgrs =  PyEditorPanel.Gce.get_all_managers()
+            for mgr in mgrs:
+                dp.send(signal='frame.delete_panel', panel=mgr)
 
     @classmethod
     def SetActive(cls, pane):
@@ -1639,10 +1657,17 @@ class PyEditorPanel(wx.Panel):
                 active=activated,
                 direction=direction,
                 pane_menu={'rxsignal': 'bsm.editor.pane_menu',
-                           'menu': [{'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path'},
-                                    {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path'},
-                                    {'type': wx.ITEM_SEPARATOR},
-                                    {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}'}]})
+                           'menu': [
+                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
+                               {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
+                               {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
+                               {'type': wx.ITEM_SEPARATOR},
+                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
+                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
+                               {'type': wx.ITEM_SEPARATOR},
+                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
+                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':f'Reveal in Browsing panel'},
+                               ]})
         return editor
 
     @classmethod

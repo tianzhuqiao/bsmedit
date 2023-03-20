@@ -554,6 +554,7 @@ class DirPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_NEW)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_PASTE_FOLDER)
 
+        dp.connect(receiver=self.GoTo, signal='dirpanel.goto')
         self.active_items = []
 
     def LoadConfig(self):
@@ -567,6 +568,29 @@ class DirPanel(wx.Panel):
     def SaveConfig(self):
         dp.send('frame.set_config', group='dirpanel', show_hidden=self.cbShowHidden.IsChecked())
         dp.send('frame.set_config', group='dirpanel', file_pattern=self.search.GetValue())
+
+    def GoTo(self, filepath, show=None):
+        folder = filepath
+        if os.path.isfile(filepath):
+            folder = os.path.dirname(filepath)
+        if not os.path.isdir(folder):
+            return
+
+        self.SetRootDir(folder)
+        if os.path.isfile(filepath):
+            filename = os.path.basename(filepath)
+            root_item = self.dirtree.GetRootItem()
+            item, cookie = self.dirtree.GetFirstChild(root_item)
+            while item.IsOk():
+                text = self.dirtree.GetItemText(item)
+                if text == filename:
+                    self.dirtree.SelectItem(item)
+                    self.dirtree.EnsureVisible(item)
+                    break
+                item, cookie = self.dirtree.GetNextChild(root_item, cookie)
+
+        if show:
+            dp.send(signal='frame.show_panel', panel=self, focus=True)
 
     def get_file_path(self, item):
         if item == self.dirtree.GetRootItem():
