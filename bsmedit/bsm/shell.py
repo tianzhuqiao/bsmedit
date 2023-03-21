@@ -259,6 +259,7 @@ class Shell(pyshell.Shell):
         if self.CanCopy():
             self.Copy()
         else:
+            self.interp.more = False
             endpos = self.GetTextLength()
             self.GotoPos(endpos)
             self.push('', history=False)
@@ -362,7 +363,7 @@ class Shell(pyshell.Shell):
         dp.disconnect(self.OnActivatePanel, 'frame.activate_panel')
         dp.disconnect(self.OnActivate, 'frame.activate')
         dp.disconnect(self.OnFrameClosing, 'frame.closing')
-        super(Shell, self).Destroy()
+        super().Destroy()
 
     def OnFrameClosing(self, event):
         """the frame is exiting"""
@@ -471,7 +472,7 @@ class Shell(pyshell.Shell):
             self.evaluate(cmd)
         except:
             pass
-        super(Shell, self).autoCompleteShow(command, offset)
+        super().autoCompleteShow(command, offset)
 
     def IsDebuggerOn(self):
         """check if the debugger is on"""
@@ -534,7 +535,7 @@ class Shell(pyshell.Shell):
             evt.Enable(self.CanRedo())
         # update the caret position so that it is always in valid area
         self.UpdateCaretPos()
-        super(Shell, self).OnUpdateUI(evt)
+        super().OnUpdateUI(evt)
 
     def UpdateCaretPos(self):
         # when editing the command, do not allow moving the caret to
@@ -600,7 +601,7 @@ class Shell(pyshell.Shell):
             self.searchHistory = True
             # Reset the history position.
             self.historyIndex = -1
-            super(Shell, self).OnKeyDown(event)
+            super().OnKeyDown(event)
 
     def OnLeftDClick(self, event):
         line_num = self.GetCurrentLine()
@@ -632,7 +633,7 @@ class Shell(pyshell.Shell):
         searchText = fullText
         if numCharsAfterCursor > 0:
             searchText = searchText[:-numCharsAfterCursor]
-        if not searchText or self.searchHistory == False:
+        if not searchText or not self.searchHistory:
             self.OnHistoryReplace(step=up * 2 - 1)
             self.searchHistory = False
             return
@@ -708,7 +709,7 @@ class Shell(pyshell.Shell):
         stamp = time.strftime('#bsm#%Y/%m/%d')
         if stamp not in self.history:
             self.history.insert(0, stamp)
-        super(Shell, self).addHistory(command)
+        super().addHistory(command)
 
     def deleteHistory(self, command, timestamp="", index=-1):
         for i in six.moves.range(len(self.history) - 1, -1, -1):
@@ -757,6 +758,53 @@ class Shell(pyshell.Shell):
             self.write(command_typed)
         self.autoIndent = True
 
+    def push_multiple_line(self, command, silent=False, history=True):
+        commands = command.splitlines(keepends=False)
+        if command.endswith('\n'):
+            # keep the newline at the end, so an empty line will finish
+            # the statement
+            commands.append('')
+        if not commands:
+            # run the empty command (e.g., to start the prompt in a new line)
+            commands = ['']
+
+        # run the command line by line
+        cmd_raw = []
+        for idx, cmd in enumerate(commands):
+            if idx != len(commands) -1 and not cmd and cmd_raw:
+                p = cmd_raw[-1]
+                cmd = p[:len(p) - len(p.lstrip())]
+            cmd_raw.append(cmd)
+            if pyshell.USE_MAGIC:
+                cmd = magic(cmd)
+            if len(cmd) > 1 and cmd[-1] == ';':
+                self.silent = True
+            self.waiting = True
+            self.lastUpdate = None
+            try:
+                if self.enable_debugger:
+                    self.debugger.reset()
+                    sys.settrace(self.debugger)
+                self.more = self.interp.push(cmd)
+            except:
+                traceback.print_exc(file=sys.stdout)
+            finally:
+                # make sure debugger.ended is always sent; more does not hurt
+                if self.enable_debugger:
+                    dp.send('debugger.ended')
+                    self.debugger.reset()
+                    self.enable_debugger = False
+
+            sys.settrace(None)
+            self.lastUpdate = None
+            self.waiting = False
+            if not self.more and history:
+                # finished a statement, add it to history
+                self.addHistory('\n'.join(cmd_raw))
+                cmd_raw = []
+        if not silent:
+            self.prompt()
+
     def push(self, command, silent=False, history=True):
         """Send command to the interpreter for execution."""
         self.running = True
@@ -766,37 +814,9 @@ class Shell(pyshell.Shell):
         if self.waiting and self.IsDebuggerOn():
             self.debugger.push_line(command)
             return
+
         # DNM
-        cmd_raw = command
-        if pyshell.USE_MAGIC:
-            command = magic(command)
-        if len(command) > 1 and command[-1] == ';':
-            self.silent = True
-
-        self.waiting = True
-        self.lastUpdate = None
-        try:
-            if self.enable_debugger:
-                self.debugger.reset()
-                sys.settrace(self.debugger)
-            self.more = self.interp.push(command)
-        except:
-            traceback.print_exc(file=sys.stdout)
-        finally:
-            # make sure debugger.ended is always sent; more does not hurt
-            if self.enable_debugger:
-                dp.send('debugger.ended')
-                self.debugger.reset()
-                self.enable_debugger = False
-
-        sys.settrace(None)
-        self.lastUpdate = None
-        self.waiting = False
-        self.silent = False
-        if not self.more and history:
-            self.addHistory(cmd_raw)
-        if not silent:
-            self.prompt()
+        self.push_multiple_line(command, silent=silent, history=history)
         self.running = False
 
     def lstripPrompt(self, text):

@@ -186,7 +186,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         if self.trim_trailing_whitespace:
             self.TrimTrailingWhiteSpace()
 
-        if super(PyEditor, self).SaveFile(filename):
+        if super().SaveFile(filename):
             # remember the filename
             fname = os.path.abspath(filename)
             fname = os.path.normcase(fname)
@@ -197,7 +197,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
     def LoadFile(self, filename):
         """load file into editor"""
         self.ClearBreakpoint()
-        if super(PyEditor, self).LoadFile(filename):
+        if super().LoadFile(filename):
             # remember the filename
             fname = os.path.abspath(filename)
             fname = os.path.normcase(fname)
@@ -575,7 +575,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                 width=100)
 
     def OnUpdateUI(self, event):
-        super(PyEditor, self).OnUpdateUI(event)
+        super().OnUpdateUI(event)
         wx.CallAfter(self.UpdateStatusText)
 
     def SetUpEditor(self):
@@ -1044,7 +1044,7 @@ class PyEditorPanel(wx.Panel):
         self.editor.ClearBreakpoint()
         self.CheckModified()
         self.Gce.destroy(self.num)
-        return super(PyEditorPanel, self).Destroy()
+        return super().Destroy()
 
     def update_bp(self):
         """update the breakpoints"""
@@ -1285,9 +1285,7 @@ class PyEditorPanel(wx.Panel):
         if not cmd or cmd == """""":
             (cmd, _) = self.editor.GetCurLine()
             cmd = cmd.rstrip()
-        lines = cmd.split('\n')
-        for line in lines:
-            self.RunCommand(line, prompt=True, verbose=True)
+        self.RunCommand(cmd, prompt=True, verbose=True)
 
     def CheckModified(self):
         """check whether it is modified"""
