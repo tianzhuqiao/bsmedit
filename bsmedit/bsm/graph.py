@@ -605,13 +605,13 @@ class MatplotPanel(wx.Panel):
         if command == cls.ID_PANE_CLOSE:
             dp.send(signal='frame.delete_panel', panel=pane)
         elif command == cls.ID_PANE_CLOSE_OTHERS:
-            mgrs =  cls.Gcf.get_all_managers()
+            mgrs =  Gcf.get_all_fig_managers()
             for mgr in mgrs:
                 if mgr == pane:
                     continue
                 dp.send(signal='frame.delete_panel', panel=mgr)
         elif command == cls.ID_PANE_CLOSE_ALL:
-            mgrs =  cls.Gcf.get_all_managers()
+            mgrs =  Gcf.get_all_fig_managers()
             for mgr in mgrs:
                 dp.send(signal='frame.delete_panel', panel=mgr)
 
