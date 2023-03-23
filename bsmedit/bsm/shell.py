@@ -798,6 +798,7 @@ class Shell(pyshell.Shell):
             sys.settrace(None)
             self.lastUpdate = None
             self.waiting = False
+            self.silent = False
             if not self.more and history:
                 # finished a statement, add it to history
                 self.addHistory('\n'.join(cmd_raw))
