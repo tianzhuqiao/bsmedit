@@ -10,6 +10,7 @@ from ..propgrid import prop
 class DataCursor(GraphObject):
     xoffset, yoffset = -20, 20
     text_template = 'x: %0.2f\ny: %0.2f'
+    MAX_DISTANCE = 5
 
     ID_DELETE_DATATIP = wx.NewId()
     ID_CLEAR_DATATIP = wx.NewId()
@@ -21,7 +22,6 @@ class DataCursor(GraphObject):
         self.enable = False
         self.active = None
         self.mx, self.my = None, None
-        self.pickEvent = False
         self.window = win
         self.settings = [
                 #[indent, type, name, label, value, fmt]
@@ -51,46 +51,48 @@ class DataCursor(GraphObject):
         self.cx, self.cy = None, None
 
     def pick(self, event):
-        if not self.enable:
-            return
-        if not event.mouseevent.xdata or not event.mouseevent.ydata:
-            return
-        if not event.artist:
-            return
-        xm, ym = event.mouseevent.x, event.mouseevent.y
-        if self.get_annotation(xm, ym) is not None:
-            # click in the box of existing annotation, ignore it
-            return
+        # pick event will not always be triggered for twinx, see following linke
+        # for detail
+        # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.twinx.html
+        return
 
-        line = event.artist
+    def annotation_line(self, line, mx, my):
+        if not self.enable:
+            return False
+        if self.get_annotation(mx, my) is not None:
+            # click in the box of existing annotation, ignore it
+            return False
+
+        # find the closest point on the line
+        # mouse position in data coordinate
+        dis = self.distance_to_line(line, mx, my)
+        if dis > self.MAX_DISTANCE:
+            return False
+
         if self.active and self.active.get_visible():
             # Check whether the axes of active annotation is same as line,
             # which may happen in a figure with subplots. If not, create one
             # with the axes of line
             if self.active.axes != line.axes:
-                self.active = None
+                self.set_active(None)
         if self.active is None:
             self.create_annotation(line)
         idx = self.annotations.index(self.active)
         self.lines[idx] = line
 
-        # find the closest point on the line
-        x, y = line.get_xdata(False), line.get_ydata(False)
-        xc, yc = event.mouseevent.xdata, event.mouseevent.ydata
-        gx, gy = self.get_xy_dis_gain()
-        idx = (np.square(x - xc) * gx**2 + np.square(y - yc) * gy**2).argmin()
-        xn, yn = x[idx], y[idx]
-        if xn is not None:
-            self.active.xy = xn, yn
-            xs, ys = line.get_data()
-            self.active.xy_orig = xs[idx], ys[idx]
-            #self.active.set_text(self.text_template % (xs[idx], ys[idx]))
-            self.active.set_text(self.xy_to_annotation(xs[idx], ys[idx]))
-            x, y = self.active.config['pos_xy']
-            wx.CallAfter(self.set_annotation_position, self.active, x, y)
-            self.active.set_visible(True)
-            event.canvas.draw()
-        self.pickEvent = True
+        # set the annotation
+        inv = line.axes.transData.inverted()
+        dmx, dmy = inv.transform((mx, my))
+        didx, dx, dy = self.get_closest(line, dmx, dmy)
+        self.active.xy = dx, dy
+        xs, ys = line.get_data()
+        self.active.xy_orig = xs[didx], ys[didx]
+        self.active.set_text(self.xy_to_annotation(xs[idx], ys[idx]))
+        x, y = self.active.config['pos_xy']
+        wx.CallAfter(self.set_annotation_position, self.active, x, y)
+        self.active.set_visible(True)
+        self.figure.canvas.draw()
+        return True
 
     def xy_to_annotation(self, x, y, fmt=None):
         if fmt is None:
@@ -192,10 +194,14 @@ class DataCursor(GraphObject):
         """
         select the active annotation which is closest to the mouse position
         """
-        # ignore the event triggered immediately after pick_event
-        if self.pickEvent:
-            self.pickEvent = False
-            return False
+
+        axes = [a for a in self.figure.get_axes()
+                if a.in_axes(event)]
+        line, dis = self.get_closest_line(axes, event.x, event.y)
+        if line:
+            if self.annotation_line(line, event.x, event.y):
+                return True
+
         # just created the new annotation, do not move to others
         if self.active and (not self.active.get_visible()):
             return False
@@ -246,11 +252,11 @@ class DataCursor(GraphObject):
                                  textcoords='offset pixels',
                                  ha='left',
                                  va='bottom',
-                                 bbox=dict(boxstyle='round,pad=0.5',
-                                           fc=config['clr_face_selected'],
-                                           alpha=1),
-                                 arrowprops=dict(arrowstyle='->',
-                                                 connectionstyle='arc3,rad=0'))
+                                 bbox={'boxstyle': 'round,pad=0.5',
+                                       'fc': config['clr_face_selected'],
+                                       'alpha': 1},
+                                 arrowprops={'arrowstyle': '->',
+                                             'connectionstyle': 'arc3,rad=0'})
         ant.set_visible(False)
         ant.xy_orig = (0, 0)
         self.ApplyConfig(ant, config)

@@ -28,21 +28,47 @@ matplotlib.interactive(True)
 class Pan(GraphObject):
     def __init__(self, figure):
         super().__init__(figure)
+        self.axes = None
 
     def key_down(self, event):
         keycode = event.GetKeyCode()
-        xlims = np.array(self.figure.gca().get_xlim())
-        rng = xlims[1] - xlims[0]
-        if keycode == wx.WXK_LEFT:
-            xlims -= rng
-        elif keycode == wx.WXK_RIGHT:
-            xlims += rng
-        else:
-            event.Skip()
-        self.figure.gca().set_xlim(xlims)
-        # rescale y to show data
-        self.figure.gca().autoscale(axis='y')
+        axes = self.axes
+        if axes is None:
+            if len(self.figure.get_axes()) > 1:
+                return
+            axes = self.figure.gca()
+        xlims_all = []
+        ylims_all = []
+        for ax in axes:
+            # get the xlim from all axes first, as some x-axis may be shared;
+            # otherwise, the shared x-axis will be moved multiple times.
+            xlims_all.append(np.array(ax.get_xlim()))
+            ylims_all.append(np.array(ax.get_ylim()))
+        for i, ax in enumerate(axes):
+            xlims = xlims_all[i]
+            ylims = ylims_all[i]
+            rng_x = xlims[1] - xlims[0]
+            rng_y = ylims[1] - ylims[0]
+            if keycode == wx.WXK_LEFT:
+                xlims -= rng
+            elif keycode == wx.WXK_RIGHT:
+                xlims += rng
+            elif keycode == wx.WXK_UP:
+                ylims += rng_y
+            elif keycode == wx.WXK_DOWN:
+                ylims -= rng_y
+            else:
+                event.Skip()
+            ax.set_xlim(xlims)
+            ax.set_ylim(ylims)
+            # rescale y to show data
+            ax.autoscale(axis='y')
         self.figure.canvas.draw_idle()
+
+    def mouse_pressed(self, event):
+        self.axes = [a for a in self.figure.get_axes()
+                if a.in_axes(event)]
+        return False
 
 class Toolbar(GraphToolbar):
     def __init__(self, canvas, figure):
@@ -103,14 +129,18 @@ class Toolbar(GraphToolbar):
             return
         action.key_pressed(event)
 
+    def _set_picker_all(self):
+        for g in self.figure.get_axes():
+            for l in g.lines:
+                if l.get_picker() is None:
+                    l.set_picker(5)
+
     def OnPressed(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_pressed'):
             return
         # some lines may be added
-        for l in self.figure.gca().lines:
-            if l.get_picker() is None:
-                l.set_picker(5)
+        self._set_picker_all()
         if action.mouse_pressed(event):
             self.canvas.draw()
 
@@ -133,10 +163,13 @@ class Toolbar(GraphToolbar):
             return
         if self._nav_stack.empty():
             self.push_current()
+
+        axes = [a for a in self.figure.get_axes()
+                if a.in_axes(event)]
+        if not axes:
+            return
+
         base_scale = 2.0
-        ax = self.figure.gca()
-        cur_xlim = ax.get_xlim()
-        cur_ylim = ax.get_ylim()
 
         xdata = event.xdata  # get event x location
         ydata = event.ydata  # get event y location
@@ -155,22 +188,25 @@ class Toolbar(GraphToolbar):
             # deal with something that should never happen
             scale_factor = 1.0
 
-        new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
-        new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
+        for ax in axes:
+            cur_xlim = ax.get_xlim()
+            cur_ylim = ax.get_ylim()
+            new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
+            new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
 
-        relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
-        rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
-        xzoom = yzoom = True
-        if wx.GetKeyState(wx.WXK_CONTROL_X):
-            yzoom = False
-        elif wx.GetKeyState(wx.WXK_CONTROL_Y):
-            xzoom = False
-        if (xzoom) and new_width * (1 - relx) > 0:
-            ax.set_xlim(
-                [xdata - new_width * (1 - relx), xdata + new_width * (relx)])
-        if (yzoom) and new_height * (1 - rely) > 0:
-            ax.set_ylim(
-                [ydata - new_height * (1 - rely), ydata + new_height * (rely)])
+            relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
+            rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
+            xzoom = yzoom = True
+            if wx.GetKeyState(wx.WXK_CONTROL_X):
+                yzoom = False
+            elif wx.GetKeyState(wx.WXK_CONTROL_Y):
+                xzoom = False
+            if (xzoom) and new_width * (1 - relx) > 0:
+                ax.set_xlim(
+                    [xdata - new_width * (1 - relx), xdata + new_width * (relx)])
+            if (yzoom) and new_height * (1 - rely) > 0:
+                ax.set_ylim(
+                    [ydata - new_height * (1 - rely), ydata + new_height * (rely)])
         self.canvas.draw()
 
     def init_toolbar_empty(self):
@@ -239,7 +275,8 @@ class Toolbar(GraphToolbar):
                 history=False)
 
     def auto_scale(self, evt):
-        self.figure.gca().autoscale()
+        for ax in self.figure.get_axes():
+            ax.autoscale()
         self.figure.canvas.draw_idle()
 
     def copy_figure(self, evt):
@@ -322,9 +359,7 @@ class Toolbar(GraphToolbar):
         for a in self.canvas.figure.get_axes():
             a.set_navigate_mode(self._active)
 
-        for l in self.figure.gca().lines:
-            if l.get_picker() is None:
-                l.set_picker(5)
+        self._set_picker_all()
         if self.mode == 'datatip':
             self.set_mode('')
         else:
@@ -347,9 +382,7 @@ class Toolbar(GraphToolbar):
         for a in self.canvas.figure.get_axes():
             a.set_navigate_mode(self._active)
 
-        for l in self.figure.gca().lines:
-            if l.get_picker() is None:
-                l.set_picker(5)
+        self._set_picker_all()
         if self.mode == "edit":
             self.set_mode("")
         else:
@@ -419,13 +452,14 @@ class MatplotPanel(wx.Panel):
         return self.toolbar
 
     def simLoad(self, num):
-        for l in self.figure.gca().lines:
-            if hasattr(l, 'trace'):
-                sz = len(l.get_ydata())
-                for s in l.trace:
-                    if (not s) or (not s.startswith(str(num) + '.')):
-                        continue
-                    #dispatcher.send(signal='sim.trace_buf', objects=s, size=sz)
+        for ax in self.figure.get_axes():
+            for l in ax.lines:
+                if hasattr(l, 'trace'):
+                    sz = len(l.get_ydata())
+                    for s in l.trace:
+                        if (not s) or (not s.startswith(str(num) + '.')):
+                            continue
+                        #dispatcher.send(signal='sim.trace_buf', objects=s, size=sz)
 
     def _onClick(self, event):
         if event.dblclick:
@@ -497,29 +531,30 @@ class MatplotPanel(wx.Panel):
 
     def update_buffer(self, bufs):
         """update the data used in plot_trace"""
-        for l in self.figure.gca().lines:
-            if hasattr(l, 'trace'):
-                x = l.trace[0]
-                y = l.trace[1]
-                if x is None:
-                    if y in bufs:
-                        l.set_data(np.arange(len(bufs[y])), bufs[y])
-                elif x in bufs or y in bufs:
-                    xd = l.get_xdata()
-                    yd = l.get_ydata()
-                    if y in bufs:
-                        yd = bufs[y]
-                    if x in bufs:
-                        xd = bufs[x]
-                    if len(xd) != len(yd):
-                        sz = min(len(xd), len(yd))
-                        xd = xd[0:sz]
-                        yd = yd[0:sz]
-                    l.set_data(xd, yd)
-                if hasattr(l, 'autorelim') and l.autorelim:
-                    #Need both of these in order to rescale
-                    self.figure.gca().relim()
-                    self.figure.gca().autoscale_view()
+        for ax in self.figure.get_axes():
+            for l in ax.lines:
+                if hasattr(l, 'trace'):
+                    x = l.trace[0]
+                    y = l.trace[1]
+                    if x is None:
+                        if y in bufs:
+                            l.set_data(np.arange(len(bufs[y])), bufs[y])
+                    elif x in bufs or y in bufs:
+                        xd = l.get_xdata()
+                        yd = l.get_ydata()
+                        if y in bufs:
+                            yd = bufs[y]
+                        if x in bufs:
+                            xd = bufs[x]
+                        if len(xd) != len(yd):
+                            sz = min(len(xd), len(yd))
+                            xd = xd[0:sz]
+                            yd = yd[0:sz]
+                        l.set_data(xd, yd)
+                    if hasattr(l, 'autorelim') and l.autorelim:
+                        #Need both of these in order to rescale
+                        ax.relim()
+                        ax.autoscale_view()
         self.canvas.draw()
 
     def plot_trace(self, x, y, autorelim, *args, **kwargs):
@@ -544,6 +579,7 @@ class MatplotPanel(wx.Panel):
             l.trace = [list(x.keys())[0], list(y.keys())[0]]
         l.autorelim = autorelim
         self.canvas.draw()
+
     def set_window_title(self, label):
         pass
 
