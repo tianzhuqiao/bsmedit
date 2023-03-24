@@ -67,18 +67,29 @@ class GraphObject():
         dis = np.abs(a*mx+b*my + c)/np.sqrt(a**2+b**2)
         return dis
 
-    def get_closest(self, line, mx, my):
-        """return the index of closed data point"""
+    def get_closest(self, line, mx, my, tolerance=0):
+        """return the index of the points whose distance to (mx, my) is smaller
+           than tolerance, or the closest data point to (mx, my)"""
         x, y = line.get_data(False)
         if mx is None and my is None:
             return -1
-        if my is None:
-            mini = np.argmin((x-mx)**2)
-        elif mx is None:
-            mini = np.argmin((y-my)**2)
-        else:
-            gx, gy = self.get_xy_dis_gain(line.axes)
-            mini = np.argmin((x-mx)**2 * gx**2 + (y-my)**2 * gy**2)
+
+        gx, gy = self.get_xy_dis_gain(line.axes)
+        mini = []
+        if tolerance>0:
+            if my is None:
+                mini = np.where((x-mx)**2 * gx**2 < tolerance**2)[0]
+            elif mx is None:
+                mini = np.where((y-my)**2 * gx**2 < tolerance**2)[0]
+            else:
+                mini = np.where(((x-mx)**2 * gx**2 + (y-my)**2 * gy**2) < tolerance**2)[0]
+        if len(mini)  == 0:
+            if my is None:
+                mini = np.argmin((x-mx)**2)
+            elif mx is None:
+                mini = np.argmin((y-my)**2)
+            else:
+                mini = np.argmin((x-mx)**2 * gx**2 + (y-my)**2 * gy**2)
         return mini, x[mini], y[mini]
 
     def GetMenu(self):

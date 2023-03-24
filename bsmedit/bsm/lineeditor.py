@@ -80,7 +80,17 @@ class LineEditor(GraphObject):
             elif mode == 'y' and shift:
                 mode = 'x'
             if mode == 'x':
-                idx, _, _ = self.get_closest(self.active_line, mx, None)
+                # search the index based on x-axis only
+                idx, _, _ = self.get_closest(self.active_line, mx, None, 5)
+                if isinstance(idx, np.ndarray):
+                    idx_closest = np.argmin(np.abs(idx - self.index))
+                    idx = idx[idx_closest]
+                # search based on x and y
+                idx2, _, _ = self.get_closest(self.active_line, mx, my)
+                # find the index that is close to the current position
+                if abs(idx2 - self.index) < abs(idx - self.index):
+                    idx = idx2
+
                 if self.index > 0 and idx < self.index:
                     # move to left
                     y[idx:self.index] = y[self.index]
@@ -116,7 +126,6 @@ class LineEditor(GraphObject):
     def update(self, event):
         self.update_line()
         if self.active_line is None:
-            min_dis = float("inf")
             active_line, _ = self.get_closest_line(self.axes, event.x, event.y)
             if active_line:
                 self.active_line = active_line
@@ -214,7 +223,7 @@ class LineEditor(GraphObject):
                     history=False)
         elif cmd in self.ID_LINES:
             i = 0
-            for g, lines in self.lines.items():
+            for _, lines in self.lines.items():
                 for line in lines:
                     if i == self.ID_LINES.index(cmd):
                         self.active_line = line
