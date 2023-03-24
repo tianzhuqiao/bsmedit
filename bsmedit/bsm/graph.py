@@ -1,6 +1,7 @@
 import wx
 import wx.aui
 import wx.py.dispatcher as dp
+from wx.lib.agw import aui
 import numpy as np
 import matplotlib
 matplotlib.use('module://bsmedit.bsm.bsmbackend')
@@ -36,7 +37,7 @@ class Pan(GraphObject):
         if axes is None:
             if len(self.figure.get_axes()) > 1:
                 return
-            axes = self.figure.gca()
+            axes = [self.figure.gca()]
         xlims_all = []
         ylims_all = []
         for ax in axes:
@@ -52,20 +53,25 @@ class Pan(GraphObject):
             ylims = ylims_all[i]
             rng_x = (xlims[1] - xlims[0])*step
             rng_y = (ylims[1] - ylims[0])*step
-            if keycode == wx.WXK_LEFT:
-                xlims -= rng_x
-            elif keycode == wx.WXK_RIGHT:
-                xlims += rng_x
-            elif keycode == wx.WXK_UP:
-                ylims += rng_y
-            elif keycode == wx.WXK_DOWN:
-                ylims -= rng_y
+            if keycode in [wx.WXK_LEFT, wx.WXK_RIGHT]:
+                if keycode == wx.WXK_LEFT:
+                    xlims -= rng_x
+                else:
+                    xlims += rng_x
+
+                ax.set_xlim(xlims)
+                # rescale y to show data
+                #ax.autoscale(axis='y')
+            elif keycode in [wx.WXK_UP, wx.WXK_DOWN]:
+                if keycode == wx.WXK_UP:
+                    ylims += rng_y
+                else:
+                    ylims -= rng_y
+
+                ax.set_ylim(ylims)
+                #ax.autoscale(axis='x')
             else:
                 event.Skip()
-            ax.set_xlim(xlims)
-            ax.set_ylim(ylims)
-            # rescale y to show data
-            ax.autoscale(axis='y')
         self.figure.canvas.draw_idle()
 
     def mouse_pressed(self, event):
@@ -74,6 +80,8 @@ class Pan(GraphObject):
         return False
 
 class Toolbar(GraphToolbar):
+    ID_AUTO_SCALE_X = wx.NewId()
+    ID_AUTO_SCALE_Y = wx.NewId()
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
             self._init_toolbar = self.init_toolbar
@@ -267,7 +275,38 @@ class Toolbar(GraphToolbar):
                       getattr(self, callback),
                       id=self.wx_ids[text])
 
+        self.SetToolDropDown(self.wx_ids['Auto Scale'], True)
+        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN, self.OnMenuDropDown,
+                  id=self.wx_ids['Auto Scale'])
+        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_X)
+        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_Y)
+
         self.Realize()
+
+    def OnMenuDropDown(self, event):
+        if event.IsDropDownClicked():
+            menu = wx.Menu()
+            item = menu.Append(self.ID_AUTO_SCALE_X, "Auto scale x-axis")
+            item = menu.Append(self.ID_AUTO_SCALE_Y, "Auto scale y-axis")
+
+            # line up our menu with the button
+            tb = event.GetEventObject()
+            tb.SetToolSticky(event.GetId(), True)
+            rect = tb.GetToolRect(event.GetId())
+            pt = tb.ClientToScreen(rect.GetBottomLeft())
+            pt = self.ScreenToClient(pt)
+
+            self.PopupMenu(menu, pt)
+
+            # make sure the button is "un-stuck"
+            tb.SetToolSticky(event.GetId(), False)
+
+    def OnProcessMenu(self, event):
+        eid = event.GetId()
+        if eid == self.ID_AUTO_SCALE_X:
+            self.do_auto_scale('x')
+        elif eid == self.ID_AUTO_SCALE_Y:
+            self.do_auto_scale('y')
 
     def OnNewFigure(self, evt):
         dp.send('shell.run',
@@ -277,9 +316,13 @@ class Toolbar(GraphToolbar):
                 debug=False,
                 history=False)
 
+
     def auto_scale(self, evt):
+        self.do_auto_scale()
+
+    def do_auto_scale(self,axis='both'):
         for ax in self.figure.get_axes():
-            ax.autoscale()
+            ax.autoscale(axis=axis)
         self.figure.canvas.draw_idle()
 
     def copy_figure(self, evt):
