@@ -50,9 +50,9 @@ class Pan(GraphObject):
             rng_x = xlims[1] - xlims[0]
             rng_y = ylims[1] - ylims[0]
             if keycode == wx.WXK_LEFT:
-                xlims -= rng
+                xlims -= rng_x
             elif keycode == wx.WXK_RIGHT:
-                xlims += rng
+                xlims += rng_x
             elif keycode == wx.WXK_UP:
                 ylims += rng_y
             elif keycode == wx.WXK_DOWN:
