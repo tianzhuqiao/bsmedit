@@ -14,6 +14,12 @@ libs/
 License
 *.bsm
 *.zip
+*.o
+*.so
 venv*/
 build/
 dist/
+*egg-info/
+*cache/
+.DS_Store
+*.npy
