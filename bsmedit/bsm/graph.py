@@ -44,11 +44,14 @@ class Pan(GraphObject):
             # otherwise, the shared x-axis will be moved multiple times.
             xlims_all.append(np.array(ax.get_xlim()))
             ylims_all.append(np.array(ax.get_ylim()))
+        step = 1
+        if event.ShiftDown():
+            step = 1/10
         for i, ax in enumerate(axes):
             xlims = xlims_all[i]
             ylims = ylims_all[i]
-            rng_x = xlims[1] - xlims[0]
-            rng_y = ylims[1] - ylims[0]
+            rng_x = (xlims[1] - xlims[0])*step
+            rng_y = (ylims[1] - ylims[0])*step
             if keycode == wx.WXK_LEFT:
                 xlims -= rng_x
             elif keycode == wx.WXK_RIGHT:
