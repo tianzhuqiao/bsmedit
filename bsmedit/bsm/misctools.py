@@ -14,7 +14,7 @@ import wx.html2 as html
 import wx.svg
 from ..auibarpopup import AuiToolBarPopupArt
 from .dirtreectrl import DirTreeCtrl, Directory
-from .bsmxpm import backward_svg, forward_svg, goup_xpm, home_xpm
+from .bsmxpm import backward_svg, forward_svg, up_svg, home_svg, more_svg
 from .autocomplete import AutocompleteTextCtrl
 from .utility import FastLoadTreeCtrl, svg_to_bitmap, open_file_with_default_app, \
                      show_file_in_finder, get_file_finder_name
@@ -485,6 +485,9 @@ class DirPanel(wx.Panel):
     ID_OPEN_IN_FINDER = wx.NewId()
     ID_RENAME = wx.NewId()
     ID_PASTE_FOLDER = wx.NewId()
+    ID_MORE = wx.NewId()
+    ID_SHOW_HIDDEN = wx.NewId()
+    ID_SHOW_PATTERN_TOOLBAR = wx.NewId()
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
@@ -494,13 +497,19 @@ class DirPanel(wx.Panel):
         agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
-                              wx.Bitmap(to_byte(goup_xpm)), 'Parent folder')
-        self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
-                              wx.Bitmap(to_byte(home_xpm)), 'Current folder')
+                              svg_to_bitmap(up_svg, win=self), 'Parent folder')
         self.tb.AddSeparator()
-        self.cbShowHidden = wx.CheckBox(self.tb, wx.ID_ANY, 'Show hidden file/folder')
-        self.cbShowHidden.SetValue(True)
-        self.tb.AddControl(self.cbShowHidden)
+        self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
+                              svg_to_bitmap(home_svg, win=self), 'Current folder')
+
+        self.tb.AddStretchSpacer()
+        self.showHidden = True
+        self.tb.AddSimpleTool(self.ID_MORE, 'More ...',
+                              svg_to_bitmap(more_svg, win=self), 'More ...')
+
+        self.Bind(wx.EVT_TOOL, self.OnMenuDropDown, id=self.ID_MORE)
+        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_SHOW_HIDDEN)
+        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_SHOW_PATTERN_TOOLBAR)
 
         self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
@@ -541,7 +550,6 @@ class DirPanel(wx.Panel):
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnRightClick, self.dirtree)
         self.Bind(wx.EVT_TREE_ITEM_RIGHT_CLICK, self.OnRightClickItem, self.dirtree)
         self.Bind(wx.EVT_TREE_END_LABEL_EDIT, self.OnRename, self.dirtree)
-        self.Bind(wx.EVT_CHECKBOX, self.OnShowHidden, self.cbShowHidden)
 
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_OPEN)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_COPY)
@@ -560,14 +568,58 @@ class DirPanel(wx.Panel):
     def LoadConfig(self):
         resp = dp.send('frame.get_config', group='dirpanel', key='show_hidden')
         if resp and resp[0][1] is not None:
-            self.cbShowHidden.SetValue(resp[0][1]=='True')
+            self.showHidden = resp[0][1]
         resp = dp.send('frame.get_config', group='dirpanel', key='file_pattern')
         if resp and resp[0][1] is not None:
             self.search.SetValue(resp[0][1])
 
+        resp = dp.send('frame.get_config', group='dirpanel', key='show_pattern_toolbar')
+        if resp and resp[0][1] is not None:
+            self.tb2.Show(resp[0][1])
+            self.Layout()
+            self.Update()
+
     def SaveConfig(self):
-        dp.send('frame.set_config', group='dirpanel', show_hidden=self.cbShowHidden.IsChecked())
+        dp.send('frame.set_config', group='dirpanel', show_hidden=self.showHidden)
         dp.send('frame.set_config', group='dirpanel', file_pattern=self.search.GetValue())
+        dp.send('frame.set_config', group='dirpanel', show_pattern_toolbar=self.tb2.IsShown())
+
+    def OnMenuDropDown(self, event):
+        menu = wx.Menu()
+        if self.showHidden:
+            item = menu.Append(self.ID_SHOW_HIDDEN, "Hide hidden file/folder")
+        else:
+            item = menu.Append(self.ID_SHOW_HIDDEN, "Show hidden file/folder")
+        menu.AppendSeparator()
+        if self.tb2.IsShown():
+            item = menu.Append(self.ID_SHOW_PATTERN_TOOLBAR, "Hide pattern toolbar")
+        else:
+            item = menu.Append(self.ID_SHOW_PATTERN_TOOLBAR, "Show pattern toolbar")
+
+
+        # line up our menu with the button
+        tb = event.GetEventObject()
+        tb.SetToolSticky(event.GetId(), True)
+        rect = tb.GetToolRect(event.GetId())
+        pt = tb.ClientToScreen(rect.GetBottomLeft())
+        pt = self.ScreenToClient(pt)
+
+        self.PopupMenu(menu, pt)
+
+        # make sure the button is "un-stuck"
+        tb.SetToolSticky(event.GetId(), False)
+
+    def OnProcessMenu(self, event):
+        eid = event.GetId()
+        if eid == self.ID_SHOW_HIDDEN:
+            self.showHidden = not self.showHidden
+            self.SetRootDir()
+        elif eid == self.ID_SHOW_PATTERN_TOOLBAR:
+            self.tb2.Show(not self.tb2.IsShown())
+            self.Layout()
+            self.Update()
+
+        self.SaveConfig()
 
     def GoTo(self, filepath, show=None):
         folder = filepath
@@ -818,8 +870,7 @@ class DirPanel(wx.Panel):
         if not root_dir:
             root_dir = self.get_file_path(self.dirtree.GetRootItem())
         pattern = self.search.GetValue()
-        show_hidden =  self.cbShowHidden.IsChecked()
-        self.dirtree.SetRootDir(root_dir, pattern=pattern, show_hidden=show_hidden)
+        self.dirtree.SetRootDir(root_dir, pattern=pattern, show_hidden=self.showHidden)
 
     def OnShowHidden(self, event):
         self.SaveConfig()
