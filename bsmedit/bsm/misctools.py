@@ -5,7 +5,6 @@ import traceback
 import sys
 import re
 import shutil
-import platform
 import six
 import wx
 from  wx.lib.agw import aui
@@ -19,7 +18,6 @@ from .autocomplete import AutocompleteTextCtrl
 from .utility import FastLoadTreeCtrl, svg_to_bitmap, open_file_with_default_app, \
                      show_file_in_finder, get_file_finder_name
 
-from .. import to_byte
 
 html_template = '''
 <html>
@@ -496,6 +494,14 @@ class DirPanel(wx.Panel):
         self.toolbarart = AuiToolBarPopupArt(self)
         agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
+        self.tb.AddSimpleTool(wx.ID_BACKWARD, 'Back',
+                              svg_to_bitmap(backward_svg, win=self),
+                              'Back')
+
+        self.tb.AddSimpleTool(wx.ID_FORWARD, 'Forward',
+                              svg_to_bitmap(forward_svg, win=self),
+                              'Forward')
+        self.tb.AddSeparator()
         self.tb.AddSimpleTool(self.ID_GOTO_PARENT, 'Parent',
                               svg_to_bitmap(up_svg, win=self), 'Parent folder')
         self.tb.AddSeparator()
@@ -537,11 +543,15 @@ class DirPanel(wx.Panel):
         self.box.Fit(self)
         self.SetSizer(self.box)
 
+        self.history = []
+        self.history_index = 0
         self.LoadConfig()
         self.SetRootDir(os.getcwd())
 
         self.Bind(wx.EVT_TOOL, self.OnGotoHome, id=self.ID_GOTO_HOME)
         self.Bind(wx.EVT_TOOL, self.OnGotoParent, id=self.ID_GOTO_PARENT)
+        self.Bind(wx.EVT_TOOL, self.OnForward, id=wx.ID_FORWARD)
+        self.Bind(wx.EVT_TOOL, self.OnBack, id=wx.ID_BACKWARD)
 
         self.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnItemActivated,
                   self.dirtree)
@@ -561,6 +571,7 @@ class DirPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_RENAME)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=wx.ID_NEW)
         self.Bind(wx.EVT_MENU, self.OnProcessEvent, id=self.ID_PASTE_FOLDER)
+        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI)
 
         dp.connect(receiver=self.GoTo, signal='dirpanel.goto')
         self.active_items = []
@@ -707,6 +718,17 @@ class DirPanel(wx.Panel):
             if path == d.directory:
                 return
             self.SetRootDir(path)
+
+    def OnBack(self, event):
+        # the button is only enabled when history_index>0
+        root = self.history[self.history_index-1]
+        self.SetRootDir(root)
+
+    def OnForward(self, event):
+        # the button is only enable when history_index hasn't reached the last
+        # one
+        root = self.history[self.history_index+1]
+        self.SetRootDir(root)
 
     def OnDoSearch(self, evt):
         self.SaveConfig()
@@ -871,12 +893,33 @@ class DirPanel(wx.Panel):
             root_dir = self.get_file_path(self.dirtree.GetRootItem())
         pattern = self.search.GetValue()
         self.dirtree.SetRootDir(root_dir, pattern=pattern, show_hidden=self.showHidden)
+        if self.history_index + 1 < len(self.history) and root_dir == self.history[self.history_index+1]:
+            self.history_index += 1
+        elif self.history_index - 1 >= 0 and root_dir == self.history[self.history_index-1]:
+            self.history_index -= 1
+        else:
+            if root_dir in self.history:
+                self.history_index = self.history.index(root_dir)
+            else:
+                self.history.append(root_dir)
+                self.history_index = len(self.history)-1
 
     def OnShowHidden(self, event):
         self.SaveConfig()
         self.SetRootDir()
 
-class MiscTools(object):
+    def OnUpdateUI(self, event):
+        idx = event.GetId()
+        h_idx = -1
+        h_len = len(self.history)
+        if h_len > 0:
+            h_idx = self.history_index % h_len
+        if idx == wx.ID_FORWARD:
+            event.Enable(0 <= h_idx < h_len - 1)
+        elif idx == wx.ID_BACKWARD:
+            event.Enable(h_idx > 0)
+
+class MiscTools():
     frame = None
 
     @classmethod
