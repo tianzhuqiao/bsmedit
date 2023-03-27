@@ -1,7 +1,5 @@
 import wx
-import wx.aui
 import wx.py.dispatcher as dp
-from wx.lib.agw import aui
 import numpy as np
 import matplotlib
 matplotlib.use('module://bsmedit.bsm.bsmbackend')
@@ -15,10 +13,10 @@ from matplotlib import rcParams
 from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
-from .utility import PopupMenu, build_menu_from_list
+from .utility import PopupMenu, build_menu_from_list, svg_to_bitmap
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
                     cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm, \
-                    wand_xpm
+                    more_svg
 from .. import to_byte
 from .graph_toolbar import GraphToolbar
 rcParams.update({'figure.autolayout': True})
@@ -82,6 +80,8 @@ class Pan(GraphObject):
 class Toolbar(GraphToolbar):
     ID_AUTO_SCALE_X = wx.NewId()
     ID_AUTO_SCALE_Y = wx.NewId()
+    ID_AUTO_SCALE_XY = wx.NewId()
+
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
             self._init_toolbar = self.init_toolbar
@@ -242,7 +242,7 @@ class Toolbar(GraphToolbar):
             ('Edit', 'Edit curve', line_edit_xpm, 'edit_figure'),
             (None, None, None, None),
             (None, None, None, "stretch"),
-            ('Auto Scale', 'Auto Scale', wand_xpm, 'auto_scale'),
+            ('Auto Scale', 'Auto Scale', more_svg, 'OnMore'),
             #(None, None, None, None),
             #('Print', 'Print the figure', print_xpm, 'print_figure'),
         )
@@ -259,50 +259,55 @@ class Toolbar(GraphToolbar):
                     self.AddSeparator()
                 continue
             self.wx_ids[text] = wx.NewId()
+            if isinstance(image_file, list):
+                image = wx.Bitmap(to_byte(image_file))
+            else:
+                image = svg_to_bitmap(image_file, win=self)
             if text in ['Pan', 'Zoom', 'Datatip', 'Edit']:
                 self.AddCheckTool(self.wx_ids[text],
                                   text,
-                                  wx.Bitmap(to_byte(image_file)),
+                                  image,
                                   disabled_bitmap=wx.NullBitmap,
                                   short_help_string=text,
                                   long_help_string=tooltip_text)
             else:
                 self.AddTool(self.wx_ids[text], text,
-                             wx.Bitmap(to_byte(image_file)),
+                             image,
                              disabled_bitmap=wx.NullBitmap,
                              kind=wx.ITEM_NORMAL, short_help_string=tooltip_text)
             self.Bind(wx.EVT_TOOL,
                       getattr(self, callback),
                       id=self.wx_ids[text])
 
-        self.SetToolDropDown(self.wx_ids['Auto Scale'], True)
-        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN, self.OnMenuDropDown,
-                  id=self.wx_ids['Auto Scale'])
         self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_X)
         self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_Y)
+        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_XY)
 
         self.Realize()
 
-    def OnMenuDropDown(self, event):
-        if event.IsDropDownClicked():
-            menu = wx.Menu()
-            item = menu.Append(self.ID_AUTO_SCALE_X, "Auto scale x-axis")
-            item = menu.Append(self.ID_AUTO_SCALE_Y, "Auto scale y-axis")
+    def OnMore(self, event):
+        menu = wx.Menu()
+        menu.Append(self.ID_AUTO_SCALE_XY, "Auto scale")
+        menu.AppendSeparator()
+        menu.Append(self.ID_AUTO_SCALE_X, "Auto scale x-axis")
+        menu.Append(self.ID_AUTO_SCALE_Y, "Auto scale y-axis")
 
-            # line up our menu with the button
-            tb = event.GetEventObject()
-            tb.SetToolSticky(event.GetId(), True)
-            rect = tb.GetToolRect(event.GetId())
-            pt = tb.ClientToScreen(rect.GetBottomLeft())
-            pt = self.ScreenToClient(pt)
+        # line up our menu with the button
+        tb = event.GetEventObject()
+        tb.SetToolSticky(event.GetId(), True)
+        rect = tb.GetToolRect(event.GetId())
+        pt = tb.ClientToScreen(rect.GetBottomLeft())
+        pt = self.ScreenToClient(pt)
 
-            self.PopupMenu(menu, pt)
+        self.PopupMenu(menu, pt)
 
-            # make sure the button is "un-stuck"
-            tb.SetToolSticky(event.GetId(), False)
+        # make sure the button is "un-stuck"
+        tb.SetToolSticky(event.GetId(), False)
 
     def OnProcessMenu(self, event):
         eid = event.GetId()
+        if eid == self.ID_AUTO_SCALE_XY:
+            self.do_auto_scale()
         if eid == self.ID_AUTO_SCALE_X:
             self.do_auto_scale('x')
         elif eid == self.ID_AUTO_SCALE_Y:
@@ -315,10 +320,6 @@ class Toolbar(GraphToolbar):
                 verbose=False,
                 debug=False,
                 history=False)
-
-
-    def auto_scale(self, evt):
-        self.do_auto_scale()
 
     def do_auto_scale(self,axis='both'):
         for ax in self.figure.get_axes():
