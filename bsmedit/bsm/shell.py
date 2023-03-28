@@ -1017,8 +1017,17 @@ class Shell(pyshell.Shell):
     @classmethod
     def initialized(cls):
         if cls.panelShell:
-            cls.panelShell.redirectStdout(True)
-            cls.panelShell.redirectStderr(True)
+            redirect = True
+            resp = dp.send('frame.get_config', group='shell', key='redirect_stdout')
+            if resp and resp[0][1] is not None:
+                redirect = resp[0][1]
+            cls.panelShell.redirectStdout(redirect)
+
+            redirect = True
+            resp = dp.send('frame.get_config', group='shell', key='redirect_stderr')
+            if resp and resp[0][1] is not None:
+                redirect = resp[0][1]
+            cls.panelShell.redirectStderr(redirect)
 
     @classmethod
     def Uninitialize(cls):
