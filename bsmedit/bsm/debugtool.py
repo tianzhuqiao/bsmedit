@@ -77,7 +77,7 @@ class StackPanel(wx.Panel):
         self.listctrl.RefreshRows()
 
     def OnItemActivated(self, event):
-        currentItem = event.m_itemIndex
+        currentItem = event.GetIndex()
         filename = self.listctrl.GetItem(currentItem, 2).GetText()
         lineno = self.listctrl.GetItem(currentItem, 1).GetText()
         # open the script first
