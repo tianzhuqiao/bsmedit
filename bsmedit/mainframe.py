@@ -177,7 +177,6 @@ class MainFrame(FramePlus):
         # initialization done, broadcasting the message so plugins can do some
         # after initialization processing.
         dp.send('frame.initialized')
-
         # load the perspective
         if not kwargs.get('ignore_perspective', False):
             perspective = self.GetConfig('mainframe', 'perspective')
@@ -374,6 +373,7 @@ class MainFrame(FramePlus):
         if event.GetVeto():
             return
         self.closing = True
+        dp.send('frame.exiting')
         self.SetConfig('mainframe', perspective=self._mgr.SavePerspective())
         dp.send('frame.exit')
         self.config.Flush()

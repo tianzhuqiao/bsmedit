@@ -675,7 +675,7 @@ class MatplotPanel(wx.Panel):
 
         if cls.clsID_new_figure is not wx.NOT_FOUND:
             dp.connect(cls.ProcessCommand, 'bsm.figure')
-        dp.connect(cls.Uninitialize, 'frame.exit')
+        dp.connect(cls.Uninitialize, 'frame.exiting')
         dp.connect(cls.Initialized, 'frame.initialized')
         dp.connect(cls.setactive, 'frame.activate_panel')
         dp.connect(cls.OnBufferChanged, 'sim.buffer_changed')

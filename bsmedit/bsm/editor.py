@@ -1622,6 +1622,7 @@ class PyEditorPanel(wx.Panel):
         for panel in cls.Gce.get_all_managers():
             editor = panel.editor
             files.append([editor.filename, editor.GetCurrentLine()])
+            dp.send('frame.delete_panel', panel=panel)
         dp.send('frame.set_config', group='editor', opened=files)
 
     @classmethod
