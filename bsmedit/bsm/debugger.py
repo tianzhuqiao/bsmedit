@@ -1039,7 +1039,6 @@ class EngineDebugger(object):
             if self._stop is True:
                 self._paused = False
                 raise KeyboardInterrupt
-
             #error in user code.
             self.compiler.show_traceback()
 
@@ -1377,7 +1376,7 @@ class EngineCompiler(Compile):
                 if lst:
                     lst.insert(0, "Traceback (most recent call last):\n")
                 lst[len(lst):] = traceback.format_exception_only(typ, value)
-            map(sys.stderr.write, lst)
+            print(''.join(lst).strip())
         except:
             pass
 
