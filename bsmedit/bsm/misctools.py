@@ -301,8 +301,13 @@ class HistoryPanel(wx.Panel):
         pattern = self.search.GetValue()
         if not pattern:
             return history
+        try:
+            pattern = re.compile(pattern)
+            self.search.SetForegroundColour(wx.NullColour)
+        except:
+            self.search.SetForegroundColour('red')
+            return history
 
-        pattern = re.compile(pattern)
         return [h for h in history if h.startswith(self.TIME_STAMP_HEADER) or pattern.search(h) is not None]
 
     def LoadHistory(self):
