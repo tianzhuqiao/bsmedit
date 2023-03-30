@@ -655,7 +655,7 @@ class EngineDebugger:
             return self._trace_off
 
         #file and name of scope being called.
-        filename = frame._f_code.co_filename
+        filename = frame.f_code.co_filename
         lineno = frame.f_lineno
 
         #check for breakpoints
