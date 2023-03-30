@@ -1,9 +1,9 @@
-import inspect
+import os
 import six
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.mixins.listctrl as listmix
-import wx.lib.agw.aui as aui
+from wx.lib.agw import aui
 from .bsmxpm import (run_svg, run_grey_svg, step_over_svg, step_over_grey_svg, step_into_svg, \
                      step_into_grey_svg, step_out_svg, step_out_grey_svg, stop_svg, stop_grey_svg)
 
@@ -27,7 +27,7 @@ class StackPanel(wx.Panel):
         self.listctrl = StackListCtrl(self,
                                       style=wx.LC_REPORT
                                       | wx.BORDER_NONE
-                                      | wx.LC_EDIT_LABELS | wx.LC_VRULES
+                                      | wx.LC_VRULES
                                       | wx.LC_HRULES | wx.LC_SINGLE_SEL)
         # | wx.BORDER_SUNKEN
         # | wx.LC_SORT_ASCENDING
@@ -43,11 +43,18 @@ class StackPanel(wx.Panel):
         dp.connect(self.OnDebugUpdateScopes, 'debugger.update_scopes')
         dp.connect(self.OnDebugUpdateScopes, 'debugger.paused')
 
+        self.frames = []
+
+        self.show_all_frames = False
+        resp = dp.send('frame.get_config', group='debugtool', key='show_all_frames')
+        if resp and resp[0][1] is not None:
+            self.show_all_frames = resp[0][1]
+
     def Destroy(self):
         dp.disconnect(self.OnDebugEnded, 'debugger.ended')
         dp.disconnect(self.OnDebugUpdateScopes, 'debugger.update_scopes')
         dp.disconnect(self.OnDebugUpdateScopes, 'debugger.paused')
-        super(StackPanel, self).Destroy()
+        super().Destroy()
 
     def OnDebugEnded(self):
         """debugger is ended"""
@@ -63,32 +70,43 @@ class StackPanel(wx.Panel):
         status = resp[0][1]
         frames = status['frames']
         level = status['active_scope']
+        self.frames = []
         if frames is not None:
-            for frame in frames:
+            for l, frame in enumerate(reversed(frames)):
                 name = frame.f_code.co_name
-                filename = inspect.getsourcefile(frame) or inspect.getfile(
-                    frame)
+                filename = frame.f_code.co_filename
                 lineno = frame.f_lineno
+                if not self.show_all_frames and filename == '<input>':
+                    break
                 index = self.listctrl.InsertItem(six.MAXSIZE, name)
-                self.listctrl.SetItem(index, 2, filename)
-                self.listctrl.SetItem(index, 1, '%d' % lineno)
-        if level >= 0 and level < self.listctrl.GetItemCount():
-            self.listctrl.SetItemTextColour(level, 'blue')
+                filename_short = os.path.relpath(filename)
+                if len(filename_short) > len(filename):
+                    filename_short = filename
+                self.listctrl.SetItem(index, 2, filename_short)
+                self.listctrl.SetItem(index, 1, f'{lineno}')
+                self.frames.append([name, filename, lineno, len(frames)-1-l])
+                self.listctrl.SetItemData(index, len(self.frames)-1)
+        level_idx = len(frames)-1-level
+        if 0 <= level_idx < self.listctrl.GetItemCount():
+            self.listctrl.SetItemTextColour(level_idx, 'blue')
         self.listctrl.RefreshRows()
 
     def OnItemActivated(self, event):
-        currentItem = event.GetIndex()
-        filename = self.listctrl.GetItem(currentItem, 2).GetText()
-        lineno = self.listctrl.GetItem(currentItem, 1).GetText()
+        item = event.GetIndex()
+        index = self.listctrl.GetItemData(item)
+        if 0 <=  index < len(self.frames):
+            _, filename, lineno, level = self.frames[index]
+        else:
+            return
         # open the script first
         dp.send(signal='frame.file_drop',
                 filename=filename,
                 lineno=int(lineno))
         # ask the debugger to trigger the update scope event to set mark
-        dp.send(signal='debugger.set_scope', level=currentItem)
+        dp.send(signal='debugger.set_scope', level=level)
 
 
-class DebugTool(object):
+class DebugTool():
     isInitialized = False
     frame = None
     showStackPanel = True
