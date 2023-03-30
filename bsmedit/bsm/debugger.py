@@ -8,9 +8,9 @@ import os.path  #for absolute filename conversions
 import ctypes  #for pythonapi calls
 from codeop import _maybe_compile, Compile
 import traceback  #for formatting errors
+import six.moves._thread as thread  #for keyboard interrupt
 import wx
 import wx.py.dispatcher as dp
-import six.moves._thread as thread  #for keyboard interrupt
 
 help_msg = """
 \"\"\"
@@ -36,7 +36,7 @@ help_msg = """
 """
 
 
-class PseudoEvent(object):
+class PseudoEvent:
     """
     An object with the same interface as a threading.Event for the internal
     engine. This prevents the readline/readlines and debugger from blocking
@@ -64,7 +64,7 @@ class PseudoEvent(object):
             time.sleep(0.05)
 
 
-class EngineDebugger(object):
+class EngineDebugger:
     bpnum = 0
 
     def __init__(self):
@@ -416,7 +416,7 @@ class EngineDebugger(object):
         if self._active_scope < 0 or self._active_scope >= len(self._frames):
             return None
         frame = self._frames[self._active_scope]
-        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        filename = frame.f_code.co_filename
         lineno = frame.f_lineno
         name = frame.f_code.co_name
         return {
@@ -544,7 +544,7 @@ class EngineDebugger(object):
             return self._trace_off
 
         #file and name of scope being called.
-        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        filename = frame.f_code.co_filename
         lineno = frame.f_lineno
 
         #if the file is on the block list do not trace
@@ -611,7 +611,7 @@ class EngineDebugger(object):
             return self._trace_off
 
         #file and name of scope being called.
-        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        filename = frame.f_code.co_filename
         lineno = frame.f_lineno
 
         #check for breakpoints
@@ -655,7 +655,7 @@ class EngineDebugger(object):
             return self._trace_off
 
         #file and name of scope being called.
-        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        filename = frame._f_code.co_filename
         lineno = frame.f_lineno
 
         #check for breakpoints
@@ -691,7 +691,7 @@ class EngineDebugger(object):
             return
 
         # do not stop inside the system files
-        filename = inspect.getsourcefile(frame) or inspect.getfile(frame)
+        filename = frame.f_code.co_filename
         for f in sys.path + ['<input>', '<string>']:
             if filename.startswith(f):
                 return
@@ -838,8 +838,7 @@ class EngineDebugger(object):
         while frame is not None:
             name = frame.f_code.co_name
             if name == '<module>':
-                filename = inspect.getsourcefile(frame) or inspect.getfile(
-                    frame)
+                filename = frame.f_code.co_filename
                 if filename == '<input>':
                     name = 'Main'
             scopes.append(name)
@@ -1031,9 +1030,9 @@ class EngineDebugger(object):
             exec(code, g, l)
         except SystemExit:
             self.write_debug('Blocking system exit')
-        except KeyboardInterrupt:
+        except KeyboardInterrupt as exc:
             self._paused = False
-            raise KeyboardInterrupt
+            raise KeyboardInterrupt from exc
         except:
             #engine wanted to stop anyway - probably wxPython keyboard interrupt error
             if self._stop is True:
@@ -1071,7 +1070,7 @@ Various engine utility functions/classes
 # then be filtered by key.
 # Used to store breakpoints in both the engine debugger (engine process) and
 # engine manager(gui process) where breakpoints are stored as dictionaries
-class DictList(object):
+class DictList:
     def __init__(self, dicts=None, default=None):
         """
         Create a list like container object for dictionaries with the ability to
