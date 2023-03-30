@@ -123,7 +123,10 @@ NUM_MARGIN = 0
 MARK_MARGIN = 1
 FOLD_MARGIN = 2
 
-
+MARKER_BP = 0
+MARKER_BP_PAUSED_CUR = 1
+MARKER_BP_PAUSED = 2
+MARKER_BP_CANDIDATE = 3
 class PyEditor(wx.py.editwindow.EditWindow):
     ID_COMMENT = wx.NewId()
     ID_UNCOMMENT = wx.NewId()
@@ -159,6 +162,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.Bind(stc.EVT_STC_DOUBLECLICK, self.OnDoubleClick)
         self.Bind(stc.EVT_STC_DWELLSTART, self.OnMouseDwellStart)
         self.Bind(stc.EVT_STC_DWELLEND, self.OnMouseDwellEnd)
+        self.Bind(wx.EVT_MOTION, self.OnMotion)
         # Assign handler for the context menu
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCommandUI)
@@ -166,6 +170,22 @@ class PyEditor(wx.py.editwindow.EditWindow):
 
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_UNDO)
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
+
+        self.break_point_candidate = None
+
+    def OnMotion(self, event):
+        dc = wx.ClientDC(self)
+        pos = event.GetLogicalPosition(dc)
+
+        c, x, y = self.HitTest(pos)
+        if self.break_point_candidate:
+            self.MarkerDeleteHandle(self.break_point_candidate)
+        if x == 0 and self.MarkerGet(y) & 2**0 == 0:
+            txt = self.GetLine(y)
+            txt = txt.strip()
+            if txt and txt[0] != '#':
+                self.break_point_candidate = self.MarkerAdd(y, MARKER_BP_CANDIDATE)
+        event.Skip()
 
     def ClearBreakpoint(self):
         """clear all the breakpoint"""
@@ -624,10 +644,12 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetMarginSensitive(MARK_MARGIN, True)
         self.SetMarginWidth(MARK_MARGIN, 12)
         # break point
-        self.MarkerDefine(0, stc.STC_MARK_CIRCLE, '#8E8E93', '#FF3B30')
+        self.MarkerDefine(MARKER_BP, stc.STC_MARK_CIRCLE, '#8E8E93', '#FF3B30')
         # paused at marker
-        self.MarkerDefine(1, stc.STC_MARK_SHORTARROW, '#8E8E93', '#34C759')
-        self.MarkerDefine(2, stc.STC_MARK_SHORTARROW, '#8E8E93', 'WHITE')
+        self.MarkerDefine(MARKER_BP_PAUSED_CUR, stc.STC_MARK_SHORTARROW, '#8E8E93', '#34C759')
+        self.MarkerDefine(MARKER_BP_PAUSED, stc.STC_MARK_SHORTARROW, '#8E8E93', 'WHITE')
+
+        self.MarkerDefine(MARKER_BP_CANDIDATE, stc.STC_MARK_CIRCLE, '#8E8E93', '#FD8880')
 
         # Setup a margin to hold fold markers
         self.SetMarginType(FOLD_MARGIN, stc.STC_MARGIN_SYMBOL)
@@ -674,7 +696,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
                           'fore:#3C3C43,back:#F2F2F7')
         # Highlighted brace
         self.StyleSetSpec(stc.STC_STYLE_BRACELIGHT,
-                          'fore:#00009D,back:#FFFF00')
+                          'fore:#FF3B30,back:#E5E5EA')
         # Unmatched brace
         self.StyleSetSpec(stc.STC_STYLE_BRACEBAD, 'fore:#00009D,back:#FF0000')
         # Indentation guide
@@ -715,6 +737,12 @@ class PyEditor(wx.py.editwindow.EditWindow):
         # indicator
         self.IndicatorSetStyle(0, stc.STC_INDIC_ROUNDBOX)
         self.IndicatorSetForeground(0, '#FF3B30')
+
+        # highlight current line
+        self.SetCaretLineBackground('#E5E5EA')
+        self.SetCaretLineBackAlpha(64)
+        self.SetCaretLineVisible(True)
+        self.SetCaretLineVisibleAlways(True)
 
     def prepandText(self, text):
         """Comment section"""
@@ -1066,7 +1094,7 @@ class PyEditorPanel(wx.Panel):
             if self.editor.breakpointlist[key]['id'] == bpdata['id']:
                 return
         lineno = info['lineno']
-        handler = self.editor.MarkerAdd(lineno - 1, 0)
+        handler = self.editor.MarkerAdd(lineno - 1, MARKER_BP)
         self.editor.breakpointlist[handler] = bpdata
 
     def debug_bpcleared(self, bpdata):
@@ -1098,17 +1126,16 @@ class PyEditorPanel(wx.Panel):
         active = False
         if filename == self.editor.filename:
             lineno = status['lineno']
-            marker = 1
+            marker = MARKER_BP_PAUSED_CUR
             active = True
         else:
             frames = status['frames']
             if frames is not None:
                 for frame in frames:
-                    filename = inspect.getsourcefile(frame) or inspect.getfile(
-                        frame)
+                    filename = frame.f_code.co_filename
                     if filename == self.fileName:
                         lineno = frame.f_lineno
-                        marker = 2
+                        marker = MARKER_BP_PAUSED
                         break
         if lineno >= 0 and marker >= 0:
             self.debug_curline = self.editor.MarkerAdd(lineno - 1, marker)
@@ -1612,8 +1639,15 @@ class PyEditorPanel(wx.Panel):
         resp = dp.send('frame.get_config', group='editor', key='opened')
         if resp and resp[0][1]:
             files = resp[0][1]
-            for f, line in files:
+            if len(files[0]) == 2:
+                files = [ f+[False] for f in files]
+            for f, line, shown in files:
                 cls.OpenScript(f, activated=False, lineno=line)
+
+            for f, line, shown in files:
+                if shown:
+                    wx.CallAfter(cls.OpenScript, filename=f, activated=True, lineno=line)
+
 
     @classmethod
     def Uninitialize(cls):
@@ -1621,7 +1655,9 @@ class PyEditorPanel(wx.Panel):
         files = []
         for panel in cls.Gce.get_all_managers():
             editor = panel.editor
-            files.append([editor.filename, editor.GetCurrentLine()])
+            files.append([editor.filename, editor.GetCurrentLine(), panel.IsShown()])
+
+        for panel in cls.Gce.get_all_managers():
             dp.send('frame.delete_panel', panel=panel)
         dp.send('frame.set_config', group='editor', opened=files)
 
