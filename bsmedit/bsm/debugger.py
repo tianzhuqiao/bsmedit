@@ -11,6 +11,7 @@ import traceback  #for formatting errors
 import six.moves._thread as thread  #for keyboard interrupt
 import wx
 import wx.py.dispatcher as dp
+from .shell_base import magic
 
 help_msg = """
 \"\"\"
@@ -67,8 +68,9 @@ class PseudoEvent:
 class EngineDebugger:
     bpnum = 0
 
-    def __init__(self):
+    def __init__(self, use_magic=True):
         self.compiler = EngineCompiler()
+        self.use_magic = use_magic
         #debugger state
         self._paused = False  #is paused.
         self._can_stepin = False  #debugger is about to enter a new scope
@@ -730,6 +732,8 @@ class EngineDebugger:
                 #check for debugger commands
                 handled = self._process_dbg_command(line)
                 if handled is False:
+                    if self.use_magic:
+                        line = magic(line)
                     #not a command so execute as python source
                     self._process_dbg_source(line)
 
