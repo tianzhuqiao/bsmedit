@@ -15,6 +15,7 @@ from wx import stc
 from wx.py.pseudo import PseudoFile
 from .debugger import EngineDebugger
 from ..version import __version__
+from .editor_base import EditorTheme
 
 
 # in linux, the multiprocessing/process.py/_bootstrap will call
@@ -99,7 +100,7 @@ def _help(command):
     try:
         print(pydoc.plain(pydoc.render_doc(str(command), "Help on %s")))
     except:
-        print('No help found on "%s"' % command)
+        print(f'No help found on "{command}"')
 
 
 def magic(command):
@@ -168,7 +169,7 @@ def sx(cmd, *args, **kwds):
     except:
         traceback.print_exc(file=sys.stdout)
 
-
+@EditorTheme
 class Shell(pyshell.Shell):
     ID_COPY_PLUS = wx.NewId()
     ID_PASTE_PLUS = wx.NewId()
@@ -193,6 +194,12 @@ class Shell(pyshell.Shell):
         pyshell.Shell.__init__(self, parent, id, pos, size, style, introText,
                                locals, InterpClass, startupScript,
                                execStartupScript, useStockId=False, *args, **kwds)
+
+        theme = 'solarized-dark'
+        resp = dp.send('frame.get_config', group='shell', key='theme')
+        if resp and resp[0][1] is not None:
+            theme = resp[0][1]
+        self.SetupColor(theme)
         # the default sx function (!cmd to run external command) does not work
         # on windows
         __builtin__.sx = sx
@@ -480,6 +487,9 @@ class Shell(pyshell.Shell):
             return False
         return self.enable_debugger
 
+    def IsDebuggerPaused(self):
+        return self.IsDebuggerOn() and self.debugger._paused
+
     def SetSelection(self, start, end):
         self.SetSelectionStart(start)
         self.SetSelectionEnd(end)
@@ -674,7 +684,7 @@ class Shell(pyshell.Shell):
                 offset = endpos - self.GetCurrentPos()
                 if not self.CanEdit():
                     self.SetCurrentPos(endpos)
-                if not self.waiting:
+                if not self.waiting or self.IsDebuggerPaused():
                     # if the shell is in idle status, output the text right before the prompt
                     self.SetCurrentPos(self.promptPosStart)
                     self.write(text)

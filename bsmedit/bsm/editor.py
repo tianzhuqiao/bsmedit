@@ -1,8 +1,8 @@
 import os
-import inspect
 import keyword
 import pprint
 import six
+import numpy as np
 import wx
 from wx import stc
 import wx.py.dispatcher as dp
@@ -14,6 +14,7 @@ from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
 from .pymgr_helpers import Gcm
 from .. import to_byte
 from .utility import get_file_finder_name, show_file_in_finder
+from .editor_base import *
 
 
 class BreakpointSettingsDlg(wx.Dialog):
@@ -118,15 +119,7 @@ class BreakpointSettingsDlg(wx.Dialog):
     def GetCondition(self):
         return (self.condition, self.hitcount)
 
-
-NUM_MARGIN = 0
-MARK_MARGIN = 1
-FOLD_MARGIN = 2
-
-MARKER_BP = 0
-MARKER_BP_PAUSED_CUR = 1
-MARKER_BP_PAUSED = 2
-MARKER_BP_CANDIDATE = 3
+@EditorTheme
 class PyEditor(wx.py.editwindow.EditWindow):
     ID_COMMENT = wx.NewId()
     ID_UNCOMMENT = wx.NewId()
@@ -136,7 +129,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
 
     def __init__(self, parent, style=wx.CLIP_CHILDREN | wx.BORDER_NONE):
         wx.py.editwindow.EditWindow.__init__(self, parent, style=style)
-        self.SetUpEditor()
+        self.SetupEditor()
         # disable the auto-insert the call tip
         self.callTipInsert = False
         self.filename = ""
@@ -174,6 +167,8 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.break_point_candidate = None
 
     def OnMotion(self, event):
+        event.Skip()
+
         dc = wx.ClientDC(self)
         pos = event.GetLogicalPosition(dc)
 
@@ -181,11 +176,13 @@ class PyEditor(wx.py.editwindow.EditWindow):
         if self.break_point_candidate:
             self.MarkerDeleteHandle(self.break_point_candidate)
         if x == 0 and self.MarkerGet(y) & 2**0 == 0:
+            style = self.GetStyleAt(self.XYToPosition(x, y))
+            if style in [stc.STC_P_COMMENTLINE, stc.STC_P_COMMENTBLOCK]:
+                return
             txt = self.GetLine(y)
             txt = txt.strip()
             if txt and txt[0] != '#':
                 self.break_point_candidate = self.MarkerAdd(y, MARKER_BP_CANDIDATE)
-        event.Skip()
 
     def ClearBreakpoint(self):
         """clear all the breakpoint"""
@@ -222,6 +219,9 @@ class PyEditor(wx.py.editwindow.EditWindow):
             fname = os.path.abspath(filename)
             fname = os.path.normcase(fname)
             self.filename = fname
+
+            digits = np.max([np.ceil(np.log10(self.GetLineCount())), 1])
+            self.SetMarginWidth(0, int(25+digits*5))
             return True
         return False
 
@@ -383,15 +383,11 @@ class PyEditor(wx.py.editwindow.EditWindow):
             return
 
         pos = event.GetPosition()
-        #line = self.LineFromPosition(pos) # 0, 1, 2
         if pos == -1:
             return
-        c = self.GetWordChars()
-        self.SetWordChars(c + '.')
         WordStart = self.WordStartPosition(pos, True)
         WordEnd = self.WordEndPosition(pos, True)
         text = self.GetTextRange(WordStart, WordEnd)
-        self.SetWordChars(c)
         try:
             status = resp[0][1]
             frames = status['frames']
@@ -598,17 +594,27 @@ class PyEditor(wx.py.editwindow.EditWindow):
         super().OnUpdateUI(event)
         wx.CallAfter(self.UpdateStatusText)
 
-    def SetUpEditor(self):
+    def SetupEditor(self):
         """
         This method carries out the work of setting up the demo editor.
         It's separate so as not to clutter up the init code.
         """
         # key binding
         self.CmdKeyAssign(ord('R'), stc.STC_SCMOD_CTRL, stc.STC_CMD_REDO)
+        if wx.Platform == '__WXMAC__':
+            self.CmdKeyAssign(ord('R'), wx.stc.STC_SCMOD_META, wx.stc.STC_CMD_REDO)
+
         self.SetLexer(stc.STC_LEX_PYTHON)
-        keywords = keyword.kwlist
-        keywords.extend(['None', 'as', 'True', 'False'])
+        # add '.' to wordchars, so in mouse dwell event, it will capture variable
+        # 'a.b'
+        self.SetWordChars('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.')
+        keywords = list(keyword.kwlist)
+        for key in ['None', 'True', 'False']:
+            if key in keywords:
+                keywords.remove(key)
         self.SetKeyWords(0, ' '.join(keywords))
+        self.SetKeyWords(1, ' '.join(['None', 'True', 'False']))
+
         # Enable folding
         self.SetProperty('fold', '1')
         # Highlight tab/space mixing (shouldn't be any)
@@ -621,7 +627,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetMarginWidth(0, 50)
         # Indentation and tab stuff
         self.SetIndent(4)
-        self.SetIndentationGuides(True)
+        self.SetIndentationGuides(wx.stc.STC_IV_LOOKBOTH)
         # Backspace unindents rather than delete 1 space
         self.SetBackSpaceUnIndents(True)
         self.SetTabIndents(True)
@@ -643,106 +649,18 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetMarginMask(MARK_MARGIN, ~stc.STC_MASK_FOLDERS)
         self.SetMarginSensitive(MARK_MARGIN, True)
         self.SetMarginWidth(MARK_MARGIN, 12)
-        # break point
-        self.MarkerDefine(MARKER_BP, stc.STC_MARK_CIRCLE, '#8E8E93', '#FF3B30')
-        # paused at marker
-        self.MarkerDefine(MARKER_BP_PAUSED_CUR, stc.STC_MARK_SHORTARROW, '#8E8E93', '#34C759')
-        self.MarkerDefine(MARKER_BP_PAUSED, stc.STC_MARK_SHORTARROW, '#8E8E93', 'WHITE')
-
-        self.MarkerDefine(MARKER_BP_CANDIDATE, stc.STC_MARK_CIRCLE, '#8E8E93', '#FD8880')
 
         # Setup a margin to hold fold markers
         self.SetMarginType(FOLD_MARGIN, stc.STC_MARGIN_SYMBOL)
         self.SetMarginMask(FOLD_MARGIN, stc.STC_MASK_FOLDERS)
         self.SetMarginSensitive(FOLD_MARGIN, True)
         self.SetMarginWidth(FOLD_MARGIN, 12)
-        # and now set up the fold markers
-        self.MarkerDefine(stc.STC_MARKNUM_FOLDEREND,
-                          stc.STC_MARK_BOXPLUSCONNECTED, 'white', '#8E8E93')
-        self.MarkerDefine(stc.STC_MARKNUM_FOLDEROPENMID,
-                          stc.STC_MARK_BOXMINUSCONNECTED, 'white', '#8E8E93')
-        self.MarkerDefine(stc.STC_MARKNUM_FOLDERMIDTAIL, stc.STC_MARK_TCORNER,
-                          'white', '#8E8E93')
-        self.MarkerDefine(stc.STC_MARKNUM_FOLDERTAIL, stc.STC_MARK_LCORNER,
-                          'white', '#8E8E93')
-        self.MarkerDefine(stc.STC_MARKNUM_FOLDERSUB, stc.STC_MARK_VLINE,
-                          'white', '#8E8E93')
-        self.MarkerDefine(stc.STC_MARKNUM_FOLDER, stc.STC_MARK_BOXPLUS,
-                          'white', '#8E8E93')
-        self.MarkerDefine(stc.STC_MARKNUM_FOLDEROPEN, stc.STC_MARK_BOXMINUS,
-                          'white', '#8E8E93')
-        # Global default style
-        if wx.Platform == '__WXMSW__':
-            self.StyleSetSpec(stc.STC_STYLE_DEFAULT,
-                              'fore:#1D1D1D,back:#FFFFFF,face:Courier New')
-        elif wx.Platform == '__WXMAC__':
-            # TODO: if this looks fine on Linux too, remove the Mac-specific case
-            # and use this whenever OS != MSW.
-            self.StyleSetSpec(stc.STC_STYLE_DEFAULT,
-                              'fore:#1D1D1D,back:#FFFFFF,face:Monaco')
-        else:
-            #defsize = \
-            #    wx.SystemSettings.GetFont(wx.SYS_ANSI_FIXED_FONT).GetPointSize()
-            defsize = 14
-            self.StyleSetSpec(
-                stc.STC_STYLE_DEFAULT,
-                'fore:#000000,back:#FFFFFF,face:Courier,size:%d' % defsize)
-        # Clear styles and revert to default.
-        self.StyleClearAll()
-        # Following style specs only indicate differences from default.
-        # The rest remains unchanged.
-        # Line numbers in margin
-        self.StyleSetSpec(stc.STC_STYLE_LINENUMBER,
-                          'fore:#3C3C43,back:#F2F2F7')
-        # Highlighted brace
-        self.StyleSetSpec(stc.STC_STYLE_BRACELIGHT,
-                          'fore:#FF3B30,back:#E5E5EA')
-        # Unmatched brace
-        self.StyleSetSpec(stc.STC_STYLE_BRACEBAD, 'fore:#00009D,back:#FF0000')
-        # Indentation guide
-        self.StyleSetSpec(stc.STC_STYLE_INDENTGUIDE, 'fore:#CDCDCD')
-        # Python styles
-        self.StyleSetSpec(stc.STC_P_DEFAULT, 'fore:#000000')
-        # Comments
-        self.StyleSetSpec(stc.STC_P_COMMENTLINE, 'fore:#008000,back:#F0FFF0')
-        self.StyleSetSpec(stc.STC_P_COMMENTBLOCK, 'fore:#008000,back:#F0FFF0')
-        # Numbers
-        self.StyleSetSpec(stc.STC_P_NUMBER, 'fore:#008080')
-        # Strings and characters
-        self.StyleSetSpec(stc.STC_P_STRING, 'fore:#800080')
-        self.StyleSetSpec(stc.STC_P_CHARACTER, 'fore:#800080')
-        # Keywords
-        self.StyleSetSpec(stc.STC_P_WORD, 'fore:#000080,bold')
-        # Triple quotes
-        self.StyleSetSpec(stc.STC_P_TRIPLE, 'fore:#800080,back:#FFFFEA')
-        self.StyleSetSpec(stc.STC_P_TRIPLEDOUBLE, 'fore:#800080,back:#FFFFEA')
-        # Class names
-        self.StyleSetSpec(stc.STC_P_CLASSNAME, 'fore:#0000FF,bold')
-        # Function names
-        self.StyleSetSpec(stc.STC_P_DEFNAME, 'fore:#008080,bold')
-        # Operators
-        self.StyleSetSpec(stc.STC_P_OPERATOR, 'fore:#800000,bold')
-        # Identifiers. I leave this as not bold because everything seems
-        # to be an identifier if it doesn't match the above criterae
-        self.StyleSetSpec(stc.STC_P_IDENTIFIER, 'fore:#000000')
-        # Caret color
-        self.SetCaretForeground('#007AFF')
-        # Selection background
-        self.SetSelBackground(1, '#66CCFF')
-        self.SetSelBackground(
-            True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHT))
-        self.SetSelForeground(
-            True, wx.SystemSettings.GetColour(wx.SYS_COLOUR_HIGHLIGHTTEXT))
-        self.SetWrapMode(stc.STC_WRAP_WORD)
-        # indicator
-        self.IndicatorSetStyle(0, stc.STC_INDIC_ROUNDBOX)
-        self.IndicatorSetForeground(0, '#FF3B30')
 
-        # highlight current line
-        self.SetCaretLineBackground('#E5E5EA')
-        self.SetCaretLineBackAlpha(64)
-        self.SetCaretLineVisible(True)
-        self.SetCaretLineVisibleAlways(True)
+        theme = 'solarized-dark'
+        resp = dp.send('frame.get_config', group='editor', key='theme')
+        if resp and resp[0][1] is not None:
+            theme = resp[0][1]
+        self.SetupColor(theme)
 
     def prepandText(self, text):
         """Comment section"""
@@ -1020,7 +938,7 @@ class PyEditorPanel(wx.Panel):
         self.tb.Realize()
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(wx.StaticLine(self), 0, wx.EXPAND)
+        #self.box.Add(wx.StaticLine(self), 0, wx.EXPAND)
         self.box.Add(self.splitter, 1, wx.EXPAND)
         self.box.Fit(self)
         self.SetSizer(self.box)
@@ -1339,10 +1257,10 @@ class PyEditorPanel(wx.Panel):
         self.RunCommand('_bsm_source = open(r\'%s\',\'r\').read()+\'\\n\'' %
                         self.fileName,
                         verbose=False)
-        self.RunCommand('compile(_bsm_source,r\'%s\',\'exec\')' %
+        self.RunCommand('_bsm_code = compile(_bsm_source,r\'%s\',\'exec\')' %
                         self.fileName,
                         prompt=True,
-                        verbose=True)
+                        verbose=False)
         self.RunCommand('del _bsm_source', verbose=False)
 
     def OnBtnRunScript(self, event):
@@ -1566,11 +1484,13 @@ class PyEditorPanel(wx.Panel):
         dp.connect(cls.ProcessCommand, 'bsm.editor.menu')
         dp.connect(cls.PaneMenu, 'bsm.editor.pane_menu')
         dp.connect(cls.Uninitialize, 'frame.exit')
+        dp.connect(cls.OnFrameClosing, 'frame.closing')
         dp.connect(cls.OpenScript, 'frame.file_drop')
         dp.connect(cls.DebugPaused, 'debugger.paused')
         dp.connect(cls.DebugUpdateScope, 'debugger.update_scopes')
         dp.connect(cls.SetActive, 'frame.activate_panel')
         dp.connect(receiver=cls.Initialized, signal='frame.initialized')
+
 
     @classmethod
     def PaneMenu(cls, pane, command):
@@ -1648,6 +1568,14 @@ class PyEditorPanel(wx.Panel):
                 if shown:
                     wx.CallAfter(cls.OpenScript, filename=f, activated=True, lineno=line)
 
+    @classmethod
+    def OnFrameClosing(cls, event):
+        """the frame is exiting"""
+        for panel in cls.Gce.get_all_managers():
+            if panel.CheckModified():
+                # the file has been modified, stop closing
+                event.Veto()
+                break
 
     @classmethod
     def Uninitialize(cls):
