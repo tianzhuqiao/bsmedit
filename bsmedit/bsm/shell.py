@@ -63,6 +63,9 @@ class Shell(pyshell.Shell):
         if resp and resp[0][1] is not None:
             theme = resp[0][1]
         self.SetupColor(theme)
+        c = self.GetThemeColor()
+        self.SetCaretForeground(c['emphasized'])
+        self.SetCaretStyle(wx.stc.STC_CARETSTYLE_BLOCK)
         # the default sx function (!cmd to run external command) does not work
         # on windows
         __builtin__.sx = sx

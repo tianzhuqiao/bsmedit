@@ -155,6 +155,7 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.Bind(stc.EVT_STC_DOUBLECLICK, self.OnDoubleClick)
         self.Bind(stc.EVT_STC_DWELLSTART, self.OnMouseDwellStart)
         self.Bind(stc.EVT_STC_DWELLEND, self.OnMouseDwellEnd)
+        self.Bind(stc.EVT_STC_ZOOM, self.OnZoom)
         self.Bind(wx.EVT_MOTION, self.OnMotion)
         # Assign handler for the context menu
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
@@ -165,6 +166,16 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
 
         self.break_point_candidate = None
+
+        self.LoadConfig()
+
+    def LoadConfig(self):
+        resp = dp.send('frame.get_config', group='editor', key='zoom')
+        if resp and resp[0][1] is not None:
+            self.SetZoom(resp[0][1])
+
+    def OnZoom(self, event):
+        dp.send('frame.set_config', group='editor', zoom=self.GetZoom())
 
     def OnMotion(self, event):
         event.Skip()
@@ -655,6 +666,14 @@ class PyEditor(wx.py.editwindow.EditWindow):
         self.SetMarginMask(FOLD_MARGIN, stc.STC_MASK_FOLDERS)
         self.SetMarginSensitive(FOLD_MARGIN, True)
         self.SetMarginWidth(FOLD_MARGIN, 12)
+
+        self.IndicatorSetStyle(0, stc.STC_INDIC_ROUNDBOX)
+
+        self.SetWrapMode(stc.STC_WRAP_WORD)
+
+        self.SetCaretLineBackAlpha(64)
+        self.SetCaretLineVisible(True)
+        self.SetCaretLineVisibleAlways(True)
 
         theme = 'solarized-dark'
         resp = dp.send('frame.get_config', group='editor', key='theme')
