@@ -1670,7 +1670,7 @@ class PyEditorPanel(wx.Panel):
         if editor and activated and not editor.IsShown():
             dp.send('frame.show_panel', panel=editor, focus=True)
         if lineno > 0:
-            editor.JumpToLine(lineno - 1, True)
+            editor.JumpToLine(lineno - 1)
         return editor
 
     @classmethod
