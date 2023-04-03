@@ -6,7 +6,7 @@ import numpy as np
 import wx
 from wx import stc
 import wx.py.dispatcher as dp
-from wx.lib.agw import  aui
+from wx.lib.agw import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
                     dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \
@@ -119,65 +119,23 @@ class BreakpointSettingsDlg(wx.Dialog):
     def GetCondition(self):
         return (self.condition, self.hitcount)
 
-@EditorTheme
-class PyEditor(wx.py.editwindow.EditWindow):
+
+class PyEditor(EditorBase):
     ID_COMMENT = wx.NewId()
     ID_UNCOMMENT = wx.NewId()
     ID_EDIT_BREAKPOINT = wx.NewId()
     ID_DELETE_BREAKPOINT = wx.NewId()
     ID_CLEAR_BREAKPOINT = wx.NewId()
 
-    def __init__(self, parent, style=wx.CLIP_CHILDREN | wx.BORDER_NONE):
-        wx.py.editwindow.EditWindow.__init__(self, parent, style=style)
-        self.SetupEditor()
-        # disable the auto-insert the call tip
-        self.callTipInsert = False
-        self.filename = ""
-        self.autoCompleteKeys = [ord('.')]
-        rsp = dp.send('shell.auto_complete_keys')
-        if rsp:
-            self.autoCompleteKeys = rsp[0][1]
-        self.breakpointlist = {}
-        self.highlightStr = ""
-        self.SetMouseDwellTime(500)
-
-        self.trim_trailing_whitespace = True
-        resp = dp.send('frame.get_config', group='editor', key='trim_trailing_whitespace')
-        if resp and resp[0][1] is not None:
-            self.trim_trailing_whitespace = resp[0][1]
-
-        # Assign handlers for keyboard events.
-        self.Bind(wx.EVT_CHAR, self.OnChar)
-        self.Bind(wx.EVT_KEY_DOWN, self.OnKeyDown)
-        self.Bind(wx.EVT_KILL_FOCUS, self.OnKillFocus)
-        self.Bind(wx.EVT_LEFT_UP, self.OnLeftUp)
-        self.Bind(stc.EVT_STC_MARGINCLICK, self.OnMarginClick)
-        self.Bind(stc.EVT_STC_DOUBLECLICK, self.OnDoubleClick)
-        self.Bind(stc.EVT_STC_DWELLSTART, self.OnMouseDwellStart)
-        self.Bind(stc.EVT_STC_DWELLEND, self.OnMouseDwellEnd)
-        self.Bind(stc.EVT_STC_ZOOM, self.OnZoom)
-        self.Bind(wx.EVT_MOTION, self.OnMotion)
-        # Assign handler for the context menu
-        self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCommandUI)
-        self.Bind(wx.EVT_MENU, self.OnProcessEvent)
-
-        self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL, wx.stc.STC_CMD_UNDO)
-        self.CmdKeyAssign(ord('Z'), wx.stc.STC_SCMOD_CTRL | wx.stc.STC_SCMOD_SHIFT, wx.stc.STC_CMD_REDO)
+    def __init__(self, parent):
+        super().__init__(parent)
 
         self.break_point_candidate = None
 
-        self.LoadConfig()
-
-    def LoadConfig(self):
-        resp = dp.send('frame.get_config', group='editor', key='zoom')
-        if resp and resp[0][1] is not None:
-            self.SetZoom(resp[0][1])
-
-    def OnZoom(self, event):
-        dp.send('frame.set_config', group='editor', zoom=self.GetZoom())
+        self.breakpointlist = {}
 
     def OnMotion(self, event):
+        super().OnMotion(event)
         event.Skip()
 
         dc = wx.ClientDC(self)
@@ -201,128 +159,110 @@ class PyEditor(wx.py.editwindow.EditWindow):
             ids = self.breakpointlist[key]['id']
             dp.send('debugger.clear_breakpoint', id=ids)
 
-    def TrimTrailingWhiteSpace(self):
-        for i in range(self.GetLineCount()):
-            line=self.GetLine(i).rstrip()
-            if len(line) != self.GetLineLength(i):
-                start = self.PositionFromLine(i)
-                end = start + self.GetLineLength(i)
-                self.Replace(start, end, line)
+    def findBreakPoint(self, line):
+        for key in self.breakpointlist:
+            if line == self.MarkerLineFromHandle(key):
+                return self.breakpointlist[key]
+        return None
 
-    def SaveFile(self, filename):
-        """save file"""
-        if self.trim_trailing_whitespace:
-            self.TrimTrailingWhiteSpace()
+    def comment(self):
+        """Comment section"""
+        self.prepandText('##')
 
-        if super().SaveFile(filename):
-            # remember the filename
-            fname = os.path.abspath(filename)
-            fname = os.path.normcase(fname)
-            self.filename = fname
-            return True
-        return False
+    def uncomment(self):
+        """Uncomment section"""
+        self.deprepandText('##')
 
-    def LoadFile(self, filename):
-        """load file into editor"""
-        self.ClearBreakpoint()
-        if super().LoadFile(filename):
-            # remember the filename
-            fname = os.path.abspath(filename)
-            fname = os.path.normcase(fname)
-            self.filename = fname
-
-            digits = np.max([np.ceil(np.log10(self.GetLineCount())), 1])
-            self.SetMarginWidth(0, int(25+digits*5))
-            return True
-        return False
-
-    def OnKillFocus(self, event):
-        """lose focus"""
-        # close the autocomplete and calltip windows
-        if self.CallTipActive():
-            self.CallTipCancel()
-        # crash on mac
-        #if self.AutoCompActive():
-        #    self.AutoCompCancel()
-        event.Skip()
-
-    def OnChar(self, event):
+    def GetContextMenu(self):
         """
-        Keypress event handler.
-
-        Only receives an event if OnKeyDown calls event.Skip() for the
-        corresponding event.
+            Create and return a context menu for the shell.
+            This is used instead of the scintilla default menu
+            in order to correctly respect our immutable buffer.
         """
-        key = event.GetKeyCode()
-        currpos = self.GetCurrentPos()
-        line = self.GetCurrentLine()
-        stoppos = self.PositionFromLine(line)
-        # Return (Enter) needs to be ignored in this handler.
-        if key in [wx.WXK_RETURN, wx.WXK_NUMPAD_ENTER]:
-            pass
-        elif key in self.autoCompleteKeys:
-            # Usually the dot (period) key activates auto completion.
-            # Get the command between the prompt and the cursor.  Add
-            # the autocomplete character to the end of the command.
-            if self.AutoCompActive():
-                self.AutoCompCancel()
-            command = self.GetTextRange(stoppos, currpos) + chr(key)
-            self.AddText(chr(key))
-            if self.autoComplete:
-                self.autoCompleteShow(command)
-        elif key == ord('('):
-            # The left paren activates a call tip and cancels an
-            # active auto completion.
-            if self.AutoCompActive():
-                self.AutoCompCancel()
-            # Get the command between the prompt and the cursor.  Add
-            # the '(' to the end of the command.
-            self.ReplaceSelection("""""")
-            command = self.GetTextRange(stoppos, currpos) + '('
-            self.AddText('(')
-            self.autoCallTipShow(command,
-                                 self.GetCurrentPos() == self.GetTextLength())
-        else:
-            # Allow the normal event handling to take place.
-            event.Skip()
+        menu = super().GetContextMenu()
 
-    def OnKeyDown(self, event):
-        """key down"""
-        key = event.GetKeyCode()
-        control = event.ControlDown()
-        # shift=event.ShiftDown()
-        alt = event.AltDown()
-        if key == wx.WXK_RETURN and not control and not alt \
-            and not self.AutoCompActive():
-            # auto-indentation
-            if self.CallTipActive():
-                self.CallTipCancel()
-            line = self.GetCurrentLine()
-            txt = self.GetLine(line)
-            pos = self.GetCurrentPos()
-            linePos = self.PositionFromLine(line)
-            self.CmdKeyExecute(stc.STC_CMD_NEWLINE)
-            indent = self.GetLineIndentation(line)
-            tabWidth = max(1, self.GetTabWidth())
-            if self.GetUseTabs():
-                indentation = '\t'
+        menu.AppendSeparator()
+        menu.Append(self.ID_COMMENT, 'Comment')
+        menu.Append(self.ID_UNCOMMENT, 'Uncomment')
+        return menu
+
+    def OnContextMenu(self, evt):
+        p = self.ScreenToClient(evt.GetPosition())
+        m = self.GetMarginWidth(0) + self.GetMarginWidth(1)
+        if p.x > m:
+            # show edit menu when the mouse is in editable area
+            menu = self.GetContextMenu()
+            self.PopupMenu(menu)
+        elif p.x > self.GetMarginWidth(0):
+            # in breakpoint area
+            cline = self.LineFromPosition(self.PositionFromPoint(p))
+            for key in self.breakpointlist:
+                line = self.MarkerLineFromHandle(key)
+                if line == cline:
+                    self.GotoLine(line)
+                    break
             else:
-                indentation = ' ' * tabWidth
-            padding = indentation * (int(indent / tabWidth))
-            newpos = self.GetCurrentPos()
-            # smart indentation
-            stripped = txt[:pos - linePos].split('#')[0].strip()
-            firstWord = stripped.split(' ')[0]
-            if stripped and self.needsIndent(firstWord, lastChar=stripped[-1]):
-                padding += indentation
-            elif self.needsDedent(firstWord):
-                padding = padding[:-tabWidth]
-            self.InsertText(newpos, padding)
-            newpos += len(padding)
-            self.SetCurrentPos(newpos)
-            self.SetSelection(newpos, newpos)
-        else:
-            event.Skip()
+                return
+            menu = wx.Menu()
+            menu.Append(self.ID_DELETE_BREAKPOINT, 'Delete Breakpoint')
+            menu.AppendSeparator()
+            menu.Append(self.ID_EDIT_BREAKPOINT, 'Condition...')
+            menu.AppendSeparator()
+            menu.Append(self.ID_CLEAR_BREAKPOINT, 'Delete All Breakpoints')
+            self.PopupMenu(menu)
+
+    def SetupEditor(self):
+        """
+        This method carries out the work of setting up the demo editor.
+        It's separate so as not to clutter up the init code.
+        """
+        super().SetupEditor()
+
+        # key binding
+        self.CmdKeyAssign(ord('R'), stc.STC_SCMOD_CTRL, stc.STC_CMD_REDO)
+        if wx.Platform == '__WXMAC__':
+            self.CmdKeyAssign(ord('R'), wx.stc.STC_SCMOD_META, wx.stc.STC_CMD_REDO)
+
+        self.SetLexer(stc.STC_LEX_PYTHON)
+        # add '.' to wordchars, so in mouse dwell event, it will capture variable
+        # 'a.b'
+        self.SetWordChars('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.')
+        keywords = list(keyword.kwlist)
+        for key in ['None', 'True', 'False']:
+            if key in keywords:
+                keywords.remove(key)
+        self.SetKeyWords(0, ' '.join(keywords))
+        self.SetKeyWords(1, ' '.join(['None', 'True', 'False']))
+
+        # Set up the numbers in the margin for margin #1
+        self.SetMarginType(NUM_MARGIN, stc.STC_MARGIN_NUMBER)
+        # Reasonable value for, say, 4-5 digits using a mono font (40 pix)
+        self.SetMarginWidth(0, 50)
+
+        # Margin #1 - breakpoint symbols
+        self.SetMarginType(MARK_MARGIN, stc.STC_MARGIN_SYMBOL)
+        # do not show fold symbols
+        self.SetMarginMask(MARK_MARGIN, ~stc.STC_MASK_FOLDERS)
+        self.SetMarginSensitive(MARK_MARGIN, True)
+        self.SetMarginWidth(MARK_MARGIN, 12)
+
+        # Setup a margin to hold fold markers
+        self.SetMarginType(FOLD_MARGIN, stc.STC_MARGIN_SYMBOL)
+        self.SetMarginMask(FOLD_MARGIN, stc.STC_MASK_FOLDERS)
+        self.SetMarginSensitive(FOLD_MARGIN, True)
+        self.SetMarginWidth(FOLD_MARGIN, 12)
+
+        self.SetCaretLineBackAlpha(64)
+        self.SetCaretLineVisible(True)
+        self.SetCaretLineVisibleAlways(True)
+
+        theme = 'solarized-dark'
+        resp = dp.send('frame.get_config', group='editor', key='theme')
+        if resp and resp[0][1] is not None:
+            theme = resp[0][1]
+
+        self.SetupColor(theme)
+        self.SetupColorPython(theme)
 
     def OnMarginClick(self, evt):
         """left mouse button click on margin"""
@@ -477,366 +417,12 @@ class PyEditor(wx.py.editwindow.EditWindow):
                 line = line + 1
         return line
 
-    def OnDoubleClick(self, event):
-        """left mouse button double click"""
-        # highlight all the instances of the selected text
-        sel = self.GetSelectedText()
-        if sel != "":
-            self.highlightText(sel)
-
-        event.Skip()
-
-    def OnLeftUp(self, event):
-        """left mouse button released"""
-        # remove the highlighting when click somewhere else
-        sel = self.GetSelectedText()
-        if self.highlightStr != "" and sel != self.highlightStr:
-            self.highlightText(self.highlightStr, False)
-
-        event.Skip()
-
-    def highlightText(self, strWord, highlight=True):
-        """highlight the text"""
-        current = 0
-        position = -1
-        flag = stc.STC_FIND_WHOLEWORD | stc.STC_FIND_MATCHCASE
-        if not highlight:
-            self.IndicatorClearRange(0, self.GetLength())
-            self.highlightStr = ""
-            return
-
-        self.highlightStr = strWord
-        self.SetIndicatorCurrent(0)
-        while True:
-            position = self.FindText(current, len(self.GetText()), strWord,
-                                     flag)
-            if isinstance(position, tuple):
-                position = position[0] # wx ver 4.1.0 returns (start, end)
-            current = position + len(strWord)
-            if position == -1:
-                break
-            self.IndicatorFillRange(position, len(strWord))
-
-    def needsIndent(self, firstWord, lastChar):
-        '''Tests if a line needs extra indenting, i.e., if, while, def, etc '''
-        # remove trailing ":" on token
-        if firstWord and firstWord[-1] == ':':
-            firstWord = firstWord[:-1]
-        # control flow keywords
-        keys = [
-            'for', 'if', 'else', 'def', 'class', 'elif', 'try', 'except',
-            'finally', 'while', 'with'
-        ]
-        return firstWord in keys and lastChar == ':'
-
-    def needsDedent(self, firstWord):
-        '''Tests if a line needs extra dedenting, i.e., break, return, etc '''
-        # control flow keywords
-        return firstWord in ['break', 'return', 'continue', 'yield', 'raise']
-
-    def autoCompleteShow(self, command, offset=0):
-        """Display auto-completion popup list."""
-        self.AutoCompSetAutoHide(self.autoCompleteAutoHide)
-        self.AutoCompSetIgnoreCase(self.autoCompleteCaseInsensitive)
-
-        options = []
-        # retrieve the auto complete list from shell
-        response = dp.send('shell.auto_complete_list', command=command)
-        if response:
-            options = response[0][1]
-        if options:
-            self.AutoCompShow(offset, ' '.join(options))
-
-    def autoCallTipShow(self, command, insertcalltip=True, forceCallTip=False):
-        """Display argument spec and docstring in a popup window."""
-        if self.CallTipActive():
-            self.CallTipCancel()
-        (argspec, tip) = (None, None)
-        # retrieve the all tip from shell
-        response = dp.send('shell.auto_call_tip', command=command)
-        if response:
-            # name, argspec, tip
-            (_, argspec, tip) = response[0][1]
-        if tip:
-            dp.send('Shell.calltip', sender=self, calltip=tip)
-        if not self.autoCallTip and not forceCallTip:
-            return
-        startpos = self.GetCurrentPos()
-        if argspec and insertcalltip and self.callTipInsert:
-            self.AddText(argspec + ')')
-            endpos = self.GetCurrentPos()
-            self.SetSelection(startpos, endpos)
-        if argspec:
-            tippos = startpos
-            fallback = startpos - self.GetColumn(startpos)
-            # In case there isn't enough room, only go back to the
-            # fallback.
-            tippos = max(tippos, fallback)
-            self.CallTipShow(tippos, argspec)
-
-    # Some methods to make it compatible with how the wxTextCtrl is used
-    def SetValue(self, value):
-        # if wx.USE_UNICODE:
-        #    value = value.decode('iso8859_1')
-        val = self.GetReadOnly()
-        self.SetReadOnly(False)
-        self.SetText(value)
-        self.EmptyUndoBuffer()
-        self.SetSavePoint()
-        self.SetReadOnly(val)
-
-    def SelectLine(self, line):
-        """select the line"""
-        start = self.PositionFromLine(line)
-        end = self.GetLineEndPosition(line)
-        self.SetSelection(start, end)
-
-    def UpdateStatusText(self):
-        """update the info on statusbar"""
-        caretPos = self.GetCurrentPos()
-        col = self.GetColumn(caretPos) + 1
-        line = self.LineFromPosition(caretPos) + 1
-        dp.send('frame.show_status_text',
-                text='%d, %d' % (line, col),
-                index=1,
-                width=100)
-
-    def OnUpdateUI(self, event):
-        super().OnUpdateUI(event)
-        wx.CallAfter(self.UpdateStatusText)
-
-    def SetupEditor(self):
-        """
-        This method carries out the work of setting up the demo editor.
-        It's separate so as not to clutter up the init code.
-        """
-        # key binding
-        self.CmdKeyAssign(ord('R'), stc.STC_SCMOD_CTRL, stc.STC_CMD_REDO)
-        if wx.Platform == '__WXMAC__':
-            self.CmdKeyAssign(ord('R'), wx.stc.STC_SCMOD_META, wx.stc.STC_CMD_REDO)
-
-        self.SetLexer(stc.STC_LEX_PYTHON)
-        # add '.' to wordchars, so in mouse dwell event, it will capture variable
-        # 'a.b'
-        self.SetWordChars('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.')
-        keywords = list(keyword.kwlist)
-        for key in ['None', 'True', 'False']:
-            if key in keywords:
-                keywords.remove(key)
-        self.SetKeyWords(0, ' '.join(keywords))
-        self.SetKeyWords(1, ' '.join(['None', 'True', 'False']))
-
-        # Enable folding
-        self.SetProperty('fold', '1')
-        # Highlight tab/space mixing (shouldn't be any)
-        self.SetProperty('tab.timmy.whinge.level', '1')
-        # Set left and right margins
-        self.SetMargins(2, 2)
-        # Set up the numbers in the margin for margin #1
-        self.SetMarginType(NUM_MARGIN, stc.STC_MARGIN_NUMBER)
-        # Reasonable value for, say, 4-5 digits using a mono font (40 pix)
-        self.SetMarginWidth(0, 50)
-        # Indentation and tab stuff
-        self.SetIndent(4)
-        self.SetIndentationGuides(wx.stc.STC_IV_LOOKBOTH)
-        # Backspace unindents rather than delete 1 space
-        self.SetBackSpaceUnIndents(True)
-        self.SetTabIndents(True)
-
-        # Use spaces rather than tabs, or TabTimmy will complain!
-        self.SetUseTabs(False)
-        # Don't view white space
-        self.SetViewWhiteSpace(False)
-        # EOL: Since we are loading/saving ourselves, and the
-        # strings will always have \n's in them, set the STC to
-        # edit them that way.
-        self.SetEOLMode(stc.STC_EOL_LF)
-        self.SetViewEOL(False)
-        # No right-edge mode indicator
-        self.SetEdgeMode(stc.STC_EDGE_NONE)
-        # Margin #1 - breakpoint symbols
-        self.SetMarginType(MARK_MARGIN, stc.STC_MARGIN_SYMBOL)
-        # do not show fold symbols
-        self.SetMarginMask(MARK_MARGIN, ~stc.STC_MASK_FOLDERS)
-        self.SetMarginSensitive(MARK_MARGIN, True)
-        self.SetMarginWidth(MARK_MARGIN, 12)
-
-        # Setup a margin to hold fold markers
-        self.SetMarginType(FOLD_MARGIN, stc.STC_MARGIN_SYMBOL)
-        self.SetMarginMask(FOLD_MARGIN, stc.STC_MASK_FOLDERS)
-        self.SetMarginSensitive(FOLD_MARGIN, True)
-        self.SetMarginWidth(FOLD_MARGIN, 12)
-
-        self.IndicatorSetStyle(0, stc.STC_INDIC_ROUNDBOX)
-
-        self.SetWrapMode(stc.STC_WRAP_WORD)
-
-        self.SetCaretLineBackAlpha(64)
-        self.SetCaretLineVisible(True)
-        self.SetCaretLineVisibleAlways(True)
-
-        theme = 'solarized-dark'
-        resp = dp.send('frame.get_config', group='editor', key='theme')
-        if resp and resp[0][1] is not None:
-            theme = resp[0][1]
-        self.SetupColor(theme)
-
-    def prepandText(self, text):
-        """Comment section"""
-        doc = self
-        sel = doc.GetSelection()
-        start = doc.LineFromPosition(sel[0])
-        end = doc.LineFromPosition(sel[1])
-        end_pos = sel[1]
-        if start > end:
-            (start, end) = (end, start)
-            end_pos = sel[0]
-        if end > start and doc.GetColumn(end_pos) == 0:
-            end = end - 1
-        doc.BeginUndoAction()
-        for line in six.moves.range(start, end + 1):
-            firstChar = doc.PositionFromLine(line)
-            doc.InsertText(firstChar, text)
-        doc.SetCurrentPos(doc.PositionFromLine(start))
-        doc.SetAnchor(doc.GetLineEndPosition(end))
-        doc.EndUndoAction()
-        doc.Refresh()
-
-    def deprepandText(self, text):
-        """Uncomment section"""
-        doc = self
-        sel = doc.GetSelection()
-        start = doc.LineFromPosition(sel[0])
-        end = doc.LineFromPosition(sel[1])
-        end_pos = sel[1]
-        if start > end:
-            (start, end) = (end, start)
-            end_pos = sel[0]
-        if end > start and doc.GetColumn(end_pos) == 0:
-            end = end - 1
-        doc.BeginUndoAction()
-        for line in six.moves.range(start, end + 1):
-            firstChar = doc.PositionFromLine(line)
-            txt = doc.GetLine(line)
-            if txt.startswith(text):
-                doc.SetCurrentPos(firstChar + len(text))
-                doc.DelLineLeft()
-        doc.SetSelection(sel[0], doc.PositionFromLine(end + 1))
-        doc.SetCurrentPos(doc.PositionFromLine(start))
-        doc.EndUndoAction()
-        doc.Refresh()
-
-    def indented(self):
-        """increase the indent"""
-        tabWidth = max(1, self.GetTabWidth())
-        if self.GetUseTabs():
-            indentation = '\t'
-        else:
-            indentation = ' ' * tabWidth
-        self.prepandText(indentation)
-
-    def unindented(self):
-        """decrease the indent"""
-        tabWidth = max(1, self.GetTabWidth())
-        if self.GetUseTabs():
-            indentation = '\t'
-        else:
-            indentation = ' ' * tabWidth
-        self.deprepandText(indentation)
-
-    def comment(self):
-        """Comment section"""
-        self.prepandText('##')
-
-    def uncomment(self):
-        """Uncomment section"""
-        self.deprepandText('##')
-
-    def GetContextMenu(self):
-        """
-            Create and return a context menu for the shell.
-            This is used instead of the scintilla default menu
-            in order to correctly respect our immutable buffer.
-        """
-        menu = wx.Menu()
-        menu.Append(wx.ID_UNDO, 'Undo')
-        menu.Append(wx.ID_REDO, 'Redo')
-        menu.AppendSeparator()
-        menu.Append(wx.ID_CUT, 'Cut')
-        menu.Append(wx.ID_COPY, 'Copy')
-        menu.Append(wx.ID_PASTE, 'Paste')
-        menu.Append(wx.ID_CLEAR, 'Clear')
-        menu.AppendSeparator()
-        menu.Append(wx.ID_SELECTALL, 'Select All')
-        menu.AppendSeparator()
-        menu.Append(self.ID_COMMENT, 'Comment')
-        menu.Append(self.ID_UNCOMMENT, 'Uncomment')
-        return menu
-
-    def OnContextMenu(self, evt):
-        p = self.ScreenToClient(evt.GetPosition())
-        m = self.GetMarginWidth(0) + self.GetMarginWidth(1)
-        if p.x > m:
-            # show edit menu when the mouse is in editable area
-            menu = self.GetContextMenu()
-            self.PopupMenu(menu)
-        elif p.x > self.GetMarginWidth(0):
-            # in breakpoint area
-            cline = self.LineFromPosition(self.PositionFromPoint(p))
-            for key in self.breakpointlist:
-                line = self.MarkerLineFromHandle(key)
-                if line == cline:
-                    self.GotoLine(line)
-                    break
-            else:
-                return
-            menu = wx.Menu()
-            menu.Append(self.ID_DELETE_BREAKPOINT, 'Delete Breakpoint')
-            menu.AppendSeparator()
-            menu.Append(self.ID_EDIT_BREAKPOINT, 'Condition...')
-            menu.AppendSeparator()
-            menu.Append(self.ID_CLEAR_BREAKPOINT, 'Delete All Breakpoints')
-            self.PopupMenu(menu)
-
-    def OnUpdateCommandUI(self, evt):
-        eid = evt.Id
-        if eid in (wx.ID_CUT, wx.ID_CLEAR):
-            evt.Enable(self.GetSelectionStart() != self.GetSelectionEnd())
-        elif eid == wx.ID_COPY:
-            evt.Enable(self.GetSelectionStart() != self.GetSelectionEnd())
-        elif eid == wx.ID_PASTE:
-            evt.Enable(self.CanPaste())
-        elif eid == wx.ID_UNDO:
-            evt.Enable(self.CanUndo())
-        elif eid == wx.ID_REDO:
-            evt.Enable(self.CanRedo())
-        else:
-            evt.Skip()
-
-    def findBreakPoint(self, line):
-        for key in self.breakpointlist:
-            if line == self.MarkerLineFromHandle(key):
-                return self.breakpointlist[key]
-        return None
-
     def OnProcessEvent(self, evt):
         """process the menu command"""
         eid = evt.GetId()
-        if eid == wx.ID_CUT:
-            self.Cut()
-        elif eid == wx.ID_CLEAR:
-            self.ClearAll()
-        elif eid == wx.ID_COPY:
-            self.Copy()
-        elif eid == wx.ID_PASTE:
-            self.Paste()
-        elif eid == wx.ID_UNDO:
-            self.Undo()
-        elif eid == wx.ID_REDO:
-            self.Redo()
-        elif eid == wx.ID_SELECTALL:
-            self.SelectAll()
-        elif eid == self.ID_COMMENT:
+        super().OnProcessEvent(evt)
+
+        if eid == self.ID_COMMENT:
             self.comment()
         elif eid == self.ID_UNCOMMENT:
             self.uncomment()
@@ -859,16 +445,22 @@ class PyEditor(wx.py.editwindow.EditWindow):
                             condition=cond[0],
                             hitcount=cond[1])
 
+    def LoadFile(self, filename):
+        """load file into editor"""
+        self.ClearBreakpoint()
+        if super().LoadFile(filename):
+            digits = np.max([np.ceil(np.log10(self.GetLineCount())), 1])
+            self.SetMarginWidth(0, int(25+digits*5))
+            return True
+        return False
 
 class PyEditorPanel(wx.Panel):
     Gce = Gcm()
     ID_RUN_SCRIPT = wx.NewId()
     ID_DEBUG_SCRIPT = wx.NewId()
-    ID_FIND_REPLACE = wx.NewId()
     ID_CHECK_SCRIPT = wx.NewId()
     ID_RUN_LINE = wx.NewId()
-    ID_FIND_NEXT = wx.NewId()
-    ID_FIND_PREV = wx.NewId()
+    ID_FIND_REPLACE = wx.NewId()
     ID_INDENT = wx.NewId()
     ID_UNINDENT = wx.NewId()
     ID_SETCURFOLDER = wx.NewId()
@@ -893,12 +485,6 @@ class PyEditorPanel(wx.Panel):
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent, size=(1, 1))
-        # find & replace dialog
-        self.findStr = ""
-        self.replaceStr = ""
-        self.findFlags = 1
-        self.stcFindFlags = 0
-        self.wrapped = 0
 
         self.fileName = """"""
         self.splitter = wx.SplitterWindow(self, style=wx.SP_LIVE_UPDATE)
@@ -906,7 +492,6 @@ class PyEditorPanel(wx.Panel):
         self.editor2 = None
         self.splitter.Initialize(self.editor)
         self.Bind(stc.EVT_STC_CHANGE, self.OnCodeModified)
-        self.findDialog = None
         item = (
             (wx.ID_OPEN, 'Open', open_xpm, 'Open Python script'),
             (wx.ID_REFRESH, 'Reload', reload_xpm, 'Reload current script'),
@@ -940,7 +525,7 @@ class PyEditorPanel(wx.Panel):
         self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW)
         for (eid, label, img_xpm, tooltip) in item:
-            if eid == None:
+            if eid is None:
                 self.tb.AddSeparator()
                 continue
             bmp = wx.Bitmap(to_byte(img_xpm))
@@ -973,8 +558,6 @@ class PyEditorPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnBtnRunScript, id=self.ID_RUN_SCRIPT)
         self.Bind(wx.EVT_TOOL, self.OnBtnDebugScript, id=self.ID_DEBUG_SCRIPT)
         #self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateBtn, id=self.ID_DEBUG_SCRIPT)
-        self.Bind(wx.EVT_TOOL, self.OnFindNext, id=self.ID_FIND_NEXT)
-        self.Bind(wx.EVT_TOOL, self.OnFindPrev, id=self.ID_FIND_PREV)
         self.Bind(wx.EVT_TOOL, self.OnIndent, id=self.ID_INDENT)
         self.Bind(wx.EVT_TOOL, self.OnUnindent, id=self.ID_UNINDENT)
         self.Bind(wx.EVT_TOOL, self.OnSetCurFolder, id=self.ID_SETCURFOLDER)
@@ -982,10 +565,6 @@ class PyEditorPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnSplitHorz, id=self.ID_SPLIT_HORZ)
         self.cbWrapMode.Bind(wx.EVT_CHECKBOX, self.OnWrap)
         accel = [
-            (wx.ACCEL_CTRL, ord('F'), self.ID_FIND_REPLACE),
-            (wx.ACCEL_NORMAL, wx.WXK_F3, self.ID_FIND_NEXT),
-            (wx.ACCEL_SHIFT, wx.WXK_F3, self.ID_FIND_PREV),
-            (wx.ACCEL_CTRL, ord('H'), self.ID_FIND_REPLACE),
             (wx.ACCEL_CTRL, wx.WXK_RETURN, self.ID_RUN_LINE),
             (wx.ACCEL_CTRL, ord('S'), wx.ID_SAVE),
         ]
@@ -1207,32 +786,7 @@ class PyEditorPanel(wx.Panel):
     def OnShowFindReplace(self, event):
         """Find and Replace dialog and action."""
         # find string
-        findStr = self.editor.GetSelectedText()
-        if findStr and self.findDialog:
-            self.findDialog.Destroy()
-            self.findDialog = None
-        # dialog already open, if yes give focus
-        if self.findDialog:
-            self.findDialog.Show(1)
-            self.findDialog.Raise()
-            return
-        if not findStr:
-            findStr = self.findStr
-        # find data
-        data = wx.FindReplaceData(self.findFlags)
-        data.SetFindString(findStr)
-        data.SetReplaceString(self.replaceStr)
-        # dialog
-        self.findDialog = wx.FindReplaceDialog(
-            self, data, 'Find & Replace', wx.FR_REPLACEDIALOG)
-        # bind the event to the dialog, see the example in wxPython demo
-        self.findDialog.Bind(wx.EVT_FIND, self.OnFind)
-        self.findDialog.Bind(wx.EVT_FIND_NEXT, self.OnFind)
-        self.findDialog.Bind(wx.EVT_FIND_REPLACE, self.OnReplace)
-        self.findDialog.Bind(wx.EVT_FIND_REPLACE_ALL, self.OnReplaceAll)
-        self.findDialog.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
-        self.findDialog.Show(1)
-        self.findDialog.data = data  # save a reference to it...
+        self.editor.OnShowFindReplace(event)
 
     def RunCommand(self, command, prompt=False, verbose=True, debug=False):
         """run command in shell"""
@@ -1316,113 +870,6 @@ class PyEditorPanel(wx.Panel):
         #dp.send('debugger.ended')
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, True)
 
-    def message(self, text):
-        """show the message on statusbar"""
-        dp.send('frame.show_status_text', text=text)
-
-    def _find_text(self, minPos, maxPos, text, flags=0):
-        position = self.editor.FindText(minPos, maxPos, text, flags)
-        if isinstance(position, tuple):
-            position = position[0] # wx ver 4.1.0 returns (start, end)
-        return position
-
-    def doFind(self, strFind, forward=True):
-        """search the string"""
-        current = self.editor.GetCurrentPos()
-        position = -1
-        if forward:
-            position = self._find_text(current, len(self.editor.GetText()),
-                                       strFind, self.stcFindFlags)
-            if position == -1:
-                # wrap around
-                self.wrapped += 1
-                position = self._find_text(0, current + len(strFind), strFind,
-                                           self.stcFindFlags)
-        else:
-            position = self._find_text(current - len(strFind), 0, strFind,
-                                       self.stcFindFlags)
-            if position == -1:
-                # wrap around
-                self.wrapped += 1
-                position = self._find_text(len(self.editor.GetText()), current,
-                                           strFind, self.stcFindFlags)
-
-        # not found the target, do not change the current position
-        if position == -1:
-            self.message("'%s' not found!" % strFind)
-            position = current
-            strFind = """"""
-        self.editor.GotoPos(position)
-        self.editor.SetSelection(position, position + len(strFind))
-        return position
-
-    def OnFind(self, event):
-        """search the string"""
-        self.findStr = event.GetFindString()
-        self.findFlags = event.GetFlags()
-        flags = 0
-        if wx.FR_WHOLEWORD & self.findFlags:
-            flags |= stc.STC_FIND_WHOLEWORD
-        if wx.FR_MATCHCASE & self.findFlags:
-            flags |= stc.STC_FIND_MATCHCASE
-        self.stcFindFlags = flags
-        return self.doFind(self.findStr, wx.FR_DOWN & self.findFlags)
-
-    def OnFindClose(self, event):
-        """close find & replace dialog"""
-        event.GetDialog().Destroy()
-
-    def OnReplace(self, event):
-        """replace"""
-        # Next line avoid infinite loop
-        findStr = event.GetFindString()
-        self.replaceStr = event.GetReplaceString()
-
-        source = self.editor
-        selection = source.GetSelectedText()
-        if not event.GetFlags() & wx.FR_MATCHCASE:
-            findStr = findStr.lower()
-            selection = selection.lower()
-
-        if selection == findStr:
-            position = source.GetSelectionStart()
-            source.ReplaceSelection(self.replaceStr)
-            source.SetSelection(position, position + len(self.replaceStr))
-        # jump to next instance
-        position = self.OnFind(event)
-        return position
-
-    def OnReplaceAll(self, event):
-        """replace all the instances"""
-        source = self.editor
-        count = 0
-        self.wrapped = 0
-        position = start = source.GetCurrentPos()
-        while position > -1 and (not self.wrapped or position < start):
-            position = self.OnReplace(event)
-            if position != -1:
-                count += 1
-            if self.wrapped >= 2:
-                break
-        self.editor.GotoPos(start)
-        if not count:
-            self.message("'%s' not found!" % event.GetFindString())
-
-    def OnFindNext(self, event):
-        """go the previous instance of search string"""
-        findStr = self.editor.GetSelectedText()
-        if findStr:
-            self.findStr = findStr
-        if self.findStr:
-            self.doFind(self.findStr)
-
-    def OnFindPrev(self, event):
-        """go the previous instance of search string"""
-        findStr = self.editor.GetSelectedText()
-        if findStr:
-            self.findStr = findStr
-        if self.findStr:
-            self.doFind(self.findStr, False)
 
     def OnIndent(self, event):
         """increase the indent"""
@@ -1436,7 +883,7 @@ class PyEditorPanel(wx.Panel):
         """set the current folder to the folder with the file"""
         if not self.fileName:
             return
-        path, = os.path.split(self.fileName)
+        path, _ = os.path.split(self.fileName)
         self.RunCommand('import os', verbose=False)
         self.RunCommand('os.chdir(r\'%s\')' % path, verbose=False)
 
@@ -1648,7 +1095,7 @@ class PyEditorPanel(wx.Panel):
                                {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
                                {'type': wx.ITEM_SEPARATOR},
                                {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
-                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':f'Reveal in Browsing panel'},
+                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
                                ]})
         return editor
 

@@ -13,7 +13,7 @@ from wx import stc
 from wx.py.pseudo import PseudoFile
 from .debugger import EngineDebugger
 from ..version import __version__
-from .editor_base import EditorTheme
+from .editor_base import EditorTheme, EditorFind
 from .shell_base import magic, aliasDict, sx
 
 
@@ -31,7 +31,7 @@ def _help(command):
     except:
         print(f'No help found on "{command}"')
 
-
+@EditorFind
 @EditorTheme
 class Shell(pyshell.Shell):
     ID_COPY_PLUS = wx.NewId()
@@ -112,17 +112,15 @@ class Shell(pyshell.Shell):
         self.Bind(wx.EVT_MENU, lambda evt: self.clear(), id=self.ID_CLEAR)
 
         # find dialog
-        eid = wx.NewId()
-        eid_ctl_c = wx.NewId()
-        self.Bind(wx.EVT_MENU, self.OnShowFindReplace, id=eid)
+        self.SetupFind()
+        # disable replace
+        self.findDialogStyle = 0
+
+        eid_ctl_c = wx.NewIdRef()
         self.Bind(wx.EVT_MENU, self.OnCtrlC, id=eid_ctl_c)
-        accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL, ord('F'), eid),
+        accel_tbl = wx.AcceleratorTable([(wx.ACCEL_CTRL, ord('F'), self.ID_FIND_REPLACE),
                                          (wx.ACCEL_RAW_CTRL, ord('C'), eid_ctl_c)])
         self.SetAcceleratorTable(accel_tbl)
-        self.findDialog = None
-        self.findStr = ""
-        self.findFlags = 1
-        self.stcFindFlags = 0
 
     def clear(self):
         super().clear()
@@ -136,87 +134,6 @@ class Shell(pyshell.Shell):
             endpos = self.GetTextLength()
             self.GotoPos(endpos)
             self.push('', history=False)
-
-    def OnShowFindReplace(self, event):
-        """Find and Replace dialog and action."""
-        # find string
-        findStr = self.GetSelectedText()
-        if findStr and self.findDialog:
-            self.findDialog.Destroy()
-            self.findDialog = None
-        # dialog already open, if yes give focus
-        if self.findDialog:
-            self.findDialog.Show(1)
-            self.findDialog.Raise()
-            return
-        if not findStr:
-            findStr = self.findStr
-        # find data
-        data = wx.FindReplaceData(self.findFlags)
-        data.SetFindString(findStr)
-        # dialog
-        self.findDialog = wx.FindReplaceDialog(
-            self, data, 'Find')
-        # bind the event to the dialog, see the example in wxPython demo
-        self.findDialog.Bind(wx.EVT_FIND, self.OnFind)
-        self.findDialog.Bind(wx.EVT_FIND_NEXT, self.OnFind)
-        self.findDialog.Bind(wx.EVT_FIND_CLOSE, self.OnFindClose)
-        self.findDialog.Show(1)
-        self.findDialog.data = data  # save a reference to it...
-
-    def message(self, text):
-        """show the message on statusbar"""
-        dp.send('frame.show_status_text', text=text)
-
-    def _find_text(self, minPos, maxPos, text, flags=0):
-        position = self.FindText(minPos, maxPos, text, flags)
-        if isinstance(position, tuple):
-            position = position[0] # wx ver 4.1.0 returns (start, end)
-        return position
-
-    def doFind(self, strFind, forward=True):
-        """search the string"""
-        current = self.GetCurrentPos()
-        position = -1
-        if forward:
-            position = self._find_text(current, len(self.GetText()),
-                                       strFind, self.stcFindFlags)
-            if position == -1:
-                # wrap around
-                position = self._find_text(0, current + len(strFind), strFind,
-                                           self.stcFindFlags)
-        else:
-            position = self._find_text(current - len(strFind), 0, strFind,
-                                       self.stcFindFlags)
-            if position == -1:
-                # wrap around
-                position = self._find_text(len(self.GetText()), current,
-                                           strFind, self.stcFindFlags)
-
-        # not found the target, do not change the current position
-        if position == -1:
-            self.message("'%s' not found!" % strFind)
-            position = current
-            strFind = """"""
-        self.GotoPos(position)
-        self.SetSelection(position, position + len(strFind))
-        return position
-
-    def OnFind(self, event):
-        """search the string"""
-        self.findStr = event.GetFindString()
-        self.findFlags = event.GetFlags()
-        flags = 0
-        if wx.FR_WHOLEWORD & self.findFlags:
-            flags |= stc.STC_FIND_WHOLEWORD
-        if wx.FR_MATCHCASE & self.findFlags:
-            flags |= stc.STC_FIND_MATCHCASE
-        self.stcFindFlags = flags
-        return self.doFind(self.findStr, wx.FR_DOWN & self.findFlags)
-
-    def OnFindClose(self, event):
-        """close find & replace dialog"""
-        event.GetDialog().Destroy()
 
     def Destroy(self):
         self.debugger.release()
@@ -286,7 +203,8 @@ class Shell(pyshell.Shell):
         if self.CanPaste() and wx.TheClipboard.Open():
             ps2 = str(sys.ps2)
             # on mac 11.4, it always return false
-            if True:#wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+            if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)) or\
+               wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_UNICODETEXT)):
                 data = wx.TextDataObject()
                 if wx.TheClipboard.GetData(data):
                     self.ReplaceSelection('')
@@ -304,7 +222,8 @@ class Shell(pyshell.Shell):
         """Replace selection with clipboard contents, run commands."""
         text = ''
         if wx.TheClipboard.Open():
-            if True:#wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)):
+            if wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_TEXT)) or\
+               wx.TheClipboard.IsSupported(wx.DataFormat(wx.DF_UNICODETEXT)):
                 data = wx.TextDataObject()
                 if wx.TheClipboard.GetData(data):
                     text = data.GetText()
@@ -356,11 +275,11 @@ class Shell(pyshell.Shell):
     def IsDebuggerPaused(self):
         return self.IsDebuggerOn() and self.debugger._paused
 
-    def SetSelection(self, start, end):
-        self.SetSelectionStart(start)
-        self.SetSelectionEnd(end)
-        if end < start:
-            self.SetAnchor(start)
+    def SetSelection(self, from_, to_):
+        self.SetSelectionStart(from_)
+        self.SetSelectionEnd(to_)
+        if to_ < from_:
+            self.SetAnchor(from_)
 
     def LoadHistory(self):
         self.clearHistory()
@@ -397,21 +316,21 @@ class Shell(pyshell.Shell):
             if self.AutoCompActive():
                 self.AutoCompCancel()
 
-    def OnUpdateUI(self, evt):
-        eid = evt.GetId()
+    def OnUpdateUI(self, event):
+        eid = event.GetId()
         if eid in (wx.ID_CUT, wx.ID_CLEAR):
-            evt.Enable(self.CanCut())
+            event.Enable(self.CanCut())
         elif eid in (wx.ID_COPY, self.ID_COPY_PLUS):
-            evt.Enable(self.CanCopy())
+            event.Enable(self.CanCopy())
         elif eid in (wx.ID_PASTE, self.ID_PASTE_PLUS):
-            evt.Enable(self.CanPaste())
+            event.Enable(self.CanPaste())
         elif eid == wx.ID_UNDO:
-            evt.Enable(self.CanUndo())
+            event.Enable(self.CanUndo())
         elif eid == wx.ID_REDO:
-            evt.Enable(self.CanRedo())
+            event.Enable(self.CanRedo())
         # update the caret position so that it is always in valid area
         self.UpdateCaretPos()
-        super().OnUpdateUI(evt)
+        super().OnUpdateUI(event)
 
     def UpdateCaretPos(self):
         # when editing the command, do not allow moving the caret to

@@ -9,7 +9,6 @@ import six
 import wx
 from  wx.lib.agw import aui
 import wx.py.dispatcher as dp
-import wx.html2 as html
 import wx.svg
 from ..auibarpopup import AuiToolBarPopupArt
 from .dirtreectrl import DirTreeCtrl, Directory
@@ -17,28 +16,25 @@ from .bsmxpm import backward_svg, forward_svg, up_svg, home_svg, more_svg
 from .autocomplete import AutocompleteTextCtrl
 from .utility import FastLoadTreeCtrl, svg_to_bitmap, open_file_with_default_app, \
                      show_file_in_finder, get_file_finder_name
+from .editor_base import EditorBase
 
 
-html_template = '''
-<html>
-    <head>
-        <title>%(title)s</title>
-    </head>
-    <body>
-    <FONT FACE= "Courier New">
-    <pre>
-%(message)s
-    </pre>
-    </body>
-</html>
-'''
+class HelpText(EditorBase):
+    def __init__(self, parent):
+        super().__init__(parent)
+
+        self.SetLexer(wx.stc.STC_LEX_NULL)
+        self.SetCaretStyle(wx.stc.STC_CARETSTYLE_INVISIBLE)
+
+        # disable replace
+        self.findDialogStyle = 0
 
 
 class HelpPanel(wx.Panel):
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)
 
-        self.html = html.WebView.New(self)
+        self.html = HelpText(self)
 
         self.toolbarart = AuiToolBarPopupArt(self)
         agwStyle = aui.AUI_TB_OVERFLOW
@@ -64,37 +60,17 @@ class HelpPanel(wx.Panel):
 
         self.history = []
         self.history_index = -1
-        self.findStr = ""
-        self.findFlags = html.WEBVIEW_FIND_DEFAULT | html.WEBVIEW_FIND_WRAP
 
         self.Bind(wx.EVT_TEXT_ENTER, self.OnDoSearch, self.search)
-        self.Bind(html.EVT_WEBVIEW_NAVIGATING, self.OnWebViewNavigating,
-                  self.html)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI)
         self.Bind(wx.EVT_TOOL, self.OnBack, id=wx.ID_BACKWARD)
         self.Bind(wx.EVT_TOOL, self.OnForward, id=wx.ID_FORWARD)
-        self.Bind(wx.EVT_TOOL, self.OnShowFind, id=wx.ID_FIND)
 
-        accel = [(wx.ACCEL_CTRL, ord('F'), wx.ID_FIND)]
-        self.accel = wx.AcceleratorTable(accel)
-        self.SetAcceleratorTable(self.accel)
         self.LoadConfig()
-
+        self.html.SetReadOnly(True)
         command = self.search.GetValue()
         if command:
             self.show_help(command)
-
-        # for some unknown reason, the html/tb will show (e.g., on top of other
-        # window (e.g., history panel)) on MacOS, even if the Panel is hidden.
-        # So hide them here, and show later.
-        self.tb.Hide()
-        self.html.Hide()
-        wx.CallAfter(self.PostInit)
-
-    def PostInit(self):
-        self.html.Show()
-        self.tb.Show()
-        self.Fit()
 
     def LoadConfig(self):
         resp = dp.send('frame.get_config', group='helppanel', key='search')
@@ -105,27 +81,6 @@ class HelpPanel(wx.Panel):
 
     def SaveConfig(self):
         dp.send('frame.set_config', group='helppanel', search=self.search.GetValue())
-
-    def OnShowFind(self, evt):
-        self.html.Find("")
-        findData = wx.FindReplaceData()
-        dlg = wx.FindReplaceDialog(self, findData, "Find")
-        dlg.findData = findData
-        dlg.Bind(wx.EVT_FIND, self.OnFind)
-        dlg.Bind(wx.EVT_FIND_NEXT, self.OnFind)
-        dlg.Show(True)
-
-    def OnFind(self, evt):
-        self.findStr = evt.GetFindString()
-        flags = evt.GetFlags()
-        self.findFlags = html.WEBVIEW_FIND_DEFAULT | html.WEBVIEW_FIND_WRAP
-        if wx.FR_WHOLEWORD & flags:
-            self.findFlags |= html.WEBVIEW_FIND_ENTIRE_WORD
-        if wx.FR_MATCHCASE & flags:
-            self.findFlags |= html.WEBVIEW_FIND_MATCH_CASE
-        if not (wx.FR_DOWN & flags):
-            self.findFlags |= html.WEBVIEW_FIND_BACKWARDS
-        self.html.Find(self.findStr, self.findFlags)
 
     def completer(self, query):
         response = dp.send(signal='shell.auto_complete_list', command=query)
@@ -145,8 +100,8 @@ class HelpPanel(wx.Panel):
     def show_help(self, command, addhistory=True):
         try:
             strhelp = pydoc.plain(pydoc.render_doc(str(command), "Help on %s"))
-            htmlpage = html_template % ({'title': '', 'message': strhelp})
-            self.html.SetPage(htmlpage, '')
+            self.html.SetReadOnly(False)
+            self.html.SetText(strhelp)
             # do not use SetValue since it will trigger the text update event, which
             # will popup the auto complete list window
             self.search.ChangeValue(command)
@@ -154,6 +109,7 @@ class HelpPanel(wx.Panel):
                 self.add_history(command)
         except:
             traceback.print_exc(file=sys.stdout)
+        self.html.SetReadOnly(True)
 
     def OnDoSearch(self, evt):
         self.SaveConfig()
