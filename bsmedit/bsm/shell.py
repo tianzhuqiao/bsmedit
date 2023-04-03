@@ -795,6 +795,7 @@ class Shell(pyshell.Shell):
         cls.frame = frame
         dp.connect(receiver=cls.initialized, signal='frame.initialized')
         dp.connect(receiver=cls.Uninitialize, signal='frame.exit')
+        cls.debug = kwargs.get('debug', False)
         ns = {}
         ns['wx'] = wx
         ns['app'] = wx.GetApp()
@@ -811,7 +812,8 @@ class Shell(pyshell.Shell):
 
     @classmethod
     def initialized(cls):
-        if cls.panelShell:
+        if cls.panelShell and not cls.debug:
+            # not redirect if in debug mode
             redirect = True
             resp = dp.send('frame.get_config', group='shell', key='redirect_stdout')
             if resp and resp[0][1] is not None:

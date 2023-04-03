@@ -1,9 +1,9 @@
 import multiprocessing
+import ctypes
 import wx
 import click
 from .mainframe import MainFrame
 from .version import __version__
-import ctypes
 try:
     ctypes.windll.shcore.SetProcessDpiAwareness(True)
 except:
@@ -45,14 +45,18 @@ class RunApp(wx.App):
 @click.option('--spawn',
               is_flag=True,
               help="Start a process with method 'spawn'.")
+@click.option('--debug',
+              is_flag=True,
+              help='Run in debug mode.')
 @click.argument('module', nargs=-1)
-def main(config, path, ignore_perspective, spawn, module):
+def main(config, path, ignore_perspective, spawn, debug,module):
     if spawn and hasattr(multiprocessing, 'set_start_method'):
         multiprocessing.set_start_method('spawn')
     app = RunApp(config=config,
                  ignore_perspective=ignore_perspective,
                  path=path,
-                 module=module)
+                 module=module,
+                 debug=debug)
     app.MainLoop()
 
 

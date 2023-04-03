@@ -97,7 +97,7 @@ class MultiDimensionalArrayEncoder(json.JSONEncoder):
             else:
                 return item
 
-        return super(MultiDimensionalArrayEncoder, self).encode(hint_tuples(obj))
+        return super().encode(hint_tuples(obj))
 
 def hinted_tuple_hook(obj):
     if '__tuple__' in obj:
@@ -172,7 +172,7 @@ class MainFrame(FramePlus):
 
         self.bsm_packages = auto_load_module
         self.addon = {}
-        self.InitAddOn(kwargs.get('module', ()))
+        self.InitAddOn(kwargs.get('module', ()), debug=kwargs.get('debug', False))
 
         # initialization done, broadcasting the message so plugins can do some
         # after initialization processing.
@@ -217,14 +217,14 @@ class MainFrame(FramePlus):
         self.Bind(wx.EVT_MENU, self.OnHelpContact, id=self.ID_CONTACT)
         self.Bind(wx.EVT_MENU, self.OnHelpAbout, id=wx.ID_ABOUT)
 
-    def InitAddOn(self, modules):
+    def InitAddOn(self, modules, debug=False):
         if not modules:
             # load all modules
             modules = ["default"]
 
         for module in modules:
             module = module.split('+')
-            options = {}
+            options = {'debug': debug}
             if len(module) == 2:
                 if all([c in 'htblr' for c in module[1]]):
                     if 'h' in module[1]:
@@ -377,7 +377,7 @@ class MainFrame(FramePlus):
         self.SetConfig('mainframe', perspective=self._mgr.SavePerspective())
         dp.send('frame.exit')
         self.config.Flush()
-        super(MainFrame, self).OnClose(event)
+        super().OnClose(event)
 
     def ShowStatusText(self, text, index=0, width=-1):
         """set the status text"""
