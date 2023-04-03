@@ -4,6 +4,7 @@ import re
 import traceback
 import time
 import pydoc
+import glob
 import six.moves.builtins as __builtin__
 import six
 import wx
@@ -245,6 +246,21 @@ class Shell(pyshell.Shell):
             pass
         return self.interp.getAutoCompleteList(command, *args, **kwds)
 
+    def getPathList(self, path=None, prefix='', files=True, folders=True):
+        paths = []
+        if path is None:
+            path = os.getcwd()
+        if folders:
+            f = glob.glob(os.path.join(path, f'{prefix}*/'))
+            f = [os.path.relpath(folder, path) + '/' for folder in f]
+            paths += sorted(f)
+        if files:
+            f = glob.glob(os.path.join(path, f'{prefix}*.*'))
+            f = [os.path.relpath(file, path) for file in f]
+            paths += sorted(f)
+
+        return paths
+
     def getAutoCallTip(self, command, *args, **kwds):
         # remove additional key from wx.py.dispatcher.send
         kwds.pop('sender', None)
@@ -373,12 +389,14 @@ class Shell(pyshell.Shell):
         elif canEdit and (not shiftDown) and key == wx.WXK_TAB:
             # show auto-complete list with TAB
             # first try to get the autocompletelist from the package
-            cmd = self.getCommand()
+            cmd = self.getCommand(rstrip=False)
             k = self.getAutoCompleteList(cmd)
             cmd = cmd[cmd.rfind('.') + 1:]
             # if failed, search the locals()
-            if not k:
+            if not k and cmd:
                 for i in six.moves.range(len(cmd) - 1, -1, -1):
+                    if cmd[i] == ' ':
+                        break
                     if cmd[i].isalnum() or cmd[i] == '_':
                         continue
                     cmd = cmd[i + 1:]
@@ -386,11 +404,22 @@ class Shell(pyshell.Shell):
                 k = six.iterkeys(self.interp.locals)
                 k = [s for s in k if s.startswith(cmd)]
                 k.sort()
+            lengthEntered = 0
+            if not k:
+                cmds = cmd.split(' ')
+                cmd_main = cmd.split(' ')[0]
+                prefix = cmds[-1] if len(cmds) > 1 else ''
+                if cmd_main in ['cd', '!cd']:
+                    k = self.getPathList(prefix=prefix, files=False)
+                if cmd_main in ['ls', '!ls']:
+                    k = self.getPathList(prefix=prefix)
+                lengthEntered = len(prefix)
             if k:
                 self.AutoCompSetAutoHide(self.autoCompleteAutoHide)
                 self.AutoCompSetIgnoreCase(self.autoCompleteCaseInsensitive)
                 options = ' '.join(k)
-                self.AutoCompShow(len(cmd), options)
+                lengthEntered = len(cmd) if all(item.startswith(cmd) for item in k) else lengthEntered
+                self.AutoCompShow(lengthEntered, options)
             return
         else:
             self.searchHistory = True
