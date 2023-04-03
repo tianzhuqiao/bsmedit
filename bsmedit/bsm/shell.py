@@ -244,7 +244,12 @@ class Shell(pyshell.Shell):
             self.evaluate(cmd)
         except:
             pass
-        return self.interp.getAutoCompleteList(command, *args, **kwds)
+        cmp = self.interp.getAutoCompleteList(command, *args, **kwds)
+        part = command[command.rfind('.') + 1:]
+        if part:
+            part = part.lower()
+            cmp = [c for c in cmp if c.lower().startswith(part)]
+        return cmp
 
     def getPathList(self, path=None, prefix='', files=True, folders=True):
         paths = []
@@ -418,7 +423,7 @@ class Shell(pyshell.Shell):
                 self.AutoCompSetAutoHide(self.autoCompleteAutoHide)
                 self.AutoCompSetIgnoreCase(self.autoCompleteCaseInsensitive)
                 options = ' '.join(k)
-                lengthEntered = len(cmd) if all(item.startswith(cmd) for item in k) else lengthEntered
+                lengthEntered = len(cmd) if all(item.lower().startswith(cmd.lower()) for item in k) else lengthEntered
                 self.AutoCompShow(lengthEntered, options)
             return
         else:
