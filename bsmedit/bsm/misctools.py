@@ -7,9 +7,9 @@ import re
 import shutil
 import six
 import wx
-from  wx.lib.agw import aui
 import wx.py.dispatcher as dp
 import wx.svg
+from  ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from .dirtreectrl import DirTreeCtrl, Directory
 from .bsmxpm import backward_svg, forward_svg, up_svg, home_svg, more_svg

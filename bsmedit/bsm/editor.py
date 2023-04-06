@@ -6,7 +6,7 @@ import numpy as np
 import wx
 from wx import stc
 import wx.py.dispatcher as dp
-from wx.lib.agw import aui
+from ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
                     dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \

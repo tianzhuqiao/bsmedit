@@ -1,8 +1,7 @@
 import six
 import wx
-import wx.lib.agw.aui as aui
 import wx.py.dispatcher as dp
-from .bsm.utility import patch_aui_toolbar_art
+from .aui import aui
 
 
 class AuiManagerPlus(aui.AuiManager):
@@ -11,7 +10,6 @@ class AuiManagerPlus(aui.AuiManager):
                                 managed_window=managed_window,
                                 agwFlags=agwFlags)
 
-        patch_aui_toolbar_art()
     def RefreshPaneCaption(self, window):
         """used to rename a panel"""
         if window is None:

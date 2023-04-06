@@ -8,7 +8,7 @@ import six.moves.queue as Queue
 import six
 import wx
 import wx.py.dispatcher as dp
-from wx.lib.agw import aui
+from ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
 from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\

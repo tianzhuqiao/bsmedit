@@ -1,12 +1,12 @@
 import logging
 import pathlib
 import wx
-from  wx.lib.agw import aui
 import numpy as np
 import PIL
 import matplotlib as mpl
 from matplotlib.backends.backend_wx import NavigationToolbar2
 from matplotlib import cbook
+from  ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
 
 _log = logging.getLogger(__name__)

@@ -4,8 +4,8 @@ import subprocess
 import platform
 import six
 import wx
-from wx.lib.agw import aui
 import wx.svg
+from ..aui import aui
 
 def MakeBitmap(red, green, blue, alpha=128, size=None, scale_factor=1):
     # Create the bitmap that we will stuff pixel values into using
@@ -174,111 +174,6 @@ def build_menu_from_list(items, menu=None):
             item.Check(m.get('check', True))
             item.Enable(m.get('enable', True))
     return menu
-
-def patch_aui_toolbar_art():
-
-    def GetToolsPosition(self, dc, item, rect):
-        """
-        Returns the bitmap and text rectangles for a toolbar item.
-
-        :param `dc`: a :class:`wx.DC` device context;
-        :param `item`: an instance of :class:`AuiToolBarItem`;
-        :param wx.Rect `rect`: the tool rectangle.
-        """
-
-        text_width = text_height = 0
-        horizontal = self._orientation == aui.AUI_TBTOOL_HORIZONTAL
-        text_bottom = self._text_orientation == aui.AUI_TBTOOL_TEXT_BOTTOM
-        text_right = self._text_orientation == aui.AUI_TBTOOL_TEXT_RIGHT
-        bmp_width = item.GetBitmap().GetLogicalWidth()
-        bmp_height = item.GetBitmap().GetLogicalHeight()
-
-        if self._agwFlags & aui.AUI_TB_TEXT:
-            dc.SetFont(self._font)
-            label_size = aui.GetLabelSize(dc, item.GetLabel(), not horizontal)
-            text_height = label_size.GetHeight()
-            text_width = label_size.GetWidth()
-
-        bmp_x = bmp_y = text_x = text_y = 0
-
-        if horizontal and text_bottom:
-            bmp_x = rect.x + (rect.width//2) - (bmp_width//2)
-            bmp_y = rect.y + 3
-            text_x = rect.x + (rect.width//2) - (text_width//2)
-            text_y = rect.y + ((bmp_y - rect.y) * 2) + bmp_height
-
-        elif horizontal and text_right:
-            bmp_x = rect.x + 3
-            bmp_y = rect.y + (rect.height//2) - (bmp_height // 2)
-            text_x = rect.x + ((bmp_x - rect.x) * 2) + bmp_width
-            text_y = rect.y + (rect.height//2) - (text_height//2)
-
-        elif not horizontal and text_bottom:
-            bmp_x = rect.x + (rect.width // 2) - (bmp_width // 2)
-            bmp_y = rect.y + 3
-            text_x = rect.x + (rect.width // 2) - (text_width // 2)
-            text_y = rect.y + ((bmp_y - rect.y) * 2) + bmp_height
-
-        bmp_rect = wx.Rect(bmp_x, bmp_y, bmp_width, bmp_height)
-        text_rect = wx.Rect(text_x, text_y, text_width, text_height)
-
-        return bmp_rect, text_rect
-
-    def GetToolSize(self, dc, wnd, item):
-        """
-        Returns the toolbar item size.
-
-        :param `dc`: a :class:`wx.DC` device context;
-        :param `wnd`: a :class:`wx.Window` derived window;
-        :param `item`: an instance of :class:`AuiToolBarItem`.
-        """
-
-        if not item.GetBitmap().IsOk() and not self._agwFlags & aui.AUI_TB_TEXT:
-            return wx.Size(16, 16)
-
-        width = item.GetBitmap().GetLogicalWidth()
-        height = item.GetBitmap().GetLogicalHeight()
-
-        if self._agwFlags & aui.AUI_TB_TEXT:
-
-            dc.SetFont(self._font)
-            label_size = aui.GetLabelSize(dc, item.GetLabel(), self.GetOrientation() != aui.AUI_TBTOOL_HORIZONTAL)
-            padding = 6
-
-            if self._text_orientation == aui.AUI_TBTOOL_TEXT_BOTTOM:
-
-                if self.GetOrientation() != aui.AUI_TBTOOL_HORIZONTAL:
-                    height += 3   # space between top border and bitmap
-                    height += 3   # space between bitmap and text
-                    padding = 0
-
-                height += label_size.GetHeight()
-
-                if item.GetLabel() != "":
-                    width = max(width, label_size.GetWidth()+padding)
-
-            elif self._text_orientation == aui.AUI_TBTOOL_TEXT_RIGHT and item.GetLabel() != "":
-
-                if self.GetOrientation() == aui.AUI_TBTOOL_HORIZONTAL:
-
-                    width += 3  # space between left border and bitmap
-                    width += 3  # space between bitmap and text
-                    padding = 0
-
-                width += label_size.GetWidth()
-                height = max(height, label_size.GetHeight()+padding)
-
-        # if the tool has a dropdown button, add it to the width
-        if item.HasDropDown():
-            if item.GetOrientation() == aui.AUI_TBTOOL_HORIZONTAL:
-                width += aui.BUTTON_DROPDOWN_WIDTH+4
-            else:
-                height += aui.BUTTON_DROPDOWN_WIDTH+4
-
-        return wx.Size(width, height)
-
-    aui.AuiDefaultToolBarArt.GetToolSize = GetToolSize
-    aui.AuiDefaultToolBarArt.GetToolsPosition = GetToolsPosition
 
 
 class _dict(dict):

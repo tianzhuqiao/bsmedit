@@ -8,10 +8,10 @@ import datetime
 import six
 import six.moves
 import wx
-from wx.lib.agw import aui
 import wx.py
 import wx.py.dispatcher as dp
 import wx.adv
+from .aui import aui
 from .frameplus import FramePlus
 from .mainframexpm import  bsmedit_svg
 from . import __version__
