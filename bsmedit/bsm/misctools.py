@@ -20,6 +20,9 @@ from .editor_base import EditorBase
 
 
 class HelpText(EditorBase):
+
+    ID_WRAP_MODE = wx.NewIdRef()
+
     def __init__(self, parent):
         super().__init__(parent)
 
@@ -28,6 +31,27 @@ class HelpText(EditorBase):
 
         # disable replace
         self.findDialogStyle = 0
+
+        self.Bind(wx.EVT_MENU, self.OnWrapMode, self.ID_WRAP_MODE)
+
+    def GetContextMenu(self):
+        """
+            Create and return a context menu for the shell.
+            This is used instead of the scintilla default menu
+            in order to correctly respect our immutable buffer.
+        """
+        menu = super().GetContextMenu()
+
+        menu.AppendSeparator()
+        menu.AppendCheckItem(self.ID_WRAP_MODE, 'Word wrap')
+        menu.Check(self.ID_WRAP_MODE, self.GetWrapMode() != wx.stc.STC_WRAP_NONE)
+        return menu
+
+    def OnWrapMode(self, event):
+        if self.GetWrapMode() == wx.stc.STC_WRAP_NONE:
+            self.SetWrapMode(wx.stc.STC_WRAP_WORD)
+        else:
+            self.SetWrapMode(wx.stc.STC_WRAP_NONE)
 
 
 class HelpPanel(wx.Panel):
@@ -65,6 +89,7 @@ class HelpPanel(wx.Panel):
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateUI)
         self.Bind(wx.EVT_TOOL, self.OnBack, id=wx.ID_BACKWARD)
         self.Bind(wx.EVT_TOOL, self.OnForward, id=wx.ID_FORWARD)
+        dp.connect(receiver=self.show_help, signal='help.show')
 
         self.LoadConfig()
         self.html.SetReadOnly(True)
@@ -110,6 +135,9 @@ class HelpPanel(wx.Panel):
         except:
             traceback.print_exc(file=sys.stdout)
         self.html.SetReadOnly(True)
+
+        if not self.IsShownOnScreen():
+            dp.send('frame.show_panel', panel=self)
 
     def OnDoSearch(self, evt):
         self.SaveConfig()

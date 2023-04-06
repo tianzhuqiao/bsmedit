@@ -28,6 +28,8 @@ def magicSingle(command):
         command = command[:2] + '("' + command[3:] + '")'
     elif command[:5] in ('help ', ):
         command = command[:4] + '("' + command[5:] + '")'
+    elif command[:4] in ('doc ', ):
+        command = command[:3] + '("' + command[4:] + '")'
     elif command[:6] == 'close ':
         arg = command[6:]
         if arg.strip() == 'all':

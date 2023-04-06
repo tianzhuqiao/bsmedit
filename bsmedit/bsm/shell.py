@@ -28,9 +28,18 @@ PseudoFile.close = PseudoFile_close
 
 def _help(command):
     try:
-        print(pydoc.plain(pydoc.render_doc(str(command), "Help on %s")))
+        if isinstance(command, str):
+            print(pydoc.plain(pydoc.render_doc(command, "Help on %s")))
+        else:
+            print(command.__doc__)
     except:
         print(f'No help found on "{command}"')
+
+def _doc(command):
+    if isinstance(command, str):
+        dp.send('help.show', command=command)
+    else:
+        _help(command)
 
 @EditorFind
 @EditorTheme
@@ -83,6 +92,7 @@ class Shell(pyshell.Shell):
         self.Bind(stc.EVT_STC_START_DRAG, self.OnStartDrag)
         self.interp.locals['clear'] = self.clear
         self.interp.locals['help'] = _help
+        self.interp.locals['doc'] = _doc
         self.interp.locals['on'] = True
         self.interp.locals['off'] = False
         dp.connect(self.writeOut, 'shell.write_out')
