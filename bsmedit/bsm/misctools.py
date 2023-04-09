@@ -34,6 +34,8 @@ class HelpText(EditorBase):
 
         self.Bind(wx.EVT_MENU, self.OnWrapMode, self.ID_WRAP_MODE)
 
+        self.LoadConfig()
+
     def GetContextMenu(self):
         """
             Create and return a context menu for the shell.
@@ -52,7 +54,18 @@ class HelpText(EditorBase):
             self.SetWrapMode(wx.stc.STC_WRAP_WORD)
         else:
             self.SetWrapMode(wx.stc.STC_WRAP_NONE)
+        self.SetConfig()
 
+    def SetConfig(self):
+        dp.send('frame.set_config', group='helppanel', wrap=self.GetWrapMode() != wx.stc.STC_WRAP_NONE)
+
+    def LoadConfig(self):
+        resp = dp.send('frame.get_config', group='helppanel', key='wrap')
+        if resp and resp[0][1] is not None:
+            if resp[0][1]:
+                self.SetWrapMode(wx.stc.STC_WRAP_WORD)
+            else:
+                self.SetWrapMode(wx.stc.STC_WRAP_NONE)
 
 class HelpPanel(wx.Panel):
     def __init__(self, parent):
