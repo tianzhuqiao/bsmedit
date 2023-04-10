@@ -19,7 +19,7 @@ def magicSingle(command):
     elif command[0] == '?':  # Do help if starts with ?
         command = 'help(' + command[1:] + ')'
     elif command[0] == '!':  # Use os.system if starts with !
-        command = 'sx("' + command[1:] + '")'
+        command = f"sx('{command[1:]}')"
     elif command in ('ls', 'pwd'):
         # automatically use ls and pwd with no arguments
         command = command + '()'
@@ -121,6 +121,7 @@ def sx(cmd, *args, **kwds):
                          stdout=sp.PIPE,
                          stderr=sp.PIPE,
                          shell=True)
+            dp.send('shell.write_out', text=p.stderr.read().decode())
             dp.send('shell.write_out', text=p.stdout.read().decode())
         else:
             p = sp.Popen(cmd.split(' '), startupinfo=startupinfo)

@@ -5,6 +5,7 @@ import traceback
 import time
 import pydoc
 import glob
+import shlex
 import six.moves.builtins as __builtin__
 import six
 import wx
@@ -46,6 +47,7 @@ def _doc(command):
 class Shell(pyshell.Shell):
     ID_COPY_PLUS = wx.NewId()
     ID_PASTE_PLUS = wx.NewId()
+    ID_WRAP_MODE = wx.NewIdRef()
 
     def __init__(self,
                  parent,
@@ -90,6 +92,8 @@ class Shell(pyshell.Shell):
         self.Bind(wx.EVT_LEFT_DCLICK, self.OnLeftDClick)
         self.Bind(stc.EVT_STC_DO_DROP, self.OnDoDrop)
         self.Bind(stc.EVT_STC_START_DRAG, self.OnStartDrag)
+        self.Bind(wx.EVT_MENU, self.OnWrapMode, self.ID_WRAP_MODE)
+
         self.interp.locals['clear'] = self.clear
         self.interp.locals['help'] = _help
         self.interp.locals['doc'] = _doc
@@ -133,6 +137,17 @@ class Shell(pyshell.Shell):
                                          (wx.ACCEL_RAW_CTRL, ord('C'), eid_ctl_c)])
         self.SetAcceleratorTable(accel_tbl)
 
+        self.LoadConfig()
+    def SetConfig(self):
+        dp.send('frame.set_config', group='shell', wrap=self.GetWrapMode() != wx.stc.STC_WRAP_NONE)
+
+    def LoadConfig(self):
+        resp = dp.send('frame.get_config', group='shell', key='wrap')
+        if resp and resp[0][1] is not None:
+            if resp[0][1]:
+                self.SetWrapMode(wx.stc.STC_WRAP_WORD)
+            else:
+                self.SetWrapMode(wx.stc.STC_WRAP_NONE)
     def clear(self):
         super().clear()
         self.prompt()
@@ -266,14 +281,18 @@ class Shell(pyshell.Shell):
         if path is None:
             path = os.getcwd()
         if folders:
-            f = glob.glob(os.path.join(path, f'{prefix}*/'))
+            f = glob.glob(os.path.join(path, f'*/'))
             f = [os.path.relpath(folder, path) + '/' for folder in f]
-            paths += sorted(f)
+            f = [folder for folder in f if folder.lower().startswith(prefix.lower())]
+            paths += sorted(f, key=str.casefold)
         if files:
             f = glob.glob(os.path.join(path, f'{prefix}*.*'))
             f = [os.path.relpath(file, path) for file in f]
-            paths += sorted(f)
+            f = [file for file in f if file.lower().startswith(prefix.lower())]
+            paths += sorted(f, key=str.casefold)
 
+        # replace ' ' with '\ ' to indicate it is a space in path not in command
+        paths = [p.replace(' ', r'\ ') for p in paths]
         return paths
 
     def getAutoCallTip(self, command, *args, **kwds):
@@ -370,6 +389,20 @@ class Shell(pyshell.Shell):
                 (self.GetCurrentLine() == self.LineFromPosition(self.promptPosEnd)):
             self.GotoPos(self.promptPosEnd)
 
+    def GetContextMenu(self):
+        menu = super().GetContextMenu()
+        menu.AppendSeparator()
+        menu.AppendCheckItem(self.ID_WRAP_MODE, 'Word wrap')
+        menu.Check(self.ID_WRAP_MODE, self.GetWrapMode() != wx.stc.STC_WRAP_NONE)
+        return menu
+
+    def OnWrapMode(self, event):
+        if self.GetWrapMode() == wx.stc.STC_WRAP_NONE:
+            self.SetWrapMode(wx.stc.STC_WRAP_WORD)
+        else:
+            self.SetWrapMode(wx.stc.STC_WRAP_NONE)
+        self.SetConfig()
+
     def OnKeyDown(self, event):
         """Key down event handler."""
         key = event.GetKeyCode()
@@ -404,43 +437,63 @@ class Shell(pyshell.Shell):
         elif canEdit and (not shiftDown) and key == wx.WXK_TAB:
             # show auto-complete list with TAB
             # first try to get the autocompletelist from the package
-            cmd = self.getCommand(rstrip=False)
+            cmd = self.getCommandLeft(rstrip=False)
             k = self.getAutoCompleteList(cmd)
-            cmd = cmd[cmd.rfind('.') + 1:]
+            lengthEntered = 0
+            sep = ' '
+            if not k:
+                # check path
+                # use shlex.split to handle cases like:
+                # '!ls /Users/my\ folder'
+                cmds = shlex.split(cmd)
+                cmd_main = cmds[0]
+                prefix = cmds[-1] if len(cmds) > 1 else ''
+                path, prefix = os.path.split(prefix)
+                if cmd_main in ['cd', '!cd', '!rmdir', '!mkdir']:
+                    k = self.getPathList(path=path, prefix=prefix, files=False)
+                elif cmd_main in ['ls', '!ls', '!less', '!more', '!cp', '!mv',\
+                                  '!rm', '!gvim']:
+                    k = self.getPathList(path=path, prefix=prefix)
+                lengthEntered = len(prefix)
+                # use a character that will not appear in path
+                sep = '`'
+
             # if failed, search the locals()
+            cmd = cmd[cmd.rfind('.') + 1:]
             if not k and cmd:
                 for i in six.moves.range(len(cmd) - 1, -1, -1):
-                    if cmd[i] == ' ':
-                        break
                     if cmd[i].isalnum() or cmd[i] == '_':
                         continue
                     cmd = cmd[i + 1:]
                     break
-                k = six.iterkeys(self.interp.locals)
-                k = [s for s in k if s.startswith(cmd)]
-                k.sort()
-            lengthEntered = 0
-            if not k:
-                cmds = cmd.split(' ')
-                cmd_main = cmd.split(' ')[0]
-                prefix = cmds[-1] if len(cmds) > 1 else ''
-                if cmd_main in ['cd', '!cd']:
-                    k = self.getPathList(prefix=prefix, files=False)
-                if cmd_main in ['ls', '!ls']:
-                    k = self.getPathList(prefix=prefix)
-                lengthEntered = len(prefix)
+                if cmd:
+                    k = six.iterkeys(self.interp.locals)
+                    k = [s for s in k if s.startswith(cmd)]
+                    k.sort()
+
             if k:
+                self.AutoCompSetSeparator(ord(sep))
                 self.AutoCompSetAutoHide(self.autoCompleteAutoHide)
                 self.AutoCompSetIgnoreCase(self.autoCompleteCaseInsensitive)
-                options = ' '.join(k)
+                options = sep.join(k)
                 lengthEntered = len(cmd) if all(item.lower().startswith(cmd.lower()) for item in k) else lengthEntered
                 self.AutoCompShow(lengthEntered, options)
+                self.AutoCompSetSeparator(ord(' '))
             return
         else:
             self.searchHistory = True
             # Reset the history position.
             self.historyIndex = -1
             super().OnKeyDown(event)
+
+    def getCommandLeft(self, rstrip=True):
+        # get the command up to the cursor
+        startpos = self.promptPosEnd
+        endpos = self.GetCurrentPos()
+        command = self.GetTextRange(startpos, endpos)
+        if rstrip:
+            command = command.rstrip()
+        return command
 
     def OnLeftDClick(self, event):
         line_num = self.GetCurrentLine()
