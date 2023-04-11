@@ -280,19 +280,29 @@ class Shell(pyshell.Shell):
         paths = []
         if path is None:
             path = os.getcwd()
-        if folders:
-            f = glob.glob(os.path.join(path, f'*/'))
-            f = [os.path.relpath(folder, path) + '/' for folder in f]
+        def _getPathList(pattern):
+            # get folders or files
+            f = glob.glob(pattern)
+            # remove common "path"
+            f = [os.path.relpath(folder, path) for folder in f]
+            # check if start with prefix
             f = [folder for folder in f if folder.lower().startswith(prefix.lower())]
+            # replace ' ' with '\ ' or put the path in quotes to indicate it is a
+            # space in path not in command
+            if wx.Platform == '__WXMSW__':
+                f = [ f'"{p}"' if ' ' in p else p for p in f]
+            else:
+                f = [p.replace(' ', r'\ ') for p in f]
+            return f
+
+        if folders:
+            f = _getPathList(os.path.join(path, '*/'))
+            f = [folder + '/' for folder in f]
             paths += sorted(f, key=str.casefold)
         if files:
-            f = glob.glob(os.path.join(path, f'{prefix}*.*'))
-            f = [os.path.relpath(file, path) for file in f]
-            f = [file for file in f if file.lower().startswith(prefix.lower())]
+            f = _getPathList(os.path.join(path, '*.*'))
             paths += sorted(f, key=str.casefold)
 
-        # replace ' ' with '\ ' to indicate it is a space in path not in command
-        paths = [p.replace(' ', r'\ ') for p in paths]
         return paths
 
     def getAutoCallTip(self, command, *args, **kwds):
