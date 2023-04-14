@@ -87,7 +87,7 @@ class DataCursor(GraphObject):
         self.active.xy = dx, dy
         xs, ys = line.get_data()
         self.active.xy_orig = xs[didx], ys[didx]
-        self.active.set_text(self.xy_to_annotation(xs[idx], ys[idx]))
+        self.active.set_text(self.xy_to_annotation(xs[didx], ys[didx]))
         x, y = self.active.config['pos_xy']
         wx.CallAfter(self.set_annotation_position, self.active, x, y)
         self.active.set_visible(True)
