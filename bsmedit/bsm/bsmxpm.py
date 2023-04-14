@@ -5683,7 +5683,9 @@ refresh_xpm = [
 ]
 
 forward_svg = '<svg xmlns="http://www.w3.org/2000/svg"  height="24px" viewBox="0 0 24 24" width="24px" fill="#32a1e6" stroke-width="1" stroke="#32a1e6"><polygon points="6.23,20.23 8,22 18,12 8,2 6.23,3.77 14.46,12"/></svg>'
+forward_disable_svg = '<svg xmlns="http://www.w3.org/2000/svg"  height="24px" viewBox="0 0 24 24" width="24px" fill="#8E8E93" stroke-width="1" stroke="#8E8E93"><polygon points="6.23,20.23 8,22 18,12 8,2 6.23,3.77 14.46,12"/></svg>'
 backward_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 0 24 24" width="48px" fill="#32a1e6" stroke-width="1" stroke="#32a1e6"><path d="M17.51 3.87L15.73 2.1 5.84 12l9.9 9.9 1.77-1.77L9.38 12l8.13-8.13z"/></svg>'
+backward_disable_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 0 24 24" width="48px" fill="#8E8E93" stroke-width="1" stroke="#8E8E93"><path d="M17.51 3.87L15.73 2.1 5.84 12l9.9 9.9 1.77-1.77L9.38 12l8.13-8.13z"/></svg>'
 
 radio_unchecked_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 0 24 24" width="48px" fill="#8E8E93"><path d="M0 0h24v24H0V0z" fill="none"/><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8z"/></svg>'
 radio_disabled_svg = '<svg xmlns="http://www.w3.org/2000/svg" enable-background="new 0 0 24 24" height="48px" viewBox="0 0 24 24" width="48px" fill="#8E8E93"><g><rect fill="none" height="24" width="24"/></g><g><g><path d="M12,2C6.47,2,2,6.47,2,12s4.47,10,10,10s10-4.47,10-10S17.53,2,12,2z"/></g></g></svg>'
@@ -5724,3 +5726,5 @@ more_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48" viewBox="0 0 960
 home_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48" viewBox="0 0 960 960" width="48" stroke-width="50" stroke="#32a1e6" fill="#32a1e6"><path  d="M120 876        h200v-300h320v300h200v-490L480 91 120 386v490Zm-60 60v-580l420 -340 420 340v580h-320v-300h-200v300h-320Zm370-353Z"/></svg>'
 
 up_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48px" viewBox="0 0 24 24" width="48px" fill="#32a1e6" stroke-width="1" stroke="#32a1e6"><path d="M3.87 17.51 L2.1 15.73 12 5.84 l9.9 9.9 -1.77 1.77L12 9.38 l-8.13 8.13z"/></svg>'
+
+new_page_svg = '<svg xmlns="http://www.w3.org/2000/svg" height="48" viewBox="0 96 960 960" width="48" fill="#32a1e6"><path d="M180 936q-24.75 0-42.375-17.625T120 876V276q0-24.75 17.625-42.375T180 216h600q24.75 0 42.375 17.625T840 276v329q-14-8-29.5-13t-30.5-8V276H180v600h309q4 16 9.023 31.172Q503.045 922.345 510 936H180Zm0-107v47-600 308-4 249Zm100-53h211q4-16 9-31t13-29H280v60Zm0-170h344q14-7 27-11.5t29-8.5v-40H280v60Zm0-170h400v-60H280v60Zm452.5 579q-77.5 0-132.5-55.5T545 828q0-78.435 54.99-133.718Q654.98 639 733 639q77 0 132.5 55.282Q921 749.565 921 828q0 76-55.5 131.5t-133 55.5ZM718 955h33V845h110v-33H751V702h-33v110H608v33h110v110Z"/></svg>'
