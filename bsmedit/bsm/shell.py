@@ -450,30 +450,44 @@ class Shell(pyshell.Shell):
             cmd = self.getCommandLeft(rstrip=False)
             k = self.getAutoCompleteList(cmd)
             lengthEntered = 0
+            if k:
+                lengthEntered = len(cmd[cmd.rfind('.') + 1:])
             sep = ' '
             if not k:
                 # check path
                 # use shlex.split to handle cases like:
                 # '!ls /Users/my\ folder'
-                cmds = shlex.split(cmd)
-                cmd_main = cmds[0]
-                prefix = cmds[-1] if len(cmds) > 1 else ''
-                path, prefix = os.path.split(prefix)
-                if cmd_main in ['cd', '!cd', '!rmdir', '!mkdir']:
-                    k = self.getPathList(path=path, prefix=prefix, files=False)
-                elif cmd_main in ['ls', '!ls', '!less', '!more', '!cp', '!mv',\
-                                  '!rm', '!gvim']:
-                    k = self.getPathList(path=path, prefix=prefix)
-                lengthEntered = len(prefix)
-                # use a character that will not appear in path
-                sep = '`'
+                try:
+                    cmds = shlex.split(cmd)
+                    cmd_main = cmds[0]
+                    prefix = cmds[-1] if len(cmds) > 1 else ''
+                    path, prefix = os.path.split(prefix)
+                    if cmd_main in ['cd', '!cd', '!rmdir', '!mkdir']:
+                        k = self.getPathList(path=path, prefix=prefix, files=False)
+                    elif cmd_main in ['ls', '!ls', '!less', '!more', '!cp', '!mv',\
+                                      '!rm', '!gvim']:
+                        k = self.getPathList(path=path, prefix=prefix)
+                    lengthEntered = len(prefix)
+                    if ' ' in prefix:
+                        if wx.Platform == '__WXMSW__':
+                            lengthEntered += 2
+                        else:
+                            lengthEntered += prefix.count(' ')
+                    # use a character that will not appear in path
+                    if k:
+                        sep = '`'
+                except:
+                    pass
 
             # if failed, search the locals()
-            cmd = cmd[cmd.rfind('.') + 1:]
             if not k and cmd:
                 for i in six.moves.range(len(cmd) - 1, -1, -1):
                     if cmd[i].isalnum() or cmd[i] == '_':
                         continue
+                    if cmd[i] in ['.']:
+                        # invalid
+                        cmd = ''
+                        break
                     cmd = cmd[i + 1:]
                     break
                 if cmd:
