@@ -25,16 +25,19 @@ def magicSingle(command):
         command = command + '()'
     elif command[:3] in ('ls ', 'cd '):
         # when using the 'ls ' or 'cd ' constructs, fill in both parentheses and quotes
-        command = command[:2] + '("' + command[3:] + '")'
+        command = command[:2] + '("' + command[3:].strip() + '")'
     elif command[:5] in ('help ', ):
-        command = command[:4] + '("' + command[5:] + '")'
+        command = command[:4] + '("' + command[5:].strip() + '")'
     elif command[:4] in ('doc ', ):
-        command = command[:3] + '("' + command[4:] + '")'
+        command = command[:3] + '("' + command[4:].strip() + '")'
     elif command[:6] == 'close ':
-        arg = command[6:]
-        if arg.strip() == 'all':
+        arg = command[6:].strip()
+        if arg.isnumeric():
+            command = command[:5] + '(' + arg + ')'
+        else:
             # when using the close', fill in both parentheses and quotes
-            command = command[:5] + '("' + command[6:] + '")'
+            command = command[:5] + '("' + arg  + '")'
+
     elif command[:5] == 'clear':
         command = command[:5] + '()'
     elif command[:5] == 'alias':
