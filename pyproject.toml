@@ -9,7 +9,7 @@ authors = [
 ]
 license = {file = "LICENSE"}
 description='C/C++/SystemC Visualizer'
-readme = "README.md"
+readme = "README_pip.md"
 requires-python = ">=3.0"
 classifiers = [
     "Operating System :: OS Independent",
