@@ -356,13 +356,13 @@ class DataCursor(GraphObject):
                 if save_as_default:
                     self.SaveConfig(settings)
                 if apply_all:
-                    self.settings = settings
+                    self.LoadConfig(settings)
                     self.ApplyConfigAll(self.get_config(settings))
                 elif active:
                     self.set_active(active)
                     self.ApplyConfig(active, self.get_config(settings))
                 else:
-                    self.settings = settings
+                    self.LoadConfig(settings)
 
             dlg.Destroy()
         return False
@@ -411,14 +411,17 @@ class DataCursor(GraphObject):
         config = self.get_config(settings)
         dp.send('frame.set_config', group='graph_datatip', **config)
 
-    def LoadConfig(self):
-        resp = dp.send('frame.get_config', group='graph_datatip')
-        if resp and resp[0][1] is not None:
-            config = resp[0][1]
-            for idx, p in enumerate(self.settings):
-                n = p.GetName()
-                if n in config:
-                    self.settings[idx].SetValue(config[n], True)
+    def LoadConfig(self, config=None):
+        if config is None:
+            resp = dp.send('frame.get_config', group='graph_datatip')
+            if resp and resp[0][1] is not None:
+                config = resp[0][1]
+        if not config:
+            return
+        for idx, p in enumerate(self.settings):
+            n = p.GetName()
+            if n in config:
+                self.settings[idx].SetValue(config[n], True)
 
 
 class DatatipSettingDlg(wx.Dialog):
