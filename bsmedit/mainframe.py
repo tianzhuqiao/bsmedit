@@ -124,7 +124,7 @@ class MainFrame(FramePlus):
                               | aui.AUI_MGR_LIVE_RESIZE)
         # set mainframe icon
         icon = wx.Icon()
-        icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, win=self))
+        icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, 1024, 1024,win=self))
         self.SetIcon(icon)
 
         if 'wxMac' in wx.PlatformInfo:
