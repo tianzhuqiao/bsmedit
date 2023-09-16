@@ -179,13 +179,20 @@ class MainFrame(FramePlus):
         dp.send('frame.initialized')
         # load the perspective
         if not kwargs.get('ignore_perspective', False):
-            perspective = self.GetConfig('mainframe', 'perspective')
-            if perspective and not wx.GetKeyState(wx.WXK_SHIFT):
-                self._mgr.LoadPerspective(perspective)
-                self.UpdatePaneMenuLabel()
+            self.LoadPerspective()
 
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPageRightDown)
         self.Bind(wx.EVT_RIGHT_DOWN, self.OnRightDown)
+
+    def LoadPerspective(self):
+        perspective = self.GetConfig('mainframe', 'perspective')
+        if perspective and not wx.GetKeyState(wx.WXK_SHIFT):
+            w = self.GetConfig('mainframe', 'frame_width')
+            h = self.GetConfig('mainframe', 'frame_height')
+            if w is not None and h is not None and w > 300 and h > 300:
+                self.SetSize(w, h)
+            self._mgr.LoadPerspective(perspective)
+            self.UpdatePaneMenuLabel()
 
     def InitMenu(self):
         """initialize the menubar"""
@@ -374,6 +381,8 @@ class MainFrame(FramePlus):
             return
         self.closing = True
         dp.send('frame.exiting')
+        sz = self.GetSize()
+        self.SetConfig('mainframe', frame_width=sz[0], frame_height=sz[1])
         self.SetConfig('mainframe', perspective=self._mgr.SavePerspective())
         dp.send('frame.exit')
         self.config.Flush()
