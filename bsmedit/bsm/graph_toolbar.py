@@ -12,7 +12,7 @@ from ..auibarpopup import AuiToolBarPopupArt
 _log = logging.getLogger(__name__)
 
 class GraphToolbar(NavigationToolbar2, aui.AuiToolBar):
-    def __init__(self, canvas, coordinates=True, *, style=wx.TB_BOTTOM,
+    def __init__(self, canvas, coordinates=True, *, style=0,
                  agwStyle=aui.AUI_TB_OVERFLOW, **kwargs):
         aui.AuiToolBar.__init__(self, canvas.GetParent(), -1, style=style,
                                 agwStyle=agwStyle, **kwargs)

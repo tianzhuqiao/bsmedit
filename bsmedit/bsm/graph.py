@@ -91,7 +91,6 @@ class Toolbar(GraphToolbar):
 
         if matplotlib.__version__ >= '3.3.0':
             self.init_toolbar()
-        self.SetWindowStyle(wx.TB_HORIZONTAL | wx.TB_FLAT)
         self.figure = figure
         self.datacursor = DataCursor(self.figure, self)
         self.lineeditor = LineEditor(self.figure)
