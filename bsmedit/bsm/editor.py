@@ -450,7 +450,8 @@ class PyEditor(EditorBase):
         self.ClearBreakpoint()
         if super().LoadFile(filename):
             digits = np.max([np.ceil(np.log10(self.GetLineCount())), 1])
-            self.SetMarginWidth(0, int(25+digits*5))
+            width = self.GetCharWidth() + 1
+            self.SetMarginWidth(0, int(25+digits*width))
             return True
         return False
 
