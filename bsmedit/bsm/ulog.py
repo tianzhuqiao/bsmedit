@@ -1,6 +1,5 @@
 import os
 import json
-import traceback
 import wx
 import wx.py.dispatcher as dp
 import pyulog
@@ -11,7 +10,6 @@ from . import graph
 from .bsmxpm import open_xpm
 from .pymgr_helpers import Gcm
 from .utility import FastLoadTreeCtrl, PopupMenu, _dict
-from .utility import svg_to_bitmap
 from .. import to_byte
 from .autocomplete import AutocompleteTextCtrl
 
@@ -25,6 +23,7 @@ class ULogTree(FastLoadTreeCtrl):
         self.data = _dict()
         self.filename = ""
         self.pattern = None
+        self.expanded = {}
 
     def get_children(self, item):
         """ callback function to return the children of item """
@@ -40,8 +39,10 @@ class ULogTree(FastLoadTreeCtrl):
                     dataset = list(self.data[c].columns)
                     dataset.remove('timestamp')
                     dataset.remove('dt')
-                    dataset += [c]
                     if any(pattern in s for s in dataset):
+                        self.expanded[c] = True
+                        temp.append(c)
+                    elif pattern in c:
                         temp.append(c)
                 children = temp
         else:
@@ -81,6 +82,7 @@ class ULogTree(FastLoadTreeCtrl):
     def FillTree(self, pattern=None):
         """fill the ulog objects tree"""
         #clear the tree control
+        self.expanded = {}
         self.DeleteAllItems()
         if not self.data:
             return
@@ -89,6 +91,16 @@ class ULogTree(FastLoadTreeCtrl):
         item = self.AddRoot("bsmedit")
         # fill the top level item
         self.FillChildren(item)
+
+        if not self.expanded:
+            return
+        # expand the child to show the items that match pattern
+        child, cookie = self.GetFirstChild(item)
+        while child.IsOk():
+            name = self.GetItemText(child)
+            if name in self.expanded:
+                self.Expand(child)
+            child, cookie = self.GetNextChild(item, cookie)
 
 class ULogPanel(wx.Panel):
     Gcu = Gcm()
@@ -142,7 +154,6 @@ class ULogPanel(wx.Panel):
         self.Gcu.set_active(self)
 
     def OnDoSearch(self, evt):
-        #self.SaveConfig()
         pattern = self.search.GetValue()
         self.tree.FillTree(pattern)
         self.search.SetFocus()
