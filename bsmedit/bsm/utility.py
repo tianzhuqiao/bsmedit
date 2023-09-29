@@ -179,8 +179,8 @@ def build_menu_from_list(items, menu=None):
 class _dict(dict):
     """dict like object that exposes keys as attributes"""
     def __getattr__(self, key):
-        ret = self.get(key)
-        if not ret and key.startswith("__"):
+        ret = self.get(key, None)
+        if ret is None or key.startswith("__"):
             raise AttributeError()
         return ret
     def __setattr__(self, key, value):
