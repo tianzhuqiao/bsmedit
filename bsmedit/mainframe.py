@@ -166,7 +166,7 @@ class MainFrame(FramePlus):
         dp.connect(self.GetConfig, 'frame.get_config')
 
         # append sys path
-        sys.path.append('.')
+        sys.path.append('')
         for p in kwargs.get('path', []):
             sys.path.append(p)
 
