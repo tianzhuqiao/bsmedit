@@ -325,6 +325,11 @@ class ULog:
 
         If the ulog has already been opened, return its handler; otherwise, create it.
         """
+        if filename is not None:
+            _, ext = os.path.splitext(filename)
+            if not (ext.lower() in ['.ulog', '.ulg']):
+                return None
+
         manager = ULogPanel.Gcu.get_manager(num)
         if manager is None:
             manager = ULogPanel(cls.frame, filename)
@@ -338,7 +343,7 @@ class ULog:
         # activate the manager
         elif manager and activate:
             dp.send(signal='frame.show_panel', panel=manager)
-
+        print(manager)
         return manager
 
     @classmethod

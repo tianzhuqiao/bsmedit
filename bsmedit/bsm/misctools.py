@@ -695,10 +695,16 @@ class DirPanel(wx.Panel):
                 self.SetRootDir(filepath)
                 return
             (_, ext) = os.path.splitext(filename)
-            if ext == '.py':
-                dp.send(signal='frame.file_drop', filename=filepath)
-            else:
-                open_file_with_default_app(filepath)
+
+            # try to open it with bsmedit
+            resp = dp.send(signal='frame.file_drop', filename=filepath)
+            if resp is not None:
+                for r in resp:
+                    if r[1] is not None:
+                        # bsmedit succeed
+                        return
+            # if failed, try to open it with OS
+            open_file_with_default_app(filepath)
 
     def open_in_finder(self, items):
         for item in items:
