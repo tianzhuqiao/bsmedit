@@ -142,7 +142,7 @@ def show_file_in_finder(filepath):
     if platform.system() == 'Darwin':       # macOS
         subprocess.call(('open', '-R', filepath))
     elif platform.system() == 'Windows':    # Windows
-        subprocess.Popen( f"explorer '{filepath}'" )
+        subprocess.Popen( f'explorer /select,"{filepath}"' )
     else:                                   # linux variants
         subprocess.call(('nautilus', '-s', filepath))
 

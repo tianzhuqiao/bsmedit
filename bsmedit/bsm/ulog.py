@@ -374,7 +374,7 @@ class ULog:
             return
         if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
             if wx.TheClipboard.Open():
-                filepath = pane.filename
+                filepath = pane.tree.filename
                 if command == cls.ID_PANE_COPY_PATH_REL:
                     filepath = os.path.relpath(filepath, os.getcwd())
                 wx.TheClipboard.SetData(wx.TextDataObject(filepath))
