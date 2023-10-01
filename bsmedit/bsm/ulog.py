@@ -10,6 +10,7 @@ from . import graph
 from .bsmxpm import open_xpm
 from .pymgr_helpers import Gcm
 from .utility import FastLoadTreeCtrl, PopupMenu, _dict
+from .utility import get_file_finder_name, show_file_in_finder
 from .. import to_byte
 from .autocomplete import AutocompleteTextCtrl
 
@@ -257,6 +258,14 @@ class ULogPanel(wx.Panel):
 class ULog:
     frame = None
     ID_ULOG_NEW = wx.NOT_FOUND
+    ID_PANE_COPY_PATH = wx.NewId()
+    ID_PANE_COPY_PATH_REL = wx.NewId()
+    ID_PANE_SHOW_IN_FINDER = wx.NewId()
+    ID_PANE_SHOW_IN_BROWSING = wx.NewId()
+    ID_PANE_CLOSE = wx.NewId()
+    ID_PANE_CLOSE_OTHERS = wx.NewId()
+    ID_PANE_CLOSE_ALL = wx.NewId()
+
 
     @classmethod
     def initialize(cls, frame):
@@ -277,6 +286,7 @@ class ULog:
         dp.connect(receiver=cls._frame_uninitialize, signal='frame.exiting')
         dp.connect(receiver=cls._initialized, signal='frame.initialized')
         dp.connect(receiver=cls.open, signal='frame.file_drop')
+        dp.connect(cls.PaneMenu, 'bsm.ulog.pane_menu')
 
     @classmethod
     def _initialized(cls):
@@ -338,13 +348,54 @@ class ULog:
             dp.send(signal="frame.add_panel",
                     panel=manager,
                     title=title,
-                    target="History")
+                    target="History",
+                    pane_menu={'rxsignal': 'bsm.ulog.pane_menu',
+                           'menu': [
+                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
+                               {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
+                               {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
+                               {'type': wx.ITEM_SEPARATOR},
+                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
+                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
+                               {'type': wx.ITEM_SEPARATOR},
+                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
+                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
+                               ]} )
             return manager
         # activate the manager
         elif manager and activate:
             dp.send(signal='frame.show_panel', panel=manager)
         print(manager)
         return manager
+
+    @classmethod
+    def PaneMenu(cls, pane, command):
+        if not pane or not isinstance(pane, ULogPanel):
+            return
+        if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
+            if wx.TheClipboard.Open():
+                filepath = pane.filename
+                if command == cls.ID_PANE_COPY_PATH_REL:
+                    filepath = os.path.relpath(filepath, os.getcwd())
+                wx.TheClipboard.SetData(wx.TextDataObject(filepath))
+                wx.TheClipboard.Close()
+        elif command == cls.ID_PANE_SHOW_IN_FINDER:
+            show_file_in_finder(pane.tree.filename)
+        elif command == cls.ID_PANE_SHOW_IN_BROWSING:
+            dp.send(signal='dirpanel.goto', filepath=pane.tree.filename, show=True)
+        elif command == cls.ID_PANE_CLOSE:
+            dp.send(signal='frame.delete_panel', panel=pane)
+        elif command == cls.ID_PANE_CLOSE_OTHERS:
+            mgrs =  ULogPanel.Gcu.get_all_managers()
+            for mgr in mgrs:
+                if mgr == pane:
+                    continue
+                dp.send(signal='frame.delete_panel', panel=mgr)
+        elif command == cls.ID_PANE_CLOSE_ALL:
+            mgrs =  ULogPanel.Gcu.get_all_managers()
+            for mgr in mgrs:
+                dp.send(signal='frame.delete_panel', panel=mgr)
+
 
     @classmethod
     def get(cls, num=None, filename=None):
