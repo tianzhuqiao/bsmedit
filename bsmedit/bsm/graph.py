@@ -7,6 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
 from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToolbar
 from matplotlib.backends.backend_wx import FigureManagerWx
+from matplotlib.backend_bases import CloseEvent
 from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
@@ -541,8 +542,12 @@ class MatplotPanel(wx.Panel):
         # will cause the menu to disappear as soon as the right button is up
         self._show_context_menu()
 
+    def close_event(self):
+        event = CloseEvent('close_event',  self.canvas, guiEvent=None)
+        self.canvas.callbacks.process('close_event', event)
+
     def _onClose(self, evt):
-        self.canvas.close_event()
+        self.close_event()
         self.canvas.stop_event_loop()
         Gcf.destroy(self.num)
 
@@ -553,7 +558,7 @@ class MatplotPanel(wx.Panel):
 
     def Destroy(self, *args, **kwargs):
         self.isdestory = True
-        self.canvas.close_event()
+        self.close_event()
         self.canvas.stop_event_loop()
         Gcf.destroy(self.num)
         return super().Destroy(*args, **kwargs)
