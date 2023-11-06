@@ -66,19 +66,16 @@ class ULogTree(FastLoadTreeCtrl):
             return text1.lower() > text2.lower()
         return rtn
 
-    def Load(self, filename):
+    def Load(self, ulg):
         """load the ulog file"""
-        u = pyulog.ULog(filename)
         data = _dict()
-        for d in u.data_list:
+        for d in ulg.data_list:
             df = pd.DataFrame(d.data)
             df['dt'] = (df.timestamp - df.timestamp[0])/1e6 # to second
             data[d.name] = df
         self.data = data
-        self.filename = filename
         self.FillTree()
 
-        dp.send('frame.add_file_history', filename=filename)
 
     def FillTree(self, pattern=None):
         """fill the ulog objects tree"""
@@ -103,6 +100,33 @@ class ULogTree(FastLoadTreeCtrl):
                 self.Expand(child)
             child, cookie = self.GetNextChild(item, cookie)
 
+class MessageListCtrl(wx.ListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+    def __init__(self, parent):
+        wx.ListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
+        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        self.ulg = None
+        self.EnableAlternateRowColours()
+        self.ExtendRulesAndAlternateColour()
+        self.InsertColumn(0, "timestamp", width=120)
+        self.InsertColumn(1, "type", width=120)
+        self.InsertColumn(2, "message", width=wx.LIST_AUTOSIZE_USEHEADER)
+
+    def Load(self, ulg):
+        self.ulg = ulg
+        self.SetItemCount(0)
+        if self.ulg is not None:
+            self.SetItemCount(len(self.ulg.logged_messages))
+
+    def OnGetItemText(self, item, column):
+        m = self.ulg.logged_messages[item]
+        if column == 0:
+            return str(m.timestamp)
+        if column == 1:
+            return m.log_level_str()
+        if column == 2:
+            return m.message
+        return ""
+
 class ULogPanel(wx.Panel):
     Gcu = Gcm()
     ID_ULOG_OPEN = wx.NewId()
@@ -122,19 +146,23 @@ class ULogPanel(wx.Panel):
 
         self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
-        self.tree = ULogTree(self)
+        self.splitter = wx.SplitterWindow(self, -1)
+        self.splitter.SetMinimumPaneSize(20)
+        self.tree = ULogTree(self.splitter)
+        self.list = MessageListCtrl(self.splitter)
+        self.splitter.SplitHorizontally(self.tree, self.list, -20)
         self.tb2 = aui.AuiToolBar(self)
         self.search = AutocompleteTextCtrl(self.tb2)
         self.search.SetHint('searching ...')
         item = self.tb2.AddControl(self.search)
         item.SetProportion(1)
-        self.tb2.SetMargins(right=15)
+        #self.tb2.SetMargins(right=15)
         self.tb2.Realize()
 
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(self.tree, 1, wx.EXPAND)
         self.box.Add(self.tb2, 0, wx.EXPAND, 5)
+        self.box.Add(self.splitter, 1, wx.EXPAND)
 
         self.box.Fit(self)
         self.SetSizer(self.box)
@@ -149,10 +177,18 @@ class ULogPanel(wx.Panel):
 
         # load the ulog
         if filename is not None:
-            self.tree.Load(filename)
+            self.Load(filename)
 
         self.num = self.Gcu.get_next_num()
         self.Gcu.set_active(self)
+
+    def Load(self, filename):
+        """load the ulog file"""
+        u = pyulog.ULog(filename)
+        self.filename = filename
+        self.tree.Load(u)
+        self.list.Load(u)
+        dp.send('frame.add_file_history', filename=filename)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
@@ -246,7 +282,7 @@ class ULogPanel(wx.Panel):
             dlg = wx.FileDialog(self, "Choose a file", "", "", wildcard, style)
             if dlg.ShowModal() == wx.ID_OK:
                 filename = dlg.GetPath()
-                self.tree.Load(filename=filename)
+                self.Load(filename=filename)
                 (_, title) = os.path.split(filename)
                 dp.send('frame.set_panel_title', pane=self, title=title)
             dlg.Destroy()
@@ -365,7 +401,6 @@ class ULog:
         # activate the manager
         elif manager and activate:
             dp.send(signal='frame.show_panel', panel=manager)
-        print(manager)
         return manager
 
     @classmethod
