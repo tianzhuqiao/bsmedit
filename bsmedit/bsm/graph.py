@@ -172,7 +172,7 @@ class Toolbar(GraphToolbar):
         # get the current x and y limits
         if not self.GetToolToggled(self.wx_ids['Zoom']):
             return
-        if self._nav_stack.empty():
+        if self._nav_stack() is None:
             self.push_current()
 
         axes = [a for a in self.figure.get_axes()
