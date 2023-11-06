@@ -177,13 +177,24 @@ class Toolbar(GraphToolbar):
 
         axes = [a for a in self.figure.get_axes()
                 if a.in_axes(event)]
+
+        xzoom = yzoom = True
+        xdata, ydata = event.xdata, event.ydata
         if not axes:
-            return
+            if len(self.figure.get_axes()) == 1:
+                axes = [a for a in self.figure.get_axes()]
+                x,y = event.x, event.y
+                xAxes, yAxes = axes[0].transAxes.inverted().transform([x, y])
+                if -0.05 < xAxes < 0:
+                    xzoom = False
+                if -0.05 < yAxes < 0:
+                    yzoom = False
+                xdata, ydata = axes[0].transData.inverted().transform([x, y])
+            else:
+                return
 
         base_scale = 2.0
 
-        xdata = event.xdata  # get event x location
-        ydata = event.ydata  # get event y location
         if xdata is None:
             return
         if ydata is None:
@@ -199,25 +210,27 @@ class Toolbar(GraphToolbar):
             # deal with something that should never happen
             scale_factor = 1.0
 
-        for ax in axes:
-            cur_xlim = ax.get_xlim()
-            cur_ylim = ax.get_ylim()
-            new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
-            new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
+        if wx.GetKeyState(wx.WXK_CONTROL_X):
+            yzoom = False
+        elif wx.GetKeyState(wx.WXK_CONTROL_Y):
+            xzoom = False
 
-            relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
-            rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
-            xzoom = yzoom = True
-            if wx.GetKeyState(wx.WXK_CONTROL_X):
-                yzoom = False
-            elif wx.GetKeyState(wx.WXK_CONTROL_Y):
-                xzoom = False
-            if (xzoom) and new_width * (1 - relx) > 0:
-                ax.set_xlim(
-                    [xdata - new_width * (1 - relx), xdata + new_width * (relx)])
-            if (yzoom) and new_height * (1 - rely) > 0:
-                ax.set_ylim(
-                    [ydata - new_height * (1 - rely), ydata + new_height * (rely)])
+        for ax in axes:
+            if xzoom:
+                cur_xlim = ax.get_xlim()
+                new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
+                relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
+                if new_width * (1 - relx) > 0:
+                    ax.set_xlim(
+                        [xdata - new_width * (1 - relx), xdata + new_width * (relx)])
+            if yzoom:
+                cur_ylim = ax.get_ylim()
+                new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
+                rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
+
+                if new_height * (1 - rely) > 0:
+                    ax.set_ylim(
+                        [ydata - new_height * (1 - rely), ydata + new_height * (rely)])
         self.canvas.draw()
 
     def init_toolbar_empty(self):
