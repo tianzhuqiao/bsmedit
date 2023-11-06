@@ -809,7 +809,8 @@ class PyEditorPanel(wx.Panel):
     def CheckModified(self):
         """check whether it is modified"""
         if self.editor.GetModify():
-            msg = 'The file has been modified. Save it first?'
+            (_, filename) = os.path.split(self.fileName)
+            msg = f'"{filename}" has been modified. Save it first?'
             # use top level frame as parent, otherwise it may crash when
             # it is called in Destroy()
             dlg = wx.MessageDialog(self.GetTopLevelParent(), msg, 'bsmedit',
