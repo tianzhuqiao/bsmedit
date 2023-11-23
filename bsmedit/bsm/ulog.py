@@ -321,6 +321,7 @@ class ULogPanel(wx.Panel):
     Gcu = Gcm()
     ID_ULOG_OPEN = wx.NewId()
     ID_ULOG_EXPORT = wx.NewId()
+    ID_ULOG_EXPORT_WITH_TIMESTAMP = wx.NewId()
 
     def __init__(self, parent, filename=None):
         wx.Panel.__init__(self, parent)
@@ -401,23 +402,39 @@ class ULogPanel(wx.Panel):
         self.Gcu.destroy(self.num)
         super().Destroy()
 
+    def GetItemPath(self, item):
+        if not item.IsOk():
+            return
+        text = self.tree.GetItemText(item)
+        path = [text]
+        parent = self.tree.GetItemParent(item)
+        if parent.IsOk() and parent != self.tree.GetRootItem():
+            path.insert(0, self.tree.GetItemText(parent))
+        return path
+
     def OnTreeItemMenu(self, event):
         item = event.GetItem()
         if not item.IsOk():
             return
+        has_child = self.tree.ItemHasChildren(item)
         menu = wx.Menu()
         menu.Append(self.ID_ULOG_EXPORT, "&Export to shell")
+        if not has_child:
+            menu.Append(self.ID_ULOG_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
+
         cmd = PopupMenu(self, menu)
         text = self.tree.GetItemText(item)
-        path = f"[\"{text}\"]"
-        if not self.tree.ItemHasChildren(item):
-            parent = self.tree.GetItemParent(item)
-            if parent.IsOk():
-                path = f'[\"{self.tree.GetItemText(parent)}\"]{path}'
-        if cmd == self.ID_ULOG_EXPORT:
+        path = self.GetItemPath(item)
+        if cmd in [self.ID_ULOG_EXPORT, self.ID_ULOG_EXPORT_WITH_TIMESTAMP]:
             name = text.replace('[', '').replace(']', '')
+            command = f'{name}=ulog.get()["{path[0]}"]'
+            if len(path) > 1:
+                if cmd == self.ID_ULOG_EXPORT_WITH_TIMESTAMP:
+                    command += f'.get(["timestamp", "{path[1]}"])'
+                else:
+                    command += f'.get(["{path[1]}"])'
             dp.send(signal='shell.run',
-                command=f'{name}=ulog.get(){path}',
+                command=command,
                 prompt=True,
                 verbose=True,
                 history=True)
@@ -456,6 +473,7 @@ class ULogPanel(wx.Panel):
                 continue
             if not item.IsOk():
                 break
+            objs.append(self.GetItemPath(item))
         # need to explicitly allow drag
         # start drag operation
         data = wx.TextDataObject(json.dumps(objs))
