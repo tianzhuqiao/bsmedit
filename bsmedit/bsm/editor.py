@@ -697,7 +697,7 @@ class PyEditorPanel(wx.Panel):
 
     def OnCodeModified(self, event):
         """called when the file is modified"""
-        filename = 'untiled'
+        filename = 'untitled'
         if self.fileName != "":
             (_, filename) = os.path.split(self.fileName)
         if self.editor.GetModify():
@@ -809,7 +809,9 @@ class PyEditorPanel(wx.Panel):
     def CheckModified(self):
         """check whether it is modified"""
         if self.editor.GetModify():
-            (_, filename) = os.path.split(self.fileName)
+            filename = 'untitled'
+            if self.fileName != "":
+                (_, filename) = os.path.split(self.fileName)
             msg = f'"{filename}" has been modified. Save it first?'
             # use top level frame as parent, otherwise it may crash when
             # it is called in Destroy()
@@ -953,6 +955,7 @@ class PyEditorPanel(wx.Panel):
         dp.connect(cls.PaneMenu, 'bsm.editor.pane_menu')
         dp.connect(cls.Uninitialize, 'frame.exit')
         dp.connect(cls.OnFrameClosing, 'frame.closing')
+        dp.connect(cls.OnFrameClosePane, 'frame.close_pane')
         dp.connect(cls.OpenScript, 'frame.file_drop')
         dp.connect(cls.DebugPaused, 'debugger.paused')
         dp.connect(cls.DebugUpdateScope, 'debugger.update_scopes')
@@ -1037,6 +1040,22 @@ class PyEditorPanel(wx.Panel):
                     wx.CallAfter(cls.OpenScript, filename=f, activated=True, lineno=line)
 
     @classmethod
+    def OnFrameClosePane(cls, event):
+        """closing a pane"""
+        pane = event.GetPane().window
+        if isinstance(pane, aui.auibook.AuiNotebook):
+            for i in range(pane.GetPageCount()):
+                page = pane.GetPage(i)
+                if isinstance(page, PyEditorPanel):
+                    if page.CheckModified():
+                        # the file has been modified, stop closing
+                        event.Veto()
+        elif isinstance(pane, PyEditorPanel):
+            if pane.CheckModified():
+                # the file has been modified, stop closing
+                event.Veto()
+
+    @classmethod
     def OnFrameClosing(cls, event):
         """the frame is exiting"""
         for panel in cls.Gce.get_all_managers():
@@ -1077,7 +1096,7 @@ class PyEditorPanel(wx.Panel):
             dlg.Destroy()
 
     @classmethod
-    def AddEditor(cls, title='untitle', activated=True):
+    def AddEditor(cls, title='untitled', activated=True):
         """create a editor panel"""
         editor = PyEditorPanel(cls.frame)
 

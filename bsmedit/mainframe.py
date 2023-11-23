@@ -159,6 +159,7 @@ class MainFrame(FramePlus):
 
         self.Bind(wx.EVT_ACTIVATE, self.OnActivate)
         self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
+        self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
         dp.connect(self.SetPanelTitle, 'frame.set_panel_title')
         dp.connect(self.ShowStatusText, 'frame.show_status_text')
         dp.connect(self.AddFileHistory, 'frame.add_file_history')
@@ -415,6 +416,12 @@ class MainFrame(FramePlus):
             window = pane
 
         dp.send('frame.activate_panel', pane=window)
+
+    def OnPaneClose(self, event):
+        """notify the window managers that the pane is closing"""
+        if self.closing:
+            return
+        dp.send('frame.close_pane', event=event)
 
     def SetPanelTitle(self, pane, title):
         """set the panel title"""
