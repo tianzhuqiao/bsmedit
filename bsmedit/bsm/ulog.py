@@ -108,6 +108,44 @@ class FindListCtrl(wx.ListCtrl):
         wx.ListCtrl.__init__(self, *args, **kwargs)
         self.SetupFind()
 
+        self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnRightClick)
+        self.Bind(wx.EVT_TOOL, self.OnBtnCopy, id=wx.ID_COPY)
+
+        accel = [
+            (wx.ACCEL_CTRL, ord('F'), self.ID_FIND_REPLACE),
+            (wx.ACCEL_SHIFT, wx.WXK_F3, self.ID_FIND_PREV),
+            (wx.ACCEL_CTRL, ord('H'), self.ID_FIND_REPLACE),
+            (wx.ACCEL_RAW_CTRL, ord('H'), self.ID_FIND_REPLACE),
+            (wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
+        ]
+        self.accel = wx.AcceleratorTable(accel)
+        self.SetAcceleratorTable(self.accel)
+
+
+    def OnRightClick(self, event):
+
+        if self.GetSelectedItemCount() <= 0:
+            return
+
+        menu = wx.Menu()
+        menu.Append(wx.ID_COPY, "&Copy \tCtrl+C")
+        self.PopupMenu(menu)
+
+    def OnBtnCopy(self, event):
+        cmd = event.GetId()
+        if cmd == wx.ID_COPY:
+            if wx.TheClipboard.Open():
+                item = self.GetFirstSelected()
+                text = []
+                while item != -1:
+                    tmp = []
+                    for c in range(self.GetColumnCount()):
+                        tmp.append(self.GetItemText(item, c))
+                    text.append(" ".join(tmp))
+                    item = self.GetNextSelected(item)
+                wx.TheClipboard.SetData(wx.TextDataObject("\n".join(text)))
+                wx.TheClipboard.Close()
+
     def SetupFind(self):
         # find & replace dialog
         self.findDialog = None
@@ -121,15 +159,6 @@ class FindListCtrl(wx.ListCtrl):
         self.Bind(wx.EVT_TOOL, self.OnShowFindReplace, id=self.ID_FIND_REPLACE)
         self.Bind(wx.EVT_TOOL, self.OnFindNext, id=self.ID_FIND_NEXT)
         self.Bind(wx.EVT_TOOL, self.OnFindPrev, id=self.ID_FIND_PREV)
-
-        accel = [
-            (wx.ACCEL_CTRL, ord('F'), self.ID_FIND_REPLACE),
-            (wx.ACCEL_SHIFT, wx.WXK_F3, self.ID_FIND_PREV),
-            (wx.ACCEL_CTRL, ord('H'), self.ID_FIND_REPLACE),
-            (wx.ACCEL_RAW_CTRL, ord('H'), self.ID_FIND_REPLACE),
-        ]
-        self.accel = wx.AcceleratorTable(accel)
-        self.SetAcceleratorTable(self.accel)
 
     def OnShowFindReplace(self, event):
         """Find and Replace dialog and action."""
@@ -280,6 +309,16 @@ class FindListCtrl(wx.ListCtrl):
         if self.findStr:
             self.doFind(self.findStr, False)
 
+    def Search(self, src, pattern, flags):
+        if not (wx.FR_MATCHCASE & flags):
+            pattern = pattern.lower()
+            src = src.lower()
+
+        if wx.FR_WHOLEWORD & flags:
+            return pattern in src.split()
+
+        return pattern in src
+
 class MessageListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
     def __init__(self, parent):
         FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
@@ -287,15 +326,15 @@ class MessageListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixi
         self.ulg = None
         self.EnableAlternateRowColours()
         self.ExtendRulesAndAlternateColour()
-        self.InsertColumn(0, "timestamp", width=120)
-        self.InsertColumn(1, "type", width=120)
-        self.InsertColumn(2, "message", width=wx.LIST_AUTOSIZE_USEHEADER)
+        self.InsertColumn(0, "Timestamp", width=120)
+        self.InsertColumn(1, "Type", width=120)
+        self.InsertColumn(2, "Message", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.ulg.logged_messages[i]
-            if text in m.message:
+            m = self.ulg.logged_messages[i].message
+            if self.Search(m, text, flags):
                 return i
 
         # not found
@@ -316,6 +355,104 @@ class MessageListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixi
         if column == 2:
             return m.message
         return ""
+
+class InfoListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+    def __init__(self, parent):
+        FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
+        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        self.ulg = None
+        self.info = []
+        self.EnableAlternateRowColours()
+        self.ExtendRulesAndAlternateColour()
+        self.InsertColumn(0, "Key", width=120)
+        self.InsertColumn(1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+
+    def FindText(self, start, end, text, flags=0):
+        direction = 1 if end > start else -1
+        for i in range(start, end+direction, direction):
+            m = self.info[i]
+            if self.Search(m[0], text, flags) or self.Search(str(m[1]), text, flags):
+                return i
+
+        # not found
+        return -1
+
+    def Load(self, ulg):
+        self.ulg = ulg
+        self.SetItemCount(0)
+        if self.ulg is not None:
+            self.info = [[k, v] for k, v in self.ulg.msg_info_dict.items()]
+            self.info = sorted(self.info, key=lambda x: x[0])
+            self.SetItemCount(len(self.info))
+
+    def OnGetItemText(self, item, column):
+        return str(self.info[item][column])
+
+class ParamListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+    def __init__(self, parent):
+        FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
+        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        self.ulg = None
+        self.info = []
+        self.EnableAlternateRowColours()
+        self.ExtendRulesAndAlternateColour()
+        self.InsertColumn(0, "Key", width=200)
+        self.InsertColumn(1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+
+    def FindText(self, start, end, text, flags=0):
+        direction = 1 if end > start else -1
+        for i in range(start, end+direction, direction):
+            m = self.info[i]
+            if self.Search(str(m[0]), text, flags) or self.Search(str(m[1]), text, flags):
+                return i
+
+        # not found
+        return -1
+
+    def Load(self, ulg):
+        self.ulg = ulg
+        self.SetItemCount(0)
+        if self.ulg is not None:
+            self.info = [[k, v] for k, v in self.ulg.initial_parameters.items()]
+            self.info = sorted(self.info, key=lambda x: x[0])
+            self.SetItemCount(len(self.info))
+
+    def OnGetItemText(self, item, column):
+        return str(self.info[item][column])
+
+class ChgParamListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+    def __init__(self, parent):
+        FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
+        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        self.ulg = None
+        self.EnableAlternateRowColours()
+        self.ExtendRulesAndAlternateColour()
+        self.InsertColumn(0, "Timestamp", width=120)
+        self.InsertColumn(1, "Key", width=200)
+        self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+
+    def FindText(self, start, end, text, flags=0):
+        direction = 1 if end > start else -1
+        for i in range(start, end+direction, direction):
+            m = self.ulg.changed_parameters[i]
+            if self.Search(str(m[1]), text, flags) or self.Search(str(m[2]), text, flags):
+                return i
+
+        # not found
+        return -1
+
+    def Load(self, ulg):
+        self.ulg = ulg
+        self.SetItemCount(0)
+        if self.ulg is not None:
+            self.SetItemCount(len(self.ulg.changed_parameters))
+
+    def OnGetItemText(self, item, column):
+        m = self.ulg.changed_parameters[item]
+        if column == 0:
+            return str(m[0]/1e6)
+        return str(m[column])
+
 
 class ULogPanel(wx.Panel):
     Gcu = Gcm()
@@ -356,9 +493,19 @@ class ULogPanel(wx.Panel):
         szPanel.Fit(panel)
         panel.SetSizer(szPanel)
 
-        self.notebook.AddPage(panel, 'Message')
-        self.list = MessageListCtrl(self.notebook)
-        self.notebook.AddPage(self.list, 'Log')
+        self.notebook.AddPage(panel, 'Data')
+
+        self.logList = MessageListCtrl(self.notebook)
+        self.notebook.AddPage(self.logList, 'Log')
+
+        self.infoList = InfoListCtrl(self.notebook)
+        self.notebook.AddPage(self.infoList, 'Info')
+
+        self.paramList = ParamListCtrl(self.notebook)
+        self.notebook.AddPage(self.paramList, 'Param')
+
+        self.chgParamList = ChgParamListCtrl(self.notebook)
+        self.notebook.AddPage(self.chgParamList, 'Changed Param')
 
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)
@@ -376,6 +523,7 @@ class ULogPanel(wx.Panel):
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
 
         # load the ulog
+        self.ulg = None
         if filename is not None:
             self.Load(filename)
 
@@ -385,9 +533,13 @@ class ULogPanel(wx.Panel):
     def Load(self, filename):
         """load the ulog file"""
         u = pyulog.ULog(filename)
+        self.ulg = u
         self.filename = filename
         self.tree.Load(u)
-        self.list.Load(u)
+        self.logList.Load(u)
+        self.infoList.Load(u)
+        self.paramList.Load(u)
+        self.chgParamList.Load(u)
         dp.send('frame.add_file_history', filename=filename)
 
     def OnDoSearch(self, evt):
@@ -404,7 +556,7 @@ class ULogPanel(wx.Panel):
 
     def GetItemPath(self, item):
         if not item.IsOk():
-            return
+            return []
         text = self.tree.GetItemText(item)
         path = [text]
         parent = self.tree.GetItemParent(item)
@@ -425,6 +577,8 @@ class ULogPanel(wx.Panel):
         cmd = PopupMenu(self, menu)
         text = self.tree.GetItemText(item)
         path = self.GetItemPath(item)
+        if not path:
+            return
         if cmd in [self.ID_ULOG_EXPORT, self.ID_ULOG_EXPORT_WITH_TIMESTAMP]:
             name = text.replace('[', '').replace(']', '')
             command = f'{name}=ulog.get()["{path[0]}"]'
@@ -627,15 +781,15 @@ class ULog:
             return
         if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
             if wx.TheClipboard.Open():
-                filepath = pane.tree.filename
+                filepath = pane.filename
                 if command == cls.ID_PANE_COPY_PATH_REL:
                     filepath = os.path.relpath(filepath, os.getcwd())
                 wx.TheClipboard.SetData(wx.TextDataObject(filepath))
                 wx.TheClipboard.Close()
         elif command == cls.ID_PANE_SHOW_IN_FINDER:
-            show_file_in_finder(pane.tree.filename)
+            show_file_in_finder(pane.filename)
         elif command == cls.ID_PANE_SHOW_IN_BROWSING:
-            dp.send(signal='dirpanel.goto', filepath=pane.tree.filename, show=True)
+            dp.send(signal='dirpanel.goto', filepath=pane.filename, show=True)
         elif command == cls.ID_PANE_CLOSE:
             dp.send(signal='frame.delete_panel', panel=pane)
         elif command == cls.ID_PANE_CLOSE_OTHERS:
@@ -651,19 +805,21 @@ class ULog:
 
 
     @classmethod
-    def get(cls, num=None, filename=None):
+    def get(cls, num=None, filename=None, dataOnly=True):
         manager = None
         if num is not None:
             manager = ULogPanel.Gcu.get_manager(num)
         if manager is None:
             for m in ULogPanel.Gcu.get_all_managers():
-                (_, name) = os.path.split(m.tree.filename)
-                if filename in (m.tree.filename, name):
+                (_, name) = os.path.split(m.filename)
+                if filename in (m.filename, name):
                     manager = m
                     break
         if num is None and filename is None:
             manager = ULogPanel.Gcu.get_active()
-        return manager.tree.data
+        if dataOnly:
+            return manager.tree.data
+        return manager.ulg
 
 def bsm_initialize(frame, **kwargs):
     ULog.initialize(frame)
