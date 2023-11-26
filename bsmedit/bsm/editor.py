@@ -587,7 +587,7 @@ class PyEditorPanel(wx.Panel):
     def Destroy(self):
         """destroy the panel"""
         self.editor.ClearBreakpoint()
-        self.CheckModified()
+        #self.CheckModified()
         self.Gce.destroy(self.num)
         return super().Destroy()
 
@@ -821,7 +821,7 @@ class PyEditorPanel(wx.Panel):
             dlg.Destroy()
             if result:
                 self.saveFile()
-            return self.editor.GetModify()
+                return self.editor.GetModify()
         return False
 
     def OnBtnCheck(self, event):
