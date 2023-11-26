@@ -39,7 +39,6 @@ class ULogTree(FastLoadTreeCtrl):
                 for c in children:
                     dataset = list(self.data[c].columns)
                     dataset.remove('timestamp')
-                    dataset.remove('dt')
                     if any(pattern in s for s in dataset):
                         self.expanded[c] = True
                         temp.append(c)
@@ -51,7 +50,6 @@ class ULogTree(FastLoadTreeCtrl):
             if parent in self.data:
                 children = list(self.data[parent].columns)
                 children.remove('timestamp')
-                children.remove('dt')
                 if pattern and pattern not in parent:
                     children = [c for c in children if pattern in c]
         children = [{'label': c, 'img':-1, 'imgsel':-1, 'data': None, 'is_folder': is_folder} for c in children]
@@ -71,11 +69,9 @@ class ULogTree(FastLoadTreeCtrl):
         data = _dict()
         for d in ulg.data_list:
             df = pd.DataFrame(d.data)
-            df['dt'] = (df.timestamp)/1e6 # to second
             data[d.name] = df
         self.data = data
         self.FillTree()
-
 
     def FillTree(self, pattern=None):
         """fill the ulog objects tree"""
@@ -605,14 +601,14 @@ class ULogPanel(wx.Panel):
         datasetname = self.tree.GetItemText(parent)
         dataset = self.tree.data[datasetname]
         dataname = self.tree.GetItemText(item)
-        x = dataset['dt']
+        x = dataset['timestamp']/1e6
         y = dataset[dataname]
 
         # plot
         mgr = graph.plt.get_current_fig_manager()
         if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
             mgr = mgr.frame
-        mgr.figure.gca().plot(x, y, label=f'{datasetname}.{dataname}')
+        mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]))
         mgr.figure.gca().legend()
         mgr.figure.gca().set_xlabel('t(s)')
 
@@ -627,7 +623,13 @@ class ULogPanel(wx.Panel):
                 continue
             if not item.IsOk():
                 break
-            objs.append(self.GetItemPath(item))
+            path = self.GetItemPath(item)
+            if len(path) == 1:
+                data = self.tree.data[path[0]]
+            else:
+                data = self.tree.data[path[0]].loc[:, ['timestamp', path[1]]]
+                data['timestamp'] /= 1e6
+            objs.append([path[0], data.to_json()])
         # need to explicitly allow drag
         # start drag operation
         data = wx.TextDataObject(json.dumps(objs))

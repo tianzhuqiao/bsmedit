@@ -1,11 +1,12 @@
+import json
 import wx
 import wx.py.dispatcher as dp
 import numpy as np
+import pandas
 import matplotlib
 matplotlib.use('module://bsmedit.bsm.bsmbackend')
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
-from matplotlib.backends.backend_wx import NavigationToolbar2Wx as NavigationToolbar
 from matplotlib.backends.backend_wx import FigureManagerWx
 from matplotlib.backend_bases import CloseEvent
 from matplotlib._pylab_helpers import Gcf
@@ -178,44 +179,43 @@ class Toolbar(GraphToolbar):
         axes = [a for a in self.figure.get_axes()
                 if a.in_axes(event)]
 
-        xzoom = yzoom = True
+        yzoom_key = xzoom_key = True
+        if wx.GetKeyState(wx.WXK_CONTROL_X):
+            yzoom_key = False
+        elif wx.GetKeyState(wx.WXK_CONTROL_Y):
+            xzoom_key = False
+        xzoom = yzoom = xzoom_key, yzoom_key
         xdata, ydata = event.xdata, event.ydata
+        axes = [[a, xzoom, yzoom, xdata, ydata] for a in self.figure.get_axes()
+                if a.in_axes(event)]
         if not axes:
-            if len(self.figure.get_axes()) == 1:
-                axes = [a for a in self.figure.get_axes()]
+            axes = []
+            for ax in self.figure.get_axes():
                 x,y = event.x, event.y
-                xAxes, yAxes = axes[0].transAxes.inverted().transform([x, y])
-                if -0.05 < xAxes < 0:
+                xAxes, yAxes = ax.transAxes.inverted().transform([x, y])
+                if -0.1 < xAxes < 0:
                     xzoom = False
-                if -0.05 < yAxes < 0:
+                if -0.1 < yAxes < 0:
                     yzoom = False
-                xdata, ydata = axes[0].transData.inverted().transform([x, y])
-            else:
+                xdata, ydata = ax.transData.inverted().transform([x, y])
+                if not yzoom or (not xzoom and -0.05 < yAxes < 1):
+                    axes.append([ax, xzoom, yzoom, xdata, ydata])
+                xzoom = yzoom = xzoom_key, yzoom_key
+            if not axes:
                 return
 
         base_scale = 2.0
-
-        if xdata is None:
-            return
-        if ydata is None:
-            return
-
-        if event.button == 'down':
+        if event.button == 'up':
             # deal with zoom in
             scale_factor = 1.0 / base_scale
-        elif event.button == 'up':
+        elif event.button == 'down':
             # deal with zoom out
             scale_factor = base_scale
         else:
             # deal with something that should never happen
             scale_factor = 1.0
 
-        if wx.GetKeyState(wx.WXK_CONTROL_X):
-            yzoom = False
-        elif wx.GetKeyState(wx.WXK_CONTROL_Y):
-            xzoom = False
-
-        for ax in axes:
+        for ax, xzoom, yzoom, xdata, ydata in axes:
             if xzoom:
                 cur_xlim = ax.get_xlim()
                 new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
@@ -453,6 +453,54 @@ class Toolbar(GraphToolbar):
         """show the status message"""
         dp.send(signal='frame.show_status_text', text=s, index=1, width=160)
 
+class DataDropTarget(wx.DropTarget):
+    def __init__(self, canvas):
+        wx.DropTarget.__init__(self)
+        self.obj = wx.TextDataObject()
+        self.SetDataObject(self.obj)
+        self.canvas = canvas
+        self.SetDefaultAction(wx.DragMove)
+
+    def OnEnter(self, x, y, d):
+        #self.canvas.OnEnter(x, y, d)
+        return d
+
+    def OnLeave(self):
+        #self.frame.OnLeave()
+        pass
+
+    def OnDrop(self, x, y):
+        return True
+
+    def OnData(self, x, y, d):
+        if not self.GetData():
+            return wx.DragNone
+        #self.frame.OnDrop(x, y, self.obj.GetText())
+        data = self.obj.GetText()
+        try:
+            data = json.loads(data)
+            sz = self.canvas.GetSize()
+            y = sz[1]-y
+            fig = self.canvas.figure
+            if len(fig.get_axes()) == 0:
+                fig.gca()
+            for i, ax in enumerate(fig.get_axes()):
+                if ax.bbox.contains(x, y):
+                    for l in data:
+                        title = l[0]
+                        line = pandas.DataFrame.from_dict(json.loads(l[1]))
+                        for i in range(1, len(line.columns)):
+                            ax.plot(line[line.columns[0]], line[line.columns[i]], label="/".join([title, line.columns[i]]))
+                    ax.legend()
+                    break
+        except:
+            pass
+
+        return d
+
+    def OnDragOver(self, x, y, d):
+        #self.frame.OnDragOver(x, y, d)
+        return d
 
 class MatplotPanel(wx.Panel):
     clsFrame = None
@@ -506,6 +554,9 @@ class MatplotPanel(wx.Panel):
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
         self.Bind(wx.EVT_CHAR_HOOK, self.OnKeyDown)
+
+        dt = DataDropTarget(self.canvas)
+        self.canvas.SetDropTarget(dt)
 
     def GetToolBar(self):
         """Override wxFrame::GetToolBar as we don't have managed toolbar"""
