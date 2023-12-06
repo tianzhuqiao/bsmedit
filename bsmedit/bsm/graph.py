@@ -80,9 +80,9 @@ class Pan(GraphObject):
         return False
 
 class Toolbar(GraphToolbar):
-    ID_AUTO_SCALE_X = wx.NewId()
-    ID_AUTO_SCALE_Y = wx.NewId()
-    ID_AUTO_SCALE_XY = wx.NewId()
+    ID_AUTO_SCALE_X = wx.NewIdRef()
+    ID_AUTO_SCALE_Y = wx.NewIdRef()
+    ID_AUTO_SCALE_XY = wx.NewIdRef()
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -110,6 +110,9 @@ class Toolbar(GraphToolbar):
         self.canvas.mpl_connect('key_press_event', self.OnKeyPressed)
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
+
+        self.linestyle_ids = {}
+        self.marker_ids = {}
 
     def GetMenu(self):
         action = self.actions.get(self.mode, None)
@@ -157,11 +160,50 @@ class Toolbar(GraphToolbar):
             self.canvas.draw()
 
     def OnReleased(self, event):
-        action = self.actions.get(self.mode, None)
-        if action is None or not hasattr(action, 'mouse_released'):
-            return
-        action.mouse_released(event)
 
+        action = self.actions.get(self.mode, None)
+        if action and hasattr(action, 'mouse_released'):
+            action.mouse_released(event)
+            return
+
+        if event.button == matplotlib.backend_bases.MouseButton.RIGHT:
+            self.OnContextMenu(event)
+
+    def OnContextMenu(self, event):
+        axes = [a for a in self.figure.get_axes()
+                if a.in_axes(event)]
+        if not axes:
+            return
+        menu = wx.Menu()
+        style_menu = wx.Menu()
+
+        for k, v in matplotlib.lines.Line2D.lineStyles.items():
+            if k and isinstance(k, str) and not k.isspace():
+                if k not in self.linestyle_ids:
+                    self.linestyle_ids[k] = wx.NewIdRef()
+                v = v.replace('_draw_', '')
+                v = v.replace('_', ' ')
+                style_menu.Append(self.linestyle_ids[k], v)
+        marker_menu = wx.Menu()
+        for k, v in matplotlib.lines.Line2D.markers.items():
+            if k and isinstance(k, str) and not k.isspace():
+                if k not in self.marker_ids:
+                    self.marker_ids[k] = wx.NewIdRef()
+                marker_menu.Append(self.marker_ids[k], k)
+        menu.AppendSubMenu(style_menu, "Line Style")
+        menu.AppendSubMenu(marker_menu, "Marker Style")
+        cmd = PopupMenu(self, menu)
+        if cmd in self.linestyle_ids.values():
+            style = list(self.linestyle_ids.keys())[list(self.linestyle_ids.values()).index(cmd)]
+            for ax in axes:
+                for l in ax.lines:
+                    l.set_linestyle(style)
+
+        if cmd in self.marker_ids.values():
+            marker = list(self.marker_ids.keys())[list(self.marker_ids.values()).index(cmd)]
+            for ax in axes:
+                for l in ax.lines:
+                    l.set_marker(marker)
     def OnMove(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_move'):
@@ -271,7 +313,7 @@ class Toolbar(GraphToolbar):
                 else:
                     self.AddSeparator()
                 continue
-            self.wx_ids[text] = wx.NewId()
+            self.wx_ids[text] = wx.NewIdRef()
             if isinstance(image_file, list):
                 image = wx.Bitmap(to_byte(image_file))
             else:
@@ -507,9 +549,9 @@ class MatplotPanel(wx.Panel):
     clsID_new_figure = wx.NOT_FOUND
     isInitialized = False
     kwargs = {}
-    ID_PANE_CLOSE = wx.NewId()
-    ID_PANE_CLOSE_OTHERS = wx.NewId()
-    ID_PANE_CLOSE_ALL = wx.NewId()
+    ID_PANE_CLOSE = wx.NewIdRef()
+    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
+    ID_PANE_CLOSE_ALL = wx.NewIdRef()
 
     def __init__(self, parent, title=None, num=-1, thisFig=None):
         # set the size to positive value, otherwise the toolbar will assert
