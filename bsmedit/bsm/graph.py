@@ -83,6 +83,9 @@ class Toolbar(GraphToolbar):
     ID_AUTO_SCALE_X = wx.NewIdRef()
     ID_AUTO_SCALE_Y = wx.NewIdRef()
     ID_AUTO_SCALE_XY = wx.NewIdRef()
+    ID_SPLIT_HORZ = wx.NewIdRef()
+    ID_SPLIT_VERT = wx.NewIdRef()
+    ID_DELETE_SUBPLOT = wx.NewIdRef()
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -94,6 +97,9 @@ class Toolbar(GraphToolbar):
         if matplotlib.__version__ >= '3.3.0':
             self.init_toolbar()
         self.figure = figure
+        gs = matplotlib.gridspec.GridSpec(1, 1)
+        ax = self.figure.add_subplot(gs[0,0])
+        ax.grid(True)
         self.datacursor = DataCursor(self.figure, self)
         self.lineeditor = LineEditor(self.figure)
         self.pan_action = Pan(self.figure)
@@ -168,6 +174,12 @@ class Toolbar(GraphToolbar):
 
         if event.button == matplotlib.backend_bases.MouseButton.RIGHT:
             self.OnContextMenu(event)
+            return
+
+        axes = [a for a in self.figure.get_axes()
+                if a.in_axes(event)]
+        if axes:
+            self.figure.sca(axes[0])
 
     def OnContextMenu(self, event):
         axes = [a for a in self.figure.get_axes()
@@ -192,18 +204,42 @@ class Toolbar(GraphToolbar):
                 marker_menu.Append(self.marker_ids[k], k)
         menu.AppendSubMenu(style_menu, "Line Style")
         menu.AppendSubMenu(marker_menu, "Marker Style")
+        menu.AppendSeparator()
+        menu.Append(self.ID_SPLIT_VERT, "Split Vertically")
+        menu.Append(self.ID_DELETE_SUBPLOT, "Delete Plot")
         cmd = PopupMenu(self, menu)
         if cmd in self.linestyle_ids.values():
             style = list(self.linestyle_ids.keys())[list(self.linestyle_ids.values()).index(cmd)]
             for ax in axes:
                 for l in ax.lines:
                     l.set_linestyle(style)
-
-        if cmd in self.marker_ids.values():
+        elif cmd in self.marker_ids.values():
             marker = list(self.marker_ids.keys())[list(self.marker_ids.values()).index(cmd)]
             for ax in axes:
                 for l in ax.lines:
                     l.set_marker(marker)
+        elif cmd == self.ID_SPLIT_VERT:
+            g = axes[0].get_gridspec()
+            n, m, r, c = axes[0].get_subplotspec().get_geometry()
+            g2 = matplotlib.gridspec.GridSpec(n+1, m)
+            for ax in self.figure.axes:
+                _, _, i, j = ax.get_subplotspec().get_geometry()
+                if i>r:
+                    i = i+1
+                ax.set_subplotspec(g2[i])
+            ax = self.figure.add_subplot(g2[r+1], sharex=axes[0])
+            ax.grid(True)
+        elif cmd == self.ID_DELETE_SUBPLOT:
+            g = axes[0].get_gridspec()
+            n, m, r, c = axes[0].get_subplotspec().get_geometry()
+            self.figure.delaxes(axes[0])
+            g2 = matplotlib.gridspec.GridSpec(n-1, m)
+            for ax in self.figure.axes:
+                _, _, i, j = ax.get_subplotspec().get_geometry()
+                if i>r:
+                    i = i-1
+                ax.set_subplotspec(g2[i])
+
     def OnMove(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_move'):
