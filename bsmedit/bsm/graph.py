@@ -86,6 +86,7 @@ class Toolbar(GraphToolbar):
     ID_SPLIT_HORZ = wx.NewIdRef()
     ID_SPLIT_VERT = wx.NewIdRef()
     ID_DELETE_SUBPLOT = wx.NewIdRef()
+    ID_DELETE_LINES = wx.NewIdRef()
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -97,9 +98,6 @@ class Toolbar(GraphToolbar):
         if matplotlib.__version__ >= '3.3.0':
             self.init_toolbar()
         self.figure = figure
-        gs = matplotlib.gridspec.GridSpec(1, 1)
-        ax = self.figure.add_subplot(gs[0,0])
-        ax.grid(True)
         self.datacursor = DataCursor(self.figure, self)
         self.lineeditor = LineEditor(self.figure)
         self.pan_action = Pan(self.figure)
@@ -207,6 +205,7 @@ class Toolbar(GraphToolbar):
         menu.AppendSeparator()
         menu.Append(self.ID_SPLIT_VERT, "Split Vertically")
         menu.Append(self.ID_DELETE_SUBPLOT, "Delete Plot")
+        menu.Append(self.ID_DELETE_LINES, "Delete all lines")
         cmd = PopupMenu(self, menu)
         if cmd in self.linestyle_ids.values():
             style = list(self.linestyle_ids.keys())[list(self.linestyle_ids.values()).index(cmd)]
@@ -233,12 +232,17 @@ class Toolbar(GraphToolbar):
             g = axes[0].get_gridspec()
             n, m, r, c = axes[0].get_subplotspec().get_geometry()
             self.figure.delaxes(axes[0])
-            g2 = matplotlib.gridspec.GridSpec(n-1, m)
-            for ax in self.figure.axes:
-                _, _, i, j = ax.get_subplotspec().get_geometry()
-                if i>r:
-                    i = i-1
-                ax.set_subplotspec(g2[i])
+            if n>1:
+                g2 = matplotlib.gridspec.GridSpec(n-1, m)
+                for ax in self.figure.axes:
+                    _, _, i, j = ax.get_subplotspec().get_geometry()
+                    if i>r:
+                        i = i-1
+                    ax.set_subplotspec(g2[i])
+        elif cmd == self.ID_DELETE_LINES:
+            for ax in axes:
+                ax.cla()
+                ax.grid(True)
 
     def OnMove(self, event):
         action = self.actions.get(self.mode, None)
@@ -562,6 +566,8 @@ class DataDropTarget(wx.DropTarget):
             fig = self.canvas.figure
             if len(fig.get_axes()) == 0:
                 fig.gca()
+                fig.gca().grid(True)
+                fig.gca().set_xlabel('t(s)')
             for i, ax in enumerate(fig.get_axes()):
                 if ax.bbox.contains(x, y):
                     for l in data:

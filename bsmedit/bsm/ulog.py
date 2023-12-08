@@ -641,6 +641,7 @@ class ULogPanel(wx.Panel):
             mgr = mgr.frame
         mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]))
         mgr.figure.gca().legend()
+        mgr.figure.gca().grid(True)
         mgr.figure.gca().set_xlabel('t(s)')
 
     def OnTreeBeginDrag(self, event):
