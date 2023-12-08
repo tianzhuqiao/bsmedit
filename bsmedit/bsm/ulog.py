@@ -326,9 +326,10 @@ class MessageListCtrl(ListCtrlBase):
     def __init__(self, parent):
         ListCtrlBase.__init__(self, parent)
         self.ulg = None
-        self.InsertColumn(0, "Timestamp", width=120)
-        self.InsertColumn(1, "Type", width=120)
-        self.InsertColumn(2, "Message", width=wx.LIST_AUTOSIZE_USEHEADER)
+        self.InsertColumn(0, "#", width=60)
+        self.InsertColumn(1, "Timestamp", width=120)
+        self.InsertColumn(2, "Type", width=120)
+        self.InsertColumn(3, "Message", width=wx.LIST_AUTOSIZE_USEHEADER)
         self.messages = []
         self.pattern = None
 
@@ -362,6 +363,9 @@ class MessageListCtrl(ListCtrlBase):
         self.RefreshItems(0, len(self.messages)-1)
 
     def OnGetItemText(self, item, column):
+        if column == 0:
+            return f"{item+1}"
+        column -= 1
         m = self.messages[item]
         if column == 0:
             return str(m.timestamp/1e6)
@@ -376,8 +380,9 @@ class InfoListCtrl(ListCtrlBase):
         ListCtrlBase.__init__(self, parent)
         self.ulg = None
         self.info = []
-        self.InsertColumn(0, "Key", width=120)
-        self.InsertColumn(1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+        self.InsertColumn(0, "#", width=60)
+        self.InsertColumn(1, "Key", width=120)
+        self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
@@ -398,6 +403,9 @@ class InfoListCtrl(ListCtrlBase):
             self.SetItemCount(len(self.info))
 
     def OnGetItemText(self, item, column):
+        if column == 0:
+            return f"{item+1}"
+        column -= 1
         return str(self.info[item][column])
 
 class ParamListCtrl(ListCtrlBase):
@@ -405,8 +413,9 @@ class ParamListCtrl(ListCtrlBase):
         ListCtrlBase.__init__(self, parent)
         self.ulg = None
         self.info = []
-        self.InsertColumn(0, "Key", width=200)
-        self.InsertColumn(1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+        self.InsertColumn(0, "#", width=60)
+        self.InsertColumn(1, "Key", width=200)
+        self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
         self.pattern = None
 
     def FindText(self, start, end, text, flags=0):
@@ -440,15 +449,19 @@ class ParamListCtrl(ListCtrlBase):
         self.RefreshItems(0, len(self.info)-1)
 
     def OnGetItemText(self, item, column):
+        if column == 0:
+            return f"{item+1}"
+        column -= 1
         return str(self.info[item][column])
 
 class ChgParamListCtrl(ListCtrlBase):
     def __init__(self, parent):
         ListCtrlBase.__init__(self, parent)
         self.ulg = None
-        self.InsertColumn(0, "Timestamp", width=120)
-        self.InsertColumn(1, "Key", width=200)
-        self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+        self.InsertColumn(0, "#", width=60)
+        self.InsertColumn(1, "Timestamp", width=120)
+        self.InsertColumn(2, "Key", width=200)
+        self.InsertColumn(3, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
@@ -467,6 +480,9 @@ class ChgParamListCtrl(ListCtrlBase):
             self.SetItemCount(len(self.ulg.changed_parameters))
 
     def OnGetItemText(self, item, column):
+        if column == 0:
+            return f"{item+1}"
+        column -= 1
         m = self.ulg.changed_parameters[item]
         if column == 0:
             return str(m[0]/1e6)
