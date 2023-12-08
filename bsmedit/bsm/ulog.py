@@ -71,7 +71,7 @@ class ULogTree(FastLoadTreeCtrl):
             df = pd.DataFrame(d.data)
             data[d.name] = df
         self.data = data
-        self.FillTree()
+        self.FillTree(self.pattern)
 
     def FillTree(self, pattern=None):
         """fill the ulog objects tree"""
@@ -315,21 +315,27 @@ class FindListCtrl(wx.ListCtrl):
 
         return pattern in src
 
-class MessageListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+class ListCtrlBase(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
     def __init__(self, parent):
         FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
         wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
-        self.ulg = None
         self.EnableAlternateRowColours()
         self.ExtendRulesAndAlternateColour()
+
+class MessageListCtrl(ListCtrlBase):
+    def __init__(self, parent):
+        ListCtrlBase.__init__(self, parent)
+        self.ulg = None
         self.InsertColumn(0, "Timestamp", width=120)
         self.InsertColumn(1, "Type", width=120)
         self.InsertColumn(2, "Message", width=wx.LIST_AUTOSIZE_USEHEADER)
+        self.messages = []
+        self.pattern = None
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.ulg.logged_messages[i].message
+            m = self.messages[i].message
             if self.Search(m, text, flags):
                 return i
 
@@ -340,10 +346,23 @@ class MessageListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixi
         self.ulg = ulg
         self.SetItemCount(0)
         if self.ulg is not None:
-            self.SetItemCount(len(self.ulg.logged_messages))
+            self.FillMessage(self.pattern)
+
+    def FillMessage(self, pattern):
+        self.pattern = pattern
+        if isinstance(self.pattern, str):
+            self.pattern = self.pattern.lower()
+            self.pattern.strip()
+        if not pattern:
+            self.messages = self.ulg.logged_messages
+        else:
+            self.messages = [m for m in self.ulg.logged_messages if pattern in m.message.lower() or pattern in m.log_level_str().lower()]
+
+        self.SetItemCount(len(self.messages))
+        self.RefreshItems(0, len(self.messages)-1)
 
     def OnGetItemText(self, item, column):
-        m = self.ulg.logged_messages[item]
+        m = self.messages[item]
         if column == 0:
             return str(m.timestamp/1e6)
         if column == 1:
@@ -352,14 +371,11 @@ class MessageListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixi
             return m.message
         return ""
 
-class InfoListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+class InfoListCtrl(ListCtrlBase):
     def __init__(self, parent):
-        FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
-        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        ListCtrlBase.__init__(self, parent)
         self.ulg = None
         self.info = []
-        self.EnableAlternateRowColours()
-        self.ExtendRulesAndAlternateColour()
         self.InsertColumn(0, "Key", width=120)
         self.InsertColumn(1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
 
@@ -384,16 +400,14 @@ class InfoListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
     def OnGetItemText(self, item, column):
         return str(self.info[item][column])
 
-class ParamListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+class ParamListCtrl(ListCtrlBase):
     def __init__(self, parent):
-        FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
-        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        ListCtrlBase.__init__(self, parent)
         self.ulg = None
         self.info = []
-        self.EnableAlternateRowColours()
-        self.ExtendRulesAndAlternateColour()
         self.InsertColumn(0, "Key", width=200)
         self.InsertColumn(1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+        self.pattern = None
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
@@ -409,20 +423,29 @@ class ParamListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin)
         self.ulg = ulg
         self.SetItemCount(0)
         if self.ulg is not None:
+            self.FillParams(self.pattern)
+
+    def FillParams(self, pattern):
+        self.pattern = pattern
+        if isinstance(self.pattern, str):
+            self.pattern = self.pattern.lower()
+            self.pattern.strip()
+        if pattern:
+            self.info = [[k, v] for k, v in self.ulg.initial_parameters.items() if pattern in str(k).lower() or pattern in str(v).lower()]
+        else:
             self.info = [[k, v] for k, v in self.ulg.initial_parameters.items()]
-            self.info = sorted(self.info, key=lambda x: x[0])
-            self.SetItemCount(len(self.info))
+
+        self.info = sorted(self.info, key=lambda x: x[0])
+        self.SetItemCount(len(self.info))
+        self.RefreshItems(0, len(self.info)-1)
 
     def OnGetItemText(self, item, column):
         return str(self.info[item][column])
 
-class ChgParamListCtrl(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+class ChgParamListCtrl(ListCtrlBase):
     def __init__(self, parent):
-        FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
-        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        ListCtrlBase.__init__(self, parent)
         self.ulg = None
-        self.EnableAlternateRowColours()
-        self.ExtendRulesAndAlternateColour()
         self.InsertColumn(0, "Timestamp", width=120)
         self.InsertColumn(1, "Key", width=200)
         self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
@@ -473,32 +496,18 @@ class ULogPanel(wx.Panel):
 
         self.notebook = aui.AuiNotebook(self, agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER)
 
-        panel = wx.Panel(self.notebook)
-        self.tb2 = aui.AuiToolBar(panel)
-        self.search = AutocompleteTextCtrl(self.tb2)
-        self.search.SetHint('searching ...')
-        item = self.tb2.AddControl(self.search)
-        item.SetProportion(1)
-        self.tb2.Realize()
-
-        self.tree = ULogTree(panel)
-
-        szPanel = wx.BoxSizer(wx.VERTICAL)
-        szPanel.Add(self.tb2, 0, wx.EXPAND, 5)
-        szPanel.Add(self.tree, 1, wx.EXPAND)
-        szPanel.Fit(panel)
-        panel.SetSizer(szPanel)
-
+        # data page
+        panel, self.search, self.tree = self.CreatePageWithSearch(ULogTree)
         self.notebook.AddPage(panel, 'Data')
-
-        self.logList = MessageListCtrl(self.notebook)
-        self.notebook.AddPage(self.logList, 'Log')
+        # log page
+        panel_log, self.search_log, self.logList = self.CreatePageWithSearch(MessageListCtrl)
+        self.notebook.AddPage(panel_log, 'Log')
 
         self.infoList = InfoListCtrl(self.notebook)
         self.notebook.AddPage(self.infoList, 'Info')
 
-        self.paramList = ParamListCtrl(self.notebook)
-        self.notebook.AddPage(self.paramList, 'Param')
+        panel_param, self.search_param, self.paramList = self.CreatePageWithSearch(ParamListCtrl)
+        self.notebook.AddPage(panel_param, 'Param')
 
         self.chgParamList = ChgParamListCtrl(self.notebook)
         self.notebook.AddPage(self.chgParamList, 'Changed Param')
@@ -517,6 +526,8 @@ class ULogPanel(wx.Panel):
         self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
         self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnTreeItemActivated)
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearchLog, self.search_log)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearchParam, self.search_param)
 
         # load the ulog
         self.ulg = None
@@ -525,6 +536,18 @@ class ULogPanel(wx.Panel):
 
         self.num = self.Gcu.get_next_num()
         self.Gcu.set_active(self)
+
+    def CreatePageWithSearch(self, PageClass):
+        panel = wx.Panel(self.notebook)
+        search = AutocompleteTextCtrl(panel)
+        search.SetHint('searching ...')
+        ctrl = PageClass(panel)
+        szAll = wx.BoxSizer(wx.VERTICAL)
+        szAll.Add(search, 0, wx.EXPAND|wx.ALL, 2)
+        szAll.Add(ctrl, 1, wx.EXPAND)
+        szAll.Fit(panel)
+        panel.SetSizer(szAll)
+        return panel, search, ctrl
 
     def Load(self, filename):
         """load the ulog file"""
@@ -542,6 +565,14 @@ class ULogPanel(wx.Panel):
         pattern = self.search.GetValue()
         self.tree.FillTree(pattern)
         self.search.SetFocus()
+
+    def OnDoSearchLog(self, evt):
+        pattern = self.search_log.GetValue()
+        self.logList.FillMessage(pattern)
+
+    def OnDoSearchParam(self, evt):
+        pattern = self.search_param.GetValue()
+        self.paramList.FillParams(pattern)
 
     def Destroy(self):
         """
