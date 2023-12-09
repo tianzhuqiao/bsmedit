@@ -1,3 +1,4 @@
+import matplotlib
 import datetime
 import math
 import wx
@@ -148,6 +149,8 @@ class DataCursor(GraphObject):
 
     def mouse_move(self, event):
         """move the annotation position"""
+        if event.button != matplotlib.backend_bases.MouseButton.LEFT:
+            return False
         # return if no active annotation or the mouse is not pressed
         if self.mx is None or self.my is None or self.active is None or \
                 self.cx is None or self.cy is None:
