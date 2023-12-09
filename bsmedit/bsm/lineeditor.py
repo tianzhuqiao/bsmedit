@@ -64,7 +64,7 @@ class LineEditor(GraphObject):
 
         mx, my = event.xdata, event.ydata
 
-        if self.draggable:
+        if self.draggable and self.active_line:
             inv = self.active_line.axes.transData.inverted()
             mx, my = inv.transform((event.x, event.y))
             if self.round_y_to is not None:
@@ -156,7 +156,7 @@ class LineEditor(GraphObject):
             if self.active_line.axes in self.marker:
                 self.marker[self.active_line.axes].set_visible(False)
 
-    def GetMenu(self):
+    def GetMenu(self, axes):
         cmd = [{'type': wx.ITEM_CHECK, 'id': self.ID_XY_MODE, 'label': 'x/y mode',
                 'check': self.mode == ''},
                {'type': wx.ITEM_CHECK, 'id': self.ID_X_MODE, 'label': 'x only mode',
@@ -185,7 +185,7 @@ class LineEditor(GraphObject):
             cmd.append({'type': wx.ITEM_DROPDOWN, 'label': 'Lines', 'items': menu_lines})
         return cmd
 
-    def ProcessCommand(self, cmd):
+    def ProcessCommand(self, cmd, axes):
         if cmd == self.ID_XY_MODE:
             self.mode = ''
         elif cmd == self.ID_X_MODE:

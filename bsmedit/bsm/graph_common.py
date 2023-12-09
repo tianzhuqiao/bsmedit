@@ -35,36 +35,13 @@ class GraphObject():
         return active_line, min_dis
 
     def distance_to_line(self, line, mx, my):
-        # distance from (x2, y2) to line formed by (x0, y0) (closest point on line)
-        # and its neighbour (x1, y1)
-        # in display coordinate
+        # distance from the closest point in line to (mx, my) in display coordinate
         inv = line.axes.transData.inverted()
         dmx, dmy = inv.transform((mx, my))
         didx, dx, dy = self.get_closest(line, dmx, dmy)
 
         x0, y0 = line.axes.transData.transform((dx, dy))
-        data_x, data_y = line.get_data(False)
-        if len(data_x) == 1:
-            # single point line
-            x1, y1 = x0, y0
-        else:
-            if didx == len(data_x) - 1 or (mx < x0 and didx > 0):
-                x1, y1 = data_x[didx-1], data_y[didx-1]
-            else:
-                x1, y1 = data_x[didx+1], data_y[didx+1]
-            x1, y1 = line.axes.transData.transform((x1, y1))
-
-        if x0 == x1:
-            return abs(mx-x0)
-        elif y0 == y1:
-            return abs(my-y0)
-        # the line formed by (x0,y0) and (x1, y1)
-        # ax + by + c = 0
-        a = (y1-y0)/(x1-x0)
-        b = -1
-        c = y0 - a*x0
-
-        dis = np.abs(a*mx+b*my + c)/np.sqrt(a**2+b**2)
+        dis = np.sqrt((x0-mx)**2 + (y0-my)**2)
         return dis
 
     def get_closest(self, line, mx, my, tolerance=0):

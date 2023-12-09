@@ -197,6 +197,8 @@ class DataCursor(GraphObject):
         """
         select the active annotation which is closest to the mouse position
         """
+        if event.button != matplotlib.backend_bases.MouseButton.LEFT:
+            return False
 
         axes = [a for a in self.figure.get_axes()
                 if a.in_axes(event)]
@@ -267,14 +269,19 @@ class DataCursor(GraphObject):
         self.lines.append(line)
         self.set_active(ant)
 
-    def GetMenu(self):
+    def GetMenu(self, axes):
+        active_in_axes = False
+        if self.active and self.active.get_visible():
+            idx = self.annotations.index(self.active)
+            active_in_axes = self.lines[idx].axes in axes
+        ant_in_axes = any(l.axes in axes for l in self.lines)
         cmd = [{'id': self.ID_DELETE_DATATIP, 'label': 'Delete current datatip',
-                'enable': self.active is not None and self.active.get_visible()},
+                'enable': active_in_axes},
                {'id': self.ID_CLEAR_DATATIP, 'label': 'Delete all datatip',
-                'enable': len(self.annotations) > 0},
+                'enable': ant_in_axes},
                {'type': wx.ITEM_SEPARATOR},
                {'id': self.ID_EXPORT_DATATIP, 'label': 'Export datatip data...',
-                'enable': len(self.annotations) > 0},
+                'enable': ant_in_axes},
                {'type': wx.ITEM_SEPARATOR},
                {'id': wx.ID_PREFERENCES, 'label': 'Settings ...'},
                ]
@@ -292,36 +299,52 @@ class DataCursor(GraphObject):
         else:
             event.Skip()
 
-    def ProcessCommand(self, cmd):
+    def ProcessCommand(self, cmd, axes):
         """process the context menu command"""
+        ant_in_axes = [l.axes in axes for l in self.lines]
+        active_in_axes = False
+        if self.active:
+            idx = self.annotations.index(self.active)
+            active_in_axes = ant_in_axes[idx]
+
         if cmd == self.ID_DELETE_DATATIP:
-            if not self.active:
+            if not active_in_axes:
                 return False
             idx = self.annotations.index(self.active)
+            if not ant_in_axes[idx]:
+                return False
             self.active.remove()
             del self.annotations[idx]
             del self.lines[idx]
             self.active = None
             return True
         elif cmd == self.ID_CLEAR_DATATIP:
-            for ant in self.annotations:
-                try:
-                    # the call may fail. For example,
-                    # 1) create a figure and plot some curve
-                    # 2) create a datatip
-                    # 3) call clf() to clear the figure, the datatip will be
-                    #    cleared, but we will not know
-                    ant.remove()
-                except:
-                    pass
-            self.annotations = []
-            self.lines = []
+            ant_in_axes = [l.axes in axes for l in self.lines]
+            annotations = []
+            lines = []
+            for idx, ant in enumerate(self.annotations):
+                if ant_in_axes[idx]:
+                    try:
+                        # the call may fail. For example,
+                        # 1) create a figure and plot some curve
+                        # 2) create a datatip
+                        # 3) call clf() to clear the figure, the datatip will be
+                        #    cleared, but we will not know
+                        ant.remove()
+                    except:
+                        pass
+                else:
+                    annotations.append(self.annotations[idx])
+                    lines.append(self.lines[idx])
+            self.annotations = annotations
+            self.lines = lines
             self.active = None
             return True
         elif cmd == self.ID_EXPORT_DATATIP:
             datatip_data = []
-            for ant in self.annotations:
-                datatip_data.append(ant.xy_orig)
+            for idx, ant in enumerate(self.annotations):
+                if ant_in_axes[idx]:
+                    datatip_data.append(ant.xy_orig)
             datatip_data = np.array(datatip_data)
 
             np.save('_datatip.npy', datatip_data)
@@ -338,7 +361,9 @@ class DataCursor(GraphObject):
             return True
         elif cmd == wx.ID_PREFERENCES:
             settings = [s.duplicate() for s in  self.settings]
-            active = self.active
+            active = None
+            if active_in_axes:
+                active = self.active
             if active:
                 for idx, p in enumerate(settings):
                     n = settings[idx].GetName()
@@ -360,7 +385,10 @@ class DataCursor(GraphObject):
                     self.SaveConfig(settings)
                 if apply_all:
                     self.LoadConfig(settings)
-                    self.ApplyConfigAll(self.get_config(settings))
+                    config = self.get_config(settings)
+                    for idx, ant in enumerate(self.annotations):
+                        if ant_in_axes[idx]:
+                            self.ApplyConfig(ant, config)
                 elif active:
                     self.set_active(active)
                     self.ApplyConfig(active, self.get_config(settings))

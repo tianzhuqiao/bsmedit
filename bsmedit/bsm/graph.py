@@ -84,6 +84,7 @@ class Toolbar(GraphToolbar):
     ID_AUTO_SCALE_Y = wx.NewIdRef()
     ID_AUTO_SCALE_XY = wx.NewIdRef()
     ID_SPLIT_HORZ = wx.NewIdRef()
+    ID_SPLIT_VERT_SHARE_XAXIS = wx.NewIdRef()
     ID_SPLIT_VERT = wx.NewIdRef()
     ID_DELETE_SUBPLOT = wx.NewIdRef()
     ID_DELETE_LINES = wx.NewIdRef()
@@ -118,11 +119,11 @@ class Toolbar(GraphToolbar):
         self.linestyle_ids = {}
         self.marker_ids = {}
 
-    def GetMenu(self):
+    def GetMenu(self, axes):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'GetMenu'):
             return []
-        return action.GetMenu()
+        return action.GetMenu(axes)
 
     def key_down(self, event):
         action = self.actions.get(self.mode, None)
@@ -130,11 +131,11 @@ class Toolbar(GraphToolbar):
             return
         action.key_down(event)
 
-    def ProcessCommand(self, cmd):
+    def ProcessCommand(self, cmd, axes):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'ProcessCommand'):
             return
-        action.ProcessCommand(cmd)
+        action.ProcessCommand(cmd, axes)
 
     def OnPick(self, event):
         action = self.actions.get(self.mode, None)
@@ -168,7 +169,6 @@ class Toolbar(GraphToolbar):
         action = self.actions.get(self.mode, None)
         if action and hasattr(action, 'mouse_released'):
             action.mouse_released(event)
-            return
 
         if event.button == matplotlib.backend_bases.MouseButton.RIGHT:
             self.OnContextMenu(event)
@@ -183,6 +183,14 @@ class Toolbar(GraphToolbar):
         axes = [a for a in self.figure.get_axes()
                 if a.in_axes(event)]
         if not axes:
+            return
+        menus = self.GetMenu(axes)
+        if len(menus) > 0:
+            menu = build_menu_from_list(menus)
+            mid = PopupMenu(self, menu)
+            if mid > 0:
+                self.ProcessCommand(mid, axes)
+            menu.Destroy()
             return
         menu = wx.Menu()
         style_menu = wx.Menu()
@@ -200,11 +208,13 @@ class Toolbar(GraphToolbar):
                 if k not in self.marker_ids:
                     self.marker_ids[k] = wx.NewIdRef()
                 marker_menu.Append(self.marker_ids[k], k)
-        menu.AppendSubMenu(style_menu, "Line Style")
-        menu.AppendSubMenu(marker_menu, "Marker Style")
+        menu.AppendSubMenu(style_menu, "Line style")
+        menu.AppendSubMenu(marker_menu, "Marker style")
         menu.AppendSeparator()
-        menu.Append(self.ID_SPLIT_VERT, "Split Vertically")
-        menu.Append(self.ID_DELETE_SUBPLOT, "Delete Plot")
+        menu.Append(self.ID_SPLIT_VERT, "Split vertically")
+        menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS, "Split vertically with shared xaxis")
+        menu.AppendSeparator()
+        menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
         cmd = PopupMenu(self, menu)
         if cmd in self.linestyle_ids.values():
@@ -217,7 +227,7 @@ class Toolbar(GraphToolbar):
             for ax in axes:
                 for l in ax.lines:
                     l.set_marker(marker)
-        elif cmd == self.ID_SPLIT_VERT:
+        elif cmd in [self.ID_SPLIT_VERT, self.ID_SPLIT_VERT_SHARE_XAXIS]:
             g = axes[0].get_gridspec()
             n, m, r, c = axes[0].get_subplotspec().get_geometry()
             g2 = matplotlib.gridspec.GridSpec(n+1, m)
@@ -226,7 +236,10 @@ class Toolbar(GraphToolbar):
                 if i>r:
                     i = i+1
                 ax.set_subplotspec(g2[i])
-            ax = self.figure.add_subplot(g2[r+1], sharex=axes[0])
+            if cmd == self.ID_SPLIT_VERT_SHARE_XAXIS:
+                ax = self.figure.add_subplot(g2[r+1], sharex=axes[0])
+            else:
+                ax = self.figure.add_subplot(g2[r+1])
             ax.grid(True)
         elif cmd == self.ID_DELETE_SUBPLOT:
             g = axes[0].get_gridspec()
@@ -688,7 +701,8 @@ class MatplotPanel(wx.Panel):
         # remove the wx.CallAfter, as the problem doesn't show on xubuntu
         # 22.04/matplotlib 3.7.1/wx 4.2.0, and on xubuntu 22.04, wx.CallAfter
         # will cause the menu to disappear as soon as the right button is up
-        self._show_context_menu()
+        #self._show_context_menu()
+        pass
 
     def close_event(self):
         event = CloseEvent('close_event',  self.canvas, guiEvent=None)
