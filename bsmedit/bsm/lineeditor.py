@@ -4,11 +4,11 @@ import numpy as np
 from .graph_common import GraphObject
 
 class LineEditor(GraphObject):
-    ID_XY_MODE = wx.NewId()
-    ID_X_MODE = wx.NewId()
-    ID_Y_MODE = wx.NewId()
-    ID_ROUND_Y = wx.NewId()
-    ID_EXPORT_TO_TERM = wx.NewId()
+    ID_XY_MODE = wx.NewIdRef()
+    ID_X_MODE = wx.NewIdRef()
+    ID_Y_MODE = wx.NewIdRef()
+    ID_ROUND_Y = wx.NewIdRef()
+    ID_EXPORT_TO_TERM = wx.NewIdRef()
     ID_LINES = []
     def __init__(self, figure):
         super().__init__(figure)
@@ -177,7 +177,7 @@ class LineEditor(GraphObject):
         for _, lines in self.lines.items():
             for line in lines:
                 while i >= len(self.ID_LINES):
-                    self.ID_LINES.append(wx.NewId())
+                    self.ID_LINES.append(wx.NewIdRef())
                 menu_lines.append({'type': wx.ITEM_CHECK, 'id': self.ID_LINES[i],
                               'label': line.get_label(), 'check': self.active_line == line})
                 i += 1

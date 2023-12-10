@@ -69,11 +69,11 @@ class GraphObject():
                 mini = np.argmin((x-mx)**2 * gx**2 + (y-my)**2 * gy**2)
         return mini, x[mini], y[mini]
 
-    def GetMenu(self):
+    def GetMenu(self, axes):
         '''return the context menu'''
         return []
 
-    def ProcessCommand(self, cmd):
+    def ProcessCommand(self, cmd, axes):
         '''process the menu command'''
 
     def pick(self, event):

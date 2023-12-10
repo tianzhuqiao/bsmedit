@@ -13,9 +13,10 @@ class DataCursor(GraphObject):
     text_template = 'x: %0.2f\ny: %0.2f'
     MAX_DISTANCE = 5
 
-    ID_DELETE_DATATIP = wx.NewId()
-    ID_CLEAR_DATATIP = wx.NewId()
-    ID_EXPORT_DATATIP = wx.NewId()
+    ID_DELETE_DATATIP = wx.NewIdRef()
+    ID_CLEAR_DATATIP = wx.NewIdRef()
+    ID_EXPORT_DATATIP = wx.NewIdRef()
+    ID_SETTING = wx.NewIdRef()
     def __init__(self, figure, win):
         super().__init__(figure)
         self.annotations = []
@@ -283,7 +284,7 @@ class DataCursor(GraphObject):
                {'id': self.ID_EXPORT_DATATIP, 'label': 'Export datatip data...',
                 'enable': ant_in_axes},
                {'type': wx.ITEM_SEPARATOR},
-               {'id': wx.ID_PREFERENCES, 'label': 'Settings ...'},
+               {'id': self.ID_SETTING, 'label': 'Settings ...'},
                ]
         return cmd
 
@@ -359,7 +360,7 @@ class DataCursor(GraphObject):
                     verbose=True,
                     history=False)
             return True
-        elif cmd == wx.ID_PREFERENCES:
+        elif cmd == self.ID_SETTING:
             settings = [s.duplicate() for s in  self.settings]
             active = None
             if active_in_axes:

@@ -122,8 +122,8 @@ class Toolbar(GraphToolbar):
     def GetMenu(self, axes):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'GetMenu'):
-            return []
-        return action.GetMenu(axes)
+            return [], ""
+        return action.GetMenu(axes), self.mode
 
     def key_down(self, event):
         action = self.actions.get(self.mode, None)
@@ -184,14 +184,7 @@ class Toolbar(GraphToolbar):
                 if a.in_axes(event)]
         if not axes:
             return
-        menus = self.GetMenu(axes)
-        if len(menus) > 0:
-            menu = build_menu_from_list(menus)
-            mid = PopupMenu(self, menu)
-            if mid > 0:
-                self.ProcessCommand(mid, axes)
-            menu.Destroy()
-            return
+
         menu = wx.Menu()
         style_menu = wx.Menu()
 
@@ -216,6 +209,14 @@ class Toolbar(GraphToolbar):
         menu.AppendSeparator()
         menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
+
+        # menu for current mode
+        menus, name = self.GetMenu(axes)
+        if len(menus) > 0:
+            menu.AppendSeparator()
+            menu_mode = build_menu_from_list(menus)
+            menu.AppendSubMenu(menu_mode, name.capitalize())
+
         cmd = PopupMenu(self, menu)
         if cmd in self.linestyle_ids.values():
             style = list(self.linestyle_ids.keys())[list(self.linestyle_ids.values()).index(cmd)]
@@ -256,6 +257,8 @@ class Toolbar(GraphToolbar):
             for ax in axes:
                 ax.cla()
                 ax.grid(True)
+        else:
+            self.ProcessCommand(cmd, axes)
 
     def OnMove(self, event):
         action = self.actions.get(self.mode, None)
@@ -587,7 +590,8 @@ class DataDropTarget(wx.DropTarget):
                         title = l[0]
                         line = pandas.DataFrame.from_dict(json.loads(l[1]))
                         for i in range(1, len(line.columns)):
-                            ax.plot(line[line.columns[0]], line[line.columns[i]], label="/".join([title, line.columns[i]]))
+                            ax.plot(line[line.columns[0]], line[line.columns[i]],
+                                    label="/".join([title, line.columns[i]]))
                     ax.legend()
                     break
         except:
@@ -649,7 +653,6 @@ class MatplotPanel(wx.Panel):
         self.canvas.mpl_connect('button_press_event', self._onClick)
         dp.connect(self.simLoad, 'sim.loaded')
         self.Bind(wx.EVT_CONTEXT_MENU, self.OnContextMenu)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand, id=wx.ID_NEW)
         self.Bind(wx.EVT_CHAR_HOOK, self.OnKeyDown)
 
         dt = DataDropTarget(self.canvas)
@@ -676,22 +679,6 @@ class MatplotPanel(wx.Panel):
     def OnKeyDown(self, evt):
         self.toolbar.key_down(evt)
 
-    def OnProcessCommand(self, evt):
-        if self.toolbar.datacursor.ProcessCommand(evt.GetId()):
-            self.canvas.draw()
-
-    def _show_context_menu(self):
-        menus = self.toolbar.GetMenu()
-        if len(menus) == 0:
-            return
-        menu = build_menu_from_list(menus)
-        if self.canvas.HasCapture():
-            self.canvas.ReleaseMouse()
-        mid = PopupMenu(self, menu)
-        if mid > 0:
-            self.toolbar.ProcessCommand(mid)
-        menu.Destroy()
-
     def OnContextMenu(self, event):
         # Show menu after the current and pending event handlers have been
         # completed, otherwise it causes the following error in some system
@@ -701,7 +688,7 @@ class MatplotPanel(wx.Panel):
         # remove the wx.CallAfter, as the problem doesn't show on xubuntu
         # 22.04/matplotlib 3.7.1/wx 4.2.0, and on xubuntu 22.04, wx.CallAfter
         # will cause the menu to disappear as soon as the right button is up
-        #self._show_context_menu()
+        # move the function to toolbar/matplotlib event
         pass
 
     def close_event(self):
