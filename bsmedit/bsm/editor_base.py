@@ -911,7 +911,7 @@ class EditorBase(wx.py.editwindow.EditWindow):
         menu.AppendSeparator()
         menu.Append(self.ID_CUT, 'Cut')
         menu.Append(self.ID_COPY, 'Copy')
-        menu.Append(wx.NewId(), 'Paste')
+        menu.Append(self.ID_PASTE, 'Paste')
         menu.Append(self.ID_CLEAR, 'Clear')
         menu.AppendSeparator()
         menu.Append(self.ID_SELECTALL, 'Select All')

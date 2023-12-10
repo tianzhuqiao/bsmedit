@@ -197,7 +197,7 @@ class HelpPanel(wx.Panel):
 
 
 class HistoryPanel(wx.Panel):
-    ID_EXECUTE = wx.NewId()
+    ID_EXECUTE = wx.NewIdRef()
     TIME_STAMP_HEADER = "#bsm#"
 
     def __init__(self, parent):
@@ -483,16 +483,16 @@ class HistoryPanel(wx.Panel):
 
 class DirPanel(wx.Panel):
 
-    ID_GOTO_PARENT = wx.NewId()
-    ID_GOTO_HOME = wx.NewId()
-    ID_COPY_PATH = wx.NewId()
-    ID_COPY_PATH_REL = wx.NewId()
-    ID_OPEN_IN_FINDER = wx.NewId()
-    ID_RENAME = wx.NewId()
-    ID_PASTE_FOLDER = wx.NewId()
-    ID_MORE = wx.NewId()
-    ID_SHOW_HIDDEN = wx.NewId()
-    ID_SHOW_PATTERN_TOOLBAR = wx.NewId()
+    ID_GOTO_PARENT = wx.NewIdRef()
+    ID_GOTO_HOME = wx.NewIdRef()
+    ID_COPY_PATH = wx.NewIdRef()
+    ID_COPY_PATH_REL = wx.NewIdRef()
+    ID_OPEN_IN_FINDER = wx.NewIdRef()
+    ID_RENAME = wx.NewIdRef()
+    ID_PASTE_FOLDER = wx.NewIdRef()
+    ID_MORE = wx.NewIdRef()
+    ID_SHOW_HIDDEN = wx.NewIdRef()
+    ID_SHOW_PATTERN_TOOLBAR = wx.NewIdRef()
 
     def __init__(self, parent):
         wx.Panel.__init__(self, parent)

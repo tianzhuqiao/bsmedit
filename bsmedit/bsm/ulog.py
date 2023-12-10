@@ -491,9 +491,9 @@ class ChgParamListCtrl(ListCtrlBase):
 
 class ULogPanel(wx.Panel):
     Gcu = Gcm()
-    ID_ULOG_OPEN = wx.NewId()
-    ID_ULOG_EXPORT = wx.NewId()
-    ID_ULOG_EXPORT_WITH_TIMESTAMP = wx.NewId()
+    ID_ULOG_OPEN = wx.NewIdRef()
+    ID_ULOG_EXPORT = wx.NewIdRef()
+    ID_ULOG_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
 
     def __init__(self, parent, filename=None):
         wx.Panel.__init__(self, parent)
@@ -716,13 +716,13 @@ class ULogPanel(wx.Panel):
 class ULog:
     frame = None
     ID_ULOG_NEW = wx.NOT_FOUND
-    ID_PANE_COPY_PATH = wx.NewId()
-    ID_PANE_COPY_PATH_REL = wx.NewId()
-    ID_PANE_SHOW_IN_FINDER = wx.NewId()
-    ID_PANE_SHOW_IN_BROWSING = wx.NewId()
-    ID_PANE_CLOSE = wx.NewId()
-    ID_PANE_CLOSE_OTHERS = wx.NewId()
-    ID_PANE_CLOSE_ALL = wx.NewId()
+    ID_PANE_COPY_PATH = wx.NewIdRef()
+    ID_PANE_COPY_PATH_REL = wx.NewIdRef()
+    ID_PANE_SHOW_IN_FINDER = wx.NewIdRef()
+    ID_PANE_SHOW_IN_BROWSING = wx.NewIdRef()
+    ID_PANE_CLOSE = wx.NewIdRef()
+    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
+    ID_PANE_CLOSE_ALL = wx.NewIdRef()
 
 
     @classmethod

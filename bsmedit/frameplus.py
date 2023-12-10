@@ -163,7 +163,7 @@ class FramePlus(wx.Frame):
         else:
             newid = id
             if newid is None:
-                newid = wx.NewId()
+                newid = wx.NewIdRef()
             if kind == 'Normal':
                 newitem = wx.MenuItem(menu,
                                       newid,

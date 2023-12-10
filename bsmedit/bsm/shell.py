@@ -45,8 +45,8 @@ def _doc(command):
 @EditorFind
 @EditorTheme
 class Shell(pyshell.Shell):
-    ID_COPY_PLUS = wx.NewId()
-    ID_PASTE_PLUS = wx.NewId()
+    ID_COPY_PLUS = wx.NewIdRef()
+    ID_PASTE_PLUS = wx.NewIdRef()
     ID_WRAP_MODE = wx.NewIdRef()
 
     def __init__(self,

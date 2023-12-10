@@ -28,10 +28,10 @@ class FileDropTarget(wx.FileDropTarget):
         return True
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
-    TBMENU_RESTORE = wx.NewId()
-    TBMENU_CLOSE = wx.NewId()
-    TBMENU_CHANGE = wx.NewId()
-    TBMENU_REMOVE = wx.NewId()
+    TBMENU_RESTORE = wx.NewIdRef()
+    TBMENU_CLOSE = wx.NewIdRef()
+    TBMENU_CHANGE = wx.NewIdRef()
+    TBMENU_REMOVE = wx.NewIdRef()
 
     def __init__(self, frame, icon):
         wx.adv.TaskBarIcon.__init__(self, iconType=wx.adv.TBI_DOCK)
@@ -107,8 +107,8 @@ def hinted_tuple_hook(obj):
 
 class MainFrame(FramePlus):
 
-    ID_VM_RENAME = wx.NewId()
-    ID_CONTACT = wx.NewId()
+    ID_VM_RENAME = wx.NewIdRef()
+    ID_CONTACT = wx.NewIdRef()
 
     def __init__(self, parent, **kwargs):
         FramePlus.__init__(self,
