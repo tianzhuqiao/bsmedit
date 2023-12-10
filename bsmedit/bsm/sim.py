@@ -608,7 +608,7 @@ class DumpDlg(wx.Dialog):
         return self.trace
 
 class DumpManageDlg(wx.Dialog):
-    ID_MP_DUMP_STOP = wx.NewId()
+    ID_MP_DUMP_STOP = wx.NewIdRef()
     def __init__(self, sim, parent, id=-1, title='Manage dump files',
                  size=wx.DefaultSize, pos=wx.DefaultPosition,
                  style=wx.DEFAULT_DIALOG_STYLE|wx.RESIZE_BORDER):
@@ -680,15 +680,15 @@ class DumpManageDlg(wx.Dialog):
         return info
 
 class SimPanel(wx.Panel):
-    ID_SIM_STEP = wx.NewId()
-    ID_SIM_RUN = wx.NewId()
-    ID_SIM_PAUSE = wx.NewId()
-    ID_SIM_SET = wx.NewId()
-    ID_MP_DUMP = wx.NewId()
-    ID_MP_TRACE_BUF = wx.NewId()
-    ID_MP_ADD_TO_NEW_VIEWER = wx.NewId()
-    ID_MP_ADD_TO_VIEWER_START = wx.NewId()
-    ID_MP_DUMP_MANAGE = wx.NewId()
+    ID_SIM_STEP = wx.NewIdRef()
+    ID_SIM_RUN = wx.NewIdRef()
+    ID_SIM_PAUSE = wx.NewIdRef()
+    ID_SIM_SET = wx.NewIdRef()
+    ID_MP_DUMP = wx.NewIdRef()
+    ID_MP_TRACE_BUF = wx.NewIdRef()
+    ID_MP_ADD_TO_NEW_VIEWER = wx.NewIdRef()
+    ID_MP_ADD_TO_VIEWER_START = wx.NewIdRef()
+    ID_MP_DUMP_MANAGE = wx.NewIdRef()
 
     def __init__(self, parent, num=None, filename=None, silent=False):
         wx.Panel.__init__(self, parent)
@@ -1353,8 +1353,8 @@ class SimPropArt(pg.PropArtNative):
 
 class SimPropGrid(pg.PropGrid):
     GCM = Gcm()
-    ID_PROP_BREAKPOINT = wx.NewId()
-    ID_PROP_BREAKPOINT_CLEAR = wx.NewId()
+    ID_PROP_BREAKPOINT = wx.NewIdRef()
+    ID_PROP_BREAKPOINT_CLEAR = wx.NewIdRef()
 
     def __init__(self, parent, num=None):
         pg.PropGrid.__init__(self, parent)
@@ -1513,7 +1513,7 @@ class SimPropGrid(pg.PropGrid):
         """return the index of prop, or -1 if not found"""
         if isinstance(prop, pg.PropBase) and not isinstance(prop, PropSim):
             for i, p in enumerate(self._props):
-                if prop == p.prop:
+                if prop == p or (isinstance(prop, PropSim) and prop == p.prop):
                     return i
             return -1
 
