@@ -210,6 +210,13 @@ class Toolbar(GraphToolbar):
         menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
 
+        scale_menu = wx.Menu()
+        scale_menu.Append(self.ID_AUTO_SCALE_XY, "Auto scale")
+        scale_menu.AppendSeparator()
+        scale_menu.Append(self.ID_AUTO_SCALE_X, "Auto scale x-axis")
+        scale_menu.Append(self.ID_AUTO_SCALE_Y, "Auto scale y-axis")
+        menu.AppendSeparator()
+        menu.AppendSubMenu(scale_menu, "Auto scale")
         # menu for current mode
         menus, name = self.GetMenu(axes)
         if len(menus) > 0:
@@ -242,6 +249,7 @@ class Toolbar(GraphToolbar):
             else:
                 ax = self.figure.add_subplot(g2[r+1])
             ax.grid(True)
+            self._nav_stack.clear()
         elif cmd == self.ID_DELETE_SUBPLOT:
             g = axes[0].get_gridspec()
             n, m, r, c = axes[0].get_subplotspec().get_geometry()
@@ -253,10 +261,19 @@ class Toolbar(GraphToolbar):
                     if i>r:
                         i = i-1
                     ax.set_subplotspec(g2[i])
+            self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
             for ax in axes:
                 ax.cla()
                 ax.grid(True)
+            self._nav_stack.clear()
+        elif cmd in [self.ID_AUTO_SCALE_XY, self.ID_AUTO_SCALE_X, self.ID_AUTO_SCALE_Y]:
+            if cmd == self.ID_AUTO_SCALE_X:
+                self.do_auto_scale(axes, 'x')
+            elif cmd == self.ID_AUTO_SCALE_Y:
+                self.do_auto_scale(axes, 'y')
+            else:
+                self.do_auto_scale(axes)
         else:
             self.ProcessCommand(cmd, axes)
 
@@ -352,8 +369,7 @@ class Toolbar(GraphToolbar):
             (None, None, None, None),
             ('Edit', 'Edit curve', line_edit_xpm, 'edit_figure'),
             (None, None, None, None),
-            (None, None, None, "stretch"),
-            ('Auto Scale', 'Auto Scale', more_svg, 'OnMore'),
+            #(None, None, None, "stretch"),
             #(None, None, None, None),
             #('Print', 'Print the figure', print_xpm, 'print_figure'),
         )
@@ -389,40 +405,7 @@ class Toolbar(GraphToolbar):
             self.Bind(wx.EVT_TOOL,
                       getattr(self, callback),
                       id=self.wx_ids[text])
-
-        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_X)
-        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_Y)
-        self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_AUTO_SCALE_XY)
-
         self.Realize()
-
-    def OnMore(self, event):
-        menu = wx.Menu()
-        menu.Append(self.ID_AUTO_SCALE_XY, "Auto scale")
-        menu.AppendSeparator()
-        menu.Append(self.ID_AUTO_SCALE_X, "Auto scale x-axis")
-        menu.Append(self.ID_AUTO_SCALE_Y, "Auto scale y-axis")
-
-        # line up our menu with the button
-        tb = event.GetEventObject()
-        tb.SetToolSticky(event.GetId(), True)
-        rect = tb.GetToolRect(event.GetId())
-        pt = tb.ClientToScreen(rect.GetBottomLeft())
-        pt = self.ScreenToClient(pt)
-
-        self.PopupMenu(menu, pt)
-
-        # make sure the button is "un-stuck"
-        tb.SetToolSticky(event.GetId(), False)
-
-    def OnProcessMenu(self, event):
-        eid = event.GetId()
-        if eid == self.ID_AUTO_SCALE_XY:
-            self.do_auto_scale()
-        if eid == self.ID_AUTO_SCALE_X:
-            self.do_auto_scale('x')
-        elif eid == self.ID_AUTO_SCALE_Y:
-            self.do_auto_scale('y')
 
     def OnNewFigure(self, evt):
         dp.send('shell.run',
@@ -432,8 +415,8 @@ class Toolbar(GraphToolbar):
                 debug=False,
                 history=False)
 
-    def do_auto_scale(self,axis='both'):
-        for ax in self.figure.get_axes():
+    def do_auto_scale(self, axes, axis='both'):
+        for ax in axes:
             ax.autoscale(axis=axis)
         self.figure.canvas.draw_idle()
 
