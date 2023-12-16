@@ -354,10 +354,10 @@ class MessageListCtrl(ListCtrlBase):
         if isinstance(self.pattern, str):
             self.pattern = self.pattern.lower()
             self.pattern.strip()
-        if not pattern:
+        if not self.pattern:
             self.messages = self.ulg.logged_messages
         else:
-            self.messages = [m for m in self.ulg.logged_messages if pattern in m.message.lower() or pattern in m.log_level_str().lower()]
+            self.messages = [m for m in self.ulg.logged_messages if self.pattern in m.message.lower() or self.pattern in m.log_level_str().lower()]
 
         self.SetItemCount(len(self.messages))
         self.RefreshItems(0, len(self.messages)-1)
@@ -439,8 +439,8 @@ class ParamListCtrl(ListCtrlBase):
         if isinstance(self.pattern, str):
             self.pattern = self.pattern.lower()
             self.pattern.strip()
-        if pattern:
-            self.info = [[k, v] for k, v in self.ulg.initial_parameters.items() if pattern in str(k).lower() or pattern in str(v).lower()]
+        if self.pattern:
+            self.info = [[k, v] for k, v in self.ulg.initial_parameters.items() if self.pattern in str(k).lower() or self.pattern.lower() in str(v).lower()]
         else:
             self.info = [[k, v] for k, v in self.ulg.initial_parameters.items()]
 
