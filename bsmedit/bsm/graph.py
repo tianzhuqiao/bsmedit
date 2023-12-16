@@ -17,10 +17,10 @@ from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
 from .utility import PopupMenu, build_menu_from_list, svg_to_bitmap
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
-                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm, \
-                    more_svg
+                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm
 from .. import to_byte
 from .graph_toolbar import GraphToolbar
+from .graph_subplot import add_subplot, del_subplot
 rcParams.update({'figure.autolayout': True})
 rcParams.update({'toolbar': 'None'})
 matplotlib.interactive(True)
@@ -84,8 +84,13 @@ class Toolbar(GraphToolbar):
     ID_AUTO_SCALE_Y = wx.NewIdRef()
     ID_AUTO_SCALE_XY = wx.NewIdRef()
     ID_SPLIT_HORZ = wx.NewIdRef()
-    ID_SPLIT_VERT_SHARE_XAXIS = wx.NewIdRef()
+    ID_SPLIT_HORZ_SHARE_XAXIS = wx.NewIdRef()
+    ID_SPLIT_HORZ_SHARE_YAXIS = wx.NewIdRef()
+    ID_SPLIT_HORZ_SHARE_XYAXIS = wx.NewIdRef()
     ID_SPLIT_VERT = wx.NewIdRef()
+    ID_SPLIT_VERT_SHARE_XAXIS = wx.NewIdRef()
+    ID_SPLIT_VERT_SHARE_YAXIS = wx.NewIdRef()
+    ID_SPLIT_VERT_SHARE_XYAXIS = wx.NewIdRef()
     ID_DELETE_SUBPLOT = wx.NewIdRef()
     ID_DELETE_LINES = wx.NewIdRef()
 
@@ -204,8 +209,18 @@ class Toolbar(GraphToolbar):
         menu.AppendSubMenu(style_menu, "Line style")
         menu.AppendSubMenu(marker_menu, "Marker style")
         menu.AppendSeparator()
-        menu.Append(self.ID_SPLIT_VERT, "Split vertically")
-        menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS, "Split vertically with shared xaxis")
+        split_vert_menu = wx.Menu()
+        split_vert_menu.Append(self.ID_SPLIT_VERT, "Split vertically")
+        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS, "Shared x-axis")
+        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_YAXIS, "Shared y-axis")
+        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_XYAXIS, "Shared x/y-axis")
+        menu.AppendSubMenu(split_vert_menu, "Split vertically")
+        split_horz_menu = wx.Menu()
+        split_horz_menu.Append(self.ID_SPLIT_HORZ, "Split horizontally")
+        split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_XAXIS, "Share x-axis")
+        split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_YAXIS, "Share y-axis")
+        split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_XYAXIS, "Shared x/y-axis")
+        menu.AppendSubMenu(split_horz_menu, "Split horizontally")
         menu.AppendSeparator()
         menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
@@ -235,32 +250,22 @@ class Toolbar(GraphToolbar):
             for ax in axes:
                 for l in ax.lines:
                     l.set_marker(marker)
-        elif cmd in [self.ID_SPLIT_VERT, self.ID_SPLIT_VERT_SHARE_XAXIS]:
-            g = axes[0].get_gridspec()
-            n, m, r, c = axes[0].get_subplotspec().get_geometry()
-            g2 = matplotlib.gridspec.GridSpec(n+1, m)
-            for ax in self.figure.axes:
-                _, _, i, j = ax.get_subplotspec().get_geometry()
-                if i>r:
-                    i = i+1
-                ax.set_subplotspec(g2[i])
-            if cmd == self.ID_SPLIT_VERT_SHARE_XAXIS:
-                ax = self.figure.add_subplot(g2[r+1], sharex=axes[0])
-            else:
-                ax = self.figure.add_subplot(g2[r+1])
+        elif cmd in [self.ID_SPLIT_VERT, self.ID_SPLIT_VERT_SHARE_XAXIS,
+                     self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
+                     self.ID_SPLIT_HORZ, self.ID_SPLIT_HORZ_SHARE_XAXIS,
+                     self.ID_SPLIT_HORZ_SHARE_YAXIS, self.ID_SPLIT_HORZ_SHARE_XYAXIS]:
+            vert = cmd in [self.ID_SPLIT_VERT, self.ID_SPLIT_VERT_SHARE_XAXIS,
+                           self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS]
+            sharex = cmd in [self.ID_SPLIT_VERT_SHARE_XAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
+                             self.ID_SPLIT_HORZ_SHARE_XAXIS, self.ID_SPLIT_HORZ_SHARE_XYAXIS]
+            sharey = cmd in [self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
+                             self.ID_SPLIT_HORZ_SHARE_YAXIS, self.ID_SPLIT_HORZ_SHARE_XYAXIS]
+            ax = add_subplot(axes[0], vert=vert, sharex=sharex, sharey=sharey)
             ax.grid(True)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_SUBPLOT:
-            g = axes[0].get_gridspec()
-            n, m, r, c = axes[0].get_subplotspec().get_geometry()
-            self.figure.delaxes(axes[0])
-            if n>1:
-                g2 = matplotlib.gridspec.GridSpec(n-1, m)
-                for ax in self.figure.axes:
-                    _, _, i, j = ax.get_subplotspec().get_geometry()
-                    if i>r:
-                        i = i-1
-                    ax.set_subplotspec(g2[i])
+            for ax in axes:
+                del_subplot(ax)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
             for ax in axes:
@@ -509,7 +514,7 @@ class Toolbar(GraphToolbar):
         self.datacursor.set_enable(evt.GetInt())
 
     def edit_figure(self, evt):
-        """activate the curve editting  mode"""
+        """activate the curve editing  mode"""
         # disable the pan/zoom mode
         self.set_message(self.mode)
 
