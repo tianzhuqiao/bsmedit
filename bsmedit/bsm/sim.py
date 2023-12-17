@@ -1126,6 +1126,8 @@ class PropSim(pg.PropBase):
         if self.prop:
             prop.copy(self.prop)
         self.prop = prop
+        if self.GetGrid():
+            self.GetGrid().UpdateGrid()
         return True
 
     def duplicate(self):
@@ -1513,7 +1515,7 @@ class SimPropGrid(pg.PropGrid):
         """return the index of prop, or -1 if not found"""
         if isinstance(prop, pg.PropBase) and not isinstance(prop, PropSim):
             for i, p in enumerate(self._props):
-                if prop == p or (isinstance(prop, PropSim) and prop == p.prop):
+                if prop == p or (isinstance(p, PropSim) and prop == p.prop):
                     return i
             return -1
 

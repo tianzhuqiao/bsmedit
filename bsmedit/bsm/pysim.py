@@ -12,6 +12,6 @@ def gcp():
 
 
 # add some shortcuts
-progrid = sim.propgrid
+propgrid = sim.propgrid
 simulation = sim.simulation
 plot_trace = sim.plot_trace
