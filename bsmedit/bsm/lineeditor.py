@@ -43,7 +43,7 @@ class LineEditor(GraphObject):
         axes = [a for a in self.figure.get_axes()
                 if a.in_axes(event)]
         for g in axes:
-            if self.marker.get(g, None) is None:
+            if self.marker.get(g, None) is None or self.marker[g] not in g.lines:
                 self.marker[g] = g.plot([], [], marker="o", color="red", zorder=10)[0]
                 self.marker[g].set_visible(False)
         self.axes = axes
@@ -86,10 +86,10 @@ class LineEditor(GraphObject):
                     idx_closest = np.argmin(np.abs(idx - self.index))
                     idx = idx[idx_closest]
                 # search based on x and y
-                idx2, _, _ = self.get_closest(self.active_line, mx, my)
+                #idx2, _, _ = self.get_closest(self.active_line, mx, my)
                 # find the index that is close to the current position
-                if abs(idx2 - self.index) < abs(idx - self.index):
-                    idx = idx2
+                #if abs(idx2 - self.index) < abs(idx - self.index):
+                #    idx = idx2
 
                 if self.index > 0 and idx < self.index:
                     # move to left
