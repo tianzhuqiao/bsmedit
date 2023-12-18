@@ -8,18 +8,21 @@
 <link rel="stylesheet" href="css/menu.css" type="text/css">
 <script>
 MathJax = {
+loader: {
+load: ['[tex]/tagformat']
+},
 tex: {
+packages: {'[+]': ['tagformat']},
 inlineMath: [['\\(', '\\)']],
-tags: "all"
+tags: "all",
+tagformat: {
+id: (id) => 'mjx-eqn-' + id.replace(/\s/g, '_'),
+}
 }
 };
 </script>
-<script id="MathJax-script" async
-src="https://cdn.jsdelivr.net/npm/mathjax@3.0.0/es5/tex-mml-chtml.js">
-</script>
-<script src="https://code.jquery.com/jquery-3.5.1.min.js"
-integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0="
-crossorigin="anonymous"></script>
+<script src=" https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-mml-chtml.min.js "></script>
+<script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
 <script type="text/javascript" language="javascript" src="js/menu.js"></script>
 <title>bsmedit -- C/C++/SystemC Visualizer</title>
 </head>
@@ -43,11 +46,14 @@ crossorigin="anonymous"></script>
 </ul></li>
 <li><a href="#sec-3-6">3.6 C/C++ Simulation</a></li>
 </ul></li>
+<li><a href="#sec-4">4 Misc.</a><ul>
+<li><a href="#sec-4-1">4.1 ULog</a></li>
+</ul></li>
 </ul>
 </div>
 <div class="main">
 <div class="toptitle">
-bsmedit -- C/C++/SystemC Visualizer (ver 3.2.4) <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32" height="32"></a>
+bsmedit -- C/C++/SystemC Visualizer (ver 3.2.10a1) <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32" height="32"></a>
 </div>
 <div class="content">
 <h1 id="sec-1">1 What is bsmedit</h1>
@@ -68,13 +74,13 @@ bsmedit -- C/C++/SystemC Visualizer (ver 3.2.4) <a href="https://github.com/tian
 <h1 id="sec-2">2 Get started</h1>
 <p>bsmedit can be installed with pip</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>$ pip install bsmedit
+<div class="syntax"><pre><span></span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>bsmedit
 </pre></div>
 </div>
 <p>You can also clone the repository and run setup.py</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>$ <span class="nb">cd</span> bsmedit
-$ pip install -e .
+<div class="syntax"><pre><span></span>$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>bsmedit
+$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </pre></div>
 </div>
 <h2 id="sec-2-1">2.1 Create a SystemC simulation</h2>
@@ -92,35 +98,35 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 <div class="syntax"><pre><span></span><span class="cp">#ifndef TOP_H_</span>
 <span class="cp">#define TOP_H_</span>
 
-<span class="cp">#include</span> <span class="cpf">&quot;systemc.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;systemc.h&quot;</span>
 
-<span class="k">class</span> <span class="nc">top</span> <span class="o">:</span> <span class="k">public</span> <span class="n">sc_module</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">top</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
-    <span class="n">SC_HAS_PROCESS</span><span class="p">(</span><span class="n">top</span><span class="p">);</span>
-    <span class="n">top</span><span class="p">(</span><span class="n">sc_module_name</span> <span class="n">name_</span><span class="p">)</span><span class="o">:</span>
-    <span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
-        <span class="p">,</span><span class="n">m_phase</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
-        <span class="p">,</span><span class="n">clock</span><span class="p">(</span><span class="s">&quot;CLOCK&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">)</span>
-        <span class="p">,</span><span class="n">sig_sin</span><span class="p">(</span><span class="s">&quot;sig_sin&quot;</span><span class="p">)</span>
-        <span class="p">,</span><span class="n">sig_cos</span><span class="p">(</span><span class="s">&quot;sig_cos&quot;</span><span class="p">)</span>
-        <span class="p">,</span><span class="n">sig_steps</span><span class="p">(</span><span class="s">&quot;sig_steps&quot;</span><span class="p">,</span> <span class="mi">256</span><span class="p">)</span>
-    <span class="p">{</span>
-        <span class="n">SC_METHOD</span><span class="p">(</span><span class="n">Action</span><span class="p">);</span>
-        <span class="n">sensitive_pos</span><span class="o">&lt;&lt;</span><span class="n">clock</span><span class="p">;</span>
-    <span class="p">}</span>
-    <span class="k">virtual</span> <span class="o">~</span><span class="n">top</span><span class="p">();</span>
+<span class="w">    </span><span class="n">SC_HAS_PROCESS</span><span class="p">(</span><span class="n">top</span><span class="p">);</span>
+<span class="w">    </span><span class="n">top</span><span class="p">(</span><span class="n">sc_module_name</span><span class="w"> </span><span class="n">name_</span><span class="p">)</span><span class="o">:</span>
+<span class="w">    </span><span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="n">m_phase</span><span class="p">(</span><span class="mf">0.0</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="n">clock</span><span class="p">(</span><span class="s">&quot;CLOCK&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mf">0.5</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="n">sig_sin</span><span class="p">(</span><span class="s">&quot;sig_sin&quot;</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="n">sig_cos</span><span class="p">(</span><span class="s">&quot;sig_cos&quot;</span><span class="p">)</span>
+<span class="w">        </span><span class="p">,</span><span class="n">sig_steps</span><span class="p">(</span><span class="s">&quot;sig_steps&quot;</span><span class="p">,</span><span class="w"> </span><span class="mi">256</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="n">SC_METHOD</span><span class="p">(</span><span class="n">Action</span><span class="p">);</span>
+<span class="w">        </span><span class="n">sensitive_pos</span><span class="o">&lt;&lt;</span><span class="n">clock</span><span class="p">;</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="k">virtual</span><span class="w"> </span><span class="o">~</span><span class="n">top</span><span class="p">();</span>
 
 <span class="k">private</span><span class="o">:</span>
-    <span class="kt">void</span> <span class="n">Action</span><span class="p">();</span>
+<span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Action</span><span class="p">();</span>
 
 <span class="k">private</span><span class="o">:</span>
-    <span class="kt">double</span> <span class="n">m_phase</span><span class="p">;</span>
-    <span class="c1">//signal</span>
-    <span class="n">sc_clock</span> <span class="n">clock</span><span class="p">;</span>
-    <span class="n">sc_signal</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span> <span class="n">sig_sin</span><span class="p">;</span>
-    <span class="n">sc_signal</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span> <span class="n">sig_cos</span><span class="p">;</span>
-    <span class="n">sc_signal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span> <span class="n">sig_steps</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">double</span><span class="w"> </span><span class="n">m_phase</span><span class="p">;</span>
+<span class="w">    </span><span class="c1">//signal</span>
+<span class="w">    </span><span class="n">sc_clock</span><span class="w"> </span><span class="n">clock</span><span class="p">;</span>
+<span class="w">    </span><span class="n">sc_signal</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">sig_sin</span><span class="p">;</span>
+<span class="w">    </span><span class="n">sc_signal</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">sig_cos</span><span class="p">;</span>
+<span class="w">    </span><span class="n">sc_signal</span><span class="o">&lt;</span><span class="kt">int</span><span class="o">&gt;</span><span class="w"> </span><span class="n">sig_steps</span><span class="p">;</span>
 <span class="p">};</span>
 
 <span class="cp">#endif </span><span class="c1">// #ifndef TOP_H_</span>
@@ -136,8 +142,8 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 <p>The module also defines a process method (i.e., <code>Action</code>). It is triggered at each rising edge of <b>clock</b> (also called positive edge), where all calculations are conducted.</p></li>
 <li><p>The <code>top.cpp</code> may look like</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;math.h&gt;</span><span class="cp"></span>
-<span class="cp">#include</span> <span class="cpf">&quot;top.h&quot;</span><span class="cp"></span>
+<div class="syntax"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;math.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;top.h&quot;</span>
 <span class="cp">#ifndef M_PI</span>
 <span class="cp">#define M_PI       3.14159265358979323846</span>
 <span class="cp">#endif</span>
@@ -146,28 +152,28 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 <span class="p">{</span>
 <span class="p">}</span>
 
-<span class="kt">void</span> <span class="n">top</span><span class="o">::</span><span class="n">Action</span><span class="p">()</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">top</span><span class="o">::</span><span class="n">Action</span><span class="p">()</span>
 <span class="p">{</span>
-    <span class="n">sig_sin</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">sin</span><span class="p">(</span><span class="n">m_phase</span><span class="p">));</span>
-    <span class="n">sig_cos</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">cos</span><span class="p">(</span><span class="n">m_phase</span><span class="p">));</span>
-    <span class="kt">int</span> <span class="n">steps</span> <span class="o">=</span> <span class="n">sig_steps</span><span class="p">.</span><span class="n">read</span><span class="p">();</span>
-    <span class="k">if</span><span class="p">(</span><span class="n">steps</span> <span class="o">&lt;</span> <span class="mi">256</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">steps</span> <span class="o">=</span> <span class="mi">256</span><span class="p">;</span>
-        <span class="n">sig_steps</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="mi">256</span><span class="p">);</span>
-    <span class="p">}</span>
-    <span class="n">m_phase</span> <span class="o">=</span> <span class="n">m_phase</span> <span class="o">+</span> <span class="n">M_PI</span> <span class="o">/</span> <span class="n">steps</span><span class="p">;</span>
-    <span class="k">if</span><span class="p">(</span><span class="n">m_phase</span> <span class="o">&gt;</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">M_PI</span><span class="p">)</span> <span class="n">m_phase</span> <span class="o">-=</span> <span class="mi">2</span> <span class="o">*</span> <span class="n">M_PI</span><span class="p">;</span>
+<span class="w">    </span><span class="n">sig_sin</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">sin</span><span class="p">(</span><span class="n">m_phase</span><span class="p">));</span>
+<span class="w">    </span><span class="n">sig_cos</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="n">cos</span><span class="p">(</span><span class="n">m_phase</span><span class="p">));</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">steps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sig_steps</span><span class="p">.</span><span class="n">read</span><span class="p">();</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="n">steps</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">256</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">steps</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">256</span><span class="p">;</span>
+<span class="w">        </span><span class="n">sig_steps</span><span class="p">.</span><span class="n">write</span><span class="p">(</span><span class="mi">256</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">m_phase</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">m_phase</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">M_PI</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">steps</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="n">m_phase</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">M_PI</span><span class="p">)</span><span class="w"> </span><span class="n">m_phase</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mi">2</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">M_PI</span><span class="p">;</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <p>In the process method (<code>Action</code>), we simply update the sin/cos signals based on the current phase. Then, update the phase for the next step. In this demo, the maximum step is assumed to be \(\frac{\pi}{256}\).</p></li>
 <li><p>The <code>main</code> function may look like</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="cp">#include</span> <span class="cpf">&quot;systemc.h&quot;</span><span class="cp"></span>
-<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="p">{</span>
-<span class="cp">#include</span> <span class="cpf">&quot;bsm.h&quot;</span><span class="cp"></span>
+<div class="syntax"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;systemc.h&quot;</span>
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;bsm.h&quot;</span>
 <span class="p">}</span>
-<span class="cp">#include</span> <span class="cpf">&quot;top.h&quot;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;top.h&quot;</span>
 
 <span class="c1">// define the interfaces to bsmedit</span>
 <span class="n">BSMEDIT_IMPLEMENT_MODULE</span><span class="p">(</span><span class="n">top</span><span class="p">,</span><span class="s">&quot;top&quot;</span><span class="p">);</span>
@@ -180,36 +186,36 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 <p>We will discuss the macro in detail in the following sections.</p></li>
 <li><p>The makefile may look like</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="nv">SYSC_DIR</span> <span class="o">=</span>../../systemc-2.3.1/src
-<span class="nv">SYSC_LIB</span> <span class="o">=</span>../../systemc-2.3.1/lib-linux64/libsystemc.a
-<span class="nv">XSC_DIR</span> <span class="o">=</span> ../../xsc
-<span class="nv">CC</span> <span class="o">=</span> g++
-<span class="nv">CFLAGS</span> <span class="o">=</span> -Wall -fexceptions -g -W -fPIC -DSC_INCLUDE_FX -DPURIFY -D_USRDLL
+<div class="syntax"><pre><span></span><span class="nv">SYSC_DIR</span><span class="w"> </span><span class="o">=</span>../../systemc-2.3.1/src
+<span class="nv">SYSC_LIB</span><span class="w"> </span><span class="o">=</span>../../systemc-2.3.1/lib-linux64/libsystemc.a
+<span class="nv">XSC_DIR</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>../../xsc
+<span class="nv">CC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>g++
+<span class="nv">CFLAGS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>-Wall<span class="w"> </span>-fexceptions<span class="w"> </span>-g<span class="w"> </span>-W<span class="w"> </span>-fPIC<span class="w"> </span>-DSC_INCLUDE_FX<span class="w"> </span>-DPURIFY<span class="w"> </span>-D_USRDLL
 
-<span class="nv">DEPS</span> <span class="o">=</span> top.h
+<span class="nv">DEPS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>top.h
 <span class="nv">ODIR</span><span class="o">=</span>obj
-<span class="nv">OBJ</span> <span class="o">=</span> main.o top.o bsm.o
-<span class="nv">OBJS</span> <span class="o">=</span> <span class="k">$(</span>patsubst %,<span class="k">$(</span>ODIR<span class="k">)</span>/%,<span class="k">$(</span>OBJ<span class="k">))</span>
+<span class="nv">OBJ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>main.o<span class="w"> </span>top.o<span class="w"> </span>bsm.o
+<span class="nv">OBJS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">$(</span>patsubst<span class="w"> </span>%,<span class="k">$(</span>ODIR<span class="k">)</span>/%,<span class="k">$(</span>OBJ<span class="k">))</span>
 
-<span class="nf">libstart</span><span class="o">:</span> <span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span> <span class="k">$(</span><span class="nv">SYSC_LIB</span><span class="k">)</span>
-    g++ -shared  $^ -o <span class="nv">$@</span>.so
+<span class="nf">libstart</span><span class="o">:</span><span class="w"> </span><span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span> <span class="k">$(</span><span class="nv">SYSC_LIB</span><span class="k">)</span>
+<span class="w">    </span>g++<span class="w"> </span>-shared<span class="w">  </span>$^<span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span>.so
 
-<span class="nf">$(ODIR)/bsm.o</span><span class="o">:</span> ../../<span class="n">xsc</span>/<span class="n">bsm</span>.<span class="n">cpp</span> ../../<span class="n">xsc</span>/<span class="n">bsm</span>.<span class="n">h</span>
-    g++ <span class="k">$(</span>CFLAGS<span class="k">)</span> -I<span class="k">$(</span>SYSC_DIR<span class="k">)</span> -I<span class="k">$(</span>XSC_DIR<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
+<span class="nf">$(ODIR)/bsm.o</span><span class="o">:</span><span class="w"> </span>../../<span class="n">xsc</span>/<span class="n">bsm</span>.<span class="n">cpp</span> ../../<span class="n">xsc</span>/<span class="n">bsm</span>.<span class="n">h</span>
+<span class="w">    </span>g++<span class="w"> </span><span class="k">$(</span>CFLAGS<span class="k">)</span><span class="w"> </span>-I<span class="k">$(</span>SYSC_DIR<span class="k">)</span><span class="w"> </span>-I<span class="k">$(</span>XSC_DIR<span class="k">)</span><span class="w"> </span>-c<span class="w"> </span>$&lt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span>
 
-<span class="nf">$(ODIR)/%.o</span><span class="o">:</span> %.<span class="n">cpp</span> <span class="k">$(</span><span class="nv">DEPS</span><span class="k">)</span>
-    g++ <span class="k">$(</span>CFLAGS<span class="k">)</span> -I<span class="k">$(</span>SYSC_DIR<span class="k">)</span> -I<span class="k">$(</span>XSC_DIR<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
+<span class="nf">$(ODIR)/%.o</span><span class="o">:</span><span class="w"> </span>%.<span class="n">cpp</span> <span class="k">$(</span><span class="nv">DEPS</span><span class="k">)</span>
+<span class="w">    </span>g++<span class="w"> </span><span class="k">$(</span>CFLAGS<span class="k">)</span><span class="w"> </span>-I<span class="k">$(</span>SYSC_DIR<span class="k">)</span><span class="w"> </span>-I<span class="k">$(</span>XSC_DIR<span class="k">)</span><span class="w"> </span>-c<span class="w"> </span>$&lt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span>
 
-<span class="nf">$(OBJS)</span><span class="o">:</span> <span class="p">|</span> <span class="k">$(</span><span class="nv">ODIR</span><span class="k">)</span>
+<span class="nf">$(OBJS)</span><span class="o">:</span><span class="w"> </span><span class="p">|</span> <span class="k">$(</span><span class="nv">ODIR</span><span class="k">)</span>
 
 <span class="nf">$(ODIR)</span><span class="o">:</span>
-    mkdir -p <span class="k">$(</span>ODIR<span class="k">)</span>
+<span class="w">    </span>mkdir<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>ODIR<span class="k">)</span>
 
-<span class="nf">.PHONY</span><span class="o">:</span> <span class="n">clean</span>
+<span class="nf">.PHONY</span><span class="o">:</span><span class="w"> </span><span class="n">clean</span>
 
 <span class="nf">clean</span><span class="o">:</span>
-    rm -f <span class="k">$(</span>ODIR<span class="k">)</span>/*.o *.so
-    rm -r <span class="k">$(</span>ODIR<span class="k">)</span>
+<span class="w">    </span>rm<span class="w"> </span>-f<span class="w"> </span><span class="k">$(</span>ODIR<span class="k">)</span>/*.o<span class="w"> </span>*.so
+<span class="w">    </span>rm<span class="w"> </span>-r<span class="w"> </span><span class="k">$(</span>ODIR<span class="k">)</span>
 </pre></div>
 </div></li>
 </ul></li>
@@ -224,16 +230,16 @@ Make sure your simulation architecture match with python. For example, if your s
 </div>
 <p>Start bsmedit by</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>$ bsmedit
+<div class="syntax"><pre><span></span>$<span class="w"> </span>bsmedit
 </pre></div>
 </div>
-<p>and create the simulation<a name="footnote_src-1" href="#footnote-1"><sup>1</sup></a> by</p>
+<p>and create the simulation<a id="footnote_src-1" href="#footnote-1"><sup>1</sup></a> by</p>
 <figure class="figure">
-<img src="./images/start_open_project.png" alt="./images/start_open_project.png">
+<img src="./images/start_open_project.png" alt="./images/start_open_project.png" width="793" height="524">
 </figure>
-<p>It will show a open file dialog. In the open file dialog, select the lib from the above step (e.g. <code>libstart.so</code>, <code>start.dll</code> ). bsmedit will automatically load the simulation.</p>
+<p>It will show a open file dialog. In the open file dialog, select the simulation library (e.g. <code>libstart.so</code>, <code>start.dll</code> ). bsmedit will automatically load the simulation.</p>
 <figure class="figure">
-<img src="./images/start_sim_main.png" alt="./images/start_sim_main.png">
+<img src="./images/start_sim_main.png" alt="./images/start_sim_main.png" width="793" height="524">
 </figure>
 <p>The main window consists of 4 sections, from top to bottom:</p>
 <ol>
@@ -247,53 +253,53 @@ Make sure your simulation architecture match with python. For example, if your s
 <li><b>total duration</b>: the total simulation duration. bsmedit will pause the simulation if the current simulation time exceeds the total simulation time. <b>-1</b> to run simulation infinitely.</li>
 <li><b>total unit</b>: the time unit of the total simulation duration.</li>
 </ul></li>
-<li><p><b>Simulation objects</b><a name="footnote_src-2" href="#footnote-2"><sup>2</sup></a>.
-This window lists all <code>objects</code> defined in the simulation. As shown in previous steps, the simulation has one top module (i.e., <code>top</code>) and 4 signals: <code>CLOCK</code>, <code>sig_cos</code>, <code>sig_sin</code>, and <code>sig_steps</code>. The tree hierarchy represents their structure in the simulation.</p></li>
+<li><p><b>Simulation objects</b><a id="footnote_src-2" href="#footnote-2"><sup>2</sup></a>.
+This window lists all <code>objects</code> defined in the simulation. As shown in figure above, the simulation has one top module (i.e., <code>top</code>) and 4 signals: <code>CLOCK</code>, <code>sig_cos</code>, <code>sig_sin</code>, and <code>sig_steps</code>. The tree hierarchy represents their structure in the simulation.</p></li>
 <li><b>Console window</b>. It is used to execute commands and show outputs.</li>
-<li><b>Status</b>.</li>
+<li><b>Statusbar</b>.</li>
 </ol>
 <p>To run the simulation, click the <b>step</b> or <b>run</b> button. The simulation will proceed until you pause it or the total simulation duration is reached. The current simulation time is shown in the status bar.</p>
 <p>It is not very useful if bsmedit can only control the simulation running. bsmedit also allows you to monitor the signal values in real-time: select the signal to be monitored, and right click on it</p>
 <figure class="figure">
-<img src="./images/start_sim_add2reg.png" alt="./images/start_sim_add2reg.png">
+<img src="./images/start_sim_add2reg.png" alt="./images/start_sim_add2reg.png" width="445" height="248">
 </figure>
 <p>bsmedit will create a <b>propgrid</b> window and add the selected signals to it.</p>
 <figure class="figure">
-<img src="./images/start_sim_reg.png" alt="./images/start_sim_reg.png">
+<img src="./images/start_sim_reg.png" alt="./images/start_sim_reg.png" width="355" height="130">
 </figure>
 <p>Click the <b>run</b> button to start the simulation. The signal value will be updated automatically.</p>
 <div class="video">
-<video controls><source src="./images/start_run.mp4">
+<video controls width="640" height="328"><source src="./images/start_run.mp4">
 Your browser does not support the video tag.</video>
 </div>
 <p>You can also modify the signal values, for example, by typing the following commands in the console window</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="c1"># get the simulation handle</span>
-&gt;&gt;&gt; <span class="nv">s</span> <span class="o">=</span> simulation<span class="o">(</span><span class="m">1</span><span class="o">)</span>
-&gt;&gt;&gt; <span class="c1"># set the number of steps</span>
-&gt;&gt;&gt; s<span class="o">[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="o">]</span> <span class="o">=</span> <span class="m">8192</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="c1"># get the simulation handle</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">s</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>simulation<span class="o">(</span><span class="m">1</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># set the number of steps</span>
+&gt;&gt;&gt;<span class="w"> </span>s<span class="o">[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="m">8192</span>
 </pre></div>
 </div>
 <p>The first command gets the handle of the simulation. Then, the second command sets the value of signal <code>top.sig_steps</code> to 8192.</p>
 <p>You can also plot the trace to see the signal trend,</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="c1"># trace the cos waveform to a buffer with size 4096</span>
-&gt;&gt;&gt; s.trace_buf<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>, <span class="m">4096</span><span class="o">)</span>
-&gt;&gt;&gt; <span class="c1"># trace the sine waveform to a buffer with size 4096 too</span>
-&gt;&gt;&gt; s.trace_buf<span class="o">(</span><span class="s1">&#39;top.sig_sin&#39;</span>, <span class="m">4096</span><span class="o">)</span>
-&gt;&gt;&gt; <span class="c1"># plot the trace</span>
-&gt;&gt;&gt; plot_trace<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>, <span class="s1">&#39;top.sig_sin&#39;</span>, <span class="nv">relim</span><span class="o">=</span>False<span class="o">)</span>
-&gt;&gt;&gt; xlim<span class="o">([</span>-1,1<span class="o">])</span>
-&gt;&gt;&gt; ylim<span class="o">([</span>-1,1<span class="o">])</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="c1"># trace the cos waveform to a buffer with size 4096</span>
+&gt;&gt;&gt;<span class="w"> </span>s.trace_buf<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span><span class="m">4096</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># trace the sine waveform to a buffer with size 4096 too</span>
+&gt;&gt;&gt;<span class="w"> </span>s.trace_buf<span class="o">(</span><span class="s1">&#39;top.sig_sin&#39;</span>,<span class="w"> </span><span class="m">4096</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># plot the trace</span>
+&gt;&gt;&gt;<span class="w"> </span>plot_trace<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span><span class="s1">&#39;top.sig_sin&#39;</span>,<span class="w"> </span><span class="nv">relim</span><span class="o">=</span>False<span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span>xlim<span class="o">([</span>-1,1<span class="o">])</span>
+&gt;&gt;&gt;<span class="w"> </span>ylim<span class="o">([</span>-1,1<span class="o">])</span>
 </pre></div>
 </div>
 <p>The first command tells bsmedit to start tracing the signal <code>top.sig_cos</code>; and the buffer length is 4096. In other words, its latest 4096 values will be stored in a numpy array. Similarly, the second command traces the signal <code>top.sig_sin</code>. The third command creates a figure to plot <code>top.sig_cos</code> as \(x\) axis value and <code>top.sig_sin</code> as \(y\) axis. The last two lines set the limits of \(x\) axis and \(y\) axis, respectively. The created figure looks like</p>
 <figure class="figure">
-<img src="./images/start_sim_plot.png" alt="./images/start_sim_plot.png">
+<img src="./images/start_sim_plot.png" alt="./images/start_sim_plot.png" width="346" height="346">
 </figure>
 <p>It does not really show anything, since we just create the buffer and it has not be filled with signal values yet. When you run the simulation, the buffer will be filled and the plot will be updated accordingly</p>
 <div class="video">
-<video controls><source src="./images/start_run_plot.mp4">
+<video controls width="302" height="301"><source src="./images/start_run_plot.mp4">
 Your browser does not support the video tag.</video>
 </div>
 <p>You can following the above steps to start the simulation and monitor the signals each time. However, it is too tedious to repeat each step again and again. In bsmedit, you can write a python script to do all the steps. The script may look like</p>
@@ -301,7 +307,7 @@ Your browser does not support the video tag.</video>
 <div class="syntax"><pre><span></span><span class="kn">from</span> <span class="nn">bsmedit.bsm.pysim</span> <span class="kn">import</span> <span class="o">*</span>
 <span class="kn">from</span> <span class="nn">bsmedit.propgrid</span> <span class="kn">import</span> <span class="n">formatters</span> <span class="k">as</span> <span class="n">fmt</span>
 <span class="c1"># create a simulation</span>
-<span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;./examples/libstart.so&#39;</span><span class="p">)</span>
+<span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;./examples/start/libstart.so&#39;</span><span class="p">)</span>
 
 <span class="k">assert</span> <span class="n">s</span><span class="o">.</span><span class="n">is_valid</span><span class="p">(),</span> <span class="s2">&quot;Failed to load simulation&quot;</span>
 <span class="c1"># set the simulation parameters: step = 100us, run infinitely</span>
@@ -331,15 +337,15 @@ Your browser does not support the video tag.</video>
 <p>Save the script to a file (e.g., <a href="https://github.com/tianzhuqiao/bsmedit/blob/master/examples/start.py">start.py</a>).
 Then, it can be opened in bsmedit</p>
 <figure class="figure">
-<img src="./images/start_sim_open.png" alt="./images/start_sim_open.png">
+<img src="./images/start_sim_open.png" alt="./images/start_sim_open.png" width="669" height="380">
 </figure>
-<p>And it will look like the one shown in the following image. Click the <img src="./images/run_script.png" alt="./images/run_script.png"> button to run the script</p>
+<p>And it will look like the one shown in the following image. Click the <img src="./images/run_script.png" alt="./images/run_script.png" width="8" height="8"> button to run the script</p>
 <figure class="figure">
-<img src="./images/start_open_script.png" alt="./images/start_open_script.png">
+<img src="./images/start_open_script.png" alt="./images/start_open_script.png" width="719" height="544">
 </figure>
 <p>bsmedit will automatically load the simulation, create a propgrid window, monitor the signals, and create a figure to plot the signals.</p>
 <figure class="figure">
-<img src="./images/start_run_script.png" alt="./images/start_run_script.png">
+<img src="./images/start_run_script.png" alt="./images/start_run_script.png" width="896" height="613">
 </figure>
 <h1 id="sec-3">3 How it works</h1>
 <p>bsmedit was initially written in C++, which can be found <a href="https://sourceforge.net/projects/bsmedit/">here</a>. It looks like an ideal choice since the simulation is also written in C/C++/SystemC. It supports multiple platforms (e.g., windows, linux), as the GUI is based on <a href="http://www.wxwidget.org">wxWidget</a>.</p>
@@ -351,62 +357,62 @@ We try hard to make the interface as simple as possible; but it still requires s
 <p>In version 3, the python console window is replaced with a native interactive interpreter (wx.py.shell). It allows you to run any python command.</p>
 <p>It is not fun to remember all the commands. When typing a '<b>.</b>', bsmedit will show an auto-complete list for you to select from, if there is any</p>
 <figure class="figure">
-<img src="./images/console_autocomplete.png" alt="./images/console_autocomplete.png">
+<img src="./images/console_autocomplete.png" alt="./images/console_autocomplete.png" width="731" height="370">
 </figure>
 <p>Similarly, it will also try to show the calltips of a function when it sees a '<b>(</b>'</p>
 <figure class="figure">
-<img src="./images/console_calltip.png" alt="./images/console_calltip.png">
+<img src="./images/console_calltip.png" alt="./images/console_calltip.png" width="731" height="370">
 </figure>
 <p>It also supports executing external command. The external command should be prepended by '<b>!</b>'. For example, to list the contents in the current folder by calling '<b>ls</b>' command (see <a href="http://unxutils.sourceforge.net/">here</a> for windows system)</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; !ls
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>!ls
 </pre></div>
 </div>
 <p>You can also pass arguments to the external command</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; !ls -l
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>!ls<span class="w"> </span>-l
 </pre></div>
 </div>
 <p>By default, when executing the external command, bsmedit will wait for it to finish, then show its output in the console window. Command can also be executed in background by appending a '<b>&</b>'. For example, the following command will open a gvim window and return (without '<b>&</b>', it will not return until the gvim window is closed)</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; !gvim <span class="p">&amp;</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>!gvim<span class="w"> </span><span class="p">&amp;</span>
 </pre></div>
 </div>
-<p>You can add an '<b>alias</b>' to an external command to save some typing. For example, the following command will add an alias '<b>ll</b>'</p>
+<p>You can add an <b>alias</b> to an external command to save some typing. For example, the following command will add an alias '<b>ll</b>'</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nb">alias</span> ll ls -l
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>ll<span class="w"> </span>ls<span class="w"> </span>-l
 </pre></div>
 </div>
 <p>where the first parameter is the alias name (e.g., '<b>ll</b>'), and the remaining parameters are the destination (e.g. '<b>ls -l</b>').
 Now, when the console sees input '<b>ll</b>', it will automatically replace it with '<b>!ls -l</b>', and execute it. If an alias definition does not include a destination, it will be deleted if exists. For example, the following code will delete the alias '<b>ll</b>'</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nb">alias</span> ll
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>ll
 </pre></div>
 </div>
 <p>There are some pre-defined commands (by wx.py.shell), which are frequently used. Thus, you still can used it even if these external commands are not installed.</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nb">cd</span> DIR <span class="c1"># go the DIR folder</span>
-&gt;&gt;&gt; <span class="nb">pwd</span> <span class="c1"># show the current working directory</span>
-&gt;&gt;&gt; ls <span class="c1"># list the current working directory</span>
-&gt;&gt;&gt; clear <span class="c1"># clear the console window</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>DIR<span class="w"> </span><span class="c1"># go the DIR folder</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nb">pwd</span><span class="w"> </span><span class="c1"># show the current working directory</span>
+&gt;&gt;&gt;<span class="w"> </span>ls<span class="w"> </span><span class="c1"># list the current working directory</span>
+&gt;&gt;&gt;<span class="w"> </span>clear<span class="w"> </span><span class="c1"># clear the console window</span>
 </pre></div>
 </div>
 <p>It is also able to run the command silently by appending '<b>;</b>'. In other words, to execute the command without showing any output in the console window.</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="c1"># define a function foo</span>
-&gt;&gt;&gt; def foo<span class="o">()</span>:
-...    print <span class="s1">&#39;foo&#39;</span>
-...    <span class="k">return</span> <span class="m">42</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="c1"># define a function foo</span>
+&gt;&gt;&gt;<span class="w"> </span>def<span class="w"> </span>foo<span class="o">()</span>:
+...<span class="w">    </span>print<span class="w"> </span><span class="s1">&#39;foo&#39;</span>
+...<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="m">42</span>
 ...
-&gt;&gt;&gt; <span class="c1"># call a function with output</span>
-&gt;&gt;&gt; <span class="nv">a</span> <span class="o">=</span> foo<span class="o">()</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># call a function with output</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>foo<span class="o">()</span>
 foo
-&gt;&gt;&gt; <span class="c1"># call a function silently</span>
-&gt;&gt;&gt; <span class="nv">a</span> <span class="o">=</span> foo<span class="o">()</span><span class="p">;</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># call a function silently</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>foo<span class="o">()</span><span class="p">;</span>
 &gt;&gt;&gt;
 </pre></div>
 </div>
-<p>One major constraint of version 3 is that it executes the command in the main GUI thread. Thus, if a dead loop is feed into the interpreter, it will never return and can not be interrupted, for example:</p>
+<p>One major constraint of version 3 is that it executes the command in the main GUI thread. Thus, if a dead loop is fed into the interpreter, it will never return and can not be interrupted, for example:</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="k">while</span> <span class="kc">True</span><span class="p">:</span>
 <span class="o">...</span>    <span class="k">pass</span>
@@ -414,7 +420,7 @@ foo
 </div>
 <p>One reason we do not execute the command in a separate process or thread is that some command may create GUI window. If the GUI window is created in separate process/thread, it will potentially cause many problems and significantly increase the complexity to handle the GUI window. However, in bsmedit, most time-consuming task should be the simulation itself, not the command or processing. Thus, the console command should not occupy too much time to block the GUI updating.</p>
 <h2 id="sec-3-2">3.2 Figure</h2>
-<p>In version 3, the original plot library is discarded. Instead, you can use <a href="http://www.matplotlib.org">matplotlib</a> to visualize the data. By default, all the functions defined in '<b>matplotlib.pyplot</b>' are pre-loaded, so you can call them directly in the console window. The detailed description can be found <a href="http://matplotlib.org/api/pyplot_api.html">here</a>. To create a new figure and plot a straight line</p>
+<p>In version 3, the original plot library is discarded. Instead, we use <a href="http://www.matplotlib.org">matplotlib</a> to visualize the data. By default, all the functions defined in <b>matplotlib.pyplot</b> are pre-loaded, so you can call them directly in the console window. The detailed description can be found <a href="http://matplotlib.org/api/pyplot_api.html">here</a>. To create a new figure and plot a straight line</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">figure</span><span class="p">();</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">plot</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">))</span>
@@ -422,7 +428,7 @@ foo
 </div>
 <p>and the figure will look like</p>
 <figure class="figure">
-<img src="./images/plot_range100.png" alt="./images/plot_range100.png">
+<img src="./images/plot_range100.png" alt="./images/plot_range100.png" width="346" height="346">
 </figure>
 <p>Like Matlab, you can add label, legend, and grid</p>
 <div class="bs-example-src">
@@ -433,28 +439,36 @@ foo
 </pre></div>
 </div>
 <figure class="figure">
-<img src="./images/plot_range100more.png" alt="./images/plot_range100more.png">
+<img src="./images/plot_range100more.png" alt="./images/plot_range100more.png" width="346" height="346">
 </figure>
-<p>The figure window has two sections: <code>toolbar</code> and <code>plot</code>, as illustrated in the following diagram</p>
-<figure class="figure">
-<img src="./images/figure.png" alt="./images/figure.png">
-</figure>
-<p>The buttons on the toolbar are (from left to right)</p>
+<p>As shown above, the figure window has two sections: <code>toolbar</code> and <code>plot</code>.
+The buttons on the toolbar are (from left to right)</p>
 <ul>
+<li><b>new figure</b>: create an empty figure</li>
 <li><b>home</b>: it will bring the plot to the initial status (e.g., zoom and position)</li>
 <li><b>back</b>: go to the previous status if available</li>
 <li><b>forward</b>: go to the next status if available</li>
-<li><b>move</b>: move the plot with the mouse</li>
+<li><b>move/pan</b>: move the plot with the mouse</li>
 <li><b>zoom</b>: zoom in the plot by clicking, moving and releasing mouse, or with the mouse wheel. Double-click on the plot will bring the plot to the original view.</li>
 <li><p><b>datatip</b>: add datatip to the curve.</p>
 <figure class="figure">
-<img src="./images/figure_datatip.png" alt="./images/figure_datatip.png">
+<img src="./images/figure_datatip.png" alt="./images/figure_datatip.png" width="346" height="365">
 </figure>
 <p>datatip can be activated by clicking on it and its background will be in orange. In this case, you can drag the datatip around to align it in different position.</p></li>
 <li><b>save</b>: export the plot (without the toolbar section) to a file (e.g., with format eps, ps, pgf, png, pdf, raw, rgba, svg ... )</li>
 <li><b>copy</b>: copy the plot (without toolbar section) to clipboard</li>
+<li><p><b>edit</b>: edit the plotted lines</p>
+<div class="video">
+<video controls width="576" height="426"><source src="./images/figure_edit.mp4">
+Your browser does not support the video tag.</video>
+</div></li>
 </ul>
-<p>The <b>plot</b> function will add the curve to the <b>active</b> figure window. Generally, the <b>active</b> figure window is the latest activated figure window. For example, you can click on a figure window to make it active. And it will keep active until you click on another figure window or create a new one. If you are not sure about the active figure window, you may click on it before calling any plot functions. Or, the following command will activate the figure window with number <code>1</code> (its window name may look like '<code>Figure 1</code>')</p>
+<p>The <b>plot</b> function will add the curve to the <b>active</b> figure window. Generally, the <b>active</b> figure window is the latest activated figure window. For example, you can click on a figure window to make it active. And it will keep active until you click on another figure window or create a new one. If you are not sure about the active figure window, you may click on it before calling any plot functions. For a figure with multiple subplots, click the one to activate it</p>
+<div class="video">
+<video controls width="576" height="454"><source src="./images/figure_select_axis.mp4">
+Your browser does not support the video tag.</video>
+</div>
+<p>The following command will activate the figure window with number <code>1</code> (its window name may look like "<b>Figure 1</b>")</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">figure</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 </pre></div>
@@ -567,7 +581,7 @@ For example</p>
 <span class="n">s</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">more</span><span class="o">=</span><span class="s1">&#39;1ms&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Sometime, you may want to wait until the simulation paused. For example, you may want to check the signal value after the simulation has paused. There is a function to do that</p>
+<p>Sometime, you may want to wait until the simulation pauses. For example, you may want to check the signal value after the simulation has paused. There is a function to do that</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">wait_until_simulation_paused</span><span class="p">()</span>
 <span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">[</span><span class="s1">&#39;top.sig_sin&#39;</span><span class="p">]</span>
@@ -654,7 +668,7 @@ For example</p>
 <li>sc_fixed</li>
 <li>sc_fixed_fast</li>
 <li>sc_ufixed</li>
-<li>std::string<a name="footnote_src-3" href="#footnote-3"><sup>3</sup></a></li>
+<li>std::string<a id="footnote_src-3" href="#footnote-3"><sup>3</sup></a></li>
 </ul></td><td>string</td>
 </tr>
 </tbody>
@@ -665,7 +679,7 @@ For example</p>
 <div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">write</span><span class="p">(</span><span class="n">objects</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>where <b>objects</b> is a <code>dic</code> with the signal name as its key. bsmedit supports writing all the <code>sc_signal</code>, <code>sc_out</code>, and <code>sc_inout</code><a name="footnote_src-4" href="#footnote-4"><sup>4</sup></a>.</p>
+<p>where <b>objects</b> is a <code>dic</code> with the signal name as its key. bsmedit supports writing all the <code>sc_signal</code>, <code>sc_out</code>, and <code>sc_inout</code><a id="footnote_src-4" href="#footnote-4"><sup>4</sup></a>.</p>
 <p>Due to the two-step mechanism in SystemC, in most cases, the value will be updated after the next delta cycle. That is, if a <b>read</b> is called after <b>write</b> immediately, it may return the previous value.</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">)</span>
@@ -727,7 +741,7 @@ For example</p>
 </div>
 <p>In some case, you may want to dump the signal at a fixed sampling clock. How could we do that with bsmedit? Actually it is also straightforward. What we talked so far is to only use the signal itself to dump the value. bsmedit also provide a way to trigger the dumpling with a <strong>valid</strong> signal; that is, the dumping can be triggered by the rising and/or falling edge of a valid signal</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; s.trace_buf<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>, <span class="nv">size</span><span class="o">=</span><span class="m">10</span>, <span class="nv">valid</span><span class="o">=</span><span class="s1">&#39;top.CLOCK&#39;</span>, <span class="nv">trigger</span><span class="o">=</span><span class="s1">&#39;pos&#39;</span><span class="o">)</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>s.trace_buf<span class="o">(</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span><span class="nv">size</span><span class="o">=</span><span class="m">10</span>,<span class="w"> </span><span class="nv">valid</span><span class="o">=</span><span class="s1">&#39;top.CLOCK&#39;</span>,<span class="w"> </span><span class="nv">trigger</span><span class="o">=</span><span class="s1">&#39;pos&#39;</span><span class="o">)</span>
 </pre></div>
 </div>
 <p>It tells bsmedit to allocate a buffer with size 10 and dump the value to it at each rising edge of the signal <b>top.CLOCK</b>.</p>
@@ -764,7 +778,7 @@ For example</p>
 </div>
 <p>Then when you run the simulation, the plot will be automatically updated accordingly</p>
 <div class="video">
-<video controls><source src="
+<video controls width="302" height="301"><source src="
 ./images/start_run_plot.mp4
 ">
 Your browser does not support the video tag.</video>
@@ -840,8 +854,8 @@ To set a breakpoint,</p>
 <p>Again, <code>#</code> will be replaced with the hit count. The breakpoint will only be triggered if the breakpoint condition has been true for at least 4 delta cycles. In other words, the breakpoint has been hit for at least 4 times.</p>
 <p>You can also retrieve all the breakpoints by</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; s.get_breakpoint<span class="o">()</span>
-<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>, None, None<span class="o">]]</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>s.get_breakpoint<span class="o">()</span>
+<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span>None,<span class="w"> </span>None<span class="o">]]</span>
 </pre></div>
 </div>
 <p>To delete a breakpoint,</p>
@@ -852,35 +866,35 @@ To set a breakpoint,</p>
 <p>Here you also need to provide the full definition of the breakpoint, since multiple breakpoints may share the same signal, and/or breakpoint condition, and/or hit-count condition.</p>
 <p>The breakpoint here is different from the one when you debug the C/C++/SystemC source code. For example, if you add the same breakpoint 5 times, it will not be cleared until you delete all 5 instances.</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nv">bp</span> <span class="o">=</span> <span class="o">[</span><span class="s1">&#39;top.sig_cos&#39;</span>, None, None<span class="o">]</span>
-&gt;&gt;&gt; <span class="c1"># add one</span>
-&gt;&gt;&gt; s.add_breakpoint<span class="o">(</span>*bp<span class="o">)</span>
-&gt;&gt;&gt; s.get_breakpoint<span class="o">()</span>
-<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>, None, None<span class="o">]]</span>
-&gt;&gt;&gt; <span class="c1"># add it again</span>
-&gt;&gt;&gt; s.add_breakpoint<span class="o">(</span>*bp<span class="o">)</span>
-&gt;&gt;&gt; s.get_breakpoint<span class="o">()</span>
-<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>, None, None<span class="o">]</span>, <span class="o">[</span><span class="s1">&#39;top.sig_cos&#39;</span>, None, None<span class="o">]]</span>
-&gt;&gt;&gt; <span class="c1"># delete one</span>
-&gt;&gt;&gt; s.del_breakpoint<span class="o">(</span>*bp<span class="o">)</span>
-&gt;&gt;&gt; s.get_breakpoint<span class="o">()</span>
-<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>, None, None<span class="o">]]</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nv">bp</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="o">[</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span>None,<span class="w"> </span>None<span class="o">]</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># add one</span>
+&gt;&gt;&gt;<span class="w"> </span>s.add_breakpoint<span class="o">(</span>*bp<span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span>s.get_breakpoint<span class="o">()</span>
+<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span>None,<span class="w"> </span>None<span class="o">]]</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># add it again</span>
+&gt;&gt;&gt;<span class="w"> </span>s.add_breakpoint<span class="o">(</span>*bp<span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span>s.get_breakpoint<span class="o">()</span>
+<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span>None,<span class="w"> </span>None<span class="o">]</span>,<span class="w"> </span><span class="o">[</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span>None,<span class="w"> </span>None<span class="o">]]</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="c1"># delete one</span>
+&gt;&gt;&gt;<span class="w"> </span>s.del_breakpoint<span class="o">(</span>*bp<span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span>s.get_breakpoint<span class="o">()</span>
+<span class="o">[[</span><span class="s1">&#39;top.sig_cos&#39;</span>,<span class="w"> </span>None,<span class="w"> </span>None<span class="o">]]</span>
 </pre></div>
 </div>
 <p>After all these steps, there is still a breakpoint. You can use the <b>get_breakpoint</b> command to confirm. Thus, it will still pause the simulation once its condition is met. At first sight, such behavior seems annoying, useless and confusing (as in most debugger, you may only set one breakpoint at each single line). However, since a signal can be added to propgrid window multiple times, and you may enable the breakpoint by clicking the radio button (as shown in the section below), it may cause confusion if bsmedit only keeps one instance of each distinct breakpoint. That is, bsmedit may have deleted the breakpoint, but the propgrid window shows it is still valid. So each <b>add_breakpoint</b> needs to be explicitly canceled by one <b>del_breakpoint</b>.</p></li>
 <li><p><b>Multiple simulations.</b> Version 2 only supports running one simulation. So to run multiple simulations, you need to run multiple bsmedit. It is not very convenient to compare the results from multiple simulations. For example, it is impossible to show results from different simulations in a single plot (actually you may be able to do so by dumping the data to files). In version 3, bsmedit supports running multiple simulations simultaneously (each in its separate process). In this way, you can even run the same simulation in multiple processes; and each one is independent to the others. For example, the following commands will run the same simulation core in two separate processes. With that, you can configure the simulation differently to compare the result.</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nv">s1</span> <span class="o">=</span> simulation<span class="o">(</span>None, <span class="s1">&#39;./examples/start.dll&#39;</span><span class="o">)</span>
-&gt;&gt;&gt; <span class="nv">s2</span> <span class="o">=</span> simulation<span class="o">(</span>None, <span class="s1">&#39;./examples/start.dll&#39;</span><span class="o">)</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nv">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>simulation<span class="o">(</span>None,<span class="w"> </span><span class="s1">&#39;./examples/start.dll&#39;</span><span class="o">)</span>
+&gt;&gt;&gt;<span class="w"> </span><span class="nv">s2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>simulation<span class="o">(</span>None,<span class="w"> </span><span class="s1">&#39;./examples/start.dll&#39;</span><span class="o">)</span>
 </pre></div>
 </div>
 <figure class="figure">
-<img src="./images/start_run_script_multi.png" alt="./images/start_run_script_multi.png">
+<img src="./images/start_run_script_multi.png" alt="./images/start_run_script_multi.png" width="716" height="583">
 </figure>
 <p>To differentiate the simulations, each simulation will automatically be assigned an <code>Id</code> (e.g., 1,2,3...).</p>
 <p>With that <code>Id</code>, you can retrieve the simulation handler later by</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="nv">s1</span> <span class="o">=</span> simulation<span class="o">(</span><span class="m">1</span><span class="o">)</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nv">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>simulation<span class="o">(</span><span class="m">1</span><span class="o">)</span>
 </pre></div>
 </div>
 <p>which will return the handler to <b>Simulation-1</b>.</p></li>
@@ -888,7 +902,7 @@ To set a breakpoint,</p>
 <h2 id="sec_propgrid">3.4 Propgrid window</h2>
 <p>As shown above, each signal in <b>propgrid</b> has two sections: label and value.</p>
 <figure class="figure">
-<img src="./images/prop_signal.png" alt="./images/prop_signal.png">
+<img src="./images/prop_signal.png" alt="./images/prop_signal.png" width="679" height="396">
 </figure>
 <p><b>Order the signals</b>. In general, the signals are shown in a propgrid window according to the order they are added. However, you can easily re-order the signals. There are two ways to do so</p>
 <ol>
@@ -897,29 +911,29 @@ To set a breakpoint,</p>
 <ul>
 <li><p>right click on the signal to show the context menu</p>
 <figure class="figure">
-<img src="./images/prop_move.png" alt="./images/prop_move.png">
+<img src="./images/prop_move.png" alt="./images/prop_move.png" width="696" height="407">
 </figure></li>
-<li>or press <b>Ctrl+Up</b>/<b>Ctrl+Down</b> to more the signals up/down.</li>
+<li>or press <b>Ctrl/Cmd+Up</b>/<b>Ctrl/Cmd+Down</b> to move the signals up/down.</li>
 </ul></li>
 </ol>
 <p><b>Group multiple signals together</b>. Right click on a signal to show the context menu, and click the <b>Increase Indent</b></p>
 <figure class="figure">
-<img src="./images/prop_indent.png" alt="./images/prop_indent.png">
+<img src="./images/prop_indent.png" alt="./images/prop_indent.png" width="696" height="407">
 </figure>
 <p>Then bsmedit will increase the indent of the signal, and the signal will effectively becomes the child of the previous signal (with smaller indent level).</p>
 <figure class="figure">
-<img src="./images/prop_group.png" alt="./images/prop_group.png">
+<img src="./images/prop_group.png" alt="./images/prop_group.png" width="696" height="407">
 </figure>
 <p>You can also use script to change the indent level</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="c1"># get the propgrid window with id=1</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">grid</span> <span class="o">=</span> <span class="n">propgrid</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">g</span> <span class="o">=</span> <span class="n">propgrid</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># get the handle of the property (assume it has already been added to the</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># propgrid window. Since the properties in each propgrid window may monitor</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># signals from multiple simulations, and they may have same name, here the</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># signal name is the global name. In other words, the original signal name is</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># prepended with its simulation id.</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s2">&quot;1.top.sig_sin&quot;</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">p</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="s2">&quot;1.top.sig_sin&quot;</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># to increase the indent by one level</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">p</span><span class="o">.</span><span class="n">SetIndent</span><span class="p">(</span><span class="n">p</span><span class="o">.</span><span class="n">GetIndent</span><span class="p">()</span><span class="o">+</span><span class="mi">1</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># to decrease the indent by one level; the minimal indent level is 0</span>
@@ -928,7 +942,7 @@ To set a breakpoint,</p>
 </div>
 <p>You can click the <b>+</b>/<b>-</b> button to show/hide the children.</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s2">&quot;1.top.sig_steps&quot;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="s2">&quot;1.top.sig_steps&quot;</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># show the children signals</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">p</span><span class="o">.</span><span class="n">SetExpand</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># hide the children signals</span>
@@ -937,58 +951,52 @@ To set a breakpoint,</p>
 </div>
 <p><b>Use the control to set the signal</b>. As you see before, each signal in the <b>propgrid</b> has two sections: name and value. The value section shows its current value. When click on the <code>value</code> section, if the signal is writable, the signal will be in <b>edit</b> mode; by default, an editbox will be shown so that you can type the value. By typing <b>Enter</b> after modifying the value, bsmedit will send the change to the simulation.</p>
 <figure class="figure">
-<img src="./images/prop_editbox.png" alt="./images/prop_editbox.png">
+<img src="./images/prop_editbox.png" alt="./images/prop_editbox.png" width="599" height="347">
 </figure>
 <p>Besides the editbox, the following types of controls can be used to update the signal values</p>
 <ul>
 <li><p>Combobox</p>
 <figure class="figure">
-<img src="./images/prop_combobox.png" alt="./images/prop_combobox.png">
+<img src="./images/prop_combobox.png" alt="./images/prop_combobox.png" width="517" height="233">
 </figure>
 <p>You can right click on the signal and select 'Properties' from the context menu to change the window type in edit mode. Besides that, it can also be changed by python script:</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;1.top.sig_steps&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetFormatter</span><span class="p">(</span><span class="n">fmt</span><span class="o">.</span><span class="n">ChoiceFormatter</span><span class="p">([</span><span class="mi">256</span><span class="p">,</span> <span class="mi">1024</span><span class="p">,</span> <span class="mi">2048</span><span class="p">,</span> <span class="mi">8192</span><span class="p">,</span> <span class="mi">16384</span><span class="p">]))</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;choice&#39;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="s1">&#39;1.top.sig_steps&#39;</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;Choice&#39;</span><span class="p">,</span> <span class="n">choice</span><span class="o">=</span><span class="p">[</span><span class="mi">256</span><span class="p">,</span> <span class="mi">1024</span><span class="p">,</span> <span class="mi">2048</span><span class="p">,</span> <span class="mi">8192</span><span class="p">,</span> <span class="mi">16384</span><span class="p">])</span>
 </pre></div>
 </div></li>
 <li><p>Slider</p>
 <figure class="figure">
-<img src="./images/prop_slider.png" alt="./images/prop_slider.png">
+<img src="./images/prop_slider.png" alt="./images/prop_slider.png" width="524" height="225">
 </figure>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;1.top.sig_steps&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetFormatter</span><span class="p">(</span><span class="n">fmt</span><span class="o">.</span><span class="n">IntFormatter</span><span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="mi">16384</span><span class="p">))</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;slider&#39;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;Slider&#39;</span><span class="p">,</span> <span class="n">min_value</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mi">16384</span><span class="p">)</span>
 </pre></div>
 </div></li>
 <li><p>Spin</p>
 <figure class="figure">
-<img src="./images/prop_spin.png" alt="./images/prop_spin.png">
+<img src="./images/prop_spin.png" alt="./images/prop_spin.png" width="526" height="223">
 </figure>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetFormatter</span><span class="p">(</span><span class="n">fmt</span><span class="o">.</span><span class="n">IntFormatter</span><span class="p">(</span><span class="mi">256</span><span class="p">,</span> <span class="mi">16384</span><span class="p">))</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;spin&#39;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;Spin&#39;</span><span class="p">,</span> <span class="n">min_value</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">max_value</span><span class="o">=</span><span class="mi">16384</span><span class="p">)</span>
 </pre></div>
 </div></li>
 <li><p>Checkbox</p>
 <figure class="figure">
-<img src="./images/prop_checkbox.png" alt="./images/prop_checkbox.png">
+<img src="./images/prop_checkbox.png" alt="./images/prop_checkbox.png" width="525" height="139">
 </figure>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;1.top.sig_sc_bit&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;checkbox&#39;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="s1">&#39;1.top.sig_sc_bit&#39;</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;CheckBox&#39;</span><span class="p">)</span>
 </pre></div>
 </div></li>
 <li><p>Radio box</p>
 <figure class="figure">
-<img src="./images/prop_radiobox.png" alt="./images/prop_radiobox.png">
+<img src="./images/prop_radiobox.png" alt="./images/prop_radiobox.png" width="527" height="138">
 </figure>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;1.top.sig_logic&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetFormatter</span><span class="p">(</span><span class="n">fmt</span><span class="o">.</span><span class="n">ChoiceFormatter</span><span class="p">({</span><span class="s1">&#39;1&#39;</span><span class="p">:</span><span class="mi">1</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span><span class="mi">0</span><span class="p">,</span> <span class="s1">&#39;Z&#39;</span><span class="p">:</span><span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">:</span><span class="s1">&#39;X&#39;</span><span class="p">})</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;radiobox&#39;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="s1">&#39;1.top.sig_logic&#39;</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;RadioBox&#39;</span><span class="p">,</span> <span class="n">choice</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;1&#39;</span><span class="p">:</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;Z&#39;</span><span class="p">:</span><span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">:</span><span class="s1">&#39;X&#39;</span><span class="p">})</span>
 </pre></div>
 </div></li>
 <li>Color picker</li>
@@ -996,18 +1004,17 @@ To set a breakpoint,</p>
 </ul>
 <p>As shown above, you can set the breakpoint with script. You can also set the breakpoint in propgrid window by clicking the radio button next to the signal name:</p>
 <figure class="figure">
-<img src="./images/prop_breakpoint.png" alt="./images/prop_breakpoint.png">
+<img src="./images/prop_breakpoint.png" alt="./images/prop_breakpoint.png" width="527" height="138">
 </figure>
 <p>bsmedit will check the breakpoint at each SystemC <b>delta</b> cycle. Once the condition is true, it will pause the simulation.
 The breakpoint can also be enabled by python script:</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">grid</span><span class="o">.</span><span class="n">GetProperty</span><span class="p">(</span><span class="s1">&#39;1.top.sig_sin&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetChecked</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">p</span><span class="o">.</span><span class="n">SetChecked</span><span class="p">(</span><span class="kc">True</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Then, if you run the simulation, it will be paused once the signal value is changed or the simulation time is reached. You can also set the breakpoint conditions here. Right clock on the signal and click '<b>Breakpoint Condition</b>' (the menu item is not clickable unless the radio button is checked)</p>
+<p>Then, if you run the simulation, it will be paused once the signal value is changed or the simulation time is reached. You can also set the breakpoint conditions here. Right click on the signal and click '<b>Breakpoint Condition</b>' (the menu item is not clickable unless the radio button is checked)</p>
 <figure class="figure">
-<img src="./images/prop_bpcondition.png" alt="./images/prop_bpcondition.png">
+<img src="./images/prop_bpcondition.png" alt="./images/prop_bpcondition.png" width="543" height="401">
 </figure>
 <p>When the "<b>Is true</b>" radio button is checked, the condition editbox will be enabled for input. For example, "<b>$&gt;0.1</b>" will pause the simulation when the signal value is greater than 0.1, where "<b>$</b>" will be replaced by the signal value. Breakpoint condition can also be set by</p>
 <div class="bs-example-src">
@@ -1044,14 +1051,14 @@ The breakpoint can also be enabled by python script:</p>
 <ul>
 <li><p>create the top level module</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="kt">void</span> <span class="nf">bsm_sim_top</span><span class="p">(</span><span class="n">sim_context</span> <span class="o">*</span><span class="n">context</span><span class="p">);</span>
+<div class="syntax"><pre><span></span><span class="kt">void</span><span class="w"> </span><span class="nf">bsm_sim_top</span><span class="p">(</span><span class="n">sim_context</span><span class="w"> </span><span class="o">*</span><span class="n">context</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>It is a first function bsmedit will call to create a simulation. <code>sim_context</code> is a struct to return simulation information to bsmedit. It is defined by the macro "<b>BSMEDIT_IMPLEMENT_MODULE</b>"</p>
+<p>It is a first function bsmedit will call to create a simulation, where <code>sim_context</code> is a struct to return simulation information to bsmedit. It is defined by the macro "<b>BSMEDIT_IMPLEMENT_MODULE</b>"</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">typedef</span> <span class="k">struct</span> <span class="n">sim_context</span> <span class="p">{</span>
-    <span class="kt">char</span> <span class="n">version</span><span class="p">[</span><span class="n">MAX_NAME_LEN</span><span class="p">];</span>
-    <span class="kt">char</span> <span class="n">copyright</span><span class="p">[</span><span class="n">MAX_NAME_LEN</span><span class="p">];</span>
+<div class="syntax"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">sim_context</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">version</span><span class="p">[</span><span class="n">MAX_NAME_LEN</span><span class="p">];</span>
+<span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">copyright</span><span class="p">[</span><span class="n">MAX_NAME_LEN</span><span class="p">];</span>
 <span class="p">}</span><span class="n">sim_context</span><span class="p">;</span>
 
 <span class="cp">#define BSMEDIT_IMPLEMENT_MODULE(T, name) extern bsm_sim_context* g_sim;\</span>
@@ -1069,33 +1076,39 @@ The breakpoint can also be enabled by python script:</p>
 <p><b>bsm_sim_top</b> creates the simulation context (i.e., <code>g_sim</code>). Then, bsmedit can control the simulation through all the other interfaces defined in <b>bsm.h/cpp</b> with that handler.</p></li>
 </ul>
 <h3 id="sec-3-5-1">3.5.1 xsc_property</h3>
-<p>With SystemC's '<code>sc_signal</code>', it is very easy to simulate a <b>register</b> in simulation. For example, you can configure the simulation by changing the values of some <code>sc_signal</code>s without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the <code>xsc_property</code> from <code>sc_signal</code>.</p>
+<p>With SystemC's <code>sc_signal</code>, it is very easy to simulate a <b>register</b> in simulation. For example, you can configure the simulation by changing the values of some <code>sc_signal</code> without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the <code>xsc_property</code> from <code>sc_signal</code>.</p>
 <p>Its usage is almost exactly same as sc_signal. It supports all the data type supported by sc_signal.</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">class</span> <span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span> <span class="n">sc_module</span>
+<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
-    <span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span> <span class="n">name_</span><span class="p">)</span><span class="o">:</span>
-            <span class="n">tx_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
-            <span class="p">,</span><span class="n">xsc_prop_double</span><span class="p">(</span><span class="s">&quot;xsc_prop_double&quot;</span><span class="p">,</span> <span class="k">this</span><span class="p">,</span> <span class="n">xsc_callback_fun</span><span class="p">)</span>
-    <span class="p">{</span>
-        <span class="c1">//set the value and don&#39;t call the callback function</span>
-    <span class="p">}</span>
-    <span class="n">xsc_property</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span> <span class="n">xsc_prop_double</span><span class="p">;</span>
-    <span class="k">static</span> <span class="kt">void</span> <span class="nf">xsc_callback_fun</span><span class="p">(</span><span class="n">sc_module</span><span class="o">*</span> <span class="n">pThis</span><span class="p">,</span> <span class="kt">double</span> <span class="n">value</span><span class="p">);</span>
+<span class="w">    </span><span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span><span class="w"> </span><span class="n">name_</span><span class="p">)</span><span class="o">:</span>
+<span class="w">            </span><span class="n">tx_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
+<span class="w">            </span><span class="p">,</span><span class="n">xsc_prop_double</span><span class="p">(</span><span class="s">&quot;xsc_prop_double&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">xsc_callback_fun</span><span class="p">)</span>
+<span class="w">    </span><span class="p">{</span>
+<span class="w">        </span><span class="c1">//set the value and don&#39;t call the callback function</span>
+<span class="w">    </span><span class="p">}</span>
+<span class="w">    </span><span class="n">xsc_property</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">xsc_prop_double</span><span class="p">;</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">xsc_callback_fun</span><span class="p">(</span><span class="n">sc_module</span><span class="o">*</span><span class="w"> </span><span class="n">pThis</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
 <span class="p">};</span>
 </pre></div>
 </div>
-<p>In this example, we define a double type <code>xsc_property</code>. During its initialization, three parameters are passed into its constructor function. The first one is its name derived from <code>sc_signal</code>. The second one is the pointer to the current <code>sc_module</code>. And the third one is the pointer to a static function. Now, when bsmedit sends the following command to the simulation (here assume the name/path of the <code>xsc_property</code> is "<b>top.mymodule.xsc_prop_double</b>")</p>
+<p>In this example, we define a double type <code>xsc_property</code>. During its initialization, three parameters are passed into its constructor function:</p>
+<ol>
+<li>its name derived from <code>sc_signal</code>,</li>
+<li>the pointer to the current <code>sc_module</code>,</li>
+<li>the pointer to a static function.</li>
+</ol>
+<p>Now, when bsmedit sends the following command to the simulation (here assume the name/path of the <code>xsc_property</code> is "<b>top.mymodule.xsc_prop_double</b>")</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; <span class="c1"># s is the simulation handle</span>
-&gt;&gt;&gt; s.write<span class="o">(</span><span class="s2">&quot;top.mymodule.xsc_prop_double&quot;</span>, <span class="m">1</span>.0<span class="o">)</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="c1"># s is the simulation handle</span>
+&gt;&gt;&gt;<span class="w"> </span>s.write<span class="o">(</span><span class="s2">&quot;top.mymodule.xsc_prop_double&quot;</span>,<span class="w"> </span><span class="m">1</span>.0<span class="o">)</span>
 </pre></div>
 </div>
 <p>The callback function <code>xsc_callback_fun</code> will be called, where its first parameter will be the pointer of the <code>sc_module</code> that defined the <code>xsc_property</code>, and the second parameter will be '1.0'.</p>
 <p>The callback function should have the following format</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">typedef</span>  <span class="nf">void</span><span class="p">(</span><span class="o">*</span><span class="n">xsc_callback</span><span class="p">)(</span><span class="n">sc_module</span><span class="o">*</span> <span class="n">pThis</span><span class="p">,</span> <span class="n">T</span> <span class="n">value</span><span class="p">);</span>
+<div class="syntax"><pre><span></span><span class="k">typedef</span><span class="w">  </span><span class="kt">void</span><span class="p">(</span><span class="o">*</span><span class="n">xsc_callback</span><span class="p">)(</span><span class="n">sc_module</span><span class="o">*</span><span class="w"> </span><span class="n">pThis</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>Sometime, you may want to only execute the callback function when it is updated externally (e.g., by bsmedit), but not internally (e.g., by the simulation itself). In this case, in your simulation code (e.g., C++), you may</p>
@@ -1107,43 +1120,43 @@ The breakpoint can also be enabled by python script:</p>
 <h3 id="sec-3-5-2">3.5.2 xsc_array</h3>
 <p><code>xsc_array</code> is a natural extension of <code>xsc_property</code>. It is actually an array of the <code>xsc_property</code></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">class</span> <span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span> <span class="n">sc_module</span>
+<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
-     <span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span> <span class="n">name_</span><span class="p">)</span>
-     <span class="o">:</span> <span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
-     <span class="p">,</span> <span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">)</span>
-     <span class="p">{</span>
-         <span class="c1">//set the value</span>
-         <span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="mi">1</span><span class="p">;</span>
-         <span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
-         <span class="c1">//get the value</span>
-         <span class="kt">int</span> <span class="n">a</span> <span class="o">=</span> <span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
-         <span class="kt">int</span> <span class="n">b</span> <span class="o">=</span> <span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">read</span><span class="p">();</span>
-     <span class="p">}</span>
-     <span class="n">xsc_array</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="mi">5</span><span class="o">&gt;</span> <span class="n">xsc_array_int</span><span class="p">;</span>
-  <span class="p">};</span>
+<span class="w">     </span><span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span><span class="w"> </span><span class="n">name_</span><span class="p">)</span>
+<span class="w">     </span><span class="o">:</span><span class="w"> </span><span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
+<span class="w">     </span><span class="p">,</span><span class="w"> </span><span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">)</span>
+<span class="w">     </span><span class="p">{</span>
+<span class="w">         </span><span class="c1">//set the value</span>
+<span class="w">         </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
+<span class="w">         </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
+<span class="w">         </span><span class="c1">//get the value</span>
+<span class="w">         </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
+<span class="w">         </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">read</span><span class="p">();</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">xsc_array</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="o">&gt;</span><span class="w"> </span><span class="n">xsc_array_int</span><span class="p">;</span>
+<span class="w">  </span><span class="p">};</span>
 </pre></div>
 </div>
-<p>The above example show to use <code>xsc_array</code> in a <code>sc_module</code>. It define an integer <code>xsc_array</code> with size 5. In the module's constructor, the <code>xsc_arrary</code> is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of <code>xsc_property</code>. You can use the <code>[i]</code> to have access to the \(i^{th}\) item in the array.</p>
+<p>The above example show to use <code>xsc_array</code> in a <code>sc_module</code>. It define an integer <code>xsc_array</code> with size 5. In the module's constructor, the <code>xsc_arrary</code> is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of <code>xsc_property</code>. You can use the <code>[i]</code> to have access to the \(i\)th item in the array.</p>
 <p>Same as <code>xsc_property</code>, <code>xsc_array</code> also supports a callback function. For example</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">class</span> <span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span> <span class="n">sc_module</span>
+<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span>
 <span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
-     <span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span> <span class="n">name_</span><span class="p">)</span>
-     <span class="o">:</span> <span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
-     <span class="p">,</span> <span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">,</span> <span class="k">this</span><span class="p">,</span> <span class="n">xsc_callback_fun</span><span class="p">)</span>
-     <span class="p">{</span>
-     <span class="p">}</span>
-     <span class="n">xsc_array</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span> <span class="mi">5</span><span class="o">&gt;</span> <span class="n">xsc_array_int</span><span class="p">;</span>
-     <span class="k">static</span> <span class="kt">void</span> <span class="nf">xsc_callback_fun</span><span class="p">(</span><span class="n">sc_module</span><span class="o">*</span> <span class="n">pThis</span><span class="p">,</span> <span class="kt">double</span> <span class="n">value</span><span class="p">);</span>
-  <span class="p">};</span>
+<span class="w">     </span><span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span><span class="w"> </span><span class="n">name_</span><span class="p">)</span>
+<span class="w">     </span><span class="o">:</span><span class="w"> </span><span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
+<span class="w">     </span><span class="p">,</span><span class="w"> </span><span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">xsc_callback_fun</span><span class="p">)</span>
+<span class="w">     </span><span class="p">{</span>
+<span class="w">     </span><span class="p">}</span>
+<span class="w">     </span><span class="n">xsc_array</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="o">&gt;</span><span class="w"> </span><span class="n">xsc_array_int</span><span class="p">;</span>
+<span class="w">     </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">xsc_callback_fun</span><span class="p">(</span><span class="n">sc_module</span><span class="o">*</span><span class="w"> </span><span class="n">pThis</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<span class="w">  </span><span class="p">};</span>
 </pre></div>
 </div>
 <p>In bsmedit, the item of the array can be accessed by its name. For example, if in the simulation, the above <code>MyModule</code> is a top level module with name "<b>top</b>", the first item of the xsc_array_int can be accessed by</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>&gt;&gt;&gt; s.read<span class="o">(</span><span class="s1">&#39;top.xsc_array_int[0]&#39;</span><span class="o">)</span>
+<div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>s.read<span class="o">(</span><span class="s1">&#39;top.xsc_array_int[0]&#39;</span><span class="o">)</span>
 </pre></div>
 </div>
 <h2 id="sec-3-6">3.6 C/C++ Simulation</h2>
@@ -1152,17 +1165,17 @@ The breakpoint can also be enabled by python script:</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="cp">#ifndef _WAVE_H_</span>
 <span class="cp">#define _WAVE_H_</span>
-<span class="k">typedef</span> <span class="nf">int</span> <span class="p">(</span><span class="o">*</span><span class="n">pyCallback</span><span class="p">)(</span><span class="kt">int</span><span class="p">);</span>
-<span class="k">typedef</span> <span class="k">struct</span> <span class="n">wave_frame</span> <span class="p">{</span>
-    <span class="kt">int</span> <span class="n">rows</span><span class="p">;</span>
-    <span class="kt">int</span> <span class="n">cols</span><span class="p">;</span>
-    <span class="kt">float</span><span class="o">*</span> <span class="n">frame</span><span class="p">;</span>
-    <span class="kt">int</span> <span class="n">max_frame_len</span><span class="p">;</span>
-    <span class="n">pyCallback</span> <span class="n">callback</span><span class="p">;</span>
-<span class="p">}</span> <span class="n">wave_frame</span><span class="p">;</span>
+<span class="k">typedef</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">pyCallback</span><span class="p">)(</span><span class="kt">int</span><span class="p">);</span>
+<span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">wave_frame</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">rows</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">cols</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">float</span><span class="o">*</span><span class="w"> </span><span class="n">frame</span><span class="p">;</span>
+<span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">max_frame_len</span><span class="p">;</span>
+<span class="w">    </span><span class="n">pyCallback</span><span class="w"> </span><span class="n">callback</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">wave_frame</span><span class="p">;</span>
 
-<span class="kt">void</span> <span class="nf">get_frame</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span> <span class="n">frame</span><span class="p">);</span>
-<span class="kt">void</span> <span class="nf">get_frames</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span> <span class="n">frame</span><span class="p">);</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">get_frame</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span><span class="w"> </span><span class="n">frame</span><span class="p">);</span>
+<span class="kt">void</span><span class="w"> </span><span class="nf">get_frames</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span><span class="w"> </span><span class="n">frame</span><span class="p">);</span>
 <span class="cp">#endif </span><span class="c1">// _WAVE_H_</span>
 </pre></div>
 </div>
@@ -1173,76 +1186,76 @@ The breakpoint can also be enabled by python script:</p>
 </ul>
 <p><b>get_frame</b> function is used to send one frame of data to bsmedit; and <b>get_frames</b> is to retrieve all the frames (e.g., imaging the C/C++ code is keeping receiving data from the sensor). For this demo, we simply generate a 2D sine wave</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="cp">#include</span> <span class="cpf">&lt;math.h&gt;</span><span class="cp"></span>
-<span class="cp">#include</span> <span class="cpf">&lt;stdio.h&gt;</span><span class="cp"></span>
-<span class="cp">#include</span> <span class="cpf">&lt;unistd.h&gt;</span><span class="cp"></span>
-<span class="k">extern</span> <span class="s">&quot;C&quot;</span> <span class="p">{</span>
-<span class="cp">#include</span> <span class="cpf">&quot;waves.h&quot;</span><span class="cp"></span>
+<div class="syntax"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;math.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;unistd.h&gt;</span>
+<span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;waves.h&quot;</span>
 <span class="p">}</span>
 
-<span class="kt">void</span> <span class="n">get_frame</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span> <span class="n">frame</span><span class="p">)</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">get_frame</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span>
 <span class="p">{</span>
-    <span class="k">static</span> <span class="kt">float</span> <span class="n">initial_phase</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span>
-    <span class="n">initial_phase</span> <span class="o">+=</span> <span class="mf">2.</span><span class="o">*</span><span class="n">M_PI</span><span class="o">/</span><span class="mf">100.0</span><span class="p">;</span>
-    <span class="k">if</span><span class="p">(</span><span class="n">initial_phase</span><span class="o">&gt;</span><span class="mf">2.</span><span class="o">*</span><span class="n">M_PI</span><span class="p">)</span>
-        <span class="n">initial_phase</span> <span class="o">-=</span> <span class="mf">2.</span><span class="o">*</span><span class="n">M_PI</span><span class="p">;</span>
-    <span class="n">frame</span><span class="o">-&gt;</span><span class="n">rows</span> <span class="o">=</span> <span class="mi">30</span><span class="p">;</span>
-    <span class="n">frame</span><span class="o">-&gt;</span><span class="n">cols</span> <span class="o">=</span> <span class="mi">30</span><span class="p">;</span>
-    <span class="k">if</span><span class="p">(</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">max_frame_len</span> <span class="o">&lt;</span> <span class="n">frame</span><span class="o">-&gt;</span><span class="n">rows</span><span class="o">*</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">cols</span><span class="p">)</span>
-        <span class="k">return</span><span class="p">;</span>
-    <span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">i</span><span class="o">&lt;</span><span class="mi">30</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
-        <span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span> <span class="n">j</span><span class="o">&lt;</span><span class="mi">30</span><span class="p">;</span> <span class="n">j</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
-            <span class="n">frame</span><span class="o">-&gt;</span><span class="n">frame</span><span class="p">[</span><span class="n">i</span><span class="o">*</span><span class="mi">30</span><span class="o">+</span><span class="n">j</span><span class="p">]</span> <span class="o">=</span> <span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">M_PI</span><span class="o">*</span><span class="n">i</span><span class="o">/</span><span class="mi">30</span><span class="o">+</span><span class="n">initial_phase</span><span class="p">)</span><span class="o">*</span>
-                                   <span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">M_PI</span><span class="o">*</span><span class="n">j</span><span class="o">/</span><span class="mi">30</span><span class="o">+</span><span class="n">initial_phase</span><span class="p">);</span>
-        <span class="p">}</span>
-    <span class="p">}</span>
+<span class="w">    </span><span class="k">static</span><span class="w"> </span><span class="kt">float</span><span class="w"> </span><span class="n">initial_phase</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="w">    </span><span class="n">initial_phase</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="mf">2.</span><span class="o">*</span><span class="n">M_PI</span><span class="o">/</span><span class="mf">100.0</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="n">initial_phase</span><span class="o">&gt;</span><span class="mf">2.</span><span class="o">*</span><span class="n">M_PI</span><span class="p">)</span>
+<span class="w">        </span><span class="n">initial_phase</span><span class="w"> </span><span class="o">-=</span><span class="w"> </span><span class="mf">2.</span><span class="o">*</span><span class="n">M_PI</span><span class="p">;</span>
+<span class="w">    </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">rows</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span>
+<span class="w">    </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">cols</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">30</span><span class="p">;</span>
+<span class="w">    </span><span class="k">if</span><span class="p">(</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">max_frame_len</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">rows</span><span class="o">*</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">cols</span><span class="p">)</span>
+<span class="w">        </span><span class="k">return</span><span class="p">;</span>
+<span class="w">    </span><span class="k">for</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">&lt;</span><span class="mi">30</span><span class="p">;</span><span class="w"> </span><span class="n">i</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="k">for</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">&lt;</span><span class="mi">30</span><span class="p">;</span><span class="w"> </span><span class="n">j</span><span class="o">++</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">frame</span><span class="p">[</span><span class="n">i</span><span class="o">*</span><span class="mi">30</span><span class="o">+</span><span class="n">j</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cos</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">M_PI</span><span class="o">*</span><span class="n">i</span><span class="o">/</span><span class="mi">30</span><span class="o">+</span><span class="n">initial_phase</span><span class="p">)</span><span class="o">*</span>
+<span class="w">                                   </span><span class="n">sin</span><span class="p">(</span><span class="mi">2</span><span class="o">*</span><span class="n">M_PI</span><span class="o">*</span><span class="n">j</span><span class="o">/</span><span class="mi">30</span><span class="o">+</span><span class="n">initial_phase</span><span class="p">);</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 
-<span class="kt">void</span> <span class="n">get_frames</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span> <span class="n">frame</span><span class="p">)</span>
+<span class="kt">void</span><span class="w"> </span><span class="n">get_frames</span><span class="p">(</span><span class="n">wave_frame</span><span class="o">*</span><span class="w"> </span><span class="n">frame</span><span class="p">)</span>
 <span class="p">{</span>
-    <span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span> <span class="p">{</span>
-        <span class="n">get_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span>
-        <span class="k">if</span><span class="p">(</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">callback</span><span class="p">)</span> <span class="p">{</span>
-            <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">callback</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span> <span class="p">{</span>
-                <span class="k">break</span><span class="p">;</span>
-            <span class="p">}</span>
-        <span class="p">}</span>
-        <span class="n">usleep</span><span class="p">(</span><span class="mi">100000</span><span class="p">);</span>
-    <span class="p">}</span>
+<span class="w">    </span><span class="k">while</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">        </span><span class="n">get_frame</span><span class="p">(</span><span class="n">frame</span><span class="p">);</span>
+<span class="w">        </span><span class="k">if</span><span class="p">(</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">callback</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">            </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">frame</span><span class="o">-&gt;</span><span class="n">callback</span><span class="p">(</span><span class="mi">0</span><span class="p">))</span><span class="w"> </span><span class="p">{</span>
+<span class="w">                </span><span class="k">break</span><span class="p">;</span>
+<span class="w">            </span><span class="p">}</span>
+<span class="w">        </span><span class="p">}</span>
+<span class="w">        </span><span class="n">usleep</span><span class="p">(</span><span class="mi">100000</span><span class="p">);</span>
+<span class="w">    </span><span class="p">}</span>
 <span class="p">}</span>
 </pre></div>
 </div>
 <p>And the makefile may look like</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="nv">CC</span> <span class="o">=</span> g++
-<span class="nv">CFLAGS</span> <span class="o">=</span> -Wall -fexceptions -g -W -fPIC -DPURIFY -D_USRDLL
+<div class="syntax"><pre><span></span><span class="nv">CC</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>g++
+<span class="nv">CFLAGS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>-Wall<span class="w"> </span>-fexceptions<span class="w"> </span>-g<span class="w"> </span>-W<span class="w"> </span>-fPIC<span class="w"> </span>-DPURIFY<span class="w"> </span>-D_USRDLL
 
-<span class="nv">DEPS</span> <span class="o">=</span> waves.h
+<span class="nv">DEPS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>waves.h
 <span class="nv">ODIR</span><span class="o">=</span>obj
-<span class="nv">OBJ</span> <span class="o">=</span> main.o
-<span class="nv">OBJS</span> <span class="o">=</span> <span class="k">$(</span>patsubst %,<span class="k">$(</span>ODIR<span class="k">)</span>/%,<span class="k">$(</span>OBJ<span class="k">))</span>
+<span class="nv">OBJ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>main.o
+<span class="nv">OBJS</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">$(</span>patsubst<span class="w"> </span>%,<span class="k">$(</span>ODIR<span class="k">)</span>/%,<span class="k">$(</span>OBJ<span class="k">))</span>
 
-<span class="nf">libwaves</span><span class="o">:</span> <span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span>
-    <span class="k">$(</span>CC<span class="k">)</span> -shared  $^ -o <span class="nv">$@</span>.so
+<span class="nf">libwaves</span><span class="o">:</span><span class="w"> </span><span class="k">$(</span><span class="nv">OBJS</span><span class="k">)</span>
+<span class="w">    </span><span class="k">$(</span>CC<span class="k">)</span><span class="w"> </span>-shared<span class="w">  </span>$^<span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span>.so
 
-<span class="nf">$(ODIR)/%.o</span><span class="o">:</span> %.<span class="n">c</span> <span class="k">$(</span><span class="nv">DEPS</span><span class="k">)</span>
-    <span class="k">$(</span>CC<span class="k">)</span> <span class="k">$(</span>CFLAGS<span class="k">)</span> -c $&lt; -o <span class="nv">$@</span>
+<span class="nf">$(ODIR)/%.o</span><span class="o">:</span><span class="w"> </span>%.<span class="n">c</span> <span class="k">$(</span><span class="nv">DEPS</span><span class="k">)</span>
+<span class="w">    </span><span class="k">$(</span>CC<span class="k">)</span><span class="w"> </span><span class="k">$(</span>CFLAGS<span class="k">)</span><span class="w"> </span>-c<span class="w"> </span>$&lt;<span class="w"> </span>-o<span class="w"> </span><span class="nv">$@</span>
 
-<span class="nf">$(OBJS)</span><span class="o">:</span> <span class="p">|</span> <span class="k">$(</span><span class="nv">ODIR</span><span class="k">)</span>
+<span class="nf">$(OBJS)</span><span class="o">:</span><span class="w"> </span><span class="p">|</span> <span class="k">$(</span><span class="nv">ODIR</span><span class="k">)</span>
 
 <span class="nf">$(ODIR)</span><span class="o">:</span>
-    mkdir -p <span class="k">$(</span>ODIR<span class="k">)</span>
+<span class="w">    </span>mkdir<span class="w"> </span>-p<span class="w"> </span><span class="k">$(</span>ODIR<span class="k">)</span>
 
-<span class="nf">.PHONY</span><span class="o">:</span> <span class="n">clean</span>
+<span class="nf">.PHONY</span><span class="o">:</span><span class="w"> </span><span class="n">clean</span>
 
 <span class="nf">clean</span><span class="o">:</span>
-    rm -f <span class="k">$(</span>ODIR<span class="k">)</span>/*.o *.so
-    rm -r <span class="k">$(</span>ODIR<span class="k">)</span>
+<span class="w">    </span>rm<span class="w"> </span>-f<span class="w"> </span><span class="k">$(</span>ODIR<span class="k">)</span>/*.o<span class="w"> </span>*.so
+<span class="w">    </span>rm<span class="w"> </span>-r<span class="w"> </span><span class="k">$(</span>ODIR<span class="k">)</span>
 </pre></div>
 </div>
 <p>To generate the library</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>$ make
+<div class="syntax"><pre><span></span>$<span class="w"> </span>make
 </pre></div>
 </div>
 <p>Now the library is ready, let's start to build the python interface so that it can communicate with bsmedit.
@@ -1296,16 +1309,17 @@ One way is to use <a href="https://docs.python.org/3.6/library/ctypes.html">ctyp
 </pre></div>
 </div></li>
 <li><p>Plot with matplotlib</p>
-<div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">rows</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">cols</span><span class="p">))</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">gca</span><span class="p">(</span><span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">frame_array</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">cols</span><span class="p">))</span>
-</pre></div>
-</div>
 <div class="bs-example">
 <figure class="figure">
-<img src="./images/waves.png" alt="./images/waves.png">
+<img src="./images/waves.png" alt="./images/waves.png" width="522" height="474">
 </figure>
+</div>
+<div class="bs-example-src">
+<div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">meshgrid</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">rows</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">cols</span><span class="p">))</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">fig</span> <span class="o">=</span> <span class="n">figure</span><span class="p">()</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">ax</span> <span class="o">=</span> <span class="n">fig</span><span class="o">.</span><span class="n">add_subplot</span><span class="p">(</span><span class="n">projection</span><span class="o">=</span><span class="s1">&#39;3d&#39;</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">ax</span><span class="o">.</span><span class="n">plot_surface</span><span class="p">(</span><span class="n">x</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">x</span><span class="p">[</span><span class="mi">1</span><span class="p">],</span> <span class="n">frame_array</span><span class="o">.</span><span class="n">reshape</span><span class="p">(</span><span class="n">frame</span><span class="o">.</span><span class="n">rows</span><span class="p">,</span> <span class="n">frame</span><span class="o">.</span><span class="n">cols</span><span class="p">))</span>
+</pre></div>
 </div></li>
 </ol>
 <p>It is very flexible to build the python interfaces with ctypes directly. However, it is also tedious and error prone, especially when there are a lot of interfaces or the interfaces may change frequently. bsmedit provides an alternative way to automatically generate python interfaces from the header file, that is</p>
@@ -1330,13 +1344,35 @@ Thus, the above example can be achieved by</p>
 <p>bsmedit also provides a class to to show the 3D image easily in python; the full example can be found <a href="https://github.com/tianzhuqiao/bsmedit/tree/master/examples/waves">here</a>.
 Run the following command to show wave in bsmedit</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span>$ bsmedit -i -p examples/waves waves
+<div class="syntax"><pre><span></span>$<span class="w"> </span>bsmedit<span class="w"> </span>-i<span class="w"> </span>-p<span class="w"> </span>examples/waves<span class="w"> </span>waves
 </pre></div>
 </div>
 <div class="video">
-<video controls><source src="./images/waves.mp4">
+<video controls width="368" height="349"><source src="./images/waves.mp4">
 Your browser does not support the video tag.</video>
 </div>
+<h1 id="sec-4">4 Misc.</h1>
+<h2 id="sec-4-1">4.1 ULog</h2>
+<p><a href="https://docs.px4.io/main/en/dev_log/ulog_file_format.html">ULog</a> is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (menu-&gt;open-&gt;ulog), bsmedit will create a panelto show its content. Different types of message are shown in different tab.</p>
+<figure class="figure">
+<img src="./images/ulog_panel.png" alt="./images/ulog_panel.png" width="346" height="365">
+</figure>
+<p>For a ulog file that has many messages, you can use the searching box to filter messages.</p>
+<figure class="figure">
+<img src="./images/ulog_panel_filter.png" alt="./images/ulog_panel_filter.png" width="346" height="365">
+</figure>
+<p>You can also export the data to the terminal by right click on it</p>
+<figure class="figure">
+<img src="./images/ulog_panel_menu.png" alt="./images/ulog_panel_menu.png" width="346" height="365">
+</figure>
+<p>To visualize the data, you can either</p>
+<ol>
+<li>double click on the data, and it will on the current figure (create one automatically if no figure exists)</li>
+<li>drag the data to some figure</li>
+</ol>
+<figure class="figure">
+<img src="./images/ulog_panel_plot2.png" alt="./images/ulog_panel_plot2.png" width="705" height="454">
+</figure>
 </div>
 </div>
 <div class="footer">
@@ -1357,7 +1393,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2020-07-20 18:25:24 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2023-12-19 02:04:06 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 </body>

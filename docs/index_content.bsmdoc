@@ -10,6 +10,31 @@ def bsmdoc_ccodesnippet(data, *args, **kwargs):
     with open(data.strip(), 'r') as f:
         return ''.join(f.readlines())
     return data
+bsmdoc_image_orig = BFunction().image
+@BFunction('image')
+def bsmdoc_image(data, *args, **kwargs):
+    filename = data.strip()
+    if filename.endswith('png'):
+        from PIL import Image
+        im = Image.open(data.strip())
+        width, height = im.size
+        args = list(args)
+        args.append(f'width="{int(width/2)}"')
+        args.append(f'height="{int(height/2)}"')
+    return bsmdoc_image_orig(data, *args, **kwargs)
+bsmdoc_video_orig = BFunction().video
+@BFunction('video')
+def bsmdoc_video(data, *args, **kwargs):
+    filename = data.strip()
+    if filename.endswith('mp4'):
+        import cv2
+        vid = cv2.VideoCapture(filename)
+        height = vid.get(cv2.CAP_PROP_FRAME_HEIGHT)
+        width = vid.get(cv2.CAP_PROP_FRAME_WIDTH)
+        args = list(args)
+        args.append(f'width="{int(width/2)}"')
+        args.append(f'height="{int(height/2)}"')
+    return bsmdoc_video_orig(data, *args, **kwargs)
 %}!}
 
 = What is bsmedit
@@ -98,7 +123,7 @@ and create the simulation\footnote{Here we slightly abuse the notation \tag{b|si
 ./images/start_open_project.png
 !}
 
-It will show a open file dialog. In the open file dialog, select the lib from the above step (e.g. \tag{code|libstart.so}, \tag{code|start.dll} ). bsmedit will automatically load the simulation.
+It will show a open file dialog. In the open file dialog, select the simulation library (e.g. \tag{code|libstart.so}, \tag{code|start.dll} ). bsmedit will automatically load the simulation.
 {!image||
 ./images/start_sim_main.png
 !}
@@ -113,10 +138,10 @@ The main window consists of 4 sections, from top to bottom:
 -\tag{b|total unit}: the time unit of the total simulation duration.
 }
 *{\tag{b|Simulation objects}\footnote{Sometimes they will be referred as \tag{b|objects} (as they are all derived from \tag{b|sc_object}) or \tag{b|signals} (as \tag{b|sc_signal} is the most common object to control the simulation). We will use both interchangeably.}.
-This window lists all \tag{code|objects} defined in the simulation. As shown in previous steps, the simulation has one top module (i.e., \tag{code|top}) and 4 signals: \tag{code|CLOCK}, \tag{code|sig_cos}, \tag{code|sig_sin}, and \tag{code|sig_steps}. The tree hierarchy represents their structure in the simulation.
+This window lists all \tag{code|objects} defined in the simulation. As shown in figure above, the simulation has one top module (i.e., \tag{code|top}) and 4 signals: \tag{code|CLOCK}, \tag{code|sig_cos}, \tag{code|sig_sin}, and \tag{code|sig_steps}. The tree hierarchy represents their structure in the simulation.
 }
 *\tag{b|Console window}. It is used to execute commands and show outputs.
-*\tag{b|Status}.
+*\tag{b|Statusbar}.
 
 To run the simulation, click the \tag{b|step} or \tag{b|run} button. The simulation will proceed until you pause it or the total simulation duration is reached. The current simulation time is shown in the status bar.
 
@@ -237,7 +262,7 @@ By default, when executing the external command, bsmedit will wait for it to fin
 >>> !gvim &
 %}!}
 
-You can add an '\tag{b|alias}' to an external command to save some typing. For example, the following command will add an alias '\tag{b|ll}'
+You can add an \tag{b|alias} to an external command to save some typing. For example, the following command will add an alias '\tag{b|ll}'
 {!example_src||highlight|shell||{%
 >>> alias ll ls -l
 %}!}
@@ -270,7 +295,7 @@ foo
 >>>
 %}!}
 
-One major constraint of version 3 is that it executes the command in the main GUI thread. Thus, if a dead loop is feed into the interpreter, it will never return and can not be interrupted, for example:
+One major constraint of version 3 is that it executes the command in the main GUI thread. Thus, if a dead loop is fed into the interpreter, it will never return and can not be interrupted, for example:
 
 {!example_src||highlight|python||{%
 >>> while True:
@@ -282,7 +307,7 @@ One reason we do not execute the command in a separate process or thread is that
 #Another concern is that we may totally separate the simulation control and GUI, such that you can use the simulation control function with any other interactive shell.
 
 == Figure
-In version 3, the original plot library is discarded. Instead, you can use [http://www.matplotlib.org|matplotlib] to visualize the data. By default, all the functions defined in '\tag{b|matplotlib.pyplot}' are pre-loaded, so you can call them directly in the console window. The detailed description can be found [http://matplotlib.org/api/pyplot_api.html|here]. To create a new figure and plot a straight line
+In version 3, the original plot library is discarded. Instead, we use [http://www.matplotlib.org|matplotlib] to visualize the data. By default, all the functions defined in \tag{b|matplotlib.pyplot} are pre-loaded, so you can call them directly in the console window. The detailed description can be found [http://matplotlib.org/api/pyplot_api.html|here]. To create a new figure and plot a straight line
 {!example_src||highlight|python||{%
 >>> figure();
 >>> plot(range(100))
@@ -303,16 +328,13 @@ Like Matlab, you can add label, legend, and grid
 ./images/plot_range100more.png
 !}
 
-The figure window has two sections: \tag{code|toolbar} and \tag{code|plot}, as illustrated in the following diagram
-{!image||
-./images/figure.png
-!}
-
+As shown above, the figure window has two sections: \tag{code|toolbar} and \tag{code|plot}.
 The buttons on the toolbar are (from left to right)
+- \tag{b|new figure}: create an empty figure
 - \tag{b|home}: it will bring the plot to the initial status (e.g., zoom and position)
 - \tag{b|back}: go to the previous status if available
 - \tag{b|forward}: go to the next status if available
-- \tag{b|move}: move the plot with the mouse
+- \tag{b|move/pan}: move the plot with the mouse
 - \tag{b|zoom}: zoom in the plot by clicking, moving and releasing mouse, or with the mouse wheel. Double-click on the plot will bring the plot to the original view.
 - {\tag{b|datatip}: add datatip to the curve.
 {!image||{%
@@ -324,8 +346,17 @@ datatip can be activated by clicking on it and its background will be in orange.
 }
 - \tag{b|save}: export the plot (without the toolbar section) to a file (e.g., with format eps, ps, pgf, png, pdf, raw, rgba, svg ... )
 - \tag{b|copy}: copy the plot (without toolbar section) to clipboard
+- {\tag{b|edit}: edit the plotted lines
+{!video||
+./images/figure_edit.mp4
+!}
+}
+The \tag{b|plot} function will add the curve to the \tag{b|active} figure window. Generally, the \tag{b|active} figure window is the latest activated figure window. For example, you can click on a figure window to make it active. And it will keep active until you click on another figure window or create a new one. If you are not sure about the active figure window, you may click on it before calling any plot functions. For a figure with multiple subplots, click the one to activate it
+{!video||
+./images/figure_select_axis.mp4
+!}
 
-The \tag{b|plot} function will add the curve to the \tag{b|active} figure window. Generally, the \tag{b|active} figure window is the latest activated figure window. For example, you can click on a figure window to make it active. And it will keep active until you click on another figure window or create a new one. If you are not sure about the active figure window, you may click on it before calling any plot functions. Or, the following command will activate the figure window with number \tag{code|1} (its window name may look like '\tag{code|Figure 1}')
+The following command will activate the figure window with number \tag{code|1} (its window name may look like "\tag{b|Figure 1}")
 {!example_src||highlight|python||{%
 >>> figure(1)
 %}!}
@@ -414,7 +445,7 @@ s.run(to='1ms')
 s.run(more='1ms')
 %}!}
 
-Sometime, you may want to wait until the simulation paused. For example, you may want to check the signal value after the simulation has paused. There is a function to do that
+Sometime, you may want to wait until the simulation pauses. For example, you may want to check the signal value after the simulation has paused. There is a function to do that
 {!example_src||highlight|python||{%
 s.wait_until_simulation_paused()
 s.read['top.sig_sin']
@@ -725,7 +756,7 @@ As shown above, each signal in \tag{b|propgrid} has two sections: label and valu
 ./images/prop_move.png
 !}
 }
-*- or press \tag{b|Ctrl+Up}/\tag{b|Ctrl+Down} to more the signals up/down.
+*- or press \tag{b|Ctrl/Cmd+Up}/\tag{b|Ctrl/Cmd+Down} to move the signals up/down.
 
 \tag{b|Group multiple signals together}. Right click on a signal to show the context menu, and click the \tag{b|Increase Indent}
 {!image||
@@ -738,13 +769,13 @@ Then bsmedit will increase the indent of the signal, and the signal will effecti
 You can also use script to change the indent level
 {!example_src||highlight|python||{%
 >>> # get the propgrid window with id=1
->>> grid = propgrid(1)
+>>> g = propgrid(1)
 >>> # get the handle of the property (assume it has already been added to the
 >>> # propgrid window. Since the properties in each propgrid window may monitor
 >>> # signals from multiple simulations, and they may have same name, here the
 >>> # signal name is the global name. In other words, the original signal name is
 >>> # prepended with its simulation id.
->>> p = grid.GetProperty("1.top.sig_sin")
+>>> p = g.Get("1.top.sig_sin")
 >>> # to increase the indent by one level
 >>> p.SetIndent(p.GetIndent()+1)
 >>> # to decrease the indent by one level; the minimal indent level is 0
@@ -753,7 +784,7 @@ You can also use script to change the indent level
 
 You can click the \tag{b|+}/\tag{b|-} button to show/hide the children.
 {!example_src||highlight|python||{%
->>> p = grid.GetProperty("1.top.sig_steps")
+>>> p = grid.Get("1.top.sig_steps")
 >>> # show the children signals
 >>> p.SetExpand(True)
 >>> # hide the children signals
@@ -773,9 +804,8 @@ Besides the editbox, the following types of controls can be used to update the s
 
 You can right click on the signal and select 'Properties' from the context menu to change the window type in edit mode. Besides that, it can also be changed by python script:
 {!example_src||highlight|python||{%
-p = grid.GetProperty('1.top.sig_steps')
-p.SetFormatter(fmt.ChoiceFormatter([256, 1024, 2048, 8192, 16384]))
-p.SetControlStyle('choice')
+p = g.Get('1.top.sig_steps')
+p.SetControlStyle('Choice', choice=[256, 1024, 2048, 8192, 16384])
 %}!}
 }
 -{Slider
@@ -783,9 +813,7 @@ p.SetControlStyle('choice')
 ./images/prop_slider.png
 !}
 {!example_src||highlight|python||{%
-p = grid.GetProperty('1.top.sig_steps')
-p.SetFormatter(fmt.IntFormatter(256, 16384))
-p.SetControlStyle('slider')
+p.SetControlStyle('Slider', min_value=256, max_value=16384)
 %}!}
 }
 -{Spin
@@ -793,9 +821,7 @@ p.SetControlStyle('slider')
 ./images/prop_spin.png
 !}
 {!example_src||highlight|python||{%
-p = grid.GetProperty('top.sig_steps')
-p.SetFormatter(fmt.IntFormatter(256, 16384))
-p.SetControlStyle('spin')
+p.SetControlStyle('Spin', min_value=256, max_value=16384)
 %}!}
 }
 -{Checkbox
@@ -803,8 +829,8 @@ p.SetControlStyle('spin')
 ./images/prop_checkbox.png
 !}
 {!example_src||highlight|python||{%
-p = grid.GetProperty('1.top.sig_sc_bit')
-p.SetControlStyle('checkbox')
+p = g.Get('1.top.sig_sc_bit')
+p.SetControlStyle('CheckBox')
 %}!}
 }
 -{Radio box
@@ -812,9 +838,8 @@ p.SetControlStyle('checkbox')
 ./images/prop_radiobox.png
 !}
 {!example_src||highlight|python||{%
-p = grid.GetProperty('1.top.sig_logic')
-p.SetFormatter(fmt.ChoiceFormatter({'1':1, '0':0, 'Z':'Z', 'X':'X'})
-p.SetControlStyle('radiobox')
+p = g.Get('1.top.sig_logic')
+p.SetControlStyle('RadioBox', choice={'1':'1', '0':'0', 'Z':'Z', 'X':'X'})
 %}!}
 }
 -Color picker
@@ -829,11 +854,10 @@ As shown above, you can set the breakpoint with script. You can also set the bre
 bsmedit will check the breakpoint at each SystemC \tag{b|delta} cycle. Once the condition is true, it will pause the simulation.
 The breakpoint can also be enabled by python script:
 {!example_src||highlight|python||{%
-p = grid.GetProperty('1.top.sig_sin')
 p.SetChecked(True)
 %}!}
 
-Then, if you run the simulation, it will be paused once the signal value is changed or the simulation time is reached. You can also set the breakpoint conditions here. Right clock on the signal and click '\tag{b|Breakpoint Condition}' (the menu item is not clickable unless the radio button is checked)
+Then, if you run the simulation, it will be paused once the signal value is changed or the simulation time is reached. You can also set the breakpoint conditions here. Right click on the signal and click '\tag{b|Breakpoint Condition}' (the menu item is not clickable unless the radio button is checked)
 {!image||
 ./images/prop_bpcondition.png
 !}
@@ -873,7 +897,7 @@ To make bsmedit work, the simulation needs to implement and export some interfac
 {!example_src||highlight|c++||{%
 void bsm_sim_top(sim_context *context);
 %}!}
-It is a first function bsmedit will call to create a simulation. \tag{code|sim_context} is a struct to return simulation information to bsmedit. It is defined by the macro "\tag{b|BSMEDIT_IMPLEMENT_MODULE}"
+It is a first function bsmedit will call to create a simulation, where \tag{code|sim_context} is a struct to return simulation information to bsmedit. It is defined by the macro "\tag{b|BSMEDIT_IMPLEMENT_MODULE}"
 {!example_src||highlight|c++||{%
 typedef struct sim_context {
     char version[MAX_NAME_LEN];
@@ -950,7 +974,7 @@ extern "C"\
 #Same as the functions to dump the object to a file, these functions are used to dump the object to a buffer. Two more functions are defined to read and resize the buffer, respectively.
 #}
 === xsc_property
-With SystemC's '\tag{code|sc_signal}', it is very easy to simulate a \tag{b|register} in simulation. For example, you can configure the simulation by changing the values of some \tag{code|sc_signal}s without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the \tag{code|xsc_property} from \tag{code|sc_signal}.
+With SystemC's \tag{code|sc_signal}, it is very easy to simulate a \tag{b|register} in simulation. For example, you can configure the simulation by changing the values of some \tag{code|sc_signal} without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the \tag{code|xsc_property} from \tag{code|sc_signal}.
 
 Its usage is almost exactly same as sc_signal. It supports all the data type supported by sc_signal.
 {!example_src||highlight|c++||{%
@@ -967,7 +991,11 @@ public:
     static void xsc_callback_fun(sc_module* pThis, double value);
 };
 %}!}
-In this example, we define a double type \tag{code|xsc_property}. During its initialization, three parameters are passed into its constructor function. The first one is its name derived from \tag{code|sc_signal}. The second one is the pointer to the current \tag{code|sc_module}. And the third one is the pointer to a static function. Now, when bsmedit sends the following command to the simulation (here assume the name/path of the \tag{code|xsc_property} is "\tag{b|top.mymodule.xsc_prop_double}")
+In this example, we define a double type \tag{code|xsc_property}. During its initialization, three parameters are passed into its constructor function:
+* its name derived from \tag{code|sc_signal},
+* the pointer to the current \tag{code|sc_module},
+* the pointer to a static function.
+Now, when bsmedit sends the following command to the simulation (here assume the name/path of the \tag{code|xsc_property} is "\tag{b|top.mymodule.xsc_prop_double}")
 {!example_src||highlight|shell||{%
 >>> # s is the simulation handle
 >>> s.write("top.mymodule.xsc_prop_double", 1.0)
@@ -1005,7 +1033,7 @@ public:
   };
  %}!}
 
-The above example show to use \tag{code|xsc_array} in a \tag{code|sc_module}. It define an integer \tag{code|xsc_array} with size 5. In the module's constructor, the \tag{code|xsc_arrary} is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of \tag{code|xsc_property}. You can use the \tag{code|\[i\]} to have access to the $i^{th}$ item in the array.
+The above example show to use \tag{code|xsc_array} in a \tag{code|sc_module}. It define an integer \tag{code|xsc_array} with size 5. In the module's constructor, the \tag{code|xsc_arrary} is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of \tag{code|xsc_property}. You can use the \tag{code|\[i\]} to have access to the $i$th item in the array.
 
 Same as \tag{code|xsc_property}, \tag{code|xsc_array} also supports a callback function. For example
 {!example_src||highlight|c++||{%
@@ -1103,13 +1131,15 @@ One way is to use [https://docs.python.org/3.6/library/ctypes.html| ctypes] dire
 %}!}
  }
 *{Plot with matplotlib
-{!example_src||highlight|python||{%
->>> x = np.meshgrid(np.arange(frame.rows), np.arange(frame.cols))
->>> ax = gca(projection='3d')
->>> ax.plot_surface(x[0], x[1], frame_array.reshape(frame.rows, frame.cols))
-%}!} {!example||image||
+{!example||image||
 ./images/waves.png
 !}
+{!example_src||highlight|python||{%
+>>> x = np.meshgrid(np.arange(frame.rows), np.arange(frame.cols))
+>>> fig = figure()
+>>> ax = fig.add_subplot(projection='3d')
+>>> ax.plot_surface(x[0], x[1], frame_array.reshape(frame.rows, frame.cols))
+%}!}
 }
 It is very flexible to build the python interfaces with ctypes directly. However, it is also tedious and error prone, especially when there are a lot of interfaces or the interfaces may change frequently. bsmedit provides an alternative way to automatically generate python interfaces from the header file, that is
 {!example_src||highlight|python||{%
@@ -1154,3 +1184,26 @@ $ bsmedit -i -p examples/waves waves
 #{!example_src||highlight|python||ccodesnippet2|../examples/waves/waves.py|Wave||
 #!}
 
+= Misc.
+== ULog
+[https://docs.px4.io/main/en/dev_log/ulog_file_format.html|ULog] is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (menu->open->ulog), bsmedit will create a panelto show its content. Different types of message are shown in different tab.
+{!image||
+./images/ulog_panel.png
+!}
+
+For a ulog file that has many messages, you can use the searching box to filter messages.
+{!image||
+./images/ulog_panel_filter.png
+!}
+
+You can also export the data to the terminal by right click on it
+{!image||
+./images/ulog_panel_menu.png
+!}
+
+To visualize the data, you can either
+* double click on the data, and it will on the current figure (create one automatically if no figure exists)
+* drag the data to some figure
+{!image||
+./images/ulog_panel_plot2.png
+!}
