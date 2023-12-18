@@ -162,7 +162,7 @@ class SimSysC(object):
 
         if obj.value.type == BSM_DATA_STRING:
             obj.value.sValue = (ctypes.c_byte * len(obj.value.sValue))(
-                *bytearray(value))
+                *bytearray(str(value).encode()))
         elif obj.value.type == BSM_DATA_FLOAT:
             obj.value.fValue = float(value)
         elif obj.value.type == BSM_DATA_INT:
