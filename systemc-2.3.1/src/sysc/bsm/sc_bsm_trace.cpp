@@ -159,20 +159,20 @@ namespace sc_core {
         char buf[2000];
 
         if(bit_width <= 0) {
-            sprintf(buf, "Traced object \"%s\" has 0 Bits, cannot be traced.",
+            snprintf(buf, 2000, "Traced object \"%s\" has 0 Bits, cannot be traced.",
                 name.c_str());
             bsm_put_error_message(buf, false);
         } else {
             std::string namecopy = name;
             remove_bsm_name_problems(namecopy);
             if(bit_width == 1) {
-                sprintf(buf, "$var %s  % 3d  %s  %s       $end\n",
+                snprintf(buf, 2000, "$var %s  % 3d  %s  %s       $end\n",
                     bsm_var_typ_name,
                     bit_width,
                     bsm_name.c_str(),
                     namecopy.c_str());
             } else {
-                sprintf(buf, "$var %s  % 3d  %s  %s [%d:0]  $end\n",
+                snprintf(buf, 2000, "$var %s  % 3d  %s  %s [%d:0]  $end\n",
                     bsm_var_typ_name,
                     bit_width,
                     bsm_name.c_str(),
@@ -244,7 +244,7 @@ namespace sc_core {
             if(trigger_type_ == BSM_TRIGGER_VAL_NEG ||
                 trigger_type_ == BSM_TRIGGER_VAL_POS) {
                 char buf[2000];
-                sprintf(buf, "Traced object \"%s\" does not support triggering on %s edge.",
+                snprintf(buf, 2000, "Traced object \"%s\" does not support triggering on %s edge.",
                     name.c_str(), trigger_type_ == BSM_TRIGGER_VAL_NEG ? "neg" : "pos");
                 bsm_put_error_message(buf, true);
             }
@@ -358,11 +358,11 @@ bool changed()\
     };
 
     bsm_sc_bit_trace::bsm_sc_bit_trace(const sc_dt::sc_bit& object_,
-        const std::string& name,
-        const std::string& bsm_namem,
+        const std::string& name_,
+        const std::string& bsm_name_,
         const unsigned print_type_,
         const unsigned trigger_type_)
-        :bsm_trace(name, bsm_name, print_type_, trigger_type_)
+        :bsm_trace(name_, bsm_name_, print_type_, trigger_type_)
         , object(object_)
     {
         bsm_var_typ_name = "wire";
@@ -1817,26 +1817,26 @@ bool changed()\
             //timescale:
             static struct SC_TIMESCALE_TO_TEXT {
                 double unit;
-                char*  text;
+                const char*  text;
             } timescale_to_text[] = {
                 { sc_time(1, SC_FS).to_seconds(), "1 fs" },
                 { sc_time(10, SC_FS).to_seconds(), "10 fs" },
-                { sc_time(100, SC_FS).to_seconds(),"100 fs" },
+                { sc_time(100, SC_FS).to_seconds(), "100 fs" },
                 { sc_time(1, SC_PS).to_seconds(),  "1 ps" },
                 { sc_time(10, SC_PS).to_seconds(), "10 ps" },
-                { sc_time(100, SC_PS).to_seconds(),"100 ps" },
+                { sc_time(100, SC_PS).to_seconds(), "100 ps" },
                 { sc_time(1, SC_NS).to_seconds(),  "1 ns" },
                 { sc_time(10, SC_NS).to_seconds(), "10 ns" },
-                { sc_time(100, SC_NS).to_seconds(),"100 ns" },
+                { sc_time(100, SC_NS).to_seconds(), "100 ns" },
                 { sc_time(1, SC_US).to_seconds(),  "1 us" },
                 { sc_time(10, SC_US).to_seconds(), "10 us" },
-                { sc_time(100, SC_US).to_seconds(),"100 us" },
+                { sc_time(100, SC_US).to_seconds(), "100 us" },
                 { sc_time(1, SC_MS).to_seconds(),  "1 ms" },
                 { sc_time(10, SC_MS).to_seconds(), "10 ms" },
-                { sc_time(100, SC_MS).to_seconds(),"100 ms" },
+                { sc_time(100, SC_MS).to_seconds(), "100 ms" },
                 { sc_time(1, SC_SEC).to_seconds(),  "1 sec" },
                 { sc_time(10, SC_SEC).to_seconds(), "10 sec" },
-                { sc_time(100, SC_SEC).to_seconds(),"100 sec" }
+                { sc_time(100, SC_SEC).to_seconds(), "100 sec" }
             };
             static int timescale_to_text_n =
                 sizeof(timescale_to_text) / sizeof(SC_TIMESCALE_TO_TEXT);
@@ -1874,7 +1874,7 @@ bool changed()\
             // double inittime = sc_simulation_time();
             double inittime = sc_time_stamp().to_seconds();
 
-            sprintf(buf,
+            snprintf(buf, 2000,
                 "All initial values are dumped below at time "
                 "%g sec = %g timescale units.",
                 inittime, inittime / timescale_unit
@@ -1958,7 +1958,7 @@ bool changed()\
         else if(exponent10_seconds == 2) timescale_unit = 1e2;
 
         char buf[200];
-        sprintf(buf,
+        snprintf(buf, 200,
             "Note: BSM trace timescale unit is set by user to 1e%d sec.\n",
             exponent10_seconds);
         ::std::cout << buf << ::std::flush;
@@ -2156,8 +2156,8 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
         double_to_special_int64(now_units, &now_units_high, &now_units_low);
 
         bool now_later_than_previous_time = false;
-        if(now_units_low > previous_time_units_low
-            && now_units_high == previous_time_units_high
+        if((now_units_low > previous_time_units_low
+            && now_units_high == previous_time_units_high)
             || now_units_high > previous_time_units_high) {
             now_later_than_previous_time = true;
         }
@@ -2199,7 +2199,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
             // Don't print the message at time zero
             static bool warned = false;
             if(!warned && !running_regression) {
-                sprintf(message,
+                snprintf(message, 4000,
                     "Multiple cycles found with same (%u) time units count.\n"
                     "Waveform viewers will only show the states of the last one.\n"
                     "Use ((bsm_trace_file*)bsmfile)->sc_set_bsm_time_unit(int exponent10_seconds)\n"
@@ -2218,7 +2218,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
             !now_later_than_previous_time) {
             static bool warned = false;
             if(!warned) {
-                sprintf(message,
+                snprintf(message, 4000,
                     "Cycle found with falling (%u -> %u) time units count.\n"
                     "This can occur when delta cycling is activated.\n"
                     "Cycles with falling time are not shown.\n"
@@ -2249,9 +2249,9 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
                         if(bsm_print_type == BT_VCD) {
                             char buf[200];
                             if(this_time_units_high) {
-                                sprintf(buf, "#%u%09u", this_time_units_high, this_time_units_low);
+                                snprintf(buf, 200, "#%u%09u", this_time_units_high, this_time_units_low);
                             } else {
-                                sprintf(buf, "#%u", this_time_units_low);
+                                snprintf(buf, 200, "#%u", this_time_units_low);
                             }
                             fputs(buf, fp);
                             fputc('\n', fp);
@@ -2299,7 +2299,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
         char char2 = (char)(result % used_types_count);
 
         char buf[20];
-        sprintf(buf, "%c%c%c",
+        snprintf(buf, 20, "%c%c%c",
             char2 + first_type_used,
             char3 + first_type_used,
             char4 + first_type_used);
@@ -2324,7 +2324,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
         char char2 = (char)(result % used_types_count);
 
         char buf[20];
-        sprintf(buf, "%c%c%c",
+        snprintf(buf, 20, "%c%c%c",
             char2 + first_type_used,
             char3 + first_type_used,
             char4 + first_type_used);
@@ -2425,7 +2425,7 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
         }
 
         if(braces_removed && !warned) {
-            sprintf(message,
+            snprintf(message, 4000,
                 "Traced objects found with name containing [], which may be\n"
                 "interpreted by the waveform viewer in unexpected ways.\n"
                 "So the [] is automatically replaced by ().");
@@ -2978,7 +2978,6 @@ void bsm_trace_file::trace( const sc_dt::tp& object_,                         \
     bool bsm_trace_object(bsm_trace_file *tf, sc_object* scObj)
     {
         std::string strKind = scObj->kind();
-        bool bRtn = false;
         if(strKind.compare("sc_signal") == 0 || strKind.compare("sc_clock") == 0) {
             return bsm_trace_signal(tf, scObj);
         } else if(strKind.compare("sc_in") == 0) {

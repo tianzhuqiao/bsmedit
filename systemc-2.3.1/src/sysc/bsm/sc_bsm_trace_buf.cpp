@@ -1111,7 +1111,7 @@ bool changed()\
         else if(exponent10_seconds == 2) timescale_unit = 1e2;
 
         char buf[200];
-        sprintf(buf,
+        snprintf(buf, 200,
             "Note: BSM trace timescale unit is set by user to 1e%d sec.\n",
             exponent10_seconds);
         ::std::cout << buf << ::std::flush;
@@ -1266,8 +1266,8 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
         double_to_special_int64(now_units, &now_units_high, &now_units_low);
 
         bool now_later_than_previous_time = false;
-        if(now_units_low > previous_time_units_low
-            && now_units_high == previous_time_units_high
+        if((now_units_low > previous_time_units_low
+            && now_units_high == previous_time_units_high)
             || now_units_high > previous_time_units_high) {
             now_later_than_previous_time = true;
         }
@@ -1309,7 +1309,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
             // Don't print the message at time zero
             static bool warned = false;
             if(!warned && !running_regression) {
-                sprintf(message,
+                snprintf(message, 4000,
                     "Multiple cycles found with same (%u) time units count.\n"
                     "Waveform viewers will only show the states of the last one.\n"
                     "Use ((bsm_trace_buf*)bsmfile)->sc_set_bsm_time_unit(int exponent10_seconds)\n"
@@ -1328,7 +1328,7 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
             !now_later_than_previous_time) {
             static bool warned = false;
             if(!warned) {
-                sprintf(message,
+                snprintf(message, 4000,
                     "Cycle found with falling (%u -> %u) time units count.\n"
                     "This can occur when delta cycling is activated.\n"
                     "Cycles with falling time are not shown.\n"
@@ -1806,7 +1806,6 @@ bsm_trace_buf::trace( const sc_dt::tp& object_,                               \
     bool bsm_trace_buf_object(bsm_trace_buf *tf, sc_object* scObj)
     {
         std::string strKind = scObj->kind();
-        bool bRtn = false;
         if(strKind.compare("sc_signal") == 0 || strKind.compare("sc_clock") == 0) {
             return bsm_trace_signal(tf, scObj);
         } else if(strKind.compare("sc_in") == 0) {

@@ -34,7 +34,7 @@ namespace sc_core {
         bsm_trace_buf(const char *name);
 
         // Flush results and close file.
-        ~bsm_trace_buf();
+        virtual ~bsm_trace_buf();
 
     public:
 
@@ -266,7 +266,7 @@ DEFN_TRACE_BUF_FUNC_PTR_B(tp)
     DEFN_TRACE_BUF_FUNC_A(bool)
     DEFN_TRACE_BUF_FUNC_A(float)
     DEFN_TRACE_BUF_FUNC_A(double)
-    
+
     DEFN_TRACE_BUF_FUNC_B(unsigned char)
     DEFN_TRACE_BUF_FUNC_B(unsigned short)
     DEFN_TRACE_BUF_FUNC_B(unsigned int)
