@@ -1906,6 +1906,8 @@ class sim:
         mgr = graph.plt.get_current_fig_manager()
         if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
             mgr = mgr.frame
+        if not mgr.IsShownOnScreen():
+            dp.send('frame.show_panel', panel=mgr)
         autorelim = kwargs.pop("relim", True)
         mgr.plot_trace(x, y, autorelim, *args, **kwargs)
 

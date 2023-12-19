@@ -655,6 +655,8 @@ class ULogPanel(wx.Panel):
         mgr = graph.plt.get_current_fig_manager()
         if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
             mgr = mgr.frame
+        if not mgr.IsShownOnScreen():
+            dp.send('frame.show_panel', panel=mgr)
         mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]))
         mgr.figure.gca().legend()
         mgr.figure.gca().grid(True)
