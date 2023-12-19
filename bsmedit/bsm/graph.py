@@ -12,18 +12,21 @@ from matplotlib.backend_bases import CloseEvent
 from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
+import matplotlib.style as mplstyle
 from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
 from .utility import PopupMenu, build_menu_from_list, svg_to_bitmap
 from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
-                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, page_add_xpm
+                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, \
+                    page_add_xpm, split_vert_svg
 from .. import to_byte
 from .graph_toolbar import GraphToolbar
 from .graph_subplot import add_subplot, del_subplot
-rcParams.update({'figure.autolayout': True})
-rcParams.update({'toolbar': 'None'})
+rcParams.update({'figure.autolayout': True, 'toolbar': 'None',
+                 'path.simplify_threshold': 1})
 matplotlib.interactive(True)
+mplstyle.use('fast')
 
 
 class Pan(GraphObject):
@@ -93,6 +96,10 @@ class Toolbar(GraphToolbar):
     ID_SPLIT_VERT_SHARE_XYAXIS = wx.NewIdRef()
     ID_DELETE_SUBPLOT = wx.NewIdRef()
     ID_DELETE_LINES = wx.NewIdRef()
+    ID_LINE_STYLE_LINE = wx.NewIdRef()
+    ID_LINE_STYLE_DOT = wx.NewIdRef()
+    ID_LINE_STYLE_LINE_DOT = wx.NewIdRef()
+
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -191,8 +198,10 @@ class Toolbar(GraphToolbar):
             return
 
         menu = wx.Menu()
+        menu.Append(self.ID_LINE_STYLE_LINE, "Line")
+        menu.Append(self.ID_LINE_STYLE_DOT, "Dot")
+        menu.Append(self.ID_LINE_STYLE_LINE_DOT, "Line+Dot")
         style_menu = wx.Menu()
-
         for k, v in matplotlib.lines.Line2D.lineStyles.items():
             if k and isinstance(k, str) and not k.isspace():
                 if k not in self.linestyle_ids:
@@ -200,28 +209,34 @@ class Toolbar(GraphToolbar):
                 v = v.replace('_draw_', '')
                 v = v.replace('_', ' ')
                 style_menu.Append(self.linestyle_ids[k], v)
+        menu.AppendSeparator()
+        menu.AppendSubMenu(style_menu, "Line style")
+
         marker_menu = wx.Menu()
         for k, v in matplotlib.lines.Line2D.markers.items():
             if k and isinstance(k, str) and not k.isspace():
                 if k not in self.marker_ids:
                     self.marker_ids[k] = wx.NewIdRef()
                 marker_menu.Append(self.marker_ids[k], k)
-        menu.AppendSubMenu(style_menu, "Line style")
         menu.AppendSubMenu(marker_menu, "Marker style")
         menu.AppendSeparator()
+        item = menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS,
+                           "Split vertically with shared x-axis")
+        item.SetBitmap(svg_to_bitmap(split_vert_svg, win=self))
         split_vert_menu = wx.Menu()
-        split_vert_menu.Append(self.ID_SPLIT_VERT, "Split vertically")
-        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS, "Shared x-axis")
-        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_YAXIS, "Shared y-axis")
-        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_XYAXIS, "Shared x/y-axis")
+        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS, "Share x-axis")
+        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_YAXIS, "Share y-axis")
+        split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_XYAXIS, "Share x/y-axis")
+        split_vert_menu.Append(self.ID_SPLIT_VERT, "Share no axis")
         menu.AppendSubMenu(split_vert_menu, "Split vertically")
         split_horz_menu = wx.Menu()
-        split_horz_menu.Append(self.ID_SPLIT_HORZ, "Split horizontally")
         split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_XAXIS, "Share x-axis")
         split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_YAXIS, "Share y-axis")
-        split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_XYAXIS, "Shared x/y-axis")
+        split_horz_menu.Append(self.ID_SPLIT_HORZ_SHARE_XYAXIS, "Share x/y-axis")
+        split_horz_menu.Append(self.ID_SPLIT_HORZ, "Share horizontally")
         menu.AppendSubMenu(split_horz_menu, "Split horizontally")
         menu.AppendSeparator()
+
         menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
 
@@ -238,18 +253,27 @@ class Toolbar(GraphToolbar):
             menu.AppendSeparator()
             menu_mode = build_menu_from_list(menus)
             menu.AppendSubMenu(menu_mode, name.capitalize())
+        def _set_linestyle(ls=None, ms=None):
+            for ax in axes:
+                for l in ax.lines:
+                    if ls is not None:
+                        l.set_linestyle(ls)
+                    if ms is not None:
+                        l.set_marker(ms)
 
         cmd = PopupMenu(self, menu)
-        if cmd in self.linestyle_ids.values():
+        if cmd == self.ID_LINE_STYLE_LINE:
+            _set_linestyle('-', '')
+        elif cmd == self.ID_LINE_STYLE_DOT:
+            _set_linestyle('', '.')
+        elif cmd == self.ID_LINE_STYLE_LINE_DOT:
+            _set_linestyle('-', '.')
+        elif cmd in self.linestyle_ids.values():
             style = list(self.linestyle_ids.keys())[list(self.linestyle_ids.values()).index(cmd)]
-            for ax in axes:
-                for l in ax.lines:
-                    l.set_linestyle(style)
+            _set_linestyle(ls=style)
         elif cmd in self.marker_ids.values():
             marker = list(self.marker_ids.keys())[list(self.marker_ids.values()).index(cmd)]
-            for ax in axes:
-                for l in ax.lines:
-                    l.set_marker(marker)
+            _set_linestyle(ms=marker)
         elif cmd in [self.ID_SPLIT_VERT, self.ID_SPLIT_VERT_SHARE_XAXIS,
                      self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
                      self.ID_SPLIT_HORZ, self.ID_SPLIT_HORZ_SHARE_XAXIS,
