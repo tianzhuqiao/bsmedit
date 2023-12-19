@@ -207,8 +207,6 @@ bool bsm_sim_object_impl::is_writable()
 bool bsm_sim_object_impl::ReadSignal(bsm_object_value * v)
 {
     assert(v);
-    const int buf_len = 256;
-    static char value[buf_len];
     if(BSM_CHECK_TYPE(BSM_REG_DOUBLE)) {
         sc_signal<double > *dyObj = dynamic_cast<sc_signal<double >*>(m_obj);
         assert(dyObj);
@@ -280,14 +278,16 @@ bool bsm_sim_object_impl::ReadSignal(bsm_object_value * v)
         sc_signal<sc_logic > *dyObj =
             dynamic_cast<sc_signal<sc_logic >*>(m_obj);
         assert(dyObj);
-        v->iValue = dyObj->read().to_char();
-        v->type = TYPE_INT;
+        v->sValue[0] = dyObj->read().to_char();
+        v->sValue[1] = '\0';
+        v->type = TYPE_STRING;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_signal<sc_bit > *dyObj =
             dynamic_cast<sc_signal<sc_bit >*>(m_obj);
         assert(dyObj);
-        v->iValue = dyObj->read().to_char();
-        v->type = TYPE_INT;
+        v->sValue[0] = dyObj->read().to_char();
+        v->sValue[1] = '\0';
+        v->type = TYPE_STRING;
     } else if(BSM_CHECK_TYPE(BSM_REG_STR)) {
         sc_signal<std::string > *dyObj =
             dynamic_cast<sc_signal<std::string >*>(m_obj);
@@ -388,13 +388,15 @@ bool bsm_sim_object_impl::ReadInPort(bsm_object_value* v)
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_LOGIC)) {
         sc_in<sc_logic > *dyObj = dynamic_cast<sc_in<sc_logic >*>(m_obj);
         assert(dyObj);
-        v->iValue = dyObj->read().to_char();
-        v->type = TYPE_INT;
+        v->sValue[0] = dyObj->read().to_char();
+        v->sValue[1] = '\0';
+        v->type = TYPE_STRING;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_in<sc_bit > *dyObj = dynamic_cast<sc_in<sc_bit >*>(m_obj);
         assert(dyObj);
-        v->iValue = dyObj->read().to_char();
-        v->type = TYPE_INT;
+        v->sValue[0] = dyObj->read().to_char();
+        v->sValue[1] = '\0';
+        v->type = TYPE_STRING;
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_port_base* port = dynamic_cast<sc_port_base*>(m_obj);
         assert(port);
@@ -489,13 +491,15 @@ bool bsm_sim_object_impl::ReadInoutPort(bsm_object_value* v)
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_LOGIC)) {
         sc_inout<sc_logic > *dyObj = dynamic_cast<sc_inout<sc_logic >*>(m_obj);
         assert(dyObj);
-        v->iValue = dyObj->read().to_char();
-        v->type = TYPE_INT;
+        v->sValue[0] = dyObj->read().to_char();
+        v->sValue[1] = '\0';
+        v->type = TYPE_STRING;
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_inout<sc_bit > *dyObj = dynamic_cast<sc_inout<sc_bit >*>(m_obj);
         assert(dyObj);
-        v->iValue = dyObj->read().to_char();
-        v->type = TYPE_INT;
+        v->sValue[0] = dyObj->read().to_char();
+        v->sValue[1] = '\0';
+        v->type = TYPE_STRING;
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_port_base* port = dynamic_cast<sc_port_base*>(m_obj);
         int nLen = 256;
@@ -596,12 +600,12 @@ bool bsm_sim_object_impl::WriteSignal(const bsm_object_value* v)
         sc_signal<sc_logic > *dyObj =
             dynamic_cast<sc_signal<sc_logic >*>(m_obj);
         assert(dyObj);
-        dyObj->write((sc_logic)((char)v->iValue));
+        dyObj->write((sc_logic)(v->sValue[0]));
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_signal<sc_bit > *dyObj =
             dynamic_cast<sc_signal<sc_bit >*>(m_obj);
         assert(dyObj);
-        dyObj->write((sc_bit)((char)v->iValue));
+        dyObj->write((sc_bit)(v->sValue[0]));
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_interface* interf = dynamic_cast<sc_interface*>(m_obj);
         assert(interf);
@@ -680,12 +684,12 @@ bool bsm_sim_object_impl::WriteInoutPort(const bsm_object_value* v)
         sc_inout<sc_logic > *dyObj =
             dynamic_cast<sc_inout<sc_logic >*>(m_obj);
         assert(dyObj);
-        dyObj->write((sc_logic)((char)v->uValue));
+        dyObj->write((sc_logic)(v->sValue[0]));
     } else if(BSM_CHECK_TYPE(BSM_REG_SC_BIT)) {
         sc_inout<sc_bit > *dyObj =
             dynamic_cast<sc_inout<sc_bit >*>(m_obj);
         assert(dyObj);
-        dyObj->write((sc_bit)((char)v->uValue));
+        dyObj->write((sc_bit)(v->sValue[0]));
     } else if(BSM_CHECK_TYPE(BSM_REG_TEMPL)) {
         sc_port_base* interf = dynamic_cast<sc_port_base*>(m_obj);
         assert(interf);
@@ -873,7 +877,7 @@ bsm_sim_trace_file* bsm_sim_context_impl::add_trace(const char* name, int type)
 }
 bool bsm_sim_context_impl::remove_trace(bsm_sim_trace_file* fp)
 {
-    if(m_sim == NULL) return NULL;
+    if(m_sim == NULL) return false;
 
     bsm_sim_trace_file_impl* fp_impl = dynamic_cast<bsm_sim_trace_file_impl*>(fp);
     if(fp_impl) {
@@ -886,7 +890,7 @@ bool bsm_sim_context_impl::remove_trace(bsm_sim_trace_file* fp)
 }
 bool bsm_sim_context_impl::trace(bsm_sim_trace_file*tf, bsm_sim_object*obj)
 {
-    if(m_sim == NULL) return NULL;
+    if(m_sim == NULL) return false;
 
     assert(tf && obj);
     bsm_sim_trace_file_impl* fp_impl = dynamic_cast<bsm_sim_trace_file_impl*>(tf);
@@ -909,7 +913,7 @@ bsm_sim_trace_buf* bsm_sim_context_impl::add_trace_buf(const char* name)
 }
 bool bsm_sim_context_impl::remove_trace_buf(bsm_sim_trace_buf*fp)
 {
-    if(m_sim == NULL) return NULL;
+    if(m_sim == NULL) return false;
 
     bsm_sim_trace_buf_impl* fp_impl = dynamic_cast<bsm_sim_trace_buf_impl*>(fp);
     if(fp_impl) {
@@ -922,7 +926,7 @@ bool bsm_sim_context_impl::remove_trace_buf(bsm_sim_trace_buf*fp)
 
 bool bsm_sim_context_impl::trace_buf(bsm_sim_trace_buf*tf, bsm_sim_object*obj)
 {
-    if(m_sim == NULL) return NULL;
+    if(m_sim == NULL) return false;
 
     assert(tf && obj);
     bsm_sim_trace_buf_impl* fp_impl = dynamic_cast<bsm_sim_trace_buf_impl*>(tf);
