@@ -8,12 +8,12 @@ from wx import stc
 import wx.py.dispatcher as dp
 from ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
-from .bsmxpm import open_xpm, save_xpm, saveas_xpm, find_xpm, indent_xpm, \
-                    dedent_xpm, run_xpm, execute_xpm, check_xpm, debug_xpm, \
-                    folder_xpm, vert_xpm, horz_xpm, reload_xpm
+from .bsmxpm import open_svg, reload_svg, save_svg, save_gray_svg, saveas_svg, \
+                    play_svg, task_svg, debug_svg, more_svg, \
+                    indent_inc_svg, indent_dec_svg, check_svg, search_svg
 from .pymgr_helpers import Gcm
 from .. import to_byte
-from .utility import get_file_finder_name, show_file_in_finder
+from .utility import get_file_finder_name, show_file_in_finder, svg_to_bitmap
 from .editor_base import *
 
 
@@ -126,6 +126,9 @@ class PyEditor(EditorBase):
     ID_EDIT_BREAKPOINT = wx.NewIdRef()
     ID_DELETE_BREAKPOINT = wx.NewIdRef()
     ID_CLEAR_BREAKPOINT = wx.NewIdRef()
+    ID_WORD_WRAP = wx.NewIdRef()
+    ID_INDENT_INC = wx.NewIdRef()
+    ID_INDENT_DEC = wx.NewIdRef()
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -184,7 +187,21 @@ class PyEditor(EditorBase):
         menu.AppendSeparator()
         menu.Append(self.ID_COMMENT, 'Comment')
         menu.Append(self.ID_UNCOMMENT, 'Uncomment')
+        menu.AppendSeparator()
+        item = menu.Append(self.ID_INDENT_INC, 'Increase indent')
+        item.SetBitmap(svg_to_bitmap(indent_inc_svg, win=self))
+        item = menu.Append(self.ID_INDENT_DEC, 'Decrease indent')
+        item.SetBitmap(svg_to_bitmap(indent_dec_svg, win=self))
+        menu.AppendSeparator()
+        menu.AppendCheckItem(self.ID_WORD_WRAP, 'Word wrap')
+        menu.Check(self.ID_WORD_WRAP, self.GetWrapMode() != wx.stc.STC_WRAP_NONE)
         return menu
+
+    def ToggleWrapMode(self):
+        if self.GetWrapMode() == wx.stc.STC_WRAP_NONE:
+            self.SetWrapMode(wx.stc.STC_WRAP_WORD)
+        else:
+            self.SetWrapMode(wx.stc.STC_WRAP_NONE)
 
     def OnContextMenu(self, evt):
         p = self.ScreenToClient(evt.GetPosition())
@@ -426,6 +443,10 @@ class PyEditor(EditorBase):
             self.comment()
         elif eid == self.ID_UNCOMMENT:
             self.uncomment()
+        elif eid == self.ID_INDENT_INC:
+            self.indented()
+        elif eid == self.ID_INDENT_DEC:
+            self.unindented()
         elif eid == self.ID_DELETE_BREAKPOINT:
             bp = self.findBreakPoint(self.GetCurrentLine())
             if bp:
@@ -444,6 +465,8 @@ class PyEditor(EditorBase):
                             id=bp['id'],
                             condition=cond[0],
                             hitcount=cond[1])
+        elif eid == self.ID_WORD_WRAP:
+            self.ToggleWrapMode()
 
     def LoadFile(self, filename):
         """load file into editor"""
@@ -462,8 +485,6 @@ class PyEditorPanel(wx.Panel):
     ID_CHECK_SCRIPT = wx.NewIdRef()
     ID_RUN_LINE = wx.NewIdRef()
     ID_FIND_REPLACE = wx.NewIdRef()
-    ID_INDENT = wx.NewIdRef()
-    ID_UNINDENT = wx.NewIdRef()
     ID_SETCURFOLDER = wx.NewIdRef()
     ID_TIDY_SOURCE = wx.NewIdRef()
     ID_SPLIT_VERT = wx.NewIdRef()
@@ -480,6 +501,7 @@ class PyEditorPanel(wx.Panel):
     ID_PANE_CLOSE = wx.NewIdRef()
     ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
     ID_PANE_CLOSE_ALL = wx.NewIdRef()
+    ID_MORE = wx.NewIdRef()
 
     wildcard = 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
     frame = None
@@ -494,50 +516,45 @@ class PyEditorPanel(wx.Panel):
         self.splitter.Initialize(self.editor)
         self.Bind(stc.EVT_STC_CHANGE, self.OnCodeModified)
         item = (
-            (wx.ID_OPEN, 'Open', open_xpm, 'Open Python script'),
-            (wx.ID_REFRESH, 'Reload', reload_xpm, 'Reload current script'),
-            (wx.ID_SAVE, 'Save', save_xpm, 'Save current document (Ctrl+S)'),
-            (wx.ID_SAVEAS, 'Save As', saveas_xpm, 'Save current document as'),
-            (None, None, None, None),
-            (self.ID_FIND_REPLACE, 'Find', find_xpm, 'Find/Replace (Ctrl+F)'),
-            (None, None, None, None),
-            (self.ID_INDENT, 'Increase Indent', indent_xpm,
-             'Increase the indent'),
-            (self.ID_UNINDENT, 'Decrease Indent', dedent_xpm,
-             'Decrease the indent'),
-            (None, None, None, None),
-            (self.ID_RUN_LINE, 'Run', run_xpm,
+            (wx.ID_OPEN, 'Open', open_svg, None, 'Open Python script'),
+            (wx.ID_REFRESH, 'Reload', reload_svg, None, 'Reload current script'),
+            (wx.ID_SAVE, 'Save', save_svg, save_gray_svg, 'Save current document (Ctrl+S)'),
+            (wx.ID_SAVEAS, 'Save As', saveas_svg, None, 'Save current document as'),
+            (None, None, None, None, None),
+            (self.ID_FIND_REPLACE, 'Find', search_svg, None, 'Find/Replace (Ctrl+F)'),
+            (None, None, None, None, None),
+            (self.ID_RUN_LINE, 'Run', play_svg, None,
              'Run the current line or selection (Ctrl+Return)'),
-            (self.ID_RUN_SCRIPT, 'Execute', execute_xpm,
+            (self.ID_RUN_SCRIPT, 'Execute', task_svg, None,
              'Execute the whole script'),
-            (None, None, None, None),
-            (self.ID_CHECK_SCRIPT, 'Check', check_xpm, 'Check the module'),
-            (self.ID_DEBUG_SCRIPT, 'Debug', debug_xpm, 'Debug the script'),
-            (None, None, None, None),
-            (self.ID_SETCURFOLDER, 'Set current folder', folder_xpm,
-             'Set the file folder as current folder'),
-            (None, None, None, None),
-            (self.ID_SPLIT_VERT, 'Split Vert', vert_xpm,
-             'Split the window vertically'),
-            (self.ID_SPLIT_HORZ, 'Split Horz', horz_xpm,
-             'Split the window horizontally'),
+            (None, None, None, None, None),
+            (self.ID_CHECK_SCRIPT, 'Check', check_svg, None, 'Check the module'),
+            (self.ID_DEBUG_SCRIPT, 'Debug', debug_svg, None, 'Debug the script'),
+            (None, None, None, None, "stretch"),
+            (self.ID_MORE, 'More', more_svg, None, 'More'),
         )
 
         self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW)
-        for (eid, label, img_xpm, tooltip) in item:
+        for (eid, label, img, img_gray, tooltip) in item:
             if eid is None:
-                self.tb.AddSeparator()
+                if tooltip == "stretch":
+                    self.tb.AddStretchSpacer()
+                else:
+                    self.tb.AddSeparator()
                 continue
-            bmp = wx.Bitmap(to_byte(img_xpm))
-            if label in ['Split Vert', 'Split Horz']:
-                self.tb.AddCheckTool(eid, label, bmp, wx.NullBitmap, tooltip)
+            if isinstance(img, list):
+                bmp = wx.Bitmap(to_byte(img))
             else:
-                self.tb.AddSimpleTool(eid, label, bmp, tooltip)
-        self.tb.AddSeparator()
-        self.cbWrapMode = wx.CheckBox(self.tb, wx.ID_ANY, 'Word Wrap')
-        self.cbWrapMode.SetValue(True)
-        self.tb.AddControl(self.cbWrapMode)
+                bmp = svg_to_bitmap(img, win=self)
+            bmp_gray = wx.NullBitmap
+            if img_gray:
+                bmp_gray = svg_to_bitmap(img_gray, win=self)
+            if label in ['Split Vert', 'Split Horz']:
+                self.tb.AddCheckTool(eid, label, bmp, bmp_gray, tooltip)
+            else:
+                self.tb.AddTool(eid, label, bmp, bmp_gray, kind=wx.ITEM_NORMAL,
+                                short_help_string=tooltip)
 
         self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
@@ -547,6 +564,7 @@ class PyEditorPanel(wx.Panel):
         self.box.Add(self.splitter, 1, wx.EXPAND)
         self.box.Fit(self)
         self.SetSizer(self.box)
+
         # Connect Events
         self.Bind(wx.EVT_TOOL, self.OnBtnOpen, id=wx.ID_OPEN)
         self.Bind(wx.EVT_TOOL, self.OnBtnReload, id=wx.ID_REFRESH)
@@ -559,12 +577,11 @@ class PyEditorPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnBtnRunScript, id=self.ID_RUN_SCRIPT)
         self.Bind(wx.EVT_TOOL, self.OnBtnDebugScript, id=self.ID_DEBUG_SCRIPT)
         #self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateBtn, id=self.ID_DEBUG_SCRIPT)
-        self.Bind(wx.EVT_TOOL, self.OnIndent, id=self.ID_INDENT)
-        self.Bind(wx.EVT_TOOL, self.OnUnindent, id=self.ID_UNINDENT)
         self.Bind(wx.EVT_TOOL, self.OnSetCurFolder, id=self.ID_SETCURFOLDER)
-        self.Bind(wx.EVT_TOOL, self.OnSplitVert, id=self.ID_SPLIT_VERT)
-        self.Bind(wx.EVT_TOOL, self.OnSplitHorz, id=self.ID_SPLIT_HORZ)
-        self.cbWrapMode.Bind(wx.EVT_CHECKBOX, self.OnWrap)
+        self.Bind(wx.EVT_MENU, self.OnSplitVert, id=self.ID_SPLIT_VERT)
+        self.Bind(wx.EVT_MENU, self.OnSplitHorz, id=self.ID_SPLIT_HORZ)
+        self.Bind(wx.EVT_TOOL, self.OnMore, id=self.ID_MORE)
+
         accel = [
             (wx.ACCEL_CTRL, wx.WXK_RETURN, self.ID_RUN_LINE),
             (wx.ACCEL_CTRL, ord('S'), wx.ID_SAVE),
@@ -682,7 +699,7 @@ class PyEditorPanel(wx.Panel):
 
     def OnWrap(self, event):
         """turn on/off the wrap mode"""
-        if self.cbWrapMode.IsChecked():
+        if self.editor.GetWrapMode() == stc.STC_WRAP_NONE:
             self.editor.SetWrapMode(stc.STC_WRAP_WORD)
         else:
             self.editor.SetWrapMode(stc.STC_WRAP_NONE)
@@ -874,15 +891,6 @@ class PyEditorPanel(wx.Panel):
         #dp.send('debugger.ended')
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, True)
 
-
-    def OnIndent(self, event):
-        """increase the indent"""
-        self.editor.indented()
-
-    def OnUnindent(self, event):
-        """decrease the indent"""
-        self.editor.unindented()
-
     def OnSetCurFolder(self, event):
         """set the current folder to the folder with the file"""
         if not self.fileName:
@@ -893,28 +901,9 @@ class PyEditorPanel(wx.Panel):
 
     def OnSplitVert(self, event):
         """show splitter window vertically"""
-        show = self.tb.GetToolToggled(self.ID_SPLIT_VERT)
-        if not show:
-            # hide the splitter window
-            if self.editor2:
-                if self.splitter.IsSplit():
-                    self.splitter.Unsplit(self.editor2)
-                self.editor2.Hide()
-        else:
-            # show splitter window
-            if not self.editor2:
-                # create the splitter window
-                self.editor2 = PyEditor(self.splitter)
-                self.editor2.SetDocPointer(self.editor.GetDocPointer())
-            if self.editor2:
-                if self.splitter.IsSplit():
-                    self.splitter.Unsplit(self.editor2)
-                self.splitter.SplitHorizontally(self.editor, self.editor2)
-                self.tb.ToggleTool(self.ID_SPLIT_HORZ, False)
-
-    def OnSplitHorz(self, event):
-        """show splitter window horizontally"""
-        show = self.tb.GetToolToggled(self.ID_SPLIT_HORZ)
+        show = not (self.splitter.IsSplit() and
+                    self.splitter.GetSplitMode() == wx.SPLIT_VERTICAL)
+        print(show)
         if not show:
             # hide the splitter window
             if self.editor2:
@@ -931,7 +920,49 @@ class PyEditorPanel(wx.Panel):
                 if self.splitter.IsSplit():
                     self.splitter.Unsplit(self.editor2)
                 self.splitter.SplitVertically(self.editor, self.editor2)
-                self.tb.ToggleTool(self.ID_SPLIT_VERT, False)
+
+    def OnSplitHorz(self, event):
+        """show splitter window horizontally"""
+        show = not (self.splitter.IsSplit() and
+                    self.splitter.GetSplitMode() == wx.SPLIT_HORIZONTAL)
+        if not show:
+            # hide the splitter window
+            if self.editor2:
+                if self.splitter.IsSplit():
+                    self.splitter.Unsplit(self.editor2)
+                self.editor2.Hide()
+        else:
+            # show splitter window
+            if not self.editor2:
+                # create the splitter window
+                self.editor2 = PyEditor(self.splitter)
+                self.editor2.SetDocPointer(self.editor.GetDocPointer())
+            if self.editor2:
+                if self.splitter.IsSplit():
+                    self.splitter.Unsplit(self.editor2)
+                self.splitter.SplitHorizontally(self.editor, self.editor2)
+
+    def OnMore(self, event):
+        menu = wx.Menu()
+        menu.Append(self.ID_SETCURFOLDER, "Set current folder")
+        menu.AppendSeparator()
+        item = menu.AppendCheckItem(self.ID_SPLIT_VERT, "Split editor right")
+        item.Check(self.splitter.IsSplit() and
+                   (self.splitter.GetSplitMode() == wx.SPLIT_VERTICAL))
+        item = menu.AppendCheckItem(self.ID_SPLIT_HORZ, "Split editor down")
+        item.Check(self.splitter.IsSplit() and
+                   (self.splitter.GetSplitMode() == wx.SPLIT_HORIZONTAL))
+
+        # line up our menu with the button
+        tb = event.GetEventObject()
+        tb.SetToolSticky(event.GetId(), True)
+        rect = tb.GetToolRect(event.GetId())
+        pt = tb.ClientToScreen(rect.GetBottomLeft())
+        pt = self.ScreenToClient(pt)
+        self.PopupMenu(menu, pt)
+
+        # make sure the button is "un-stuck"
+        tb.SetToolSticky(event.GetId(), False)
 
     @classmethod
     def Initialize(cls, frame, **kwargs):
