@@ -260,6 +260,9 @@ class Toolbar(GraphToolbar):
                         l.set_linestyle(ls)
                     if ms is not None:
                         l.set_marker(ms)
+                if ax.get_legend():
+                    # update the line/marker on the legend
+                    ax.legend()
 
         cmd = PopupMenu(self, menu)
         if cmd == self.ID_LINE_STYLE_LINE:
@@ -598,12 +601,18 @@ class DataDropTarget(wx.DropTarget):
                 fig.gca().set_xlabel('t(s)')
             for i, ax in enumerate(fig.get_axes()):
                 if ax.bbox.contains(x, y):
+                    ls, ms = None, None
+                    if ax.lines:
+                        # match the line/marker style of the existing line
+                        line = ax.lines[0]
+                        ls, ms = line.get_linestyle(), line.get_marker()
                     for l in data:
                         title = l[0]
                         line = pandas.DataFrame.from_dict(json.loads(l[1]))
                         for i in range(1, len(line.columns)):
                             ax.plot(line[line.columns[0]], line[line.columns[i]],
-                                    label="/".join([title, line.columns[i]]))
+                                    label="/".join([title, line.columns[i]]),
+                                    linestyle=ls, marker=ms)
                     ax.legend()
                     break
         except:

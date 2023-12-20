@@ -657,7 +657,13 @@ class ULogPanel(wx.Panel):
             mgr = mgr.frame
         if not mgr.IsShownOnScreen():
             dp.send('frame.show_panel', panel=mgr)
-        mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]))
+        ls, ms = None, None
+        if mgr.figure.gca().lines:
+            # match the line/marker style of the existing line
+            line = mgr.figure.gca().lines[0]
+            ls, ms = line.get_linestyle(), line.get_marker()
+        mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]),
+                              linestyle=ls, marker=ms)
         mgr.figure.gca().legend()
         mgr.figure.gca().grid(True)
         mgr.figure.gca().set_xlabel('t(s)')
