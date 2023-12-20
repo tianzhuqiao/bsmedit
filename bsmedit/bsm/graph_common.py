@@ -17,8 +17,8 @@ class GraphObject():
         box = ax.get_window_extent()
         if xlim[1] - xlim[0] == 0 or ylim[1] - ylim[0] == 0:
             return 1, 1
-        gx = box.width / (xlim[1] - xlim[0])
-        gy = box.height / (ylim[1] - ylim[0])
+        gx = box.width / abs(xlim[1] - xlim[0])
+        gy = box.height / abs(ylim[1] - ylim[0])
         return gx, gy
 
     def get_closest_line(self, axes, mx, my):

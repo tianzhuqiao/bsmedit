@@ -54,8 +54,8 @@ class Pan(GraphObject):
         for i, ax in enumerate(axes):
             xlims = xlims_all[i]
             ylims = ylims_all[i]
-            rng_x = (xlims[1] - xlims[0])*step
-            rng_y = (ylims[1] - ylims[0])*step
+            rng_x = abs(xlims[1] - xlims[0])*step
+            rng_y = abs(ylims[1] - ylims[0])*step
             if keycode in [wx.WXK_LEFT, wx.WXK_RIGHT]:
                 if keycode == wx.WXK_LEFT:
                     xlims -= rng_x
@@ -99,7 +99,8 @@ class Toolbar(GraphToolbar):
     ID_LINE_STYLE_LINE = wx.NewIdRef()
     ID_LINE_STYLE_DOT = wx.NewIdRef()
     ID_LINE_STYLE_LINE_DOT = wx.NewIdRef()
-
+    ID_FLIP_Y_AXIS = wx.NewIdRef()
+    ID_FLIP_X_AXIS = wx.NewIdRef()
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -239,6 +240,11 @@ class Toolbar(GraphToolbar):
 
         menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
+        menu.AppendSeparator()
+        item = menu.AppendCheckItem(self.ID_FLIP_Y_AXIS, "Flip y axis")
+        item.Check(all([ax.yaxis.get_inverted() for ax in axes]))
+        item = menu.AppendCheckItem(self.ID_FLIP_X_AXIS, "Flip x axis")
+        item.Check(all([ax.xaxis.get_inverted() for ax in axes]))
 
         scale_menu = wx.Menu()
         scale_menu.Append(self.ID_AUTO_SCALE_XY, "Auto scale")
@@ -299,6 +305,12 @@ class Toolbar(GraphToolbar):
                 ax.cla()
                 ax.grid(True)
             self._nav_stack.clear()
+        elif cmd == self.ID_FLIP_Y_AXIS:
+            for ax in axes:
+                ax.invert_yaxis()
+        elif cmd == self.ID_FLIP_X_AXIS:
+            for ax in axes:
+                ax.invert_xaxis()
         elif cmd in [self.ID_AUTO_SCALE_XY, self.ID_AUTO_SCALE_X, self.ID_AUTO_SCALE_Y]:
             if cmd == self.ID_AUTO_SCALE_X:
                 self.do_auto_scale(axes, 'x')
@@ -365,19 +377,27 @@ class Toolbar(GraphToolbar):
         for ax, xzoom, yzoom, xdata, ydata in axes:
             if xzoom:
                 cur_xlim = ax.get_xlim()
-                new_width = (cur_xlim[1] - cur_xlim[0]) * scale_factor
-                relx = (cur_xlim[1] - xdata) / (cur_xlim[1] - cur_xlim[0])
+                new_width = abs(cur_xlim[1] - cur_xlim[0]) * scale_factor
+                relx = abs(cur_xlim[1] - xdata) / abs(cur_xlim[1] - cur_xlim[0])
                 if new_width * (1 - relx) > 0:
-                    ax.set_xlim(
-                        [xdata - new_width * (1 - relx), xdata + new_width * (relx)])
+                    if not ax.xaxis.get_inverted():
+                        ax.set_xlim([xdata - new_width * (1 - relx),
+                                     xdata + new_width * (relx)])
+                    else:
+                        ax.set_xlim([xdata + new_width * (1-relx),
+                                     xdata - new_width * relx])
             if yzoom:
                 cur_ylim = ax.get_ylim()
-                new_height = (cur_ylim[1] - cur_ylim[0]) * scale_factor
-                rely = (cur_ylim[1] - ydata) / (cur_ylim[1] - cur_ylim[0])
-
+                new_height = abs(cur_ylim[1] - cur_ylim[0]) * scale_factor
+                rely = abs(cur_ylim[1] - ydata) / abs(cur_ylim[1] - cur_ylim[0])
                 if new_height * (1 - rely) > 0:
-                    ax.set_ylim(
-                        [ydata - new_height * (1 - rely), ydata + new_height * (rely)])
+                    if not ax.yaxis.get_inverted():
+                        ax.set_ylim([ydata - new_height * (1 - rely),
+                                     ydata + new_height * rely])
+                    else:
+                        ax.set_ylim([ydata + new_height * (1-rely),
+                                     ydata - new_height * rely])
+
         self.canvas.draw()
 
     def init_toolbar_empty(self):
