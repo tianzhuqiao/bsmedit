@@ -12,8 +12,8 @@ import wx.svg
 from  ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from .dirtreectrl import DirTreeCtrl, Directory
-from .bsmxpm import backward_svg, backward_disable_svg, forward_svg, \
-                    forward_disable_svg, up_svg, home_svg, more_svg
+from .bsmxpm import backward_svg2, backward_gray_svg2, forward_svg2, \
+                    forward_gray_svg2, up_svg, home_svg2, more_svg
 from .autocomplete import AutocompleteTextCtrl
 from .utility import FastLoadTreeCtrl, svg_to_bitmap, open_file_with_default_app, \
                      show_file_in_finder, get_file_finder_name
@@ -78,14 +78,14 @@ class HelpPanel(wx.Panel):
         agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddTool(wx.ID_BACKWARD, 'Back',
-                        svg_to_bitmap(backward_svg, win=self),
-                        svg_to_bitmap(backward_disable_svg, win=self),
+                        svg_to_bitmap(backward_svg2, win=self),
+                        svg_to_bitmap(backward_gray_svg2, win=self),
                         aui.ITEM_NORMAL,
                         'Go the previous page')
 
         self.tb.AddTool(wx.ID_FORWARD, 'Forward',
-                        svg_to_bitmap(forward_svg, win=self),
-                        svg_to_bitmap(forward_disable_svg, win=self),
+                        svg_to_bitmap(forward_svg2, win=self),
+                        svg_to_bitmap(forward_gray_svg2, win=self),
                         aui.ITEM_NORMAL,
                         'Go to the next page')
         self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
@@ -502,14 +502,14 @@ class DirPanel(wx.Panel):
         agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddTool(wx.ID_BACKWARD, 'Back',
-                        svg_to_bitmap(backward_svg, win=self),
-                        svg_to_bitmap(backward_disable_svg, win=self),
+                        svg_to_bitmap(backward_svg2, win=self),
+                        svg_to_bitmap(backward_gray_svg2, win=self),
                         aui.ITEM_NORMAL,
                         'Back')
 
         self.tb.AddTool(wx.ID_FORWARD, 'Forward',
-                        svg_to_bitmap(forward_svg, win=self),
-                        svg_to_bitmap(forward_disable_svg, win=self),
+                        svg_to_bitmap(forward_svg2, win=self),
+                        svg_to_bitmap(forward_gray_svg2, win=self),
                         aui.ITEM_NORMAL,
                         'Forward')
         self.tb.AddSeparator()
@@ -517,7 +517,7 @@ class DirPanel(wx.Panel):
                               svg_to_bitmap(up_svg, win=self), 'Parent folder')
         self.tb.AddSeparator()
         self.tb.AddSimpleTool(self.ID_GOTO_HOME, 'Home',
-                              svg_to_bitmap(home_svg, win=self), 'Current folder')
+                              svg_to_bitmap(home_svg2, win=self), 'Current folder')
 
         self.tb.AddStretchSpacer()
         self.showHidden = True

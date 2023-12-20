@@ -7,9 +7,9 @@ import pandas as pd
 from ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
-from .bsmxpm import open_xpm
+from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, PopupMenu, _dict
+from .utility import FastLoadTreeCtrl, PopupMenu, _dict, svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
 from .. import to_byte
 from .autocomplete import AutocompleteTextCtrl
@@ -502,7 +502,7 @@ class ULogPanel(wx.Panel):
         self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
 
-        open_bmp = wx.Bitmap(to_byte(open_xpm))
+        open_bmp = wx.Bitmap(svg_to_bitmap(open_svg, win=self))
         self.tb.AddTool(self.ID_ULOG_OPEN, "Open", open_bmp,
                         wx.NullBitmap, wx.ITEM_NORMAL,
                         "Open ulog file")

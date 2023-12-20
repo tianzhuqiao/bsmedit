@@ -124,11 +124,11 @@ class MainFrame(FramePlus):
                               | aui.AUI_MGR_LIVE_RESIZE)
         # set mainframe icon
         icon = wx.Icon()
-        icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, 1024, 1024,win=self))
+        icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, size=(1024, 1024), win=self))
         self.SetIcon(icon)
 
         if 'wxMac' in wx.PlatformInfo:
-            icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, 1024, 1024, win=self))
+            icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, size=(1024, 1024), win=self))
             self.tbicon = TaskBarIcon(self, icon)
 
         # status bar
@@ -480,7 +480,7 @@ class AboutDialog(wx.Dialog):
         szPanelAll = wx.BoxSizer(wx.HORIZONTAL)
 
         self.header = wx.StaticBitmap(self.panel)
-        self.header.SetBitmap(svg_to_bitmap(bsmedit_svg, 128, 128,  win=self))
+        self.header.SetBitmap(svg_to_bitmap(bsmedit_svg, size=(128, 128), win=self))
         szPanelAll.Add(self.header, 0, wx.EXPAND, 0)
 
 

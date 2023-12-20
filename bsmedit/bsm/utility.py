@@ -112,9 +112,9 @@ class FastLoadTreeCtrl(wx.TreeCtrl):
             self.SortChildren(item)
         return True
 
-def svg_to_bitmap(svg, width=16, height=16, win=None):
+def svg_to_bitmap(svg, size=(24, 24), win=None):
     bmp = wx.svg.SVGimage.CreateFromBytes(str.encode(svg))
-    bmp = bmp.ConvertToScaledBitmap((width, height), win)
+    bmp = bmp.ConvertToScaledBitmap(size, win)
     if win:
         bmp.SetScaleFactor(win.GetContentScaleFactor())
     return bmp

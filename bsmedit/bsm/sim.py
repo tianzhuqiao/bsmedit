@@ -1216,12 +1216,12 @@ class SimPropArt(pg.PropArtNative):
             self.img_expand.Add(wx.Bitmap(to_byte(pg.tree_xpm)))
             self.expansion_width = 12
         self.check_width = 16
-        sx, sy = 16, 16
+        size = (16, 16)
         self.img_check = wx.ImageList(sx, sy, True, 4)
-        self.img_check.Add(svg_to_bitmap(radio_unchecked_svg, width=sx, height=sy, win=win))
-        self.img_check.Add(svg_to_bitmap(radio_disabled_svg, width=sx, height=sy, win=win))
-        self.img_check.Add(svg_to_bitmap(radio_checked_svg, width=sx, height=sy, win=win))
-        self.img_check.Add(svg_to_bitmap(radio_activated_svg, width=sx, height=sy, win=win))
+        self.img_check.Add(svg_to_bitmap(radio_unchecked_svg, size=size, win=win))
+        self.img_check.Add(svg_to_bitmap(radio_disabled_svg, size=size, win=win))
+        self.img_check.Add(svg_to_bitmap(radio_checked_svg, size=size, win=win))
+        self.img_check.Add(svg_to_bitmap(radio_activated_svg, size=size, win=win))
         #self.img_check.Add(wx.Bitmap(to_byte(pg.radio_xpm)))
 
     def PrepareDrawRect(self, p):
