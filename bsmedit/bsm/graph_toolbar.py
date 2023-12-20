@@ -141,3 +141,5 @@ class GraphToolbar(NavigationToolbar2, aui.AuiToolBar):
             self.EnableTool(self.wx_ids['Back'], can_backward)
         if 'Forward' in self.wx_ids:
             self.EnableTool(self.wx_ids['Forward'], can_forward)
+        self.Refresh(False)
+        self.Update()
