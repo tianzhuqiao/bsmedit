@@ -17,9 +17,10 @@ from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
 from .utility import PopupMenu, build_menu_from_list, svg_to_bitmap
-from .bsmxpm import home_xpm, back_xpm, forward_xpm, pan_xpm, zoom_xpm, \
-                    cursor_xpm, save_xpm, copy_xpm, line_edit_xpm, \
-                    page_add_xpm, split_vert_svg
+from .bsmxpm import split_vert_svg, delete_svg, line_style_svg, \
+                    new_page_svg2, home_svg2, backward_svg2, backward_gray_svg2, \
+                    forward_svg2, forward_gray_svg2, zoom_svg, pan_svg, copy_svg, \
+                    save_svg, edit_svg, note_svg
 from .. import to_byte
 from .graph_toolbar import GraphToolbar
 from .graph_subplot import add_subplot, del_subplot
@@ -211,8 +212,8 @@ class Toolbar(GraphToolbar):
                 v = v.replace('_', ' ')
                 style_menu.Append(self.linestyle_ids[k], v)
         menu.AppendSeparator()
-        menu.AppendSubMenu(style_menu, "Line style")
-
+        item = menu.AppendSubMenu(style_menu, "Line style")
+        item.SetBitmap(svg_to_bitmap(line_style_svg, win=self))
         marker_menu = wx.Menu()
         for k, v in matplotlib.lines.Line2D.markers.items():
             if k and isinstance(k, str) and not k.isspace():
@@ -238,7 +239,8 @@ class Toolbar(GraphToolbar):
         menu.AppendSubMenu(split_horz_menu, "Split horizontally")
         menu.AppendSeparator()
 
-        menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
+        item = menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
+        item.SetBitmap(svg_to_bitmap(delete_svg, win=self))
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
         menu.AppendSeparator()
         item = menu.AppendCheckItem(self.ID_FLIP_Y_AXIS, "Flip y axis")
@@ -405,22 +407,22 @@ class Toolbar(GraphToolbar):
         pass
     def init_toolbar(self):
         toolitems = (
-            ('New', 'New figure', page_add_xpm, 'OnNewFigure'),
-            (None, None, None, None),
-            ('Home', 'Reset original view', home_xpm, 'home'),
-            ('Back', 'Back to  previous view', back_xpm, 'OnBack'),
-            ('Forward', 'Forward to next view', forward_xpm, 'OnForward'),
-            (None, None, None, None),
-            ('Pan', 'Pan axes with left mouse, zoom with right', pan_xpm,
+            ('New', 'New figure', new_page_svg2, None, 'OnNewFigure'),
+            (None, None, None, None, None),
+            ('Home', 'Reset original view', home_svg2, None, 'home'),
+            ('Back', 'Back to  previous view', backward_svg2, backward_gray_svg2, 'OnBack'),
+            ('Forward', 'Forward to next view', forward_svg2, forward_gray_svg2, 'OnForward'),
+            (None, None, None, None, None),
+            ('Pan', 'Pan axes with left mouse, zoom with right', pan_svg, None,
              'pan'),
-            ('Zoom', 'Zoom to rectangle', zoom_xpm, 'zoom'),
-            ('Datatip', 'Show the data tip', cursor_xpm, 'datatip'),
-            (None, None, None, None),
-            ('Save', 'Save the figure', save_xpm, 'save_figure'),
-            ('Copy', 'Copy to clipboard', copy_xpm, 'copy_figure'),
-            (None, None, None, None),
-            ('Edit', 'Edit curve', line_edit_xpm, 'edit_figure'),
-            (None, None, None, None),
+            ('Zoom', 'Zoom to rectangle', zoom_svg, None, 'zoom'),
+            ('Datatip', 'Show the data tip', note_svg, None, 'datatip'),
+            (None, None, None, None, None),
+            ('Save', 'Save the figure', save_svg, None, 'save_figure'),
+            ('Copy', 'Copy to clipboard', copy_svg, None, 'copy_figure'),
+            (None, None, None, None, None),
+            ('Edit', 'Edit curve', edit_svg, None, 'edit_figure'),
+            (None, None, None, None, None),
             #(None, None, None, "stretch"),
             #(None, None, None, None),
             #('Print', 'Print the figure', print_xpm, 'print_figure'),
@@ -430,7 +432,7 @@ class Toolbar(GraphToolbar):
         self.ClearTools()
         self.wx_ids = {}
         self.SetToolBitmapSize((16, 16))
-        for (text, tooltip_text, image_file, callback) in toolitems:
+        for (text, tooltip_text, img, img_gray, callback) in toolitems:
             if text is None:
                 if callback == "stretch":
                     self.AddStretchSpacer()
@@ -438,21 +440,24 @@ class Toolbar(GraphToolbar):
                     self.AddSeparator()
                 continue
             self.wx_ids[text] = wx.NewIdRef()
-            if isinstance(image_file, list):
-                image = wx.Bitmap(to_byte(image_file))
+            if isinstance(img, list):
+                image = wx.Bitmap(to_byte(img))
             else:
-                image = svg_to_bitmap(image_file, win=self)
+                image = svg_to_bitmap(img, win=self)
+            image_gray = wx.NullBitmap
+            if img_gray:
+                image_gray = svg_to_bitmap(img_gray, win=self)
             if text in ['Pan', 'Zoom', 'Datatip', 'Edit']:
                 self.AddCheckTool(self.wx_ids[text],
                                   text,
                                   image,
-                                  disabled_bitmap=wx.NullBitmap,
+                                  disabled_bitmap=image_gray,
                                   short_help_string=text,
                                   long_help_string=tooltip_text)
             else:
                 self.AddTool(self.wx_ids[text], text,
                              image,
-                             disabled_bitmap=wx.NullBitmap,
+                             disabled_bitmap=image_gray,
                              kind=wx.ITEM_NORMAL, short_help_string=tooltip_text)
             self.Bind(wx.EVT_TOOL,
                       getattr(self, callback),
