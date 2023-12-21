@@ -347,7 +347,7 @@ class ModuleTree(FastLoadTreeCtrl):
         for svg in [
                 module_svg, signal_svg, input_svg, output_svg, inout_svg,
         ]:
-            imglist.Add(svg_to_bitmap(svg, win=self))
+            imglist.Add(svg_to_bitmap(svg, size=(16, 16), win=self))
         self.AssignImageList(imglist)
         self.objects = None
 
@@ -1217,7 +1217,7 @@ class SimPropArt(pg.PropArtNative):
             self.expansion_width = 12
         self.check_width = 16
         size = (16, 16)
-        self.img_check = wx.ImageList(sx, sy, True, 4)
+        self.img_check = wx.ImageList(size[0], size[1], True, 4)
         self.img_check.Add(svg_to_bitmap(radio_unchecked_svg, size=size, win=win))
         self.img_check.Add(svg_to_bitmap(radio_disabled_svg, size=size, win=win))
         self.img_check.Add(svg_to_bitmap(radio_checked_svg, size=size, win=win))
