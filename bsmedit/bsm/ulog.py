@@ -100,12 +100,15 @@ class FindListCtrl(wx.ListCtrl):
     ID_FIND_REPLACE = wx.NewIdRef()
     ID_FIND_NEXT = wx.NewIdRef()
     ID_FIND_PREV = wx.NewIdRef()
+    ID_COPY_NO_INDEX = wx.NewIdRef()
     def __init__(self, *args, **kwargs):
         wx.ListCtrl.__init__(self, *args, **kwargs)
         self.SetupFind()
 
+        self.index_column = 0
         self.Bind(wx.EVT_LIST_ITEM_RIGHT_CLICK, self.OnRightClick)
         self.Bind(wx.EVT_TOOL, self.OnBtnCopy, id=wx.ID_COPY)
+        self.Bind(wx.EVT_TOOL, self.OnBtnCopy, id=self.ID_COPY_NO_INDEX)
 
         accel = [
             (wx.ACCEL_CTRL, ord('F'), self.ID_FIND_REPLACE),
@@ -113,10 +116,10 @@ class FindListCtrl(wx.ListCtrl):
             (wx.ACCEL_CTRL, ord('H'), self.ID_FIND_REPLACE),
             (wx.ACCEL_RAW_CTRL, ord('H'), self.ID_FIND_REPLACE),
             (wx.ACCEL_CTRL, ord('C'), wx.ID_COPY),
+            (wx.ACCEL_CTRL | wx.ACCEL_SHIFT, ord('C'), self.ID_COPY_NO_INDEX),
         ]
         self.accel = wx.AcceleratorTable(accel)
         self.SetAcceleratorTable(self.accel)
-
 
     def OnRightClick(self, event):
 
@@ -125,22 +128,26 @@ class FindListCtrl(wx.ListCtrl):
 
         menu = wx.Menu()
         menu.Append(wx.ID_COPY, "&Copy \tCtrl+C")
+        if 0 <= self.index_column < self.GetColumnCount():
+            menu.Append(self.ID_COPY_NO_INDEX, "C&opy without index \tCtrl+Shift+C")
         self.PopupMenu(menu)
 
     def OnBtnCopy(self, event):
         cmd = event.GetId()
-        if cmd == wx.ID_COPY:
-            if wx.TheClipboard.Open():
-                item = self.GetFirstSelected()
-                text = []
-                while item != -1:
-                    tmp = []
-                    for c in range(self.GetColumnCount()):
-                        tmp.append(self.GetItemText(item, c))
-                    text.append(" ".join(tmp))
-                    item = self.GetNextSelected(item)
-                wx.TheClipboard.SetData(wx.TextDataObject("\n".join(text)))
-                wx.TheClipboard.Close()
+        columns = list(range(self.GetColumnCount()))
+        if cmd == self.ID_COPY_NO_INDEX:
+            columns.remove(self.index_column)
+        if wx.TheClipboard.Open():
+            item = self.GetFirstSelected()
+            text = []
+            while item != -1:
+                tmp = []
+                for c in columns:
+                    tmp.append(self.GetItemText(item, c))
+                text.append(" ".join(tmp))
+                item = self.GetNextSelected(item)
+            wx.TheClipboard.SetData(wx.TextDataObject("\n".join(text)))
+            wx.TheClipboard.Close()
 
     def SetupFind(self):
         # find & replace dialog
