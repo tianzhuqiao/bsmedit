@@ -1,5 +1,7 @@
+import sys
 import os
 import json
+import traceback
 import wx
 import wx.py.dispatcher as dp
 import pyulog
@@ -11,7 +13,6 @@ from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
 from .utility import FastLoadTreeCtrl, PopupMenu, _dict, svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
-from .. import to_byte
 from .autocomplete import AutocompleteTextCtrl
 
 class ULogTree(FastLoadTreeCtrl):
@@ -813,7 +814,7 @@ class ULog:
             if not (ext.lower() in ['.ulog', '.ulg']):
                 return None
 
-        manager = ULogPanel.Gcu.get_manager(num)
+        manager = cls._get_manager(num, filename)
         if manager is None:
             manager = ULogPanel(cls.frame, filename)
             (_, filename) = os.path.split(filename)
@@ -868,23 +869,56 @@ class ULog:
             for mgr in mgrs:
                 dp.send(signal='frame.delete_panel', panel=mgr)
 
-
     @classmethod
-    def get(cls, num=None, filename=None, dataOnly=True):
+    def _get_manager(cls, num=None, filename=None):
         manager = None
         if num is not None:
             manager = ULogPanel.Gcu.get_manager(num)
-        if manager is None:
+        if manager is None and isinstance(filename, str):
+            abs_filename = os.path.abspath(filename)
             for m in ULogPanel.Gcu.get_all_managers():
-                (_, name) = os.path.split(m.filename)
-                if filename in (m.filename, name):
+                if abs_filename == os.path.abspath(m.filename):
                     manager = m
                     break
-        if num is None and filename is None:
+        return manager
+
+    @classmethod
+    def _load_ulog(cls, ulg):
+        if not isinstance(ulg, pyulog.ULog):
+            return None
+        data = {}
+        for d in ulg.data_list:
+            df = pd.DataFrame(d.data)
+            data[d.name] = df
+        t = [m.timestamp for m in ulg.logged_messages]
+        m = [m.message for m in ulg.logged_messages]
+        l = [m.log_level_str() for m in ulg.logged_messages]
+        log = pd.DataFrame.from_dict({'timestamp': t, 'level': l, "message": m})
+        info = ulg.msg_info_dict
+        param = ulg.initial_parameters
+        changed_param = ulg.changed_parameters
+        return {'data': data, 'log': log, 'info': info, 'param': param,
+                'changed_param': changed_param}
+
+    @classmethod
+    def get(cls, num=None, filename=None, dataOnly=True):
+        manager = cls._get_manager(num, filename)
+        if num is None and filename is None and manager is None:
             manager = ULogPanel.Gcu.get_active()
-        if dataOnly:
-            return manager.tree.data
-        return manager.ulg
+        ulg = None
+        if manager:
+            ulg = manager.ulg
+        elif filename:
+            try:
+                ulg = pyulog.ULog(filename)
+            except:
+                traceback.print_exc(file=sys.stdout)
+        if ulg:
+            data = cls._load_ulog(ulg)
+            if dataOnly and data:
+                return data.get('data', None)
+            return data
+        return None
 
 def bsm_initialize(frame, **kwargs):
     ULog.initialize(frame)
