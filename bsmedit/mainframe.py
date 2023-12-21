@@ -142,7 +142,8 @@ class MainFrame(FramePlus):
         self.config = wx.FileConfig(conf, style=wx.CONFIG_USE_LOCAL_FILE)
 
         # recent file list
-        self.filehistory = wx.FileHistory(8)
+        hsz = self.GetConfig('mainframe', 'file_history_length') or 20
+        self.filehistory = wx.FileHistory(hsz)
         self.config.SetPath('/FileHistory')
         self.filehistory.Load(self.config)
         self.filehistory.UseMenu(self.menuRecentFiles)
