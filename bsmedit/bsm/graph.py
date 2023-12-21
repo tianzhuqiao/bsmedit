@@ -200,6 +200,14 @@ class Toolbar(GraphToolbar):
             return
 
         menu = wx.Menu()
+        scale_menu = wx.Menu()
+        scale_menu.Append(self.ID_AUTO_SCALE_XY, "Auto scale")
+        scale_menu.AppendSeparator()
+        scale_menu.Append(self.ID_AUTO_SCALE_X, "Auto scale x-axis")
+        scale_menu.Append(self.ID_AUTO_SCALE_Y, "Auto scale y-axis")
+        menu.AppendSubMenu(scale_menu, "Auto scale")
+        menu.AppendSeparator()
+
         menu.Append(self.ID_LINE_STYLE_LINE, "Line")
         menu.Append(self.ID_LINE_STYLE_DOT, "Dot")
         menu.Append(self.ID_LINE_STYLE_LINE_DOT, "Line+Dot")
@@ -213,7 +221,8 @@ class Toolbar(GraphToolbar):
                 style_menu.Append(self.linestyle_ids[k], v)
         menu.AppendSeparator()
         item = menu.AppendSubMenu(style_menu, "Line style")
-        item.SetBitmap(svg_to_bitmap(line_style_svg, win=self))
+        if wx.Platform != '__WXMAC__':
+            item.SetBitmap(svg_to_bitmap(line_style_svg, win=self))
         marker_menu = wx.Menu()
         for k, v in matplotlib.lines.Line2D.markers.items():
             if k and isinstance(k, str) and not k.isspace():
@@ -224,7 +233,8 @@ class Toolbar(GraphToolbar):
         menu.AppendSeparator()
         item = menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS,
                            "Split vertically with shared x-axis")
-        item.SetBitmap(svg_to_bitmap(split_vert_svg, win=self))
+        if wx.Platform != '__WXMAC__':
+            item.SetBitmap(svg_to_bitmap(split_vert_svg, win=self))
         split_vert_menu = wx.Menu()
         split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS, "Share x-axis")
         split_vert_menu.Append(self.ID_SPLIT_VERT_SHARE_YAXIS, "Share y-axis")
@@ -240,7 +250,8 @@ class Toolbar(GraphToolbar):
         menu.AppendSeparator()
 
         item = menu.Append(self.ID_DELETE_SUBPLOT, "Delete plot")
-        item.SetBitmap(svg_to_bitmap(delete_svg, win=self))
+        if wx.Platform != '__WXMAC__':
+            item.SetBitmap(svg_to_bitmap(delete_svg, win=self))
         menu.Append(self.ID_DELETE_LINES, "Delete all lines")
         menu.AppendSeparator()
         item = menu.AppendCheckItem(self.ID_FLIP_Y_AXIS, "Flip y axis")
@@ -248,13 +259,6 @@ class Toolbar(GraphToolbar):
         item = menu.AppendCheckItem(self.ID_FLIP_X_AXIS, "Flip x axis")
         item.Check(all([ax.xaxis.get_inverted() for ax in axes]))
 
-        scale_menu = wx.Menu()
-        scale_menu.Append(self.ID_AUTO_SCALE_XY, "Auto scale")
-        scale_menu.AppendSeparator()
-        scale_menu.Append(self.ID_AUTO_SCALE_X, "Auto scale x-axis")
-        scale_menu.Append(self.ID_AUTO_SCALE_Y, "Auto scale y-axis")
-        menu.AppendSeparator()
-        menu.AppendSubMenu(scale_menu, "Auto scale")
         # menu for current mode
         menus, name = self.GetMenu(axes)
         if len(menus) > 0:

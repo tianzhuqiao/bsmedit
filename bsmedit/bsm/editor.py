@@ -190,9 +190,11 @@ class PyEditor(EditorBase):
         menu.Append(self.ID_UNCOMMENT, 'Uncomment')
         menu.AppendSeparator()
         item = menu.Append(self.ID_INDENT_INC, 'Increase indent')
-        item.SetBitmap(svg_to_bitmap(indent_inc_svg, win=self))
+        if wx.Platform != '__WXMAC__':
+            item.SetBitmap(svg_to_bitmap(indent_inc_svg, win=self))
         item = menu.Append(self.ID_INDENT_DEC, 'Decrease indent')
-        item.SetBitmap(svg_to_bitmap(indent_dec_svg, win=self))
+        if wx.Platform != '__WXMAC__':
+            item.SetBitmap(svg_to_bitmap(indent_dec_svg, win=self))
         menu.AppendSeparator()
         menu.Append(self.ID_RUN_LINE, 'Run selection/line')
         menu.AppendSeparator()
