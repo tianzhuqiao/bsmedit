@@ -9,8 +9,8 @@ import wx.py.dispatcher as dp
 from ..aui import aui
 from ..auibarpopup import AuiToolBarPopupArt
 from .bsmxpm import open_svg, reload_svg, save_svg, save_gray_svg, saveas_svg, \
-                    play_svg, task_svg, debug_svg, more_svg, \
-                    indent_inc_svg, indent_dec_svg, check_svg, search_svg
+                    play_svg, debug_svg, more_svg, indent_inc_svg, indent_dec_svg, \
+                    check_svg, search_svg
 from .pymgr_helpers import Gcm
 from .. import to_byte
 from .utility import get_file_finder_name, show_file_in_finder, svg_to_bitmap
@@ -129,6 +129,7 @@ class PyEditor(EditorBase):
     ID_WORD_WRAP = wx.NewIdRef()
     ID_INDENT_INC = wx.NewIdRef()
     ID_INDENT_DEC = wx.NewIdRef()
+    ID_RUN_LINE = wx.NewIdRef()
 
     def __init__(self, parent):
         super().__init__(parent)
@@ -192,6 +193,8 @@ class PyEditor(EditorBase):
         item.SetBitmap(svg_to_bitmap(indent_inc_svg, win=self))
         item = menu.Append(self.ID_INDENT_DEC, 'Decrease indent')
         item.SetBitmap(svg_to_bitmap(indent_dec_svg, win=self))
+        menu.AppendSeparator()
+        menu.Append(self.ID_RUN_LINE, 'Run selection/line')
         menu.AppendSeparator()
         menu.AppendCheckItem(self.ID_WORD_WRAP, 'Word wrap')
         menu.Check(self.ID_WORD_WRAP, self.GetWrapMode() != wx.stc.STC_WRAP_NONE)
@@ -467,6 +470,13 @@ class PyEditor(EditorBase):
                             hitcount=cond[1])
         elif eid == self.ID_WORD_WRAP:
             self.ToggleWrapMode()
+        elif eid == self.ID_RUN_LINE:
+            cmd = self.GetSelectedText()
+            if not cmd or cmd == """""":
+                (cmd, _) = self.GetCurLine()
+                cmd = cmd.rstrip()
+            dp.send('shell.run', command=cmd, prompt=True, verbose=True,
+                    debug=False, history=False)
 
     def LoadFile(self, filename):
         """load file into editor"""
@@ -483,7 +493,6 @@ class PyEditorPanel(wx.Panel):
     ID_RUN_SCRIPT = wx.NewIdRef()
     ID_DEBUG_SCRIPT = wx.NewIdRef()
     ID_CHECK_SCRIPT = wx.NewIdRef()
-    ID_RUN_LINE = wx.NewIdRef()
     ID_FIND_REPLACE = wx.NewIdRef()
     ID_SETCURFOLDER = wx.NewIdRef()
     ID_TIDY_SOURCE = wx.NewIdRef()
@@ -517,18 +526,14 @@ class PyEditorPanel(wx.Panel):
         self.Bind(stc.EVT_STC_CHANGE, self.OnCodeModified)
         item = (
             (wx.ID_OPEN, 'Open', open_svg, None, 'Open Python script'),
-            (wx.ID_REFRESH, 'Reload', reload_svg, None, 'Reload current script'),
-            (wx.ID_SAVE, 'Save', save_svg, save_gray_svg, 'Save current document (Ctrl+S)'),
-            (wx.ID_SAVEAS, 'Save As', saveas_svg, None, 'Save current document as'),
+            (wx.ID_REFRESH, 'Reload', reload_svg, None, 'Reload script'),
+            (wx.ID_SAVE, 'Save', save_svg, save_gray_svg, 'Save script (Ctrl+S)'),
+            (wx.ID_SAVEAS, 'Save As', saveas_svg, None, 'Save script as'),
             (None, None, None, None, None),
-            (self.ID_FIND_REPLACE, 'Find', search_svg, None, 'Find/Replace (Ctrl+F)'),
+            (self.ID_RUN_SCRIPT, 'Execute', play_svg, None,
+             'Execute the script'),
             (None, None, None, None, None),
-            (self.ID_RUN_LINE, 'Run', play_svg, None,
-             'Run the current line or selection (Ctrl+Return)'),
-            (self.ID_RUN_SCRIPT, 'Execute', task_svg, None,
-             'Execute the whole script'),
-            (None, None, None, None, None),
-            (self.ID_CHECK_SCRIPT, 'Check', check_svg, None, 'Check the module'),
+            (self.ID_CHECK_SCRIPT, 'Check', check_svg, None, 'Check the script'),
             (self.ID_DEBUG_SCRIPT, 'Debug', debug_svg, None, 'Debug the script'),
             (None, None, None, None, "stretch"),
             (self.ID_MORE, 'More', more_svg, None, 'More'),
@@ -572,7 +577,6 @@ class PyEditorPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnBtnSaveAs, id=wx.ID_SAVEAS)
         self.tb.Bind(wx.EVT_UPDATE_UI, self.OnUpdateBtn)
         self.Bind(wx.EVT_TOOL, self.OnShowFindReplace, id=self.ID_FIND_REPLACE)
-        self.Bind(wx.EVT_TOOL, self.OnBtnRun, id=self.ID_RUN_LINE)
         self.Bind(wx.EVT_TOOL, self.OnBtnCheck, id=self.ID_CHECK_SCRIPT)
         self.Bind(wx.EVT_TOOL, self.OnBtnRunScript, id=self.ID_RUN_SCRIPT)
         self.Bind(wx.EVT_TOOL, self.OnBtnDebugScript, id=self.ID_DEBUG_SCRIPT)
@@ -583,7 +587,6 @@ class PyEditorPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnMore, id=self.ID_MORE)
 
         accel = [
-            (wx.ACCEL_CTRL, wx.WXK_RETURN, self.ID_RUN_LINE),
             (wx.ACCEL_CTRL, ord('S'), wx.ID_SAVE),
         ]
         self.accel = wx.AcceleratorTable(accel)
@@ -903,7 +906,6 @@ class PyEditorPanel(wx.Panel):
         """show splitter window vertically"""
         show = not (self.splitter.IsSplit() and
                     self.splitter.GetSplitMode() == wx.SPLIT_VERTICAL)
-        print(show)
         if not show:
             # hide the splitter window
             if self.editor2:
@@ -944,7 +946,7 @@ class PyEditorPanel(wx.Panel):
 
     def OnMore(self, event):
         menu = wx.Menu()
-        menu.Append(self.ID_SETCURFOLDER, "Set current folder")
+        menu.Append(self.ID_SETCURFOLDER, "Set as current folder")
         menu.AppendSeparator()
         item = menu.AppendCheckItem(self.ID_SPLIT_VERT, "Split editor right")
         item.Check(self.splitter.IsSplit() and
