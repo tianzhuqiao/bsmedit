@@ -215,7 +215,7 @@ class MainFrame(FramePlus):
         self.AddMenu('&Tools', kind="Popup", autocreate=True)
 
         self.AddMenu('&Help:&Home', id=wx.ID_HOME, autocreate=True)
-        self.ID_CONTACT = self.AddMenu('&Help:&Contact')
+        self.ID_CONTACT = self.AddMenu('&Help:&Report problem')
         self.AddMenu('&Help:Sep', kind="Separator")
         self.AddMenu('&Help:About', id=wx.ID_ABOUT)
 
@@ -448,7 +448,7 @@ class MainFrame(FramePlus):
         """send email"""
         wx.BeginBusyCursor()
         import webbrowser
-        webbrowser.open("mail:tq@feiyilin.com")
+        webbrowser.open("https://github.com/tianzhuqiao/bsmedit/issues")
         wx.EndBusyCursor()
 
     def OnHelpAbout(self, event):
@@ -491,29 +491,38 @@ class AboutDialog(wx.Dialog):
         self.stCaption = wx.StaticText(self.panel, wx.ID_ANY, caption)
         self.stCaption.SetMaxSize((MAX_SIZE, -1))
         self.stCaption.Wrap(MAX_SIZE)
-        self.stCaption.SetFont(wx.Font(16, 74, 90, 92, False, "Arial"))
+        self.stCaption.SetFont(wx.Font(pointSize=16, family=wx.FONTFAMILY_DEFAULT,
+                                       style=wx.FONTSTYLE_NORMAL,
+                                       weight=wx.FONTWEIGHT_NORMAL,
+                                       underline=False))
 
         szPanel.Add(self.stCaption, 0, wx.ALL | wx.EXPAND, 5)
 
-        strCopyright = f'(c) 2018-{datetime.datetime.now().year} Tianzhu Qiao. All rights reserved.'
+        strCopyright = f'(c) 2018-{datetime.datetime.now().year} Tianzhu Qiao.\n All rights reserved.'
         self.stCopyright = wx.StaticText(self.panel, wx.ID_ANY, strCopyright)
         self.stCopyright.SetMaxSize((MAX_SIZE, -1))
         self.stCopyright.Wrap(MAX_SIZE)
-        self.stCopyright.SetFont(wx.Font(10, 74, 90, 90, False, "Arial"))
+        self.stCopyright.SetFont(wx.Font(pointSize=10, family=wx.FONTFAMILY_DEFAULT,
+                                         style=wx.FONTSTYLE_NORMAL,
+                                         weight=wx.FONTWEIGHT_NORMAL,
+                                         underline=False))
         szPanel.Add(self.stCopyright, 0, wx.ALL | wx.EXPAND, 5)
 
         build = wx.GetOsDescription() + '; wxWidgets ' + wx.version()
         self.stBuild = wx.StaticText(self.panel, wx.ID_ANY, build)
         self.stBuild.SetMaxSize((MAX_SIZE, -1))
         self.stBuild.Wrap(MAX_SIZE)
-        self.stBuild.SetFont(wx.Font(10, 74, 90, 90, False, "Arial"))
+        self.stBuild.SetFont(wx.Font(pointSize=10, family=wx.FONTFAMILY_DEFAULT,
+                                     style=wx.FONTSTYLE_NORMAL,
+                                     weight=wx.FONTWEIGHT_NORMAL,
+                                     underline=False))
         szPanel.Add(self.stBuild, 0, wx.ALL | wx.EXPAND, 5)
 
         stLine = wx.StaticLine(self.panel, style=wx.LI_HORIZONTAL)
-        szPanel.Add(stLine, 0, wx.EXPAND | wx.ALL, 0)
+        szPanel.Add(stLine, 0, wx.EXPAND | wx.ALL, 10)
         szPanel.AddStretchSpacer(1)
 
-        szPanelAll.Add(szPanel, 1, wx.EXPAND | wx.ALL, 0)
+        szPanelAll.Add(szPanel, 1, wx.EXPAND | wx.ALL, 5)
 
         self.panel.SetSizer(szPanelAll)
         self.panel.Layout()
@@ -528,7 +537,7 @@ class AboutDialog(wx.Dialog):
         btnsizer.AddButton(self.btnOK)
         btnsizer.Realize()
 
-        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 5)
+        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 10)
 
         self.SetSizer(szAll)
         self.Layout()
