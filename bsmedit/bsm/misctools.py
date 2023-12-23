@@ -608,16 +608,11 @@ class DirPanel(wx.Panel):
 
     def OnMenuDropDown(self, event):
         menu = wx.Menu()
-        if self.showHidden:
-            item = menu.Append(self.ID_SHOW_HIDDEN, "Hide hidden file/folder")
-        else:
-            item = menu.Append(self.ID_SHOW_HIDDEN, "Show hidden file/folder")
+        item = menu.AppendCheckItem(self.ID_SHOW_HIDDEN, "Hidden file/folder")
+        item.Check(self.showHidden)
         menu.AppendSeparator()
-        if self.tb2.IsShown():
-            item = menu.Append(self.ID_SHOW_PATTERN_TOOLBAR, "Hide pattern toolbar")
-        else:
-            item = menu.Append(self.ID_SHOW_PATTERN_TOOLBAR, "Show pattern toolbar")
-
+        item = menu.AppendCheckItem(self.ID_SHOW_PATTERN_TOOLBAR, "Pattern toolbar")
+        item.Check(self.tb2.IsShown())
 
         # line up our menu with the button
         tb = event.GetEventObject()
