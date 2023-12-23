@@ -53,7 +53,7 @@ class AuiManagerPlus(aui.AuiManager):
         # be zero in one dimension, which may cause some assert (e.g., invalid
         # bitmap size as show above)
 
-        for nb in self._notebooks:
+        for _, nb in self._notebooks.items():
             pages = nb.GetPageCount()
             nb_pane = self.GetPane(nb)
             min_x, min_y = nb_pane.min_size
@@ -391,7 +391,6 @@ class FramePlus(wx.Frame):
             pane_min = self._mgr.GetPane(root_pane.name+'_min')
             if pane_min.IsOk():
                 self._mgr.RestoreMinimizedPane(pane_min)
-
         self._mgr.ShowPane(panel, show)
         if focus:
             panel.SetFocus()
