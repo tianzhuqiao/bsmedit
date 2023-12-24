@@ -1070,10 +1070,6 @@ class PyEditorPanel(wx.Panel):
             for f, line, shown in files:
                 cls.OpenScript(f, activated=False, lineno=line)
 
-            for f, line, shown in files:
-                if shown:
-                    wx.CallAfter(cls.OpenScript, filename=f, activated=True, lineno=line)
-
     @classmethod
     def OnFrameClosePane(cls, event):
         """closing a pane"""
