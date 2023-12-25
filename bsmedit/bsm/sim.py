@@ -1102,18 +1102,17 @@ class PropSim(pg.PropBase):
             return set(cls.__subclasses__()).union(
                     [s for c in cls.__subclasses__() for s in _sub_classes(c)])
         sub =  _sub_classes(pg.PropBase)
-        return {s.__name__: s for s in sub if sub != PropSim}
+        return {s.__name__.lower(): s for s in sub if sub != PropSim}
 
     def __getattr__(self, name):
         return getattr(self.prop, name)
 
     def SetControlStyle(self, style, *args, **kwargs):
         sub = self.all_subclasses()
+        style = style.lower()
         cls = sub.get(style, None)
         if cls is None:
-            cls = sub.get(f'Prop{style}', None)
-        if cls is None:
-            cls = sub.get(f'Prop{style.title()}', None)
+            cls = sub.get(f'Prop{style}'.lower(), None)
         if cls is None:
             return False
 
@@ -1219,7 +1218,6 @@ class SimPropArt(pg.PropArtNative):
         self.img_check.Add(svg_to_bitmap(radio_disabled_svg, size=size, win=win))
         self.img_check.Add(svg_to_bitmap(radio_checked_svg, size=size, win=win))
         self.img_check.Add(svg_to_bitmap(radio_activated_svg, size=size, win=win))
-        #self.img_check.Add(wx.Bitmap(to_byte(pg.radio_xpm)))
 
     def PrepareDrawRect(self, p):
         """calculate the rect for each section"""
