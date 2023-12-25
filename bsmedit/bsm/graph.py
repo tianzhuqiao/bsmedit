@@ -21,7 +21,6 @@ from .bsmxpm import split_vert_svg, delete_svg, line_style_svg, \
                     new_page_svg2, home_svg2, backward_svg2, backward_gray_svg2, \
                     forward_svg2, forward_gray_svg2, zoom_svg, pan_svg, copy_svg, \
                     save_svg, edit_svg, note_svg
-from .. import to_byte
 from .graph_toolbar import GraphToolbar
 from .graph_subplot import add_subplot, del_subplot
 rcParams.update({'figure.autolayout': True, 'toolbar': 'None',
@@ -444,10 +443,7 @@ class Toolbar(GraphToolbar):
                     self.AddSeparator()
                 continue
             self.wx_ids[text] = wx.NewIdRef()
-            if isinstance(img, list):
-                image = wx.Bitmap(to_byte(img))
-            else:
-                image = svg_to_bitmap(img, win=self)
+            image = svg_to_bitmap(img, win=self)
             image_gray = wx.NullBitmap
             if img_gray:
                 image_gray = svg_to_bitmap(img_gray, win=self)

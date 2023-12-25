@@ -696,7 +696,6 @@ class SimPanel(wx.Panel):
         self._color = wx.Colour(178, 34, 34)
         self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
-        xpm2bmp = wx.Bitmap
         self.tb.AddTool(self.ID_SIM_STEP, "Step", svg_to_bitmap(step_svg, win=self),
                         svg_to_bitmap(step_grey_svg, win=self), wx.ITEM_NORMAL,
                         "Step the simulation")

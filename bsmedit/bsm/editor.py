@@ -11,7 +11,6 @@ from .bsmxpm import open_svg, reload_svg, save_svg, save_gray_svg, saveas_svg, \
                     play_svg, debug_svg, more_svg, indent_inc_svg, indent_dec_svg, \
                     check_svg, search_svg
 from .pymgr_helpers import Gcm
-from .. import to_byte
 from .utility import get_file_finder_name, show_file_in_finder, svg_to_bitmap
 from .editor_base import *
 
@@ -548,10 +547,7 @@ class PyEditorPanel(wx.Panel):
                 else:
                     self.tb.AddSeparator()
                 continue
-            if isinstance(img, list):
-                bmp = wx.Bitmap(to_byte(img))
-            else:
-                bmp = svg_to_bitmap(img, win=self)
+            bmp = svg_to_bitmap(img, win=self)
             bmp_gray = wx.NullBitmap
             if img_gray:
                 bmp_gray = svg_to_bitmap(img_gray, win=self)

@@ -138,7 +138,7 @@ class DebugTool():
             ('Step Out\tShift-F11', 'step_out', step_out_svg, step_out_grey_svg, 'can_stepout'),
         )
         cls.menus = {}
-        for label, signal, xpm, xpm_grey, status in items:
+        for label, signal, img, img_grey, status in items:
             resp = dp.send('frame.add_menu',
                            path='Tools:Debug:' + label,
                            rxsignal='debugger.' + signal,
@@ -146,8 +146,8 @@ class DebugTool():
             if not resp:
                 continue
             cls.menus[resp[0][1]] = status
-            cls.tbDebug.AddTool(resp[0][1], label, svg_to_bitmap(xpm, win=cls.tbDebug),
-                                svg_to_bitmap(xpm_grey, win=cls.tbDebug), wx.ITEM_NORMAL, label)
+            cls.tbDebug.AddTool(resp[0][1], label, svg_to_bitmap(img, win=cls.tbDebug),
+                                svg_to_bitmap(img_grey, win=cls.tbDebug), wx.ITEM_NORMAL, label)
         cls.tbDebug.Realize()
 
         dp.send('frame.add_panel',
