@@ -43,9 +43,9 @@ bsmedit is a C++/[http://accellera.org/community/systemc|SystemC] Visualizer. Lo
 * re-compile the program;
 * check the results.
 
-And occasionally, I would need to add some debugging code. For example, printing some value (e.g., printf) to the terminal or dumping the data to a file, so that I can use other tools (e.g., Matlab) to visualize and analyze it.
+And occasionally, I would need to add some debugging code. For example, printing some value (e.g., \tag{code|printf}) to the terminal or dumping the data to a file, so that I can use other tools (e.g., Matlab) to visualize and analyze it.
 
-bsmedit aims to \tag{b|simplify} this procedure. With bsmedit, we can
+bsmedit aims to simplify this procedure. With bsmedit, we can
     -control the simulation
     -monitor the signals in real-time
     -plot/dump the signals
@@ -95,7 +95,7 @@ In the process method (\tag{code|Action}), we simply update the sin/cos signals 
 ../examples/start/main.cpp
 !}
 
-Besides the SystemC library, it also needs to include the \tag{code|bsm.h/cpp} in the project. They define interfaces to communicate with bsmedit
+Besides the SystemC library, it also needs to include the \tag{b|bsm.h/cpp} in the project. They define interfaces to communicate with bsmedit
 -\tag{b|BSMEDIT_IMPLEMENT_MODULE(top, "top")} creates the top level module from class \tag{b|top} with name "top".
 We will discuss the macro in detail in the following sections.
 }
@@ -104,7 +104,7 @@ We will discuss the macro in detail in the following sections.
 ../examples/start/Makefile
 !}
 }
-* \tag{b|Compile the project to get simulation} (e.g., \tag{code|start.dll})
+* \tag{b|Compile the project to get simulation} (e.g., \tag{b|start.dll})
 {!div|info||
 The demo project can be download [https://github.com/tianzhuqiao/bsmedit/tree/master/examples/start|here].
 !}
@@ -123,7 +123,7 @@ and create the simulation\footnote{Here we slightly abuse the notation \tag{b|si
 ./images/start_open_project.png
 !}
 
-It will show a open file dialog. In the open file dialog, select the simulation library (e.g. \tag{code|libstart.so}, \tag{code|start.dll} ). bsmedit will automatically load the simulation.
+It will show a open file dialog. In the open file dialog, select the simulation library (e.g. \tag{b|libstart.so}, \tag{b|start.dll} ). bsmedit will automatically load the simulation.
 {!image||
 ./images/start_sim_main.png
 !}
@@ -201,7 +201,7 @@ Then, it can be opened in bsmedit
 ./images/start_sim_open.png
 !}
 
-And it will look like the one shown in the following image. Click the \image{./images/run_script.png} button to run the script
+And it will look like the one shown in the following image. Click the \tag{bExecute the script} button to run the script
 {!image||
 ./images/start_open_script.png
 !}
@@ -328,7 +328,7 @@ Like Matlab, you can add label, legend, and grid
 ./images/plot_range100more.png
 !}
 
-As shown above, the figure window has two sections: \tag{code|toolbar} and \tag{code|plot}.
+As shown above, the figure window has two sections: \tag{b|toolbar} and \tag{b|plot}.
 The buttons on the toolbar are (from left to right)
 - \tag{b|new figure}: create an empty figure
 - \tag{b|home}: it will bring the plot to the initial status (e.g., zoom and position)
@@ -839,7 +839,7 @@ p.SetControlStyle('CheckBox')
 !}
 {!example_src||highlight|python||{%
 p = g.Get('1.top.sig_logic')
-p.SetControlStyle('RadioBox', choice={'1':'1', '0':'0', 'Z':'Z', 'X':'X'})
+p.SetControlStyle('RadioBox', choice=['1', '0', 'Z', 'X'])
 %}!}
 }
 -Color picker

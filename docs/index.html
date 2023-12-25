@@ -63,8 +63,8 @@ bsmedit -- C/C++/SystemC Visualizer (ver 3.2.10a1) <a href="https://github.com/t
 <li>re-compile the program;</li>
 <li>check the results.</li>
 </ol>
-<p>And occasionally, I would need to add some debugging code. For example, printing some value (e.g., printf) to the terminal or dumping the data to a file, so that I can use other tools (e.g., Matlab) to visualize and analyze it.</p>
-<p>bsmedit aims to <b>simplify</b> this procedure. With bsmedit, we can</p>
+<p>And occasionally, I would need to add some debugging code. For example, printing some value (e.g., <code>printf</code>) to the terminal or dumping the data to a file, so that I can use other tools (e.g., Matlab) to visualize and analyze it.</p>
+<p>bsmedit aims to simplify this procedure. With bsmedit, we can</p>
 <ul>
 <li>control the simulation</li>
 <li>monitor the signals in real-time</li>
@@ -179,7 +179,7 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 <span class="n">BSMEDIT_IMPLEMENT_MODULE</span><span class="p">(</span><span class="n">top</span><span class="p">,</span><span class="s">&quot;top&quot;</span><span class="p">);</span>
 </pre></div>
 </div>
-<p>Besides the SystemC library, it also needs to include the <code>bsm.h/cpp</code> in the project. They define interfaces to communicate with bsmedit</p>
+<p>Besides the SystemC library, it also needs to include the <b>bsm.h/cpp</b> in the project. They define interfaces to communicate with bsmedit</p>
 <ul>
 <li><b>BSMEDIT_IMPLEMENT_MODULE(top, "top")</b> creates the top level module from class <b>top</b> with name "top".</li>
 </ul>
@@ -219,7 +219,7 @@ Please refer to the file <a href="https://github.com/tianzhuqiao/bsmedit/blob/ma
 </pre></div>
 </div></li>
 </ul></li>
-<li><b>Compile the project to get simulation</b> (e.g., <code>start.dll</code>)</li>
+<li><b>Compile the project to get simulation</b> (e.g., <b>start.dll</b>)</li>
 </ol>
 <div class="info">
 The demo project can be download <a href="https://github.com/tianzhuqiao/bsmedit/tree/master/examples/start">here</a>.
@@ -235,9 +235,9 @@ Make sure your simulation architecture match with python. For example, if your s
 </div>
 <p>and create the simulation<a id="footnote_src-1" href="#footnote-1"><sup>1</sup></a> by</p>
 <figure class="figure">
-<img src="./images/start_open_project.png" alt="./images/start_open_project.png" width="793" height="524">
+<img src="./images/start_open_project.png" alt="./images/start_open_project.png" width="790" height="524">
 </figure>
-<p>It will show a open file dialog. In the open file dialog, select the simulation library (e.g. <code>libstart.so</code>, <code>start.dll</code> ). bsmedit will automatically load the simulation.</p>
+<p>It will show a open file dialog. In the open file dialog, select the simulation library (e.g. <b>libstart.so</b>, <b>start.dll</b> ). bsmedit will automatically load the simulation.</p>
 <figure class="figure">
 <img src="./images/start_sim_main.png" alt="./images/start_sim_main.png" width="793" height="524">
 </figure>
@@ -316,8 +316,8 @@ Your browser does not support the video tag.</video>
 <span class="c1"># create the propgrid window and monitor the signals</span>
 <span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="s1">&#39;top.CLOCK&#39;</span><span class="p">)</span>
 <span class="n">p</span> <span class="o">=</span> <span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetFormatter</span><span class="p">(</span><span class="n">fmt</span><span class="o">.</span><span class="n">IntFormatter</span><span class="p">(</span><span class="mi">256</span><span class="p">))</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;spin&#39;</span><span class="p">)</span>
+<span class="n">p</span><span class="o">.</span><span class="n">SetFormatter</span><span class="p">(</span><span class="n">fmt</span><span class="o">.</span><span class="n">IntFormatter</span><span class="p">(</span><span class="n">min_value</span><span class="o">=</span><span class="mi">256</span><span class="p">))</span>
+<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;Spin&#39;</span><span class="p">)</span>
 <span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="s1">&#39;top.sig_sin&#39;</span><span class="p">)</span>
 <span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="s1">&#39;top.sig_cos&#39;</span><span class="p">)</span>
 
@@ -339,13 +339,13 @@ Then, it can be opened in bsmedit</p>
 <figure class="figure">
 <img src="./images/start_sim_open.png" alt="./images/start_sim_open.png" width="669" height="380">
 </figure>
-<p>And it will look like the one shown in the following image. Click the <img src="./images/run_script.png" alt="./images/run_script.png" width="8" height="8"> button to run the script</p>
+<p>And it will look like the one shown in the following image. Click the bExecute the script button to run the script</p>
 <figure class="figure">
-<img src="./images/start_open_script.png" alt="./images/start_open_script.png" width="719" height="544">
+<img src="./images/start_open_script.png" alt="./images/start_open_script.png" width="718" height="548">
 </figure>
 <p>bsmedit will automatically load the simulation, create a propgrid window, monitor the signals, and create a figure to plot the signals.</p>
 <figure class="figure">
-<img src="./images/start_run_script.png" alt="./images/start_run_script.png" width="896" height="613">
+<img src="./images/start_run_script.png" alt="./images/start_run_script.png" width="897" height="613">
 </figure>
 <h1 id="sec-3">3 How it works</h1>
 <p>bsmedit was initially written in C++, which can be found <a href="https://sourceforge.net/projects/bsmedit/">here</a>. It looks like an ideal choice since the simulation is also written in C/C++/SystemC. It supports multiple platforms (e.g., windows, linux), as the GUI is based on <a href="http://www.wxwidget.org">wxWidget</a>.</p>
@@ -428,7 +428,7 @@ foo
 </div>
 <p>and the figure will look like</p>
 <figure class="figure">
-<img src="./images/plot_range100.png" alt="./images/plot_range100.png" width="346" height="346">
+<img src="./images/plot_range100.png" alt="./images/plot_range100.png" width="346" height="365">
 </figure>
 <p>Like Matlab, you can add label, legend, and grid</p>
 <div class="bs-example-src">
@@ -439,9 +439,9 @@ foo
 </pre></div>
 </div>
 <figure class="figure">
-<img src="./images/plot_range100more.png" alt="./images/plot_range100more.png" width="346" height="346">
+<img src="./images/plot_range100more.png" alt="./images/plot_range100more.png" width="346" height="365">
 </figure>
-<p>As shown above, the figure window has two sections: <code>toolbar</code> and <code>plot</code>.
+<p>As shown above, the figure window has two sections: <b>toolbar</b> and <b>plot</b>.
 The buttons on the toolbar are (from left to right)</p>
 <ul>
 <li><b>new figure</b>: create an empty figure</li>
@@ -459,13 +459,13 @@ The buttons on the toolbar are (from left to right)</p>
 <li><b>copy</b>: copy the plot (without toolbar section) to clipboard</li>
 <li><p><b>edit</b>: edit the plotted lines</p>
 <div class="video">
-<video controls width="576" height="426"><source src="./images/figure_edit.mp4">
+<video controls width="577" height="416"><source src="./images/figure_edit.mp4">
 Your browser does not support the video tag.</video>
 </div></li>
 </ul>
 <p>The <b>plot</b> function will add the curve to the <b>active</b> figure window. Generally, the <b>active</b> figure window is the latest activated figure window. For example, you can click on a figure window to make it active. And it will keep active until you click on another figure window or create a new one. If you are not sure about the active figure window, you may click on it before calling any plot functions. For a figure with multiple subplots, click the one to activate it</p>
 <div class="video">
-<video controls width="576" height="454"><source src="./images/figure_select_axis.mp4">
+<video controls width="578" height="454"><source src="./images/figure_select_axis.mp4">
 Your browser does not support the video tag.</video>
 </div>
 <p>The following command will activate the figure window with number <code>1</code> (its window name may look like "<b>Figure 1</b>")</p>
@@ -996,7 +996,7 @@ To set a breakpoint,</p>
 </figure>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="n">p</span> <span class="o">=</span> <span class="n">g</span><span class="o">.</span><span class="n">Get</span><span class="p">(</span><span class="s1">&#39;1.top.sig_logic&#39;</span><span class="p">)</span>
-<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;RadioBox&#39;</span><span class="p">,</span> <span class="n">choice</span><span class="o">=</span><span class="p">{</span><span class="s1">&#39;1&#39;</span><span class="p">:</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">:</span><span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;Z&#39;</span><span class="p">:</span><span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">:</span><span class="s1">&#39;X&#39;</span><span class="p">})</span>
+<span class="n">p</span><span class="o">.</span><span class="n">SetControlStyle</span><span class="p">(</span><span class="s1">&#39;RadioBox&#39;</span><span class="p">,</span> <span class="n">choice</span><span class="o">=</span><span class="p">[</span><span class="s1">&#39;1&#39;</span><span class="p">,</span> <span class="s1">&#39;0&#39;</span><span class="p">,</span> <span class="s1">&#39;Z&#39;</span><span class="p">,</span> <span class="s1">&#39;X&#39;</span><span class="p">])</span>
 </pre></div>
 </div></li>
 <li>Color picker</li>
@@ -1311,7 +1311,7 @@ One way is to use <a href="https://docs.python.org/3.6/library/ctypes.html">ctyp
 <li><p>Plot with matplotlib</p>
 <div class="bs-example">
 <figure class="figure">
-<img src="./images/waves.png" alt="./images/waves.png" width="522" height="474">
+<img src="./images/waves.png" alt="./images/waves.png" width="522" height="472">
 </figure>
 </div>
 <div class="bs-example-src">
@@ -1371,7 +1371,7 @@ Your browser does not support the video tag.</video>
 <li>drag the data to some figure</li>
 </ol>
 <figure class="figure">
-<img src="./images/ulog_panel_plot2.png" alt="./images/ulog_panel_plot2.png" width="705" height="454">
+<img src="./images/ulog_panel_plot2.png" alt="./images/ulog_panel_plot2.png" width="704" height="454">
 </figure>
 </div>
 </div>
@@ -1393,7 +1393,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2023-12-19 02:04:06 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2023-12-24 01:41:27 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 </body>
