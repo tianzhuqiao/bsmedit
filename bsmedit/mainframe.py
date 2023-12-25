@@ -117,11 +117,17 @@ class MainFrame(FramePlus):
                            size=wx.Size(800, 600),
                            style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
         self.InitMenu()
-        self._mgr.SetAGWFlags(self._mgr.GetAGWFlags()
+
+        agw_flags = (self._mgr.GetAGWFlags()
                               | aui.AUI_MGR_ALLOW_ACTIVE_PANE
-                              | aui.AUI_MGR_SMOOTH_DOCKING
                               | aui.AUI_MGR_USE_NATIVE_MINIFRAMES
                               | aui.AUI_MGR_LIVE_RESIZE)
+
+        if wx.Platform != '__WXMSW__':
+            agw_flags |= aui.AUI_MGR_SMOOTH_DOCKING
+
+        self._mgr.SetAGWFlags(agw_flags)
+
         # set mainframe icon
         icon = wx.Icon()
         icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, size=(1024, 1024), win=self))
