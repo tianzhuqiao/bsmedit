@@ -9,7 +9,6 @@ import six
 import wx
 import wx.py.dispatcher as dp
 from ..aui import aui
-from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
 from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
                     step_svg, step_grey_svg, run_svg, run_grey_svg, \
@@ -695,7 +694,6 @@ class SimPanel(wx.Panel):
 
         self.is_destroying = False
         self._color = wx.Colour(178, 34, 34)
-        self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
         xpm2bmp = wx.Bitmap
@@ -749,7 +747,6 @@ class SimPanel(wx.Panel):
                               "Configure the simulation")
 
         self.tb.SetToolDropDown(self.ID_SIM_SET, True)
-        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
         self.tree = ModuleTree(self)
         self.box = wx.BoxSizer(wx.VERTICAL)

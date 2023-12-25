@@ -10,7 +10,6 @@ import wx
 import wx.py.dispatcher as dp
 import wx.svg
 from  ..aui import aui
-from ..auibarpopup import AuiToolBarPopupArt
 from .dirtreectrl import DirTreeCtrl, Directory
 from .bsmxpm import backward_svg2, backward_gray_svg2, forward_svg2, \
                     forward_gray_svg2, up_svg, home_svg2, more_svg
@@ -74,7 +73,6 @@ class HelpPanel(wx.Panel):
 
         self.html = HelpText(self)
 
-        self.toolbarart = AuiToolBarPopupArt(self)
         agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddTool(wx.ID_BACKWARD, 'Back',
@@ -91,7 +89,6 @@ class HelpPanel(wx.Panel):
         self.search = AutocompleteTextCtrl(self.tb, completer=self.completer)
         item = self.tb.AddControl(self.search)
         item.SetProportion(1)
-        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
 
         # Setup the layout
@@ -498,7 +495,6 @@ class DirPanel(wx.Panel):
         wx.Panel.__init__(self, parent)
 
 
-        self.toolbarart = AuiToolBarPopupArt(self)
         agwStyle = aui.AUI_TB_OVERFLOW
         self.tb = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.tb.AddTool(wx.ID_BACKWARD, 'Back',
@@ -528,7 +524,6 @@ class DirPanel(wx.Panel):
         self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_SHOW_HIDDEN)
         self.Bind(wx.EVT_MENU, self.OnProcessMenu, id=self.ID_SHOW_PATTERN_TOOLBAR)
 
-        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
         self.dirtree = DirTreeCtrl(self,
                                    style=wx.TR_DEFAULT_STYLE

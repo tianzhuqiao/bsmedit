@@ -4,9 +4,6 @@
 [submodule "glsurface"]
 	path = bsmedit/glsurface
     url = https://github.com/tianzhuqiao/glsurface.git
-[submodule "auibarpopup"]
-	path = bsmedit/auibarpopup
-	url = https://github.com/tianzhuqiao/auibarpopup.git
 [submodule "bsmedit/propgrid"]
 	path = bsmedit/propgrid
 	url = https://github.com/tianzhuqiao/propgrid.git

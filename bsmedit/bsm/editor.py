@@ -7,7 +7,6 @@ import wx
 from wx import stc
 import wx.py.dispatcher as dp
 from ..aui import aui
-from ..auibarpopup import AuiToolBarPopupArt
 from .bsmxpm import open_svg, reload_svg, save_svg, save_gray_svg, saveas_svg, \
                     play_svg, debug_svg, more_svg, indent_inc_svg, indent_dec_svg, \
                     check_svg, search_svg
@@ -541,7 +540,6 @@ class PyEditorPanel(wx.Panel):
             (self.ID_MORE, 'More', more_svg, None, 'More'),
         )
 
-        self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, agwStyle=aui.AUI_TB_OVERFLOW)
         for (eid, label, img, img_gray, tooltip) in item:
             if eid is None:
@@ -563,7 +561,6 @@ class PyEditorPanel(wx.Panel):
                 self.tb.AddTool(eid, label, bmp, bmp_gray, kind=wx.ITEM_NORMAL,
                                 short_help_string=tooltip)
 
-        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
         self.box = wx.BoxSizer(wx.VERTICAL)
         self.box.Add(self.tb, 0, wx.EXPAND, 5)

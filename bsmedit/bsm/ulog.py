@@ -7,7 +7,6 @@ import wx.py.dispatcher as dp
 import pyulog
 import pandas as pd
 from ..aui import aui
-from ..auibarpopup import AuiToolBarPopupArt
 from . import graph
 from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
@@ -506,7 +505,6 @@ class ULogPanel(wx.Panel):
     def __init__(self, parent, filename=None):
         wx.Panel.__init__(self, parent)
 
-        self.toolbarart = AuiToolBarPopupArt(self)
         self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
 
@@ -515,7 +513,6 @@ class ULogPanel(wx.Panel):
                         wx.NullBitmap, wx.ITEM_NORMAL,
                         "Open ulog file")
 
-        self.tb.SetArtProvider(self.toolbarart)
         self.tb.Realize()
 
         self.notebook = aui.AuiNotebook(self, agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER)

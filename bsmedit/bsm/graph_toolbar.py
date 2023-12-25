@@ -7,7 +7,6 @@ import matplotlib as mpl
 from matplotlib.backends.backend_wx import NavigationToolbar2
 from matplotlib import cbook
 from  ..aui import aui
-from ..auibarpopup import AuiToolBarPopupArt
 
 _log = logging.getLogger(__name__)
 
@@ -17,7 +16,6 @@ class GraphToolbar(NavigationToolbar2, aui.AuiToolBar):
         aui.AuiToolBar.__init__(self, canvas.GetParent(), -1, style=style,
                                 agwStyle=agwStyle, **kwargs)
 
-        self.toolbarart = AuiToolBarPopupArt(self)
 
         if 'wxMac' in wx.PlatformInfo:
             self.SetToolBitmapSize((24, 24))
@@ -44,7 +42,6 @@ class GraphToolbar(NavigationToolbar2, aui.AuiToolBar):
             self._label_text = wx.StaticText(self, style=wx.ALIGN_RIGHT)
             self.AddControl(self._label_text)
 
-        self.SetArtProvider(self.toolbarart)
         self.Realize()
 
         NavigationToolbar2.__init__(self, canvas)
