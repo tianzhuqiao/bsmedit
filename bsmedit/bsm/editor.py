@@ -1061,7 +1061,7 @@ class PyEditorPanel(wx.Panel):
             if len(files[0]) == 2:
                 files = [ f+[False] for f in files]
             for f, line, shown in files:
-                cls.OpenScript(f, activated=False, lineno=line)
+                cls.OpenScript(f, activated=False, lineno=line, add_to_history=False)
 
     @classmethod
     def OnFrameClosePane(cls, event):
@@ -1145,7 +1145,7 @@ class PyEditorPanel(wx.Panel):
         return editor
 
     @classmethod
-    def OpenScript(cls, filename, activated=True, lineno=0):
+    def OpenScript(cls, filename, activated=True, lineno=0, add_to_history=True):
         """open the file"""
         if not filename:
             return None
@@ -1157,7 +1157,8 @@ class PyEditorPanel(wx.Panel):
         if editor is None:
             editor = cls.AddEditor()
             editor.LoadFile(filename)
-            dp.send('frame.add_file_history', filename=filename)
+            if add_to_history:
+                dp.send('frame.add_file_history', filename=filename)
 
         if editor and activated and not editor.IsShown():
             dp.send('frame.show_panel', panel=editor, focus=True)
