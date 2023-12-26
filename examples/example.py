@@ -1,7 +1,7 @@
 from bsmedit.bsm.pysim import *
 from bsmedit.propgrid import formatters as fmt
 # create a simulation
-s = simulation(None, './examples/libtbdll.so')
+s = simulation(None, './examples/tb_dll/libtbdll.so')
 
 assert s.is_valid(), 'Failed to load simulation'
 # set the simulation parameters: step = 100us, run infinitely
@@ -34,12 +34,7 @@ s.monitor('top.sig_double')
 
 p = s.monitor('top.sig_sc_logic')
 p.SetFormatter(
-    fmt.ChoiceFormatter({
-        ord('1'): '1',
-        ord('0'): '0',
-        ord('Z'): 'Z',
-        ord('X'): 'X'
-    }))
+    fmt.ChoiceFormatter(['1','0','Z','X']))
 p.SetControlStyle('radiobox')
 
 # dump the register value to a numpy array
@@ -54,3 +49,36 @@ xlim([-1, 1])
 ylim([-1, 1])
 
 s.run(to='1000us')
+
+p = s.monitor('top.sig_bool')
+p.SetControlStyle('CheckBox')
+p = s.monitor('top.sig_char')
+p.SetControlStyle('Slider', min_value=-128, max_value=127)
+p = s.monitor('top.sig_cos')
+p = s.monitor('top.sig_double')
+p = s.monitor('top.sig_float')
+p = s.monitor('top.sig_int')
+p = s.monitor('top.sig_long')
+p = s.monitor('top.sig_longlong')
+p = s.monitor('top.sig_sc_bigint')
+p = s.monitor('top.sig_sc_biguint')
+p = s.monitor('top.sig_sc_bit')
+p.SetControlStyle('CheckBox')
+p = s.monitor('top.sig_sc_bv')
+p = s.monitor('top.sig_sc_fixed')
+p = s.monitor('top.sig_sc_fixed_fast')
+p = s.monitor('top.sig_sc_int')
+p = s.monitor('top.sig_sc_logic')
+p.SetControlStyle('RadioBox', choice=['1', '0', 'Z', 'X'])
+p = s.monitor('top.sig_sc_lv')
+p = s.monitor('top.sig_sc_ufixed')
+p = s.monitor('top.sig_sc_uint')
+p = s.monitor('top.sig_short')
+p = s.monitor('top.sig_sin')
+p = s.monitor('top.sig_std_string')
+p = s.monitor('top.sig_uchar')
+p.SetControlStyle('Spin', min_value=0, max_value=255)
+p = s.monitor('top.sig_uint')
+p = s.monitor('top.sig_ulong')
+p = s.monitor('top.sig_ulonglong')
+p = s.monitor('top.sig_ushort')
