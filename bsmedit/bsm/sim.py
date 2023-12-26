@@ -1202,6 +1202,17 @@ def PropGenericUdpate():
         return self.triggered
     pg.PropGeneric.IsTriggered = IsTriggered
 
+    pg.PropGeneric._copy_orig = pg.PropGeneric.copy
+    def copy(self, prop):
+        self._copy_orig(prop)
+        self.gripper_clr = prop.gripper_clr
+        self.show_check = prop.show_check
+        self.checked = prop.checked
+        self.condition = prop.condition
+        self.triggered = prop.triggered
+
+    pg.PropGeneric.copy = copy
+
 class SimPropArt(pg.PropArtNative):
     def __init__(self, win=None):
         super().__init__()
