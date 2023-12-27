@@ -13,6 +13,7 @@ from matplotlib._pylab_helpers import Gcf
 import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import matplotlib.style as mplstyle
+import matplotlib.transforms as mtransforms
 from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
@@ -101,6 +102,7 @@ class Toolbar(GraphToolbar):
     ID_LINE_STYLE_LINE_DOT = wx.NewIdRef()
     ID_FLIP_Y_AXIS = wx.NewIdRef()
     ID_FLIP_X_AXIS = wx.NewIdRef()
+    ID_COPY_SUBPLOT = wx.NewIdRef()
 
     def __init__(self, canvas, figure):
         if matplotlib.__version__ < '3.3.0':
@@ -258,6 +260,8 @@ class Toolbar(GraphToolbar):
         item = menu.AppendCheckItem(self.ID_FLIP_X_AXIS, "Flip x axis")
         item.Check(all([ax.xaxis.get_inverted() for ax in axes]))
 
+        menu.AppendSeparator()
+        menu.AppendCheckItem(self.ID_COPY_SUBPLOT, "Copy to clipboard")
         # menu for current mode
         menus, name = self.GetMenu(axes)
         if len(menus) > 0:
@@ -299,7 +303,8 @@ class Toolbar(GraphToolbar):
             sharey = cmd in [self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
                              self.ID_SPLIT_HORZ_SHARE_YAXIS, self.ID_SPLIT_HORZ_SHARE_XYAXIS]
             ax = add_subplot(axes[0], vert=vert, sharex=sharex, sharey=sharey)
-            ax.grid(True)
+            if any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines()):
+                ax.grid(True)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_SUBPLOT:
             for ax in axes:
@@ -307,8 +312,10 @@ class Toolbar(GraphToolbar):
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_LINES:
             for ax in axes:
+                grid_on = any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines())
                 ax.cla()
-                ax.grid(True)
+                if grid_on:
+                    ax.grid(True)
             self._nav_stack.clear()
         elif cmd == self.ID_FLIP_Y_AXIS:
             for ax in axes:
@@ -323,6 +330,28 @@ class Toolbar(GraphToolbar):
                 self.do_auto_scale(axes, 'y')
             else:
                 self.do_auto_scale(axes)
+        elif cmd == self.ID_COPY_SUBPLOT:
+            bb = []
+            for ax in axes:
+                bbox = ax.get_tightbbox()
+                if bbox.width > 0 and bbox.height > 0:
+                    bb.append(bbox)
+            if bb:
+                buf = np.copy(self.figure.canvas.buffer_rgba())
+                bbox = mtransforms.Bbox.union(bb)
+                pt = bbox.get_points()
+                h, w, _ = buf.shape
+                buf2 = np.copy(buf[h-int(pt[1, 1]):h-int(pt[0,1])+1, int(pt[0,0]):int(pt[1,0]+0.5)+1, :])
+                h, w, _ = buf2.shape
+                bitmap = wx.Bitmap.FromBufferRGBA(w, h, buf2)
+                bmp_obj = wx.BitmapDataObject()
+                bmp_obj.SetBitmap(bitmap)
+                if not wx.TheClipboard.IsOpened():
+                    open_success = wx.TheClipboard.Open()
+                    if open_success:
+                        wx.TheClipboard.SetData(bmp_obj)
+                        wx.TheClipboard.Flush()
+                        wx.TheClipboard.Close()
         else:
             self.ProcessCommand(cmd, axes)
 
