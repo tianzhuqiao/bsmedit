@@ -17,7 +17,7 @@ var simplePopup = (function() {
         $container.append(this.tooltip);
         this.tooltip.css({
             'background': '#ffa',
-            'border' : '2px solid #A0A090',
+            'border' : '1px solid #A0A090',
             'padding': '3px 8px 3px 8px',
             'display': 'none',
             'width': '100%',
@@ -92,19 +92,25 @@ var simplePopup = (function() {
             thispopup.tooltip.bind('mouseover', {thispopup:thispopup}, thispopup.keepVisible);
             thispopup.tooltip.bind('mouseout',  {thispopup:thispopup}, thispopup.mouseOut);
             thispopup.tooltip.stop(true, true);
+            $root.css({
+                'background':'#ffa',
+            });
             thispopup.tooltip.html($root[0].outerHTML);
             thispopup.tooltip.css({
                 top: 0,
             });
+            thispopup.target = $root
             thispopup.tooltip.fadeIn();
         }
     };
 
     simplePopup.prototype.mouseOut = function(e) {
         var thispopup = e.data.thispopup;
+
         thispopup.tooltip.stop(true, true);
         thispopup.tooltip.fadeOut(function () {
             thispopup.tooltip.empty();
+            thispopup.showTooltip = false;
         });
         if(thispopup.target) {
             thispopup.target.css({
@@ -119,6 +125,7 @@ var simplePopup = (function() {
 $( window ).on('load', function() {
     new simplePopup('a[href*="mjx-eqn-"]', 'div');
     new simplePopup('a[href*="img-"]', 'figure');
+    new simplePopup('a[href*="video-"]', 'div');
     new simplePopup('a[href*="tbl-"]', 'table');
     new simplePopup('a[href*="footnote-"]', 'div');
     new simplePopup('a[href*="reference-"]', 'div');

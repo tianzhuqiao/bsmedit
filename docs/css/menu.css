@@ -12,6 +12,10 @@ Add transition to containers so they can push in and out.
     transition: all 0.2s ease-out;
 }
 
+.menu:empty {
+    display: None;
+}
+
 /*
 This is the parent `<div>` that contains the menu and the content area.
 */
