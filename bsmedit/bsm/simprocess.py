@@ -703,8 +703,8 @@ class SimCommand(object):
 
     @SimInterface()
     def trace_file(self,
-                   filename='',
                    name='',
+                   filename='',
                    fmt='bsm',
                    valid=None,
                    trigger='posneg',
@@ -712,10 +712,10 @@ class SimCommand(object):
         """
         dump object values to a file
 
-        filename:
-            trace filename
         name:
             register name
+        filename:
+            trace filename
         fmt:
             'bsm': only output the register value, one per line (Default)
             'vcd': output the SystemC VCD format data
@@ -730,7 +730,6 @@ class SimCommand(object):
         """
         if not self.is_valid():
             return False
-        raw = [filename, name, fmt, valid, trigger]
 
         if not filename:
             filename = name
@@ -751,6 +750,7 @@ class SimCommand(object):
             raise ValueError("Not supported trace type: " + str(raw[0]))
         if trigger is None:
             raise ValueError("Not supported trigger type: " + str(raw[2]))
+        raw = [filename, name, fmt, valid, trigger]
         trace = csim.SStructWrapper(self.simengine.csim.sim_trace_file())
         trace.name = filename
         trace.type = fmt
@@ -788,7 +788,6 @@ class SimCommand(object):
         if not self.is_valid():
             return False
         # used to return the traced buffer list
-        raw = [size, valid, trigger]
         obj = self.simengine.find_object(name)
         if obj is None:
             return False
@@ -803,11 +802,9 @@ class SimCommand(object):
         if trigger is None:
             raise ValueError("Not supported trigger type: " + str(raw[2]))
 
-        if name in self.tbuf:
-            # remove the existing trace
-            trace = self.tbuf[name]['trace']
-            self.simengine.ctx_close_trace_buf(trace())
-            del self.tbuf[name]
+        raw = [size, valid, trigger]
+        # remove the existing trace
+        self.close_trace_buf(name=name)
 
         trace = csim.SStructWrapper(self.simengine.csim.sim_trace_buf())
         trace.name = name

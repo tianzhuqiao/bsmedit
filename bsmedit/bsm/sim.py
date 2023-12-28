@@ -887,17 +887,17 @@ class SimPanel(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK:
                 t = dlg.GetTrace()
                 if cmd == self.ID_MP_DUMP:
-                    self.sim.trace_file(t['filename'],
-                                        t['signal'],
-                                        t['format'],
-                                        t['valid'],
-                                        t['trigger'],
+                    self.sim.trace_file(name=t['signal'],
+                                        filename=t['filename'],
+                                        fmt=t['format'],
+                                        valid=t['valid'],
+                                        trigger=t['trigger'],
                                         block=False)
                 else:
-                    self.sim.trace_buf(t['signal'],
-                                       t['size'],
-                                       t['valid'],
-                                       t['trigger'],
+                    self.sim.trace_buf(name=t['signal'],
+                                       size=t['size'],
+                                       valid=t['valid'],
+                                       trigger=t['trigger'],
                                        block=False)
         elif cmd == self.ID_MP_ADD_TO_NEW_VIEWER:
             self.AddSelectedToGrid(sim.propgrid())
