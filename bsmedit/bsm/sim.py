@@ -1186,9 +1186,9 @@ def PropGenericUdpate():
         return ht
     pg.PropGeneric.OnMouseUp = OnMouseUp
 
-    def SetBpConditon(self, cond, hitcount):
+    def SetBpCondition(self, cond, hitcount):
         self.condition = (cond, hitcount)
-    pg.PropGeneric.SetBpConditon = SetBpConditon
+    pg.PropGeneric.SetBpCondition = SetBpCondition
 
     def GetBpCondition(self):
         return self.condition
@@ -1480,11 +1480,11 @@ class SimPropGrid(pg.PropGrid):
                 if prop.IsChecked():
                     # delete current breakpoint
                     prop.SetChecked(False)
-                    prop.SetBpConditon(*dlg.GetCondition())
+                    prop.SetBpCondition(*dlg.GetCondition())
                     # add breakpoint to make the condition valid
                     prop.SetChecked(True)
                 else:
-                    prop.SetBpConditon(*dlg.GetCondition())
+                    prop.SetBpCondition(*dlg.GetCondition())
 
         elif eid == self.ID_PROP_BREAKPOINT_CLEAR:
             self.ClearBreakPoints()
@@ -1508,7 +1508,7 @@ class SimPropGrid(pg.PropGrid):
     def TriggerBreakPoint(self, name, cond, hitcount):
         """check whether the breakpoints are triggered"""
         for prop in self._props:
-            if name == prop.GetName():
+            if prop.IsChecked() and name == prop.GetName():
                 if (cond, hitcount) == prop.GetBpCondition():
                     prop.SetTriggered(True)
                     self.EnsureVisible(prop)
