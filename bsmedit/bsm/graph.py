@@ -261,7 +261,7 @@ class Toolbar(GraphToolbar):
         item.Check(all([ax.xaxis.get_inverted() for ax in axes]))
 
         menu.AppendSeparator()
-        menu.AppendCheckItem(self.ID_COPY_SUBPLOT, "Copy to clipboard")
+        menu.Append(self.ID_COPY_SUBPLOT, "Copy to clipboard")
         # menu for current mode
         menus, name = self.GetMenu(axes)
         if len(menus) > 0:
