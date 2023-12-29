@@ -538,7 +538,7 @@ class DumpDlg(wx.Dialog):
         btnsizer.AddButton(self.btnCancel)
         btnsizer.Realize()
 
-        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 5)
+        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
 
         self.SetSizer(szAll)
         self.Layout()
@@ -745,7 +745,6 @@ class SimPanel(wx.Panel):
         self.tb.AddSimpleTool(self.ID_SIM_SET, "Setting", svg_to_bitmap(setting_svg, win=self),
                               "Configure the simulation")
 
-        self.tb.SetToolDropDown(self.ID_SIM_SET, True)
         self.tb.Realize()
         self.tree = ModuleTree(self)
         self.box = wx.BoxSizer(wx.VERTICAL)
@@ -761,9 +760,6 @@ class SimPanel(wx.Panel):
         self.tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnTreeSelChanged)
         self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
         self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
-        self.Bind(aui.EVT_AUITOOLBAR_TOOL_DROPDOWN,
-                  self.OnMenuDropDown,
-                  id=self.ID_SIM_SET)
         # simulation
         self.sim = Simulation(self, num)
         if filename is not None or not silent:
@@ -784,29 +780,6 @@ class SimPanel(wx.Panel):
             self.sim.process_response()
         except:
             traceback.print_exc(file=sys.stdout)
-
-    def OnMenuDropDown(self, event):
-        if event.IsDropDownClicked():
-            menu = wx.Menu()
-            item = menu.Append(self.ID_MP_DUMP_MANAGE, "&Manage dump files")
-            if not self.sim.get_trace_files():
-                item.Enable(False)
-            menu.AppendSeparator()
-            menu.Append(wx.ID_RESET, "&Reset")
-            menu.AppendSeparator()
-            menu.Append(wx.ID_EXIT, "&Exit")
-
-            # line up our menu with the button
-            tb = event.GetEventObject()
-            tb.SetToolSticky(event.GetId(), True)
-            rect = tb.GetToolRect(event.GetId())
-            pt = tb.ClientToScreen(rect.GetBottomLeft())
-            pt = self.ScreenToClient(pt)
-
-            self.PopupMenu(menu, pt)
-
-            # make sure the button is "un-stuck"
-            tb.SetToolSticky(event.GetId(), False)
 
     def Destroy(self):
         """
@@ -1021,6 +994,27 @@ class SimPanel(wx.Panel):
             dlg = DumpManageDlg(self.sim, self, size=(600, 480))
             # this does not return until the dialog is closed.
             val = dlg.ShowModal()
+        elif eid == self.ID_SIM_SET:
+            menu = wx.Menu()
+            item = menu.Append(self.ID_MP_DUMP_MANAGE, "&Manage dump files")
+            if not self.sim.get_trace_files():
+                item.Enable(False)
+            menu.AppendSeparator()
+            menu.Append(wx.ID_RESET, "&Reset")
+            menu.AppendSeparator()
+            menu.Append(wx.ID_EXIT, "&Exit")
+
+            # line up our menu with the button
+            tb = event.GetEventObject()
+            tb.SetToolSticky(event.GetId(), True)
+            rect = tb.GetToolRect(event.GetId())
+            pt = tb.ClientToScreen(rect.GetBottomLeft())
+            pt = self.ScreenToClient(pt)
+
+            self.PopupMenu(menu, pt)
+
+            # make sure the button is "un-stuck"
+            tb.SetToolSticky(event.GetId(), False)
 
     def _process_response(self, resp):
         if self.is_destroying:
@@ -1531,7 +1525,6 @@ class BreakpointSettingsDlg(wx.Dialog):
         wx.Dialog.__init__(self,
                            parent,
                            title="Breakpoint Condition",
-                           size=wx.Size(431, 289),
                            style=wx.DEFAULT_DIALOG_STYLE | wx.RESIZE_BORDER)
 
         szAll = wx.BoxSizer(wx.VERTICAL)
@@ -1540,16 +1533,14 @@ class BreakpointSettingsDlg(wx.Dialog):
                  "the register value has changed")
         self.stInfo = wx.StaticText(self, label=label)
         self.stInfo.Wrap(400)
-        szAll.Add(self.stInfo, 1, wx.ALL, 5)
-
-        szCnd = wx.BoxSizer(wx.HORIZONTAL)
+        szAll.Add(self.stInfo, 0, wx.ALL, 5)
 
         szCond = wx.BoxSizer(wx.VERTICAL)
 
         self.rbChanged = wx.RadioButton(self,
                                         label="Has changed",
                                         style=wx.RB_GROUP)
-        szCond.Add(self.rbChanged, 5, wx.ALL | wx.EXPAND, 5)
+        szCond.Add(self.rbChanged, 0, wx.ALL | wx.EXPAND, 5)
 
         label = "Is true (value: $; for example, $==10)"
         self.rbCond = wx.RadioButton(self, label=label)
@@ -1565,9 +1556,7 @@ class BreakpointSettingsDlg(wx.Dialog):
         self.tcHitCount = wx.TextCtrl(self)
         szCond.Add(self.tcHitCount, 0, wx.ALL | wx.EXPAND, 5)
 
-        szCnd.Add(szCond, 1, wx.EXPAND, 5)
-
-        szAll.Add(szCnd, 1, wx.EXPAND, 5)
+        szAll.Add(szCond, 0, wx.EXPAND, 5)
 
         self.stLine = wx.StaticLine(self, style=wx.LI_HORIZONTAL)
         szAll.Add(self.stLine, 0, wx.EXPAND | wx.ALL, 5)
@@ -1582,10 +1571,11 @@ class BreakpointSettingsDlg(wx.Dialog):
         btnsizer.AddButton(self.btnCancel)
         btnsizer.Realize()
 
-        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 5)
+        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT|wx.ALL, 5)
 
         self.SetSizer(szAll)
         self.Layout()
+        self.Fit()
 
         # initialize the controls
         self.condition = condition
