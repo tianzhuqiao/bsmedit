@@ -1011,7 +1011,7 @@ class SimPanel(wx.Panel):
             pt = tb.ClientToScreen(rect.GetBottomLeft())
             pt = self.ScreenToClient(pt)
 
-            self.PopupMenu(menu, pt)
+            self.PopupMenu(menu)
 
             # make sure the button is "un-stuck"
             tb.SetToolSticky(event.GetId(), False)
