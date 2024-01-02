@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="generator" content="bsmdoc 0.0.8">
+<meta name="generator" content="bsmdoc 0.0.9">
 <link rel="stylesheet" href="css/bsmdoc.css" type="text/css">
 <link rel="stylesheet" href="css/menu.css" type="text/css">
 <script>
@@ -53,7 +53,7 @@ id: (id) => 'mjx-eqn-' + id.replace(/\s/g, '_'),
 </div>
 <div class="main">
 <div class="toptitle">
-bsmedit -- C/C++/SystemC Visualizer (ver 3.2.10a1) <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32" height="32"></a>
+bsmedit -- C/C++/SystemC Visualizer (ver 3.2.10) <a href="https://github.com/tianzhuqiao/bsmedit"><img src="images/github.svg" alt="images/github.svg" width="32" height="32"></a>
 </div>
 <div class="content">
 <h1 id="sec-1">1 What is bsmedit</h1>
@@ -77,14 +77,14 @@ bsmedit -- C/C++/SystemC Visualizer (ver 3.2.10a1) <a href="https://github.com/t
 <div class="syntax"><pre><span></span>$<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>bsmedit
 </pre></div>
 </div>
-<p>You can also clone the repository and run setup.py</p>
+<p>You can also clone the repository and run</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>$<span class="w"> </span><span class="nb">cd</span><span class="w"> </span>bsmedit
 $<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
 </pre></div>
 </div>
 <h2 id="sec-2-1">2.1 Create a SystemC simulation</h2>
-<p>To use bsmedit, the first step is to build a simulation. In the following example, we will create a dummy SystemC simulation that outputs a synchronized sin and cos waveforms.</p>
+<p>To use bsmedit, the first step is to build a simulation. In the following example, we will create a dummy SystemC simulation that outputs a synchronized \(\sin\) and \(\cos\) waveforms.</p>
 <ol>
 <li><b>Create a simulation project.</b> You can use your preferred platform and compiler.</li>
 <li><p><b>Add SystemC support to your project.</b> To make the simulation work with bsmedit, you need a modified SystemC, which can be got <a href="https://github.com/tianzhuqiao/bsmedit/tree/master/systemc-2.3.1">here</a>.</p>
@@ -233,11 +233,11 @@ Make sure your simulation architecture match with python. For example, if your s
 <div class="syntax"><pre><span></span>$<span class="w"> </span>bsmedit
 </pre></div>
 </div>
-<p>and create the simulation<a id="footnote_src-1" href="#footnote-1"><sup>1</sup></a> by</p>
+<p>and create the simulation<a id="footnote_src-1" href="#footnote-1"><sup>1</sup></a> from the menu</p>
 <figure class="figure">
 <img src="./images/start_open_project.png" alt="./images/start_open_project.png" width="790" height="524">
 </figure>
-<p>It will show a open file dialog. In the open file dialog, select the simulation library (e.g. <b>libstart.so</b>, <b>start.dll</b> ). bsmedit will automatically load the simulation.</p>
+<p>It will show a open file dialog to select the simulation library (e.g. <b>libstart.so</b>, <b>start.dll</b> ). Then bsmedit will load the simulation.</p>
 <figure class="figure">
 <img src="./images/start_sim_main.png" alt="./images/start_sim_main.png" width="793" height="524">
 </figure>
@@ -339,22 +339,22 @@ Then, it can be opened in bsmedit</p>
 <figure class="figure">
 <img src="./images/start_sim_open.png" alt="./images/start_sim_open.png" width="669" height="380">
 </figure>
-<p>And it will look like the one shown in the following image. Click the bExecute the script button to run the script</p>
+<p>And it will look like the one shown in the following image. Click the <b>Execute the script</b> button to run the script</p>
 <figure class="figure">
 <img src="./images/start_open_script.png" alt="./images/start_open_script.png" width="718" height="548">
 </figure>
-<p>bsmedit will automatically load the simulation, create a propgrid window, monitor the signals, and create a figure to plot the signals.</p>
+<p>bsmedit will load the simulation, create a propgrid window, monitor the signals, and create a figure to plot the signals.</p>
 <figure class="figure">
 <img src="./images/start_run_script.png" alt="./images/start_run_script.png" width="897" height="613">
 </figure>
 <h1 id="sec-3">3 How it works</h1>
 <p>bsmedit was initially written in C++, which can be found <a href="https://sourceforge.net/projects/bsmedit/">here</a>. It looks like an ideal choice since the simulation is also written in C/C++/SystemC. It supports multiple platforms (e.g., windows, linux), as the GUI is based on <a href="http://www.wxwidget.org">wxWidget</a>.</p>
 <p>It is highly extensible thanks to the plugin system. Actually most functions as you seen above were implemented with the plugin system. For example, one plugin is used to control the simulation (e.g., start, pause, stop, resume), which also supports breakpoints (e.g., pause the simulation when some conditions are satisfied; thus, you can check the status of your algorithm at that time.). One plugin is to plot the data captured from the simulation, which mimics some features from Matlab <b>plot</b> function: you can visualize the data in real-time and check its trend dynamically. One plugin adds some basic DSP functions (e.g., max, min, median, addition, subtraction, multiplication (dot product), square, square root, log/exp, sin/cos, acos/asin, tan, FFT etc.). It also had a console window so that you can run python command (e.g., to control the simulation)...</p>
-<p>Following this way, we could build bsmedit block by block. At that time, I though it would work. However, such method has some significant drawbacks. One big problem is that we need to re-invert many many wheels. For example, after implement some functions, bsmedit also needs to wrap all these functions in python, so that you can call it in python script or in the console window. No need to say how tedious and error-prone such process is. How about adding a DSP function that does not exist in bsmedit (e.g., a moving average)? Basically, you will have to create a plugin project following the template, and write code to implement the processing.
+<p>Following this way, we could build bsmedit block by block. At that time, I though it would work. However, such method has some significant drawbacks. One big problem is that we need to re-invert many many wheels. For example, after implement some functions, bsmedit also needs to wrap all these functions in python, so that you can call it in python script or in the console window. No need to say how tedious and error-prone such process is. How about adding a DSP function that does not exist in bsmedit (e.g., a moving average)? Basically, you will have to create a plugin project following the template, and write code to implement the actual processing.
 We try hard to make the interface as simple as possible; but it still requires some significant effort to make such plugin work. Furthermore, how about adding some features to the plot library? It will be a real nightmare to go through all the code to find the right position to add some code...</p>
 <p>To solve these issues, from version 3, bsmedit is totally rewritten with python (wxPython for GUI). But, it does not mean you need to write your simulation in python. The simulation is still in C/C++/SystemC, and bsmedit will load and run the simulation as usual. Since it is in python, all functions can be directly called by python script and no need to wrap the interfaces any more. No need to provide a custom plot library, since you can just use the existing python libraries (e.g., matplotlib). No need to write many basic DSP function, which can be easily fulfilled with numpy or scipy...</p>
 <h2 id="sec-3-1">3.1 Console window</h2>
-<p>In version 3, the python console window is replaced with a native interactive interpreter (wx.py.shell). It allows you to run any python command.</p>
+<p>In version 3, the python console window is replaced with a native interactive interpreter (wx.py.shell). It allows you to run arbitrary python command.</p>
 <p>It is not fun to remember all the commands. When typing a '<b>.</b>', bsmedit will show an auto-complete list for you to select from, if there is any</p>
 <figure class="figure">
 <img src="./images/console_autocomplete.png" alt="./images/console_autocomplete.png" width="731" height="370">
@@ -378,13 +378,13 @@ We try hard to make the interface as simple as possible; but it still requires s
 <div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>!gvim<span class="w"> </span><span class="p">&amp;</span>
 </pre></div>
 </div>
-<p>You can add an <b>alias</b> to an external command to save some typing. For example, the following command will add an alias '<b>ll</b>'</p>
+<p>You can add an <b>alias</b> to an external command to save some typing. For example, the following command will add an alias <b>ll</b></p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>ll<span class="w"> </span>ls<span class="w"> </span>-l
 </pre></div>
 </div>
-<p>where the first parameter is the alias name (e.g., '<b>ll</b>'), and the remaining parameters are the destination (e.g. '<b>ls -l</b>').
-Now, when the console sees input '<b>ll</b>', it will automatically replace it with '<b>!ls -l</b>', and execute it. If an alias definition does not include a destination, it will be deleted if exists. For example, the following code will delete the alias '<b>ll</b>'</p>
+<p>where the first parameter is the alias name (e.g., <b>ll</b>), and the remaining parameters are the destination (e.g. <b>ls -l</b>).
+Now, when the console sees input <b>ll</b>, it will automatically replace it with <b>!ls -l</b>, and execute it. If an alias definition does not include a destination, it will be deleted if exists. For example, the following code will delete the alias <b>ll</b></p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nb">alias</span><span class="w"> </span>ll
 </pre></div>
@@ -401,7 +401,7 @@ Now, when the console sees input '<b>ll</b>', it will automatically replace it w
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="c1"># define a function foo</span>
 &gt;&gt;&gt;<span class="w"> </span>def<span class="w"> </span>foo<span class="o">()</span>:
-...<span class="w">    </span>print<span class="w"> </span><span class="s1">&#39;foo&#39;</span>
+...<span class="w">    </span>print<span class="o">(</span><span class="s1">&#39;foo&#39;</span><span class="o">)</span>
 ...<span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="m">42</span>
 ...
 &gt;&gt;&gt;<span class="w"> </span><span class="c1"># call a function with output</span>
@@ -537,7 +537,7 @@ For example</p>
 <p>If <b>filename</b> is <b>None</b>, a file-select dialog will be shown to select the simulation.</p></li>
 <li><p><b>Set simulation parameters.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">total</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">more</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">set_parameter</span><span class="p">(</span><span class="n">step</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="n">total</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="n">to</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="n">more</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>where</p>
@@ -584,7 +584,7 @@ For example</p>
 <p>Sometime, you may want to wait until the simulation pauses. For example, you may want to check the signal value after the simulation has paused. There is a function to do that</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">wait_until_simulation_paused</span><span class="p">()</span>
-<span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">[</span><span class="s1">&#39;top.sig_sin&#39;</span><span class="p">]</span>
+<span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;top.sig_sin&#39;</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>It will return only if the simulation is valid and has paused (in this case, it will return <b>True</b>), or the simulation is invalid (return <b>False</b>). And the second line <b>s.read</b> will not be called until <b>s.wait_until_simulation_paused</b> has returned. You can also set the timeout. For example, the following command will wait for a maximum period of <b>10s</b></p>
@@ -683,16 +683,16 @@ For example</p>
 <p>Due to the two-step mechanism in SystemC, in most cases, the value will be updated after the next delta cycle. That is, if a <b>read</b> is called after <b>write</b> immediately, it may return the previous value.</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">)</span>
-<span class="mi">256</span><span class="n">L</span>
+<span class="mi">256</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">write</span><span class="p">({</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="p">})</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">)</span>
-<span class="mi">256</span><span class="n">L</span>
+<span class="mi">256</span>
 </pre></div>
 </div>
 <p>Like <b>read</b>, there is also a shortcut to write the signal</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="c1"># same as the command above</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8292</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="mi">8192</span>
 </pre></div>
 </div>
 <p>Similarly, you can also write to multiple signals by calling <b>write</b> once</p>
@@ -700,9 +700,9 @@ For example</p>
 <div class="syntax"><pre><span></span><span class="o">&gt;&gt;&gt;</span> <span class="c1"># write multiple signals</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="o">.</span><span class="n">write</span><span class="p">({</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">:</span> <span class="mi">8192</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">})</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># same as the command above</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="p">[[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8292</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="p">[[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">]]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8192</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]</span>
 <span class="o">&gt;&gt;&gt;</span> <span class="c1"># or</span>
-<span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8292</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">s</span><span class="p">[</span><span class="s1">&#39;top.sig_steps&#39;</span><span class="p">,</span> <span class="s1">&#39;top.sig_sin&#39;</span><span class="p">]</span> <span class="o">=</span> <span class="p">[</span><span class="mi">8192</span><span class="p">,</span> <span class="mf">0.1</span><span class="p">]</span>
 </pre></div>
 </div></li>
 </ul>
@@ -785,40 +785,44 @@ Your browser does not support the video tag.</video>
 </div></li>
 <li><p><b>Dump signal to a file.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">trace_file</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">ttype</span><span class="o">=</span><span class="s1">&#39;bsm&#39;</span><span class="p">,</span> <span class="n">valid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">trigger</span><span class="o">=</span><span class="s1">&#39;posneg&#39;</span><span class="p">)</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">trace_file</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>  <span class="n">filename</span><span class="o">=</span><span class="s1">&#39;&#39;</span><span class="p">,</span>  <span class="n">fmt</span><span class="o">=</span><span class="s1">&#39;bsm&#39;</span><span class="p">,</span>  <span class="n">valid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>  <span class="n">trigger</span><span class="o">=</span><span class="s1">&#39;posneg&#39;</span><span class="p">,</span>  <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>where</p>
-<table>
-<tbody>
-<tr>
-<td><strong>signal</strong></td><td>the signal name (e.g., <b>top.sig_cos</b>)</td>
-</tr>
-<tr>
-<td><strong>fmt</strong></td><td><ul>
-<li><b>bsm</b>: only output the register value, one per line (default)</li>
-<li><b>vcd</b>: output the SystemC VCD format data</li>
-</ul></td>
-</tr>
-<tr>
-<td><strong>valid</strong></td><td>the trigger signal. If it is <b>None</b>, the write-operation will be triggered by the register itself</td>
-</tr>
-<tr>
-<td><strong>trigger</strong></td><td><ul>
-<li><b>posneg</b>: trigger on both rising and falling edges</li>
-<li><b>pos</b>: trigger on rising edge</li>
-<li><b>neg</b>: trigger on falling edge</li>
-<li><b>none</b>: no triggering</li>
-</ul></td>
-</tr>
-</tbody>
-</table></li>
+where
+ <div class="syntax"><pre><span></span><span class="n">dump</span> <span class="nb">object</span> <span class="n">values</span> <span class="n">to</span> <span class="n">a</span> <span class="n">file</span>
+
+        <span class="n">name</span><span class="p">:</span>
+            <span class="n">register</span> <span class="n">name</span>
+        <span class="n">filename</span><span class="p">:</span>
+            <span class="n">trace</span> <span class="n">filename</span>
+        <span class="n">fmt</span><span class="p">:</span>
+            <span class="s1">&#39;bsm&#39;</span><span class="p">:</span> <span class="n">only</span> <span class="n">output</span> <span class="n">the</span> <span class="n">register</span> <span class="n">value</span><span class="p">,</span> <span class="n">one</span> <span class="n">per</span> <span class="n">line</span> <span class="p">(</span><span class="n">Default</span><span class="p">)</span>
+            <span class="s1">&#39;vcd&#39;</span><span class="p">:</span> <span class="n">output</span> <span class="n">the</span> <span class="n">SystemC</span> <span class="n">VCD</span> <span class="nb">format</span> <span class="n">data</span>
+        <span class="n">valid</span><span class="p">:</span>
+            <span class="n">the</span> <span class="n">trigger</span> <span class="n">signal</span><span class="o">.</span> <span class="n">If</span> <span class="n">it</span> <span class="ow">is</span> <span class="n">none</span><span class="p">,</span> <span class="n">the</span> <span class="n">write</span><span class="o">-</span><span class="n">operation</span> <span class="n">will</span> <span class="n">be</span>
+            <span class="n">triggered</span> <span class="n">by</span> <span class="n">the</span> <span class="n">register</span> <span class="n">itself</span>
+        <span class="n">trigger</span><span class="p">:</span>
+            <span class="s1">&#39;posneg&#39;</span><span class="p">:</span> <span class="n">trigger</span> <span class="n">on</span> <span class="n">both</span> <span class="n">rising</span> <span class="ow">and</span> <span class="n">falling</span> <span class="n">edges</span>
+            <span class="s1">&#39;pos&#39;</span><span class="p">:</span> <span class="n">trigger</span> <span class="n">on</span> <span class="n">rising</span> <span class="n">edge</span>
+            <span class="s1">&#39;neg&#39;</span><span class="p">:</span> <span class="n">trigger</span> <span class="n">on</span> <span class="n">falling</span> <span class="n">edge</span>
+            <span class="s1">&#39;none&#39;</span><span class="p">:</span> <span class="n">no</span> <span class="n">triggering</span>
+</pre></div>
+For example, to trace the signal <b>top.sig_sin</b> in to file <b>top.sig_sin.bsm</b>
+ <div class="bs-example-src">
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">trace_file</span><span class="p">(</span><span class="n">name</span><span class="o">=</span><span class="s1">&#39;top.sig_sin&#39;</span><span class="p">)</span>
+</pre></div>
+</div></li>
 <li><p><b>Monitor signal in a propgrid window.</b></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="n">signal</span><span class="p">,</span> <span class="n">propgrid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">index</span><span class="o">=-</span><span class="mi">1</span><span class="p">):</span>
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="n">objects</span><span class="p">,</span> <span class="n">grid</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">index</span><span class="o">=-</span><span class="mi">1</span><span class="p">,</span> <span class="n">style</span><span class="o">=</span><span class="s1">&#39;Text&#39;</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>If <b>progprid</b> is <b>None</b> and no <b>propgrid</b> window (see Sec. <a href="#sec_propgrid">3.4</a> for details) has been created, bsmedit will create one and add the signal to it.</p></li>
+<p>If <b>progprid</b> is <b>None</b> and no <b>propgrid</b> window (see Sec. <a href="#sec_propgrid">3.4</a> for details) has been created, bsmedit will create one and add the signal to it.
+For example, the following line will monitor signal <b>top.sig_double</b> in the active propgrid</p>
+<div class="bs-example-src">
+<div class="syntax"><pre><span></span><span class="n">s</span><span class="o">.</span><span class="n">monitor</span><span class="p">(</span><span class="s1">&#39;top.sig_double&#39;</span><span class="p">)</span>
+</pre></div>
+</div></li>
 <li><p><b>Breakpoints</b>. With the simulation control functions mentioned above, you can easily pause the simulation at particular simulation time. However, in some cases, you may want to pause the simulation when some conditions meet. The breakpoint is here to rescue.
 To set a breakpoint,</p>
 <div class="bs-example-src">
@@ -891,8 +895,8 @@ To set a breakpoint,</p>
 <figure class="figure">
 <img src="./images/start_run_script_multi.png" alt="./images/start_run_script_multi.png" width="716" height="583">
 </figure>
-<p>To differentiate the simulations, each simulation will automatically be assigned an <code>Id</code> (e.g., 1,2,3...).</p>
-<p>With that <code>Id</code>, you can retrieve the simulation handler later by</p>
+<p>To differentiate the simulations, each simulation will automatically be assigned an <code>id</code> (e.g., 1,2,3...).</p>
+<p>With that <code>id</code>, you can retrieve the simulation handler later by</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span><span class="nv">s1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>simulation<span class="o">(</span><span class="m">1</span><span class="o">)</span>
 </pre></div>
@@ -1059,13 +1063,11 @@ The breakpoint can also be enabled by python script:</p>
 <div class="syntax"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="k">struct</span><span class="w"> </span><span class="nc">sim_context</span><span class="w"> </span><span class="p">{</span>
 <span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">version</span><span class="p">[</span><span class="n">MAX_NAME_LEN</span><span class="p">];</span>
 <span class="w">    </span><span class="kt">char</span><span class="w"> </span><span class="n">copyright</span><span class="p">[</span><span class="n">MAX_NAME_LEN</span><span class="p">];</span>
-<span class="p">}</span><span class="n">sim_context</span><span class="p">;</span>
+<span class="p">}</span><span class="w"> </span><span class="n">sim_context</span><span class="p">;</span>
 
 <span class="cp">#define BSMEDIT_IMPLEMENT_MODULE(T, name) extern bsm_sim_context* g_sim;\</span>
-<span class="cp">extern &quot;C&quot;\</span>
-<span class="cp">{\</span>
-<span class="cp">    BSMEDIT_EXPORT void bsm_sim_top(sim_context *context)\</span>
-<span class="cp">    {\</span>
+<span class="cp">extern &quot;C&quot; {\</span>
+<span class="cp">    BSMEDIT_EXPORT void bsm_sim_top(sim_context *context) {\</span>
 <span class="cp">        g_sim = new bsm_sim_context_impl(new T(name));\</span>
 <span class="cp">        snprintf(context-&gt;copyright, MAX_NAME_LEN, &quot;%s&quot;, g_sim-&gt;sc_copyright());\</span>
 <span class="cp">        snprintf(context-&gt;version, MAX_NAME_LEN, &quot;%s&quot;, g_sim-&gt;sc_version());\</span>
@@ -1079,13 +1081,11 @@ The breakpoint can also be enabled by python script:</p>
 <p>With SystemC's <code>sc_signal</code>, it is very easy to simulate a <b>register</b> in simulation. For example, you can configure the simulation by changing the values of some <code>sc_signal</code> without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the <code>xsc_property</code> from <code>sc_signal</code>.</p>
 <p>Its usage is almost exactly same as sc_signal. It supports all the data type supported by sc_signal.</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span>
-<span class="p">{</span>
+<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">    </span><span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span><span class="w"> </span><span class="n">name_</span><span class="p">)</span><span class="o">:</span>
 <span class="w">            </span><span class="n">tx_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
-<span class="w">            </span><span class="p">,</span><span class="n">xsc_prop_double</span><span class="p">(</span><span class="s">&quot;xsc_prop_double&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">xsc_callback_fun</span><span class="p">)</span>
-<span class="w">    </span><span class="p">{</span>
+<span class="w">            </span><span class="p">,</span><span class="n">xsc_prop_double</span><span class="p">(</span><span class="s">&quot;xsc_prop_double&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">xsc_callback_fun</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">        </span><span class="c1">//set the value and don&#39;t call the callback function</span>
 <span class="w">    </span><span class="p">}</span>
 <span class="w">    </span><span class="n">xsc_property</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">&gt;</span><span class="w"> </span><span class="n">xsc_prop_double</span><span class="p">;</span>
@@ -1108,29 +1108,27 @@ The breakpoint can also be enabled by python script:</p>
 <p>The callback function <code>xsc_callback_fun</code> will be called, where its first parameter will be the pointer of the <code>sc_module</code> that defined the <code>xsc_property</code>, and the second parameter will be '1.0'.</p>
 <p>The callback function should have the following format</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">typedef</span><span class="w">  </span><span class="kt">void</span><span class="p">(</span><span class="o">*</span><span class="n">xsc_callback</span><span class="p">)(</span><span class="n">sc_module</span><span class="o">*</span><span class="w"> </span><span class="n">pThis</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
+<div class="syntax"><pre><span></span><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="p">(</span><span class="o">*</span><span class="n">xsc_callback</span><span class="p">)(</span><span class="n">sc_module</span><span class="o">*</span><span class="w"> </span><span class="n">pThis</span><span class="p">,</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>Sometime, you may want to only execute the callback function when it is updated externally (e.g., by bsmedit), but not internally (e.g., by the simulation itself). In this case, in your simulation code (e.g., C++), you may</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="n">xscprop_double</span><span class="p">.</span><span class="n">write_nc</span><span class="p">(</span><span class="mf">128.0</span><span class="p">);</span>
+<div class="syntax"><pre><span></span><span class="n">xsc_prop_double</span><span class="p">.</span><span class="n">write_nc</span><span class="p">(</span><span class="mf">128.0</span><span class="p">);</span>
 </pre></div>
 </div>
 <p>In this way, <code>xsc_property</code> behaves exactly same as <code>sc_signal</code>, and no callback function will be called.</p>
 <h3 id="sec-3-5-2">3.5.2 xsc_array</h3>
 <p><code>xsc_array</code> is a natural extension of <code>xsc_property</code>. It is actually an array of the <code>xsc_property</code></p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span>
-<span class="p">{</span>
+<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">     </span><span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span><span class="w"> </span><span class="n">name_</span><span class="p">)</span>
 <span class="w">     </span><span class="o">:</span><span class="w"> </span><span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
-<span class="w">     </span><span class="p">,</span><span class="w"> </span><span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">)</span>
-<span class="w">     </span><span class="p">{</span>
-<span class="w">         </span><span class="c1">//set the value</span>
+<span class="w">     </span><span class="p">,</span><span class="w"> </span><span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<span class="w">         </span><span class="c1">// set the value</span>
 <span class="w">         </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span>
 <span class="w">         </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">write</span><span class="p">(</span><span class="mi">1</span><span class="p">);</span>
-<span class="w">         </span><span class="c1">//get the value</span>
+<span class="w">         </span><span class="c1">// get the value</span>
 <span class="w">         </span><span class="kt">int</span><span class="w"> </span><span class="n">a</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">0</span><span class="p">];</span>
 <span class="w">         </span><span class="kt">int</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">xsc_array_int</span><span class="p">[</span><span class="mi">1</span><span class="p">].</span><span class="n">read</span><span class="p">();</span>
 <span class="w">     </span><span class="p">}</span>
@@ -1138,23 +1136,21 @@ The breakpoint can also be enabled by python script:</p>
 <span class="w">  </span><span class="p">};</span>
 </pre></div>
 </div>
-<p>The above example show to use <code>xsc_array</code> in a <code>sc_module</code>. It define an integer <code>xsc_array</code> with size 5. In the module's constructor, the <code>xsc_arrary</code> is initialized with name "xsc_array_int". And it also shows the basic usage of xsc_array. Basically, it behaves as an array of <code>xsc_property</code>. You can use the <code>[i]</code> to have access to the \(i\)th item in the array.</p>
+<p>The above example show to use <code>xsc_array</code> in a <code>sc_module</code>. It define an integer <code>xsc_array</code> with size 5. In the module's constructor, the <code>xsc_arrary</code> is initialized with name <b>xsc_array_int</b>. And it also shows the basic usage of <code>xsc_array</code>. Basically, it behaves as an array of <code>xsc_property</code>. You can use the <code>[i]</code> to have access to the \(i\)th item in the array.</p>
 <p>Same as <code>xsc_property</code>, <code>xsc_array</code> also supports a callback function. For example</p>
 <div class="bs-example-src">
-<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span>
-<span class="p">{</span>
+<div class="syntax"><pre><span></span><span class="k">class</span><span class="w"> </span><span class="nc">MyModule</span><span class="o">:</span><span class="k">public</span><span class="w"> </span><span class="n">sc_module</span><span class="w"> </span><span class="p">{</span>
 <span class="k">public</span><span class="o">:</span>
 <span class="w">     </span><span class="n">MyModule</span><span class="p">(</span><span class="n">sc_module_name</span><span class="w"> </span><span class="n">name_</span><span class="p">)</span>
 <span class="w">     </span><span class="o">:</span><span class="w"> </span><span class="n">sc_module</span><span class="p">(</span><span class="n">name_</span><span class="p">)</span>
-<span class="w">     </span><span class="p">,</span><span class="w"> </span><span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">xsc_callback_fun</span><span class="p">)</span>
-<span class="w">     </span><span class="p">{</span>
+<span class="w">     </span><span class="p">,</span><span class="w"> </span><span class="n">xscarray_int</span><span class="p">(</span><span class="s">&quot;xsc_array_int&quot;</span><span class="p">,</span><span class="w"> </span><span class="k">this</span><span class="p">,</span><span class="w"> </span><span class="n">xsc_callback_fun</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 <span class="w">     </span><span class="p">}</span>
 <span class="w">     </span><span class="n">xsc_array</span><span class="o">&lt;</span><span class="kt">int</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="o">&gt;</span><span class="w"> </span><span class="n">xsc_array_int</span><span class="p">;</span>
 <span class="w">     </span><span class="k">static</span><span class="w"> </span><span class="kt">void</span><span class="w"> </span><span class="nf">xsc_callback_fun</span><span class="p">(</span><span class="n">sc_module</span><span class="o">*</span><span class="w"> </span><span class="n">pThis</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="w"> </span><span class="n">value</span><span class="p">);</span>
 <span class="w">  </span><span class="p">};</span>
 </pre></div>
 </div>
-<p>In bsmedit, the item of the array can be accessed by its name. For example, if in the simulation, the above <code>MyModule</code> is a top level module with name "<b>top</b>", the first item of the xsc_array_int can be accessed by</p>
+<p>In bsmedit, the item of the array can be accessed by its name. For example, if in the simulation, the above <code>MyModule</code> is a top level module with name "<b>top</b>", the first item of the <b>xsc_array_int</b> can be accessed by</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span>&gt;&gt;&gt;<span class="w"> </span>s.read<span class="o">(</span><span class="s1">&#39;top.xsc_array_int[0]&#39;</span><span class="o">)</span>
 </pre></div>
@@ -1393,7 +1389,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2023-12-24 01:41:27 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2024-01-02 23:04:40 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 </body>
