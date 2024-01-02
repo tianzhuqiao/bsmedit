@@ -61,9 +61,11 @@ class Simulation():
     def __setitem__(self, obj, value):
         """write the value to the object"""
         if isinstance(obj, six.string_types):
-            return self.write({obj: value})
+            v = self.write({obj: value})
+            print(v)
         elif isinstance(obj, (list, tuple)):
-            return self.write(dict(zip(obj, value)))
+            v = self.write(dict(zip(obj, value)))
+            print(v)
         else:
             raise ValueError()
 
