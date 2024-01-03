@@ -303,7 +303,7 @@ class Toolbar(GraphToolbar):
             sharey = cmd in [self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
                              self.ID_SPLIT_HORZ_SHARE_YAXIS, self.ID_SPLIT_HORZ_SHARE_XYAXIS]
             ax = add_subplot(axes[0], vert=vert, sharex=sharex, sharey=sharey)
-            if any(line.get_visible() for line in ax.get_xgridlines() + ax.get_ygridlines()):
+            if any(line.get_visible() for line in axes[0].get_xgridlines() + axes[0].get_ygridlines()):
                 ax.grid(True)
             self._nav_stack.clear()
         elif cmd == self.ID_DELETE_SUBPLOT:
