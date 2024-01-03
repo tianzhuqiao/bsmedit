@@ -1,3 +1,4 @@
+import os
 import re
 import json
 import multiprocessing as mp
@@ -21,8 +22,9 @@ from .. import propgrid as pg
 from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
-from .. import to_byte
 from .utility import svg_to_bitmap
+from .utility import get_file_finder_name, show_file_in_finder
+from .. import to_byte
 
 Gcs = Gcm()
 
@@ -767,6 +769,8 @@ class SimPanel(wx.Panel):
         if filename is not None or not silent:
             self.sim.load(filename, block=True)
             self.SetParameter()
+
+        self.filename = filename or ""
 
         dp.connect(receiver=self._process_response,
                    signal='sim.response',
@@ -1633,6 +1637,10 @@ class sim:
     frame = None
     ID_SIM_NEW = wx.NOT_FOUND
     ID_PROP_NEW = wx.NOT_FOUND
+    ID_PANE_COPY_PATH = wx.NewIdRef()
+    ID_PANE_COPY_PATH_REL = wx.NewIdRef()
+    ID_PANE_SHOW_IN_FINDER = wx.NewIdRef()
+    ID_PANE_SHOW_IN_BROWSING = wx.NewIdRef()
 
     @classmethod
     def initialize(cls, frame):
@@ -1662,6 +1670,7 @@ class sim:
         dp.connect(receiver=cls._prop_bp_add, signal='prop.bp_add')
         dp.connect(receiver=cls._prop_bp_del, signal='prop.bp_del')
         dp.connect(receiver=cls._prop_changed, signal='prop.changed')
+        dp.connect(cls.PaneMenu, 'bsm.sim.pane_menu')
 
     @classmethod
     def initialized(cls):
@@ -1839,19 +1848,44 @@ class sim:
             scale_factor = 1#manager.GetContentScaleFactor()
             page_bmp = MakeBitmap(clr.red, clr.green,
                                   clr.blue, scale_factor=scale_factor)
-            title = f"Simulation-{manager.sim.num}"
+            (_, filename) = os.path.split(filename)
+            title = f"{filename} (sim-{manager.sim.num})"
             dp.send(signal="frame.add_panel",
                     panel=manager,
                     title=title,
                     target="History",
                     icon=page_bmp,
-                    showhidemenu=f"View:Simulations:{title}")
+                    showhidemenu=f"View:Simulations:{title}",
+                     pane_menu={'rxsignal': 'bsm.sim.pane_menu',
+                           'menu': [
+                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
+                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
+                               {'type': wx.ITEM_SEPARATOR},
+                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
+                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
+                               ]})
             return manager.sim
         # activate the manager
         elif manager and activate:
             dp.send(signal='frame.show_panel', panel=manager)
 
         return manager
+
+    @classmethod
+    def PaneMenu(cls, pane, command):
+        if not pane or not isinstance(pane, SimPanel):
+            return
+        if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
+            if wx.TheClipboard.Open():
+                filepath = pane.filename
+                if command == cls.ID_PANE_COPY_PATH_REL:
+                    filepath = os.path.relpath(filepath, os.getcwd())
+                wx.TheClipboard.SetData(wx.TextDataObject(filepath))
+                wx.TheClipboard.Close()
+        elif command == cls.ID_PANE_SHOW_IN_FINDER:
+            show_file_in_finder(pane.filename)
+        elif command == cls.ID_PANE_SHOW_IN_BROWSING:
+            dp.send(signal='dirpanel.goto', filepath=pane.filename, show=True)
 
     @classmethod
     def propgrid(cls, num=None, create=True, activate=False):
