@@ -11,4 +11,4 @@ typedef struct wave_frame {
 
 void get_frame(wave_frame* frame);
 void get_frames(wave_frame* frame);
-#endif // _WAVE_H_
+#endif  // _WAVE_H_

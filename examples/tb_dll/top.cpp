@@ -12,14 +12,13 @@
 //////////////////////////////////////////////////////////////////////
 
 
-top::~top()
-{
-    if(interface_sub)
+top::~top() {
+    if (interface_sub)
         delete interface_sub;
     interface_sub = NULL;
 }
-void top::Initialize()
-{
+
+void top::Initialize() {
     sig_bool.write(false);
     sig_float.write((float)0.0);
     sig_double.write(0.0);
@@ -102,17 +101,15 @@ void top::Initialize()
     interface_sub->out_sc_ufixed(sig_sc_ufixed);
 }
 
-void top::InitPort()
-{
+void top::InitPort() {
 }
-void top::Reset()
-{
+
+void top::Reset() {
     Initialize();
     InitPort();
 }
 
-void top::Action()
-{
+void top::Action() {
     sig_bool.write(!sig_bool.read());
     sig_float.write(sig_float.read() + (float)0.1);
     sig_double.write(sig_double.read() + 0.3);
@@ -126,7 +123,7 @@ void top::Action()
     sig_ulong.write(sig_ulong.read() + 1);
     sig_longlong.write(sig_longlong.read() + 1);
     sig_ulonglong.write(sig_ulonglong.read() + 1);
-    const char * str[] = { "hello","benben","merry xmas","happy new year","helen" };
+    const char * str[] = { "hello", "benben", "merry xmas", "happy new year", "helen" };
 
     sig_std_string.write(str[sig_uint.read() % 5]);
 
@@ -148,5 +145,5 @@ void top::Action()
     sig_sin.write(sin(m_phase));
     sig_cos.write(cos(m_phase));
     m_phase = m_phase + M_PI / 256;
-    if(m_phase > 2 * M_PI) m_phase -= 2 * M_PI;
+    if (m_phase > 2 * M_PI) m_phase -= 2 * M_PI;
 }

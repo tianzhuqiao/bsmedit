@@ -1,8 +1,8 @@
 #include "systemc.h"
 extern "C" {
-#include "bsm.h"
+#include "sysc/bsm/bsm.h"
 }
 #include "top.h"
 
 // define the interfaces to bsmedit
-BSMEDIT_IMPLEMENT_MODULE(top,"top");
+BSMEDIT_IMPLEMENT_MODULE(top, "top");

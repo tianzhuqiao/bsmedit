@@ -1,21 +1,18 @@
 #include "sub.h"
 
-sub::~sub()
-{   
-}
-void sub::Initialize()
-{    
+sub::~sub() {
 }
 
-void sub::InitPort()
-{   
+void sub::Initialize() {
 }
-void sub::Reset()
-{
+
+void sub::InitPort() {
+}
+
+void sub::Reset() {
     Initialize();
     InitPort();
 }
 
-void sub::Action()
-{ 
+void sub::Action() {
 }
