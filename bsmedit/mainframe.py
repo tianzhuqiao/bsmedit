@@ -149,15 +149,18 @@ class MainFrame(FramePlus):
 
         # recent file list
         hsz = self.GetConfig('mainframe', 'file_history_length') or 20
-        self.filehistory = wx.FileHistory(hsz)
+        if hsz < 0:
+            hsz = 10
+        self.ids_file_history = wx.NewIdRef(hsz)
+        self.filehistory = wx.FileHistory(hsz, self.ids_file_history[0])
         self.config.SetPath('/FileHistory')
         self.filehistory.Load(self.config)
         self.filehistory.UseMenu(self.menuRecentFiles)
         self.filehistory.AddFilesToMenu()
         self.Bind(wx.EVT_MENU_RANGE,
                   self.OnMenuFileHistory,
-                  id=wx.ID_FILE1,
-                  id2=wx.ID_FILE9)
+                  id=self.ids_file_history[0],
+                  id2=self.ids_file_history[-1])
 
         self.closing = False
 
@@ -466,10 +469,10 @@ class MainFrame(FramePlus):
 
     def OnMenuFileHistory(self, event):
         """open the recent file"""
-        fileNum = event.GetId() - wx.ID_FILE1
+        fileNum = event.GetId() - self.ids_file_history[0].GetId()
         path = self.filehistory.GetHistoryFile(fileNum)
         self.filehistory.AddFileToHistory(path)
-        dp.send('frame.file_drop', filename=path)
+        dp.send('frame.file_drop', filename=path, activated=True)
 
 
 class AboutDialog(wx.Dialog):
