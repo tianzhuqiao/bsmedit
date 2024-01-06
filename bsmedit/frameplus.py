@@ -388,9 +388,7 @@ class FramePlus(wx.Frame):
             root_pane = self._mgr.GetPane(panel.GetParent())
         if show and root_pane.IsOk() and root_pane.IsMinimized():
             # the panel is minimized, restore it first
-            pane_min = self._mgr.GetPane(root_pane.name+'_min')
-            if pane_min.IsOk():
-                self._mgr.RestoreMinimizedPane(pane_min)
+            self._mgr.RestoreMinimizedPane(root_pane)
         self._mgr.ShowPane(panel, show)
         if focus:
             panel.SetFocus()

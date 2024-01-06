@@ -1160,7 +1160,7 @@ class PyEditorPanel(wx.Panel):
             if add_to_history:
                 dp.send('frame.add_file_history', filename=filename)
 
-        if editor and activated and not editor.IsShown():
+        if editor and activated and not editor.IsShownOnScreen():
             dp.send('frame.show_panel', panel=editor, focus=True)
         if lineno > 0:
             editor.JumpToLine(lineno - 1)
