@@ -787,14 +787,16 @@ class EditorBase(wx.py.editwindow.EditWindow):
         caretPos = self.GetCurrentPos()
         col = self.GetColumn(caretPos) + 1
         line = self.LineFromPosition(caretPos) + 1
+        total_lines = self.GetLineCount()
+        percent = int(line*100/total_lines) if total_lines > 0 else 100
         dp.send('frame.show_status_text',
-                text='%d, %d' % (line, col),
+                text=f'{percent}% Ln:{line}/{total_lines}:{col}',
                 index=1,
-                width=100)
+                width=150)
 
     def OnUpdateUI(self, event):
         super().OnUpdateUI(event)
-        wx.CallAfter(self.UpdateStatusText)
+        self.UpdateStatusText()
 
     def SetupEditor(self):
         """
