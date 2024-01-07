@@ -695,7 +695,7 @@ class EngineDebugger:
         # do not stop inside the system files
         filename = frame.f_code.co_filename
         for f in sys.path + ['<input>', '<string>']:
-            if filename.startswith(f):
+            if f and filename.startswith(f):
                 return
 
         #send a paused message to the console
