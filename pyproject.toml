@@ -15,8 +15,8 @@ classifiers = [
     "Operating System :: OS Independent",
 ]
 dependencies = [
-          'wxpython>=4.0.0', 'matplotlib', 'numpy', 'click', 'PyOpenGL',
-          'PyOpenGL_accelerate', 'pandas', 'pyulog'
+          'wxpython>=4.2.1', 'matplotlib>=3.8.1', 'numpy', 'click', 'PyOpenGL',
+          'PyOpenGL_accelerate', 'pandas', 'pyulog', 'pyvcd'
       ]
 dynamic = ["version"]
 

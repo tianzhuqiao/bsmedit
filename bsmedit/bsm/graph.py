@@ -1,3 +1,5 @@
+import sys
+import traceback
 import json
 import wx
 import wx.py.dispatcher as dp
@@ -644,15 +646,27 @@ class DataDropTarget(wx.DropTarget):
             return wx.DragNone
         #self.frame.OnDrop(x, y, self.obj.GetText())
         data = self.obj.GetText()
+        if isinstance(data, dict):
+            xlabel = data.get('xlabel', '')
+            ylabel = data.get('ylabel', '')
+            data = data['lines']
         try:
             data = json.loads(data)
+            xlabel, ylabel = 't(s)', ''
+            if isinstance(data, dict):
+                xlabel = data.get('xlabel', '')
+                ylabel = data.get('ylabel', '')
+                data = data['lines']
             sz = self.canvas.GetSize()
             y = sz[1]-y
             fig = self.canvas.figure
             if len(fig.get_axes()) == 0:
                 fig.gca()
                 fig.gca().grid(True)
-                fig.gca().set_xlabel('t(s)')
+                if xlabel:
+                    fig.gca().set_xlabel(xlabel)
+                if ylabel:
+                    fig.gca().set_ylabel(ylabel)
             for i, ax in enumerate(fig.get_axes()):
                 if ax.bbox.contains(x, y):
                     ls, ms = None, None
@@ -664,13 +678,16 @@ class DataDropTarget(wx.DropTarget):
                         title = l[0]
                         line = pandas.DataFrame.from_dict(json.loads(l[1]))
                         for i in range(1, len(line.columns)):
+                            label = line.columns[i]
+                            if title:
+                                label="/".join([title, label])
                             ax.plot(line[line.columns[0]], line[line.columns[i]],
-                                    label="/".join([title, line.columns[i]]),
+                                    label=label,
                                     linestyle=ls, marker=ms)
                     ax.legend()
                     break
         except:
-            pass
+            traceback.print_exc(file=sys.stdout)
 
         return d
 

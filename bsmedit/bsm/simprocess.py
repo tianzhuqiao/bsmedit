@@ -733,8 +733,6 @@ class SimCommand(object):
 
         if not filename:
             filename = name
-        if filename in self.tfile:
-            return False
 
         obj = self.simengine.find_object(name)
         if obj is None:
@@ -751,12 +749,21 @@ class SimCommand(object):
         if trigger is None:
             raise ValueError("Not supported trigger type: " + str(raw[2]))
         raw = [filename, name, fmt, valid, trigger]
-        trace = csim.SStructWrapper(self.simengine.csim.sim_trace_file())
-        trace.name = filename
-        trace.type = fmt
-        if self.simengine.ctx_create_trace_file(trace()):
+        valid_trace_file = False
+        if filename not in self.tfile:
+            trace = csim.SStructWrapper(self.simengine.csim.sim_trace_file())
+            trace.name = filename
+            trace.type = fmt
+            valid_trace_file = self.simengine.ctx_create_trace_file(trace())
+        else:
+            trace = self.tfile[filename]['trace']
+            valid_trace_file = True
+        if valid_trace_file:
             self.simengine.ctx_trace_file(trace(), obj(), valid, trigger)
-            self.tfile[filename] = {'trace': trace, 'raw': raw}
+            if filename in self.tfile:
+                self.tfile[filename]['raw'].append(raw)
+            else:
+                self.tfile[filename] = {'trace': trace, 'raw': [raw]}
             return True
 
         return False

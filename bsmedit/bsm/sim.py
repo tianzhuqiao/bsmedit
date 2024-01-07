@@ -628,8 +628,11 @@ class DumpManageDlg(wx.Dialog):
         dumps = sim.get_trace_files()
         for f, opt in dumps.items():
             g.Insert(pg.PropSeparator(f)).Expand(False)
-            for name, value in self.GetDumpDescription(opt):
-                g.Insert(pg.PropText(name)).Value(value).Editing(False).Indent(1)
+            for o in opt:
+                desc = self.GetDumpDescription(o)
+                g.Insert(pg.PropText(desc[0][1])).Value(desc[0][1]).Editing(False).Indent(1)
+                for name, value in desc[1:]:
+                    g.Insert(pg.PropText(name)).Value(value).Editing(False).Indent(2)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
