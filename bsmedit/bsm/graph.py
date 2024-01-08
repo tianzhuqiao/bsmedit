@@ -135,6 +135,7 @@ class Toolbar(GraphToolbar):
 
         self.linestyle_ids = {}
         self.marker_ids = {}
+        self.drawstyle_ids = {}
 
     def GetMenu(self, axes):
         action = self.actions.get(self.mode, None)
@@ -214,6 +215,7 @@ class Toolbar(GraphToolbar):
         menu.Append(self.ID_LINE_STYLE_LINE, "Line")
         menu.Append(self.ID_LINE_STYLE_DOT, "Dot")
         menu.Append(self.ID_LINE_STYLE_LINE_DOT, "Line+Dot")
+
         style_menu = wx.Menu()
         for k, v in matplotlib.lines.Line2D.lineStyles.items():
             if k and isinstance(k, str) and not k.isspace():
@@ -222,10 +224,13 @@ class Toolbar(GraphToolbar):
                 v = v.replace('_draw_', '')
                 v = v.replace('_', ' ')
                 style_menu.Append(self.linestyle_ids[k], v)
+
         menu.AppendSeparator()
         item = menu.AppendSubMenu(style_menu, "Line style")
+
         if wx.Platform != '__WXMAC__':
             item.SetBitmap(svg_to_bitmap(line_style_svg, win=self))
+
         marker_menu = wx.Menu()
         for k, v in matplotlib.lines.Line2D.markers.items():
             if k and isinstance(k, str) and not k.isspace():
@@ -233,6 +238,15 @@ class Toolbar(GraphToolbar):
                     self.marker_ids[k] = wx.NewIdRef()
                 marker_menu.Append(self.marker_ids[k], k)
         menu.AppendSubMenu(marker_menu, "Marker style")
+
+        drawstyle_menu = wx.Menu()
+        for k, v in matplotlib.lines.Line2D.drawStyles.items():
+            if k and isinstance(k, str) and not k.isspace():
+                if k not in self.drawstyle_ids:
+                    self.drawstyle_ids[k] = wx.NewIdRef()
+                drawstyle_menu.Append(self.drawstyle_ids[k], k)
+        menu.AppendSubMenu(drawstyle_menu, "Draw style")
+
         menu.AppendSeparator()
         item = menu.Append(self.ID_SPLIT_VERT_SHARE_XAXIS,
                            "Split vertically with shared x-axis")
@@ -270,13 +284,15 @@ class Toolbar(GraphToolbar):
             menu.AppendSeparator()
             menu_mode = build_menu_from_list(menus)
             menu.AppendSubMenu(menu_mode, name.capitalize())
-        def _set_linestyle(ls=None, ms=None):
+        def _set_linestyle(ls=None, ms=None, ds=None):
             for ax in axes:
                 for l in ax.lines:
                     if ls is not None:
                         l.set_linestyle(ls)
                     if ms is not None:
                         l.set_marker(ms)
+                    if ds is not None:
+                        l.set_drawstyle(ds)
                 if ax.get_legend():
                     # update the line/marker on the legend
                     ax.legend()
@@ -294,6 +310,9 @@ class Toolbar(GraphToolbar):
         elif cmd in self.marker_ids.values():
             marker = list(self.marker_ids.keys())[list(self.marker_ids.values()).index(cmd)]
             _set_linestyle(ms=marker)
+        elif cmd in self.drawstyle_ids.values():
+            style = list(self.drawstyle_ids.keys())[list(self.drawstyle_ids.values()).index(cmd)]
+            _set_linestyle(ds=style)
         elif cmd in [self.ID_SPLIT_VERT, self.ID_SPLIT_VERT_SHARE_XAXIS,
                      self.ID_SPLIT_VERT_SHARE_YAXIS, self.ID_SPLIT_VERT_SHARE_XYAXIS,
                      self.ID_SPLIT_HORZ, self.ID_SPLIT_HORZ_SHARE_XAXIS,
