@@ -27,9 +27,17 @@ def load_vcd(filename):
         while True:
             try:
                 token = next(tokens)
-            except StopIteration:
+            except:
                 break
-            if token.kind in [TokenKind.DATE, TokenKind.VERSION]:
+            if token.kind in [TokenKind.CHANGE_VECTOR, TokenKind.CHANGE_REAL,
+                                TokenKind.CHANGE_SCALAR, TokenKind.CHANGE_STRING]:
+                if not token.data.id_code in vcd['data']:
+                    vcd['data'][token.data.id_code] = []
+                vcd['data'][token.data.id_code] += [[t, token.data.value]]
+
+            elif token.kind == TokenKind.CHANGE_TIME:
+                t = token.data
+            elif token.kind in [TokenKind.DATE, TokenKind.VERSION]:
                 vcd['info'][token.kind.name] = token.data.strip()
             elif token.kind == TokenKind.TIMESCALE:
                 vcd['info'][token.kind.name] = f'{token.data.magnitude.value} {token.data.unit.value}'
@@ -44,25 +52,22 @@ def load_vcd(filename):
             elif token.kind == TokenKind.COMMENT:
                 vcd['comment'].append(token.data)
 
-            elif token.kind in [TokenKind.CHANGE_VECTOR, TokenKind.CHANGE_REAL,
-                                TokenKind.CHANGE_SCALAR, TokenKind.CHANGE_STRING]:
-                if not token.data.id_code in vcd['data']:
-                    vcd['data'][token.data.id_code] = []
-                vcd['data'][token.data.id_code] += [[t, token.data.value]]
 
-            elif token.kind == TokenKind.CHANGE_TIME:
-                t = token.data
 
         for k in list(vcd['data'].keys()):
             signal = k
             if k in vcd['var']:
                 signal = vcd['var'][k].get('reference', None) or k
                 if signal != k:
+                    if signal in vcd['data']:
+                        num = len([dk for dk in vcd['data'].keys() if dk == signal])
+                        print(f'Found duplicated signal {signal}')
+                        signal  = f"{signal}-{num}"
                     vcd['data'][signal] = vcd['data'].pop(k)
 
             vcd['data'][signal] = pd.DataFrame.from_records(vcd['data'][signal], columns=['timestamp', signal])
-        for k in list(vcd['data'].keys()):
 
+        for k in list(vcd['data'].keys()):
             signal = k.split('.')
             if len(signal) > 1:
                 d = vcd['data']
@@ -73,6 +78,7 @@ def load_vcd(filename):
                 d[signal[-1]] = vcd['data'].pop(k)
                 d[signal[-1]].rename(columns={k: signal[-1]}, inplace=True)
     return vcd
+
 
 class VcdTree(FastLoadTreeCtrl):
     """the tree control to show the hierarchy of the objects in the vcd"""
@@ -133,6 +139,9 @@ class VcdTree(FastLoadTreeCtrl):
 
         if pattern:
             self.expanded = [c for c, _ in children if pattern not in c]
+        if item == self.GetRootItem() and not self.expanded and children:
+            self.expanded = [children[0][0]]
+
         children = [{'label': c, 'img':-1, 'imgsel':-1, 'data': None, 'is_folder': is_folder} for c, is_folder in children]
         return children
 
