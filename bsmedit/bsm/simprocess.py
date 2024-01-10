@@ -1013,14 +1013,16 @@ class SimLogger(object):
         pass
 
 
-def sim_process(qresp, qcmd):
-    log = SimLogger(qresp)
-    stdout = sys.stdout
-    stderr = sys.stderr
-    sys.stdout = log
-    sys.stderr = log
+def sim_process(qresp, qcmd, debug=False):
+    if not debug:
+        log = SimLogger(qresp)
+        stdout = sys.stdout
+        stderr = sys.stderr
+        sys.stdout = log
+        sys.stderr = log
     proc = SimCommand(qcmd, qresp)
     # infinite loop
     proc.process()
-    sys.stdout = stdout
-    sys.stderr = stderr
+    if not debug:
+        sys.stdout = stdout
+        sys.stderr = stderr

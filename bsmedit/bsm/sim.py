@@ -78,6 +78,9 @@ class Simulation():
         don't call this function directly unless you know what it is doing.
         """
         try:
+            if not self.sim_process or not self.sim_process.is_alive():
+                print("The simulation has not started or is not alive!")
+                return False
             # always increase the command ID
             cid = self._cmd_id
             self._cmd_id += 1
@@ -95,12 +98,15 @@ class Simulation():
             self.qcmd.put({'id': cid, 'cmd': cmd, 'arguments': kwargs})
             if block is True:
                 # wait for the command to finish
-                while True:
-                    resp = self.qresp.get()
+                while self.sim_process.is_alive():
+                    try:
+                        resp = self.qresp.get(timeout=0.3)
+                    except Queue.Empty:
+                        continue
                     rtn = self._process_response(resp)
                     if resp.get('id', -1) == cid:
                         return rtn
-            return True
+            return self.sim_process.is_alive()
         except:
             traceback.print_exc(file=sys.stdout)
 
@@ -143,7 +149,7 @@ class Simulation():
         self.qresp = mp.Queue()
         self.qcmd = mp.Queue()
         self.sim_process = mp.Process(target=sim_process,
-                                      args=(self.qresp, self.qcmd))
+                                      args=(self.qresp, self.qcmd, sim.debug))
         self.sim_process.start()
         self._interfaces = self._send_command('get_interfaces')
         if self._interfaces:
@@ -1636,9 +1642,10 @@ class sim:
     ID_PANE_SHOW_IN_BROWSING = wx.NewIdRef()
 
     @classmethod
-    def initialize(cls, frame):
+    def initialize(cls, frame, **kwargs):
         PropGenericUdpate()
         cls.frame = frame
+        cls.debug = kwargs.get('debug', False)
 
         resp = dp.send(signal='frame.add_menu',
                        path='File:New:Simulation',
@@ -1937,4 +1944,4 @@ class sim:
 
 
 def bsm_initialize(frame, **kwargs):
-    sim.initialize(frame)
+    sim.initialize(frame, **kwargs)
