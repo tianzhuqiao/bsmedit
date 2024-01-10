@@ -1006,24 +1006,14 @@ class SimPanel(wx.Panel):
         elif eid == self.ID_SIM_SET:
             menu = wx.Menu()
             item = menu.Append(self.ID_MP_DUMP_MANAGE, "&Manage dump files")
-            if not self.sim.get_trace_files():
+            if not self.sim.is_valid() or not self.sim.get_trace_files():
                 item.Enable(False)
             menu.AppendSeparator()
             menu.Append(wx.ID_RESET, "&Reset")
             menu.AppendSeparator()
             menu.Append(wx.ID_EXIT, "&Exit")
 
-            # line up our menu with the button
-            tb = event.GetEventObject()
-            tb.SetToolSticky(event.GetId(), True)
-            rect = tb.GetToolRect(event.GetId())
-            pt = tb.ClientToScreen(rect.GetBottomLeft())
-            pt = self.ScreenToClient(pt)
-
             self.PopupMenu(menu)
-
-            # make sure the button is "un-stuck"
-            tb.SetToolSticky(event.GetId(), False)
 
     def _process_response(self, resp):
         if self.is_destroying:
@@ -1851,7 +1841,7 @@ class sim:
             scale_factor = 1#manager.GetContentScaleFactor()
             page_bmp = MakeBitmap(clr.red, clr.green,
                                   clr.blue, scale_factor=scale_factor)
-            (_, filename) = os.path.split(filename)
+            (_, filename) = os.path.split(manager.filename)
             title = f"{filename} (sim-{manager.sim.num})"
             dp.send(signal="frame.add_panel",
                     panel=manager,

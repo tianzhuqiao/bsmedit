@@ -737,18 +737,19 @@ class SimCommand(object):
         obj = self.simengine.find_object(name)
         if obj is None:
             return False
-        if valid:
-            valid = self.simengine.find_object(valid)
-            if valid is None:
+        valid_obj = valid
+        if valid_obj:
+            valid_obj = self.simengine.find_object(valid_obj)
+            if valid_obj is None:
                 return False
-            valid = valid()
+            valid_obj = valid_obj()
         fmt = self.tfile_format.get(fmt, None)
         trigger = self.trigger_type.get(trigger, None)
+        raw = [filename, name, fmt, valid, trigger]
         if fmt is None:
             raise ValueError("Not supported trace type: " + str(raw[0]))
         if trigger is None:
             raise ValueError("Not supported trigger type: " + str(raw[2]))
-        raw = [filename, name, fmt, valid, trigger]
         valid_trace_file = False
         if filename not in self.tfile:
             trace = csim.SStructWrapper(self.simengine.csim.sim_trace_file())
@@ -759,7 +760,7 @@ class SimCommand(object):
             trace = self.tfile[filename]['trace']
             valid_trace_file = True
         if valid_trace_file:
-            self.simengine.ctx_trace_file(trace(), obj(), valid, trigger)
+            self.simengine.ctx_trace_file(trace(), obj(), valid_obj, trigger)
             if filename in self.tfile:
                 self.tfile[filename]['raw'].append(raw)
             else:
@@ -799,17 +800,18 @@ class SimCommand(object):
         if obj is None:
             return False
 
-        if valid:
-            valid = self.simengine.find_object(valid)
-            if valid is None:
+        valid_obj = valid
+        if valid_obj:
+            valid_obj = self.simengine.find_object(valid_obj)
+            if valid_obj is None:
                 return False
-            valid = valid()
+            valid_obj = valid_obj()
 
         trigger = self.trigger_type.get(trigger, None)
+        raw = [size, valid, trigger]
         if trigger is None:
             raise ValueError("Not supported trigger type: " + str(raw[2]))
 
-        raw = [size, valid, trigger]
         # remove the existing trace
         self.close_trace_buf(name=name)
 
@@ -819,7 +821,7 @@ class SimCommand(object):
         data = np.zeros((size))
         trace.buffer = data.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
         if self.simengine.ctx_create_trace_buf(trace()):
-            self.simengine.ctx_trace_buf(trace(), obj(), valid, trigger)
+            self.simengine.ctx_trace_buf(trace(), obj(), valid_obj, trigger)
             self.tbuf[name] = {'trace': trace, 'data': data, 'raw': raw}
         return True
 
