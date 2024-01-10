@@ -5,6 +5,7 @@ import wx
 import wx.py.dispatcher as dp
 import numpy as np
 import pandas
+from pandas.api.types import is_numeric_dtype
 import matplotlib
 matplotlib.use('module://bsmedit.bsm.bsmbackend')
 from matplotlib.figure import Figure
@@ -700,6 +701,11 @@ class DataDropTarget(wx.DropTarget):
                             label = line.columns[i]
                             if title:
                                 label="/".join([title, label])
+                            if not is_numeric_dtype(line.columns[0]) or \
+                               not is_numeric_dtype(line.columns[1]):
+                                   # ignore non-numeric data
+                                   continue
+
                             ax.plot(line[line.columns[0]], line[line.columns[i]],
                                     label=label,
                                     linestyle=ls, marker=ms)

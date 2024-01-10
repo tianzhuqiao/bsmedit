@@ -5,6 +5,7 @@ import traceback
 import wx
 import wx.py.dispatcher as dp
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 from vcd.reader import TokenKind, tokenize
 from ..aui import aui
 from . import graph
@@ -91,8 +92,10 @@ class VcdTree(FastLoadTreeCtrl):
         text = self.GetItemText(item)
         path = [text]
         parent = self.GetItemParent(item)
-        if parent.IsOk() and parent != self.GetRootItem():
+
+        while parent.IsOk() and parent != self.GetRootItem():
             path.insert(0, self.GetItemText(parent))
+            parent = self.GetItemParent(parent)
         return path
 
     def GetData(self, item):
@@ -403,6 +406,9 @@ class VcdPanel(wx.Panel):
         dataset = self.tree.GetData(item)
         x = dataset['timestamp']*self.vcd.get('timescale', 1e-6)*1e6
         y = dataset[path[-1]]
+        if not is_numeric_dtype(y):
+            print(f"{path[-1]} is not numeric, ignore plotting!")
+            return
 
         # plot
         mgr = graph.plt.get_current_fig_manager()
