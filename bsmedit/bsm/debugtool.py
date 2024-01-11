@@ -77,7 +77,7 @@ class StackPanel(wx.Panel):
                 lineno = frame.f_lineno
                 if not self.show_all_frames and filename == '<input>':
                     break
-                index = self.listctrl.InsertItem(six.MAXSIZE, name)
+                index = self.listctrl.InsertItem(self.listctrl.GetItemCount(), name)
                 filename_short = os.path.relpath(filename)
                 if len(filename_short) > len(filename):
                     filename_short = filename
