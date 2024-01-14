@@ -58,17 +58,26 @@ class VCDParse:
         'DUMPVARS',
         'TIME',
         'DATA_LOGIC',
+        'DATA_BINARY_NUM',
         'DATA_BINARY',
         'DATA_REAL',
         'DATA_STRING',
-        'ID',
         'WORD',
         'SPACE',
     )
-
-    states = (
-        ('variable', 'exclusive'),  # raw block (not parsed)
-    )
+    reserved = {'$end': 'END',
+                '$version': 'VERSION',
+                '$date': 'DATE',
+                '$comment': 'COMMENT',
+                '$timescale': 'TIMESCALE',
+                '$scope': 'SCOPE',
+                '$var': 'VAR',
+                '$upscope': 'UPSCOPE',
+                '$dumpall': 'DUMPALL',
+                '$dumpoff': 'DUMPOFF',
+                '$dumpon': 'DUMPON',
+                '$dumpvars': 'DUMPVARS',
+                '$enddefinitions': 'ENDDEFINITIONS'}
 
     # Tokens
     t_ignore = '\t'
@@ -79,9 +88,7 @@ class VCDParse:
 
         self.verbose = verbose
         self.filename = ""
-        self.contents = ''
         self.vcd = {'info':{}, 'data':{}, 'var': {}, 'comment': []}
-        self.var = {} # var in current scope
         self.scope = 0
         self.t = 0
 
@@ -125,269 +132,141 @@ class VCDParse:
 
     # lexer
     def t_error(self, t):
-        self._error("illegal character '%s'" % (t.value[0]), lineno=t.lexer.lineno)
+        self._error(f'illegal character "{t.value[0]}"', lineno=t.lexer.lineno)
         t.lexer.skip(1)
 
     def t_eof(self, t):
         return None
 
-    def t_ENDDEFINITIONS(self, t):
-        r'\s*\$enddefinitions[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_END(self, t):
-        r'\$end\s*'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_VERSION(self, t):
-        r'\s*\$version[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_DATE(self, t):
-        r'\s*\$date[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_COMMENT(self, t):
-        r'\s*\$comment[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_TIMESCALE(self, t):
-        r'\s*\$timescale[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_SCOPE(self, t):
-        r'\s*\$scope[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_VAR(self, t):
-        r'\s*\$var[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_UPSCOPE(self, t):
-        r'\s*\$upscope[\n]?'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_DUMPALL(self, t):
-        r'\s*\$dumpall\s*'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-    def t_DUMPOFF(self, t):
-        r'\s*\$dumpoff\s*'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-    def t_DUMPON(self, t):
-        r'\s*\$dumpoff\s*'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-    def t_DUMPVARS(self, t):
-        r'\s*\$dumpvars\s*'
-        t.lexer.lineno += t.value.count('\n')
-        return t
-
-    def t_TIME(self, t):
-        r'^#\d+\s*'
-        t.lexer.lineno += t.value.count('\n')
-        t.value = int(t.value[1:])
-        return t
+    def t_newline(self, t):
+        r'\n+'
+        t.lexer.lineno += len(t.value)
 
     def t_DATA_LOGIC(self, t):
-        r'^[01xXzZ][\s]*'
-        t.lexer.lineno += t.value.count('\n')
-        t.lexer.push_state('variable')
+        r'^[01xXzZ][^\S\n]*'
+        t.value = t.value.strip()
+        return t
+
+    def t_DATA_BINARY_NUM(self, t):
+        r'^[bB][01]+[^\S\n]+'
+        t.value = int(t.value[1:], 2)
         return t
 
     def t_DATA_BINARY(self, t):
-        r'^[bB][01xXzZ]+[\s]*'
-        t.lexer.lineno += t.value.count('\n')
-        t.lexer.push_state('variable')
-        t.value = t.value[1:]
-        if t.value.isdigit():
-            t.value = int(t.value, 2)
+        r'^[bB][01xXzZ]+[^\S\n]*'
+        t.value = t.value[1:].strip()
         return t
 
     def t_DATA_REAL(self, t):
-        r'^[rR][-+]?(?:\d*\.*\d+)[\s]*'
-        t.lexer.lineno += t.value.count('\n')
-        t.lexer.push_state('variable')
+        r'^[rR][-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?[^\S\n]*'
         t.value = float(t.value[1:])
-        #print(t.value)
         return t
 
     def t_DATA_STRING(self, t):
-        r'^[sS][\S]+[\s]*'
-        t.lexer.lineno += t.value.count('\n')
-        t.lexer.push_state('variable')
-        #t.value = float(t.value[1:])
-        #print(t.value)
+        r'^[sS][\S]+[^\S\n]*'
+        t.value = t.value.strip()
         return t
-    def t_variable_ID(self, t):
-        r'[!-~]+'
-        # match all printable char (33~126)
-        t.lexer.pop_state()
+
+    def t_TIME(self, t):
+        r'^#\d+[^\S\n]*'
+        t.value = int(t.value[1:])
         return t
 
     def t_SPACE(self, t):
-        r'\s+'
-        t.lexer.lineno += t.value.count('\n')
+        r'[^\S\n]+'
         return t
 
     def t_WORD(self, t):
         r'\S+'
-        t.lexer.lineno += t.value.count('\n')
+        t.type = self.reserved.get(t.value,'WORD')
         return t
 
-    t_variable_error = t_error
-    t_variable_ignore = t_ignore
-    """
-    article : comment
-
-    comment : COMMENT text END
-
-    text : text logicline
-         | logicline
-
-    logicline : line
-              | line NEWLINE
-
-    line : line plaintext
-         | plaintext
-
-    plaintext : plaintext WORD
-              | plaintext SPACE
-              | WORD
-              | SPACE
-              | empty
-
-    empty :
-    """
-
     def update_data(self, d):
-        for k in d.keys():
+        for k in list(d.keys()):
             if k in self.vcd['data']:
-                d[k] = self.vcd['data'][k]
+                signal = d[k]['reference']
+                d[signal] = self.vcd['data'][k]
+                d.pop(k)
             elif isinstance(d[k], dict):
                 self.update_data(d[k])
 
     def p_article(self, p):
         '''article : header enddefinitions content
                    | header enddefinitions'''
-        for k in self.vcd['data'].keys():
-            self.vcd['data'][k] = pd.DataFrame.from_records(self.vcd['data'][k], columns=['timestamp', 'value'])
+        for k in self.vcd['data']:
+            self.vcd['data'][k] = pd.DataFrame.from_records(self.vcd['data'][k],
+                                                            columns=['timestamp', 'value'])
 
-        data = self.vcd['var']
+        data = dict(self.vcd['var'])
         self.update_data(data)
         self.vcd['data'] = data
-        #for k in list(vcd['data'].keys()):
-        #    signal = k.split('.')
-        #    if len(signal) > 1:
-        #        d = vcd['data']
-        #        for i in range(len(signal)-1):
-        #            if not signal[i] in d:
-        #                d[signal[i]] = {}
-        #            d = d[signal[i]]
-        #        d[signal[-1]] = vcd['data'].pop(k)
-        #        d[signal[-1]].rename(columns={k: signal[-1]}, inplace=True)
+
     def p_session_multi(self, p):
         '''header : header block'''
-        p[0] = p[1] + p[2]
 
     def p_session_single(self, p):
         '''header : block'''
-        p[0] = p[1]
 
     def p_session_data2(self, p):
         '''content : content data'''
-        p[0] = p[1] + p[2]
 
     def p_session_data(self, p):
         '''content : data'''
-        p[0] = p[1]
+
+    def p_comment3(self, p):
+        '''data : comment'''
 
     def p_time(self, p):
         '''data : TIME'''
-        p[0] = ""
         self.t = p[1]
 
-    def p_data_logic(self, p):
-        '''data : DATA_LOGIC ID SPACE'''
-        p[0] = ""
-        if p[2] not in self.vcd['data']:
-            self.vcd['data'][p[2]] = []
+    def p_data2(self, p):
+        '''data : DATA_LOGIC SPACE WORD
+                | DATA_BINARY SPACE WORD
+                | DATA_BINARY_NUM SPACE WORD
+                | DATA_REAL SPACE WORD
+                | DATA_STRING SPACE WORD'''
+        self.vcd['data'][p[3]].append([self.t, p[1]])
+
+    def p_data(self, p):
+        '''data : DATA_LOGIC WORD
+                | DATA_BINARY WORD
+                | DATA_BINARY_NUM WORD
+                | DATA_REAL WORD
+                | DATA_STRING WORD'''
         self.vcd['data'][p[2]].append([self.t, p[1]])
-
-    def p_data_binary(self, p):
-        '''data : DATA_BINARY ID SPACE'''
-        p[0] = ""
-        if p[2] not in self.vcd['data']:
-            self.vcd['data'][p[2]] = []
-        self.vcd['data'][p[2]].append([self.t, p[1]])
-
-    def p_data_real(self, p):
-        '''data : DATA_REAL ID SPACE'''
-        p[0] = ""
-        if p[2] not in self.vcd['data']:
-            self.vcd['data'][p[2]] = []
-        self.vcd['data'][p[2]].append([self.t, p[1]])
-
-    def p_data_string(self, p):
-        '''data : DATA_STRING ID SPACE'''
-        p[0] = p[1] + p[2]
-        if p[2] not in self.vcd['data']:
-            self.vcd['data'][p[2]] = []
-        self.vcd['data'][p[2]].append([self.t, p[1]])
-
-    def p_dumpall(self, p):
-        '''data : DUMPALL'''
-        p[0] = p[1]
-
-    def p_dumpoff(self, p):
-        '''data : DUMPOFF'''
-        p[0] = p[1]
-
-    def p_dumpon(self, p):
-        '''data : DUMPON'''
-        p[0] = p[1]
 
     def p_dumpvars(self, p):
-        '''data : DUMPVARS'''
-        p[0] = p[1]
+        '''data : DUMPVARS content END
+                | DUMPOFF content END
+                | DUMPON content END
+                | DUMPALL content END'''
+        p[0] = ""
 
     def p_version(self, p):
         '''block : VERSION text END'''
-        p[0] = p[2]
         self.vcd['info']['version'] = p[2]
 
     def p_date(self, p):
         '''block : DATE text END'''
-        p[0] = p[2]
         self.vcd['info']['date'] = p[2]
 
+    def p_comment2(self, p):
+        '''block : comment'''
+
     def p_comment(self, p):
-        '''block : COMMENT text END'''
-        p[0] = p[2]
+        '''comment : COMMENT text END'''
         self.vcd['comment'].append(p[2])
 
     def p_timescale(self, p):
         '''block : TIMESCALE text END'''
-        p[0] = p[2]
         self.vcd['info']['timescale'] = p[2]
 
     def p_enddefinitions(self, p):
         '''enddefinitions : ENDDEFINITIONS text END'''
-        p[0] = p[2]
 
     def p_scopes6(self, p):
         '''block : scopes'''
-        p[0] = ""
 
     def p_scopes5(self, p):
         '''scopes : scopes scopes'''
@@ -428,9 +307,9 @@ class VCDParse:
         '''scope : SCOPE SPACE WORD SPACE WORD SPACE END'''
         p[0] = p[5]
         self.scope += 1
+
     def p_upscope(self, p):
         '''upscope : UPSCOPE text END'''
-        p[0] = p[2]
 
     def p_vars2(self, p):
         '''vars : vars var'''
@@ -445,10 +324,17 @@ class VCDParse:
         '''var : VAR SPACE WORD SPACE WORD SPACE WORD SPACE WORD SPACE WORD SPACE END'''
         p[0] = {p[7]: {'reference': p[9], 'size': int(p[5]),
                         'type': p[3], 'bit': p[11]}}
+        # add placeholder in 'data'
+        self.vcd['data'][p[7]] = []
+
     def p_var(self, p):
         '''var : VAR SPACE WORD SPACE WORD SPACE WORD SPACE WORD SPACE END'''
         p[0] = {p[7]: {'reference': p[9], 'size': int(p[5]),
-                                 'type': p[3], 'bit': None}}
+                       'type': p[3], 'bit': None}}
+
+        # add placeholder in 'data'
+        self.vcd['data'][p[7]] = []
+
     def p_text_multi(self, p):
         '''text : text logicline'''
         p[0] = p[1] + p[2]
@@ -536,5 +422,4 @@ def load_vcd(filename, encoding=None, lex_only=False, yacc_only=False, verbose=F
     except:
         traceback.print_exc(file=sys.stdout)
     return None
-
 

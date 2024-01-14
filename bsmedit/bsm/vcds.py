@@ -15,7 +15,25 @@ from .utility import FastLoadTreeCtrl, PopupMenu, _dict, svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
 from .listctrl_base import ListCtrlBase
+from ..pvcd.pvcd import load_vcd as load_vcd2
 
+def load_vcd3(filename):
+    vcd = load_vcd2(filename)
+    if not vcd or not vcd['data']:
+        return vcd
+    if list(vcd['data'].keys()) == ['SystemC']:
+        vcd['data'] = vcd['data']['SystemC']
+    for k in list(vcd['data'].keys()):
+        signal = k.split('.')
+        if len(signal) > 1:
+            d = vcd['data']
+            for i in range(len(signal)-1):
+                if not signal[i] in d:
+                    d[signal[i]] = {}
+                d = d[signal[i]]
+            d[signal[-1]] = vcd['data'].pop(k)
+            d[signal[-1]].rename(columns={'value': signal[-1]}, inplace=True)
+    return vcd
 
 def load_vcd(filename):
     vcd = {'info':{}, 'data':{}, 'var': {}, 'comment': []}
@@ -27,7 +45,10 @@ def load_vcd(filename):
         while True:
             try:
                 token = next(tokens)
+            except StopIteration:
+                break
             except:
+                traceback.print_exc(file=sys.stdout)
                 break
             if token.kind in [TokenKind.CHANGE_VECTOR, TokenKind.CHANGE_REAL,
                                 TokenKind.CHANGE_SCALAR, TokenKind.CHANGE_STRING]:
@@ -347,7 +368,7 @@ class VcdPanel(wx.Panel):
 
     def Load(self, filename):
         """load the vcd file"""
-        u = load_vcd(filename)
+        u = load_vcd3(filename)
         self.vcd = u
         self.filename = filename
         self.tree.Load(u)
