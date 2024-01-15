@@ -65,13 +65,14 @@ bsmedit is a C++/[http://accellera.org/community/systemc|SystemC] Visualizer. Lo
 * re-compile the program;
 * check the results.
 
-And occasionally, I would need to add some debugging code. For example, printing some value (e.g., \tag{code|printf}) to the terminal or dumping the data to a file, so that I can use other tools (e.g., Matlab) to visualize and analyze it.
+And occasionally, I would need to add some debugging code. For example, printing some value (e.g., \tag{b|printf}) to the terminal or dumping the data to a file, so that I can use other tools (e.g., Matlab) to visualize and analyze it.
 
 bsmedit aims to simplify this procedure. With bsmedit, we can
-    -control the simulation
-    -monitor the signals in real-time
-    -plot/dump the signals
-    -......
+    -control C/C++/SystemC simulation
+    -monitor/visualize signals in real-time
+    -visualize VCD (value change dump) files
+    -visualize ulog files
+    -...
 
 = Get started
 bsmedit can be installed with pip
@@ -89,30 +90,36 @@ $ pip install -e .
 To use bsmedit, the first step is to build a simulation. In the following example, we will create a dummy SystemC simulation that outputs a synchronized $\sin$ and $\cos$ waveforms.
 
 * \tag{b|Create a simulation project.} You can use your preferred platform and compiler.
-* {\tag{b|Add SystemC support to your project.} To make the simulation work with bsmedit, you need a modified SystemC, which can be got [https://github.com/tianzhuqiao/bsmedit/tree/master/systemc-2.3.1|here].
+* {\tag{b|Add SystemC support to your project.} To make the simulation work with bsmedit, you need a modified SystemC, which can be got [https://github.com/tianzhuqiao/systemc|here], all the branches started with \tag{b|bsm_} are supported by bsmedit. Currently it supports the following SystemC releases
+- 3.0.0_pub_rev_20231129
+- 2.3.4
+- 2.3.3
+- 2.3.2
+- 2.3.1a
+
 {!div|info||
-Please refer to the file [https://github.com/tianzhuqiao/bsmedit/blob/master/systemc-2.3.1/INSTALL|INSTALL] in the SystemC package if you are not familiar with adding SystemC support to your project.
+Please refer to the file [https://github.com/tianzhuqiao/bsmedit/blob/master/systemc-2.3.1/INSTALL|INSTALL] in the SystemC package about how to add SystemC support to your project.
 !}
 }
 * \tag{b|Implement the simulation.}
-*- {Create a top level SystemC module \tag{code|top}, which may look like
+*- {Create a top level SystemC module \tag{b|top}, which may look like
 {!example_src||highlight|c++||ccodesnippet||
 ../examples/start/top.h
 !}
-The top module is derived from \tag{code|sc_module}. It defines several signals used in the module
-- \tag{b|clock}: the module is triggered by the positive edge of the clock, whose period is $10ns$ with 50\% duty cycle. One thing to notice is that the signal \tag{clock} is given a name \tag{code|CLOCK}. bsmedit will use this name to have access to this signal. At shown in the example, the name of the signal (i.e., CLOCK) may not be same as the variable name (i.e., clock), although in practice they are often same for convenience.
-- \tag{b|sig_sin}: the signal for the sine waveform, whose name is \tag{code|sig_sin}.
-- \tag{b|sig_cos}: the signal for the cos waveform, whose name is \tag{code|sig_cos}.
+The top module is derived from \tag{b|sc_module}. It defines several signals used in the module
+- \tag{b|clock}: the module is triggered by the positive edge of the clock, whose period is $10ns$ with 50\% duty cycle. One thing to notice is that the signal \tag{clock} is given a name \tag{b|CLOCK}. bsmedit will use this name to have access to this signal. At shown in the example, the name of the signal (i.e., CLOCK) may not be same as the variable name (i.e., clock), although in practice they are often same for convenience.
+- \tag{b|sig_sin}: the signal for the sine waveform, whose name is \tag{b|sig_sin}.
+- \tag{b|sig_cos}: the signal for the cos waveform, whose name is \tag{b|sig_cos}.
 - \tag{b|sig_steps}: the phase step for each clock, which is increased by $\frac{\pi}{\textrm{sig_steps}}$. The phase is initialized to be zero.
-The module also defines a process method (i.e., \tag{code|Action}). It is triggered at each rising edge of \tag{b|clock} (also called positive edge), where all calculations are conducted.
+The module also defines a process method (i.e., \tag{b|Action}). It is triggered at each rising edge of \tag{b|clock} (also called positive edge), where all calculations are conducted.
 }
-*-{The \tag{code|top.cpp} may look like
+*-{The \tag{b|top.cpp} may look like
 {!example_src||highlight|c++||ccodesnippet||
 ../examples/start/top.cpp
 !}
-In the process method (\tag{code|Action}), we simply update the sin/cos signals based on the current phase. Then, update the phase for the next step. In this demo, the maximum step is assumed to be $\frac{\pi}{256}$.
+In the process method (\tag{b|Action}), we simply update the sin/cos signals based on the current phase. Then, update the phase for the next step. In this demo, the maximum step is assumed to be $\frac{\pi}{256}$.
 }
-*-{The \tag{code|main} function may look like
+*-{The \tag{b|main} function may look like
 {!example_src||highlight|c++||ccodesnippet||
 ../examples/start/main.cpp
 !}
@@ -125,6 +132,7 @@ We will discuss the macro in detail in the following sections.
 {!example_src||highlight|makefile||ccodesnippet||
 ../examples/start/Makefile
 !}
+When compile the simulation, the compiler setting (e.g., \tag{b|CC}$ in the above makefile) needs to be same as the one used to compile the SystemC library.
 }
 * \tag{b|Compile the project to get simulation} (e.g., \tag{b|start.dll})
 {!div|info||
@@ -160,7 +168,7 @@ The main window consists of 4 sections, from top to bottom:
 -\tag{b|total unit}: the time unit of the total simulation duration.
 }
 *{\tag{b|Simulation objects}\footnote{Sometimes they will be referred as \tag{b|objects} (as they are all derived from \tag{b|sc_object}) or \tag{b|signals} (as \tag{b|sc_signal} is the most common object to control the simulation). We will use both interchangeably.}.
-This window lists all \tag{code|objects} defined in the simulation. As shown in figure above, the simulation has one top module (i.e., \tag{code|top}) and 4 signals: \tag{code|CLOCK}, \tag{code|sig_cos}, \tag{code|sig_sin}, and \tag{code|sig_steps}. The tree hierarchy represents their structure in the simulation.
+This window lists all \tag{b|objects} defined in the simulation. As shown in figure above, the simulation has one top module (i.e., \tag{b|top}) and 4 signals: \tag{b|CLOCK}, \tag{b|sig_cos}, \tag{b|sig_sin}, and \tag{b|sig_steps}. The tree hierarchy represents their structure in the simulation.
 }
 *\tag{b|Console window}. It is used to execute commands and show outputs.
 *\tag{b|Statusbar}.
@@ -189,7 +197,7 @@ You can also modify the signal values, for example, by typing the following comm
 >>> # set the number of steps
 >>> s['top.sig_steps'] = 8192
 %}!}
-The first command gets the handle of the simulation. Then, the second command sets the value of signal \tag{code|top.sig_steps} to 8192.
+The first command gets the handle of the simulation. Then, the second command sets the value of signal \tag{b|top.sig_steps} to 8192.
 
 You can also plot the trace to see the signal trend,
 {!example_src||highlight|shell||{%
@@ -203,7 +211,7 @@ You can also plot the trace to see the signal trend,
 >>> ylim([-1,1])
 %}!}
 
-The first command tells bsmedit to start tracing the signal \tag{code|top.sig_cos}; and the buffer length is 4096. In other words, its latest 4096 values will be stored in a numpy array. Similarly, the second command traces the signal \tag{code|top.sig_sin}. The third command creates a figure to plot \tag{code|top.sig_cos} as $x$ axis value and \tag{code|top.sig_sin} as $y$ axis. The last two lines set the limits of $x$ axis and $y$ axis, respectively. The created figure looks like
+The first command tells bsmedit to start tracing the signal \tag{b|top.sig_cos}; and the buffer length is 4096. In other words, its latest 4096 values will be stored in a numpy array. Similarly, the second command traces the signal \tag{b|top.sig_sin}. The third command creates a figure to plot \tag{b|top.sig_cos} as $x$ axis value and \tag{b|top.sig_sin} as $y$ axis. The last two lines set the limits of $x$ axis and $y$ axis, respectively. The created figure looks like
 {!image||
 ./images/start_sim_plot.png
 !}
@@ -378,7 +386,7 @@ The \tag{b|plot} function will add the curve to the \tag{b|active} figure window
 ./images/figure_select_axis.mp4
 !}
 
-The following command will activate the figure window with number \tag{code|1} (its window name may look like "\tag{b|Figure 1}")
+The following command will activate the figure window with number \tag{b|1} (its window name may look like "\tag{b|Figure 1}")
 {!example_src||highlight|python||{%
 >>> figure(1)
 %}!}
@@ -438,7 +446,7 @@ s.\sim_interface_args{set_parameter}
 !}
 where
 {{
-\tag{strong|step}| the time duration of each step, e.g., "\tag{b|100us}". The pre-defined time units include \tag{code|fs} (femtosecond), \tag{code|ps} (picosecond), \tag{code|ns} (nanosecond), \tag{code|us} (microsecond), \tag{code|ms} (millisecond), and \tag{code|s} (second).||-
+\tag{strong|step}| the time duration of each step, e.g., "\tag{b|100us}". The pre-defined time units include \tag{b|fs} (femtosecond), \tag{b|ps} (picosecond), \tag{b|ns} (nanosecond), \tag{b|us} (microsecond), \tag{b|ms} (millisecond), and \tag{b|s} (second).||-
 \tag{strong|total}| the total simulation duration; \tag{b|\-1} means to run infinitely.||-
 \tag{strong|to} | pause simulation when simulation time reaches \tag{b|to} (or \tag{b|total}).||-
 \tag{strong|more} | run simulation for additional time defined by \tag{b|more}, then pause. If \tag{b|to} is also defined, \tag{b|to} has higher priority.||-
@@ -506,7 +514,7 @@ Besides calling the \tag{b|read} function explicitly, you can also use a shortcu
 0.7958369046061
 %}!}
 
-You can also read multiple signals with one command. In this case, the return value will be a \tag{code|dict}, whose key is the signal name.
+You can also read multiple signals with one command. In this case, the return value will be a \tag{b|dict}, whose key is the signal name.
 {!example_src||highlight|python||{%
 >>> # read multiple signals
 >>> s.read(['top.sig_cos', 'top.sig_sin'])
@@ -538,13 +546,13 @@ SystemC type | Python type ||+
 -sc_ufixed
 -std::string\footnote{only support \tag{b|sc_signal.}}|string||-
 }}
-And you can use the above function to read all the \tag{code|sc_signal}, \tag{code|sc_out}, \tag{code|sc_inout}, and \tag{code|sc_in} objects.
+And you can use the above function to read all the \tag{b|sc_signal}, \tag{b|sc_out}, \tag{b|sc_inout}, and \tag{b|sc_in} objects.
 }
 - {\tag{b|Write signals.} To update the signal value, you can call
 {!example_src||highlight|python||{%
 s.write(objects)
 %}!}
-where \tag{b|objects} is a \tag{code|dic} with the signal name as its key. bsmedit supports writing all the \tag{code|sc_signal}, \tag{code|sc_out}, and \tag{code|sc_inout}\footnote{\tag{b|sc_in} is not writable.}.
+where \tag{b|objects} is a \tag{b|dic} with the signal name as its key. bsmedit supports writing all the \tag{b|sc_signal}, \tag{b|sc_out}, and \tag{b|sc_inout}\footnote{\tag{b|sc_in} is not writable.}.
 
 Due to the two-step mechanism in SystemC, in most cases, the value will be updated after the next delta cycle. That is, if a \tag{b|read} is called after \tag{b|write} immediately, it may return the previous value.
 
@@ -656,7 +664,7 @@ where
 {{
     \tag{strong|x}| signal name for x-axis (e.g., 'top.sig_cos')||-
     \tag{strong|y}| signal name for y-axis (e.g., 'top.sig_sin')||-
-    \tag{strong|relim}| automatically calculate the x &y limits||-
+    \tag{strong|relim}| automatically calculate the x & y limits||-
     \tag{strong|\*args, **kwargs}| additional arguments to Matplotlib plot function||-
 }}
 For example,
@@ -673,7 +681,7 @@ Then when you run the simulation, the plot will be automatically updated accordi
 s.\sim_interface_args{trace_file}
 !}
  where
- {!highlight|python||
+ {!highlight|shell||
  \sim_interface_docs{trace_file}
  !}
 For example, to trace the signal \tag{b|top.sig_sin} in to file \tag{b|top.sig_sin.bsm}
@@ -714,7 +722,7 @@ You can also set the hit count, for example,
 {!example_src||highlight|python||{%
 s.add_breakpoint('top.sig_cos', '$>=0.9', '#==4')
 %}!}
-Again, \tag{code|\#} will be replaced with the hit count. The breakpoint will only be triggered if the breakpoint condition has been true for at least 4 delta cycles. In other words, the breakpoint has been hit for at least 4 times.
+Again, \tag{code|\#} will be replaced with the hit count. The breakpoint will only be triggered if the breakpoint condition has been true for at least 4 \tag{b|delta} cycles. In other words, the breakpoint has been hit for at least 4 times.
 
 You can also retrieve all the breakpoints by
 {!example_src||highlight|shell||{%
@@ -755,9 +763,9 @@ After all these steps, there is still a breakpoint. You can use the \tag{b|get_b
 ./images/start_run_script_multi.png
 !}
 
-To differentiate the simulations, each simulation will automatically be assigned an \tag{code|id} (e.g., 1,2,3...).
+To differentiate the simulations, each simulation will automatically be assigned an \tag{b|id} (e.g., 1,2,3...).
 
-With that \tag{code|id}, you can retrieve the simulation handler later by
+With that \tag{b|id}, you can retrieve the simulation handler later by
 {!example_src||highlight|shell||{%
 >>> s1 = simulation(1)
 %}!}
@@ -812,7 +820,7 @@ You can click the \tag{b|+}/\tag{b|-} button to show/hide the children.
 >>> p.SetExpand(False)
 %}!}
 
-\tag{b|Use the control to set the signal}. As you see before, each signal in the \tag{b|propgrid} has two sections: name and value. The value section shows its current value. When click on the \tag{code|value} section, if the signal is writable, the signal will be in \tag{b|edit} mode; by default, an editbox will be shown so that you can type the value. By typing  \tag{b|Enter} after modifying the value, bsmedit will send the change to the simulation.
+\tag{b|Use the control to set the signal}. As you see before, each signal in the \tag{b|propgrid} has two sections: name and value. The value section shows its current value. When click on the \tag{b|value} section, if the signal is writable, the signal will be in \tag{b|edit} mode; by default, an editbox will be shown so that you can type the value. By typing  \tag{b|Enter} after modifying the value, bsmedit will send the change to the simulation.
 {!image||
 ./images/prop_editbox.png
 !}
@@ -910,7 +918,7 @@ From version 3, bsmedit supports SystemC 2.3. Once a simulation is loaded, bsmed
 -sc_ufixed
 -std::string
 
-And you can use the above function to read/write all the \tag{code|sc_signal}/\tag{code|sc_out}/\tag{code|sc_inout} objects, and read all the \tag{code|sc_in} objects.
+And you can use the above function to read/write all the \tag{b|sc_signal}/\tag{b|sc_out}/\tag{b|sc_inout} objects, and read all the \tag{b|sc_in} objects.
 
 To make bsmedit work, the simulation needs to implement and export some interfaces.
 \tag{b|bsm.h/cpp} is the bridge between bsmedit and SystemC simulation. It implements the interfaces such that bsmedit can have access to all the objects and also control the simulation.
@@ -918,7 +926,7 @@ To make bsmedit work, the simulation needs to implement and export some interfac
 {!example_src||highlight|c++||{%
 void bsm_sim_top(sim_context *context);
 %}!}
-It is a first function bsmedit will call to create a simulation, where \tag{code|sim_context} is a struct to return simulation information to bsmedit. It is defined by the macro "\tag{b|BSMEDIT_IMPLEMENT_MODULE}"
+It is a first function bsmedit will call to create a simulation, where \tag{b|sim_context} is a struct to return simulation information to bsmedit. It is defined by the macro "\tag{b|BSMEDIT_IMPLEMENT_MODULE}"
 {!example_src||highlight|c++||{%
 typedef struct sim_context {
     char version[MAX_NAME_LEN];
@@ -935,7 +943,7 @@ extern "C" {\
 }
 %}!}
 
-\tag{b|bsm_sim_top} creates the simulation context (i.e., \tag{code|g_sim}). Then, bsmedit can control the simulation through all the other interfaces defined in \tag{b|bsm.h/cpp} with that handler.
+\tag{b|bsm_sim_top} creates the simulation context (i.e., \tag{b|g_sim}). Then, bsmedit can control the simulation through all the other interfaces defined in \tag{b|bsm.h/cpp} with that handler.
 }
 #-{ enumerate the objects
 #{!example_src||highlight|c++||{%
@@ -993,7 +1001,7 @@ extern "C" {\
 #Same as the functions to dump the object to a file, these functions are used to dump the object to a buffer. Two more functions are defined to read and resize the buffer, respectively.
 #}
 === xsc_property
-With SystemC's \tag{code|sc_signal}, it is very easy to simulate a \tag{b|register} in simulation. For example, you can configure the simulation by changing the values of some \tag{code|sc_signal} without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the \tag{code|xsc_property} from \tag{code|sc_signal}.
+With SystemC's \tag{b|sc_signal}, it is very easy to simulate a \tag{b|register} in simulation. For example, you can configure the simulation by changing the values of some \tag{b|sc_signal} without updating and re-compiling the source code. However, sometime you (the simulation) may want to know when the configuration is updated. For example, the simulation may want to log the configuration value once it is changed. Thus we derive the \tag{b|xsc_property} from \tag{b|sc_signal}.
 
 Its usage is almost exactly same as sc_signal. It supports all the data type supported by sc_signal.
 {!example_src||highlight|c++||{%
@@ -1008,16 +1016,16 @@ public:
     static void xsc_callback_fun(sc_module* pThis, double value);
 };
 %}!}
-In this example, we define a double type \tag{code|xsc_property}. During its initialization, three parameters are passed into its constructor function:
-* its name derived from \tag{code|sc_signal},
-* the pointer to the current \tag{code|sc_module},
+In this example, we define a double type \tag{b|xsc_property}. During its initialization, three parameters are passed into its constructor function:
+* its name derived from \tag{b|sc_signal},
+* the pointer to the current \tag{b|sc_module},
 * the pointer to a static function.
-Now, when bsmedit sends the following command to the simulation (here assume the name/path of the \tag{code|xsc_property} is "\tag{b|top.mymodule.xsc_prop_double}")
+Now, when bsmedit sends the following command to the simulation (here assume the name/path of the \tag{b|xsc_property} is "\tag{b|top.mymodule.xsc_prop_double}")
 {!example_src||highlight|shell||{%
 >>> # s is the simulation handle
 >>> s.write("top.mymodule.xsc_prop_double", 1.0)
 %}!}
-The callback function \tag{code|xsc_callback_fun} will be called, where its first parameter will be the pointer of the \tag{code|sc_module} that defined the \tag{code|xsc_property}, and the second parameter will be '1.0'.
+The callback function \tag{b|xsc_callback_fun} will be called, where its first parameter will be the pointer of the \tag{b|sc_module} that defined the \tag{b|xsc_property}, and the second parameter will be '1.0'.
 
 The callback function should have the following format
 {!example_src||highlight|c++||{%
@@ -1028,9 +1036,10 @@ Sometime, you may want to only execute the callback function when it is updated 
 {!example_src||highlight|c++||{%
 xsc_prop_double.write_nc(128.0);
 %}!}
-In this way, \tag{code|xsc_property} behaves exactly same as \tag{code|sc_signal}, and no callback function will be called.
+In this way, \tag{b|xsc_property} behaves exactly same as \tag{b|sc_signal}, and no callback function will be called.
+
 === xsc_array
-\tag{code|xsc_array} is a natural extension of \tag{code|xsc_property}. It is actually an array of the \tag{code|xsc_property}
+\tag{b|xsc_array} is a natural extension of \tag{b|xsc_property}. It is actually an array of the \tag{b|xsc_property}
 {!example_src||highlight|c++||{%
 class MyModule:public sc_module {
 public:
@@ -1048,9 +1057,9 @@ public:
   };
  %}!}
 
-The above example show to use \tag{code|xsc_array} in a \tag{code|sc_module}. It define an integer \tag{code|xsc_array} with size 5. In the module's constructor, the \tag{code|xsc_arrary} is initialized with name \tag{b|xsc_array_int}. And it also shows the basic usage of \tag{code|xsc_array}. Basically, it behaves as an array of \tag{code|xsc_property}. You can use the \tag{code|\[i\]} to have access to the $i$th item in the array.
+The above example show to use \tag{b|xsc_array} in a \tag{b|sc_module}. It define an integer \tag{b|xsc_array} with size 5. In the module's constructor, the \tag{b|xsc_arrary} is initialized with name \tag{b|xsc_array_int}. And it also shows the basic usage of \tag{b|xsc_array}. Basically, it behaves as an array of \tag{b|xsc_property}. You can use the \tag{b|\[i\]} to have access to the $i$th item in the array.
 
-Same as \tag{code|xsc_property}, \tag{code|xsc_array} also supports a callback function. For example
+Same as \tag{b|xsc_property}, \tag{b|xsc_array} also supports a callback function. For example
 {!example_src||highlight|c++||{%
 class MyModule:public sc_module {
 public:
@@ -1063,7 +1072,7 @@ public:
   };
 %}!}
 
-In bsmedit, the item of the array can be accessed by its name. For example, if in the simulation, the above \tag{code|MyModule} is a top level module with name "\tag{b|top}", the first item of the \tag{b|xsc_array_int} can be accessed by
+In bsmedit, the item of the array can be accessed by its name. For example, if in the simulation, the above \tag{b|MyModule} is a top level module with name "\tag{b|top}", the first item of the \tag{b|xsc_array_int} can be accessed by
 {!example_src||highlight|shell||{%
 >>> s.read('top.xsc_array_int[0]')
 %}!}
@@ -1103,7 +1112,7 @@ One way is to use [https://docs.python.org/3.6/library/ctypes.html| ctypes] dire
 {!example_src||highlight|python||{%
 >>> from ctypes import *
 %}!}}
-*{Create the corresponding \tag{code|wave_frame} structure in python
+*{Create the corresponding \tag{b|wave_frame} structure in python
 {!example_src||highlight|python||{%
 >>> class wave_frame(Structure):
 ...     SIM_CALLBACK = CFUNCTYPE(c_int, c_int)
@@ -1199,7 +1208,7 @@ $ bsmedit -i -p examples/waves waves
 
 = Misc.
 == ULog
-[https://docs.px4.io/main/en/dev_log/ulog_file_format.html|ULog] is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (menu->open->ulog), bsmedit will create a panelto show its content. Different types of message are shown in different tab.
+[https://docs.px4.io/main/en/dev_log/ulog_file_format.html|ULog] is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (menu->open->ulog), bsmedit will create a panel to show its content. Different types of message are shown in different tab.
 {!image||
 ./images/ulog_panel.png
 !}
@@ -1220,3 +1229,5 @@ To visualize the data, you can either
 {!image||
 ./images/ulog_panel_plot2.png
 !}
+== VCD
+bsmedit use the similar way to visualize VCD (value change dump) files.
