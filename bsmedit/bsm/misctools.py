@@ -532,7 +532,7 @@ class DirPanel(wx.Panel):
                                    | wx.TR_EDIT_LABELS)
 
         agwStyle = aui.AUI_TB_OVERFLOW | aui.AUI_TB_PLAIN_BACKGROUND
-        self.tb2 = aui.AuiToolBar(self)
+        self.tb2 = aui.AuiToolBar(self, agwStyle=agwStyle)
         self.search = AutocompleteTextCtrl(self.tb2)
         self.search.SetHint('file pattern (*.*)')
         item = self.tb2.AddControl(self.search)
@@ -603,7 +603,7 @@ class DirPanel(wx.Panel):
 
     def OnMenuDropDown(self, event):
         menu = wx.Menu()
-        item = menu.AppendCheckItem(self.ID_SHOW_HIDDEN, "Hidden file/folder")
+        item = menu.AppendCheckItem(self.ID_SHOW_HIDDEN, "Show hidden file/folder")
         item.Check(self.showHidden)
         menu.AppendSeparator()
         item = menu.AppendCheckItem(self.ID_SHOW_PATTERN_TOOLBAR, "Pattern toolbar")
