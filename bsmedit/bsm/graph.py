@@ -701,8 +701,8 @@ class DataDropTarget(wx.DropTarget):
                             label = line.columns[i]
                             if title:
                                 label="/".join([title, label])
-                            if not is_numeric_dtype(line.columns[0]) or \
-                               not is_numeric_dtype(line.columns[1]):
+                            if not is_numeric_dtype(line[line.columns[0]]) or \
+                               not is_numeric_dtype(line[line.columns[1]]):
                                    # ignore non-numeric data
                                    continue
 
