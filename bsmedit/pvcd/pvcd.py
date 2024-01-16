@@ -41,46 +41,6 @@ class VCDParse:
     """
     class to parse the vcd
     """
-    # lexer definition
-    tokens = (
-        'END',
-        'VERSION',
-        'DATE',
-        'COMMENT',
-        'TIMESCALE',
-        'SCOPE',
-        'VAR',
-        'UPSCOPE',
-        'ENDDEFINITIONS',
-        'DUMPALL',
-        'DUMPOFF',
-        'DUMPON',
-        'DUMPVARS',
-        'TIME',
-        'DATA_LOGIC',
-        'DATA_BINARY_NUM',
-        'DATA_BINARY',
-        'DATA_REAL',
-        'DATA_STRING',
-        'WORD',
-        'SPACE',
-    )
-    reserved = {'$end': 'END',
-                '$version': 'VERSION',
-                '$date': 'DATE',
-                '$comment': 'COMMENT',
-                '$timescale': 'TIMESCALE',
-                '$scope': 'SCOPE',
-                '$var': 'VAR',
-                '$upscope': 'UPSCOPE',
-                '$dumpall': 'DUMPALL',
-                '$dumpoff': 'DUMPOFF',
-                '$dumpon': 'DUMPON',
-                '$dumpvars': 'DUMPVARS',
-                '$enddefinitions': 'ENDDEFINITIONS'}
-
-    # Tokens
-    t_ignore = '\t'
 
     def __init__(self, verbose):
         lex.lex(module=self, reflags=re.M)
@@ -130,6 +90,32 @@ class VCDParse:
         info.update(kwargs)
         return info
 
+    # Tokens
+    # lexer definition
+    reserved = {'$end': 'END',
+                '$version': 'VERSION',
+                '$date': 'DATE',
+                '$comment': 'COMMENT',
+                '$timescale': 'TIMESCALE',
+                '$scope': 'SCOPE',
+                '$var': 'VAR',
+                '$upscope': 'UPSCOPE',
+                '$dumpall': 'DUMPALL',
+                '$dumpoff': 'DUMPOFF',
+                '$dumpon': 'DUMPON',
+                '$dumpvars': 'DUMPVARS',
+                '$enddefinitions': 'ENDDEFINITIONS'}
+
+    tokens = ['DATA_LOGIC',
+              'DATA_BINARY',
+              'DATA_REAL',
+              'DATA_STRING',
+              'WORD',
+              ] + list(reserved.values())
+
+
+    t_ignore = ''
+
     # lexer
     def t_error(self, t):
         self._error(f'illegal character "{t.value[0]}"', lineno=t.lexer.lineno)
@@ -145,11 +131,6 @@ class VCDParse:
     def t_DATA_LOGIC(self, t):
         r'^[01xXzZ][^\S\n]*'
         t.value = t.value.strip()
-        return t
-
-    def t_DATA_BINARY_NUM(self, t):
-        r'^[bB][01]+[^\S\n]+'
-        t.value = int(t.value[1:], 2)
         return t
 
     def t_DATA_BINARY(self, t):
@@ -169,12 +150,10 @@ class VCDParse:
 
     def t_TIME(self, t):
         r'^#\d+[^\S\n]*'
-        t.value = int(t.value[1:])
-        return t
+        self.t = int(t.value[1:])
 
-    def t_SPACE(self, t):
+    def t_space(self, t):
         r'[^\S\n]+'
-        return t
 
     def t_WORD(self, t):
         r'\S+'
@@ -182,13 +161,16 @@ class VCDParse:
         return t
 
     def update_data(self, d):
+        d2 = dict(d)
         for k in list(d.keys()):
-            if k in self.vcd['data']:
+            if k in self.vcd['data'] and 'reference' in d[k]:
                 signal = d[k]['reference']
-                d[signal] = self.vcd['data'][k]
-                d.pop(k)
+                d2[signal] = self.vcd['data'][k]
+                d2[signal].rename(columns={'value': signal}, inplace=True)
+                d2.pop(k)
             elif isinstance(d[k], dict):
-                self.update_data(d[k])
+                d2[k] = self.update_data(d[k])
+        return d2
 
     def p_article(self, p):
         '''article : header enddefinitions content
@@ -196,9 +178,16 @@ class VCDParse:
         for k in self.vcd['data']:
             self.vcd['data'][k] = pd.DataFrame.from_records(self.vcd['data'][k],
                                                             columns=['timestamp', 'value'])
+            try:
+                # try to convert string to int (DATA_LOGIC/BINARY
+                if pd.api.types.is_string_dtype(self.vcd['data'][k].value):
+                    self.vcd['data'][k].value = self.vcd['data'][k].value.map(lambda x: int(x, 2))
+            except ValueError:
+                pass
+
 
         data = dict(self.vcd['var'])
-        self.update_data(data)
+        data = self.update_data(data)
         self.vcd['data'] = data
 
     def p_session_multi(self, p):
@@ -216,22 +205,9 @@ class VCDParse:
     def p_comment3(self, p):
         '''data : comment'''
 
-    def p_time(self, p):
-        '''data : TIME'''
-        self.t = p[1]
-
-    def p_data2(self, p):
-        '''data : DATA_LOGIC SPACE WORD
-                | DATA_BINARY SPACE WORD
-                | DATA_BINARY_NUM SPACE WORD
-                | DATA_REAL SPACE WORD
-                | DATA_STRING SPACE WORD'''
-        self.vcd['data'][p[3]].append([self.t, p[1]])
-
     def p_data(self, p):
         '''data : DATA_LOGIC WORD
                 | DATA_BINARY WORD
-                | DATA_BINARY_NUM WORD
                 | DATA_REAL WORD
                 | DATA_STRING WORD'''
         self.vcd['data'][p[2]].append([self.t, p[1]])
@@ -243,13 +219,11 @@ class VCDParse:
                 | DUMPALL content END'''
         p[0] = ""
 
-    def p_version(self, p):
-        '''block : VERSION text END'''
-        self.vcd['info']['version'] = p[2]
-
-    def p_date(self, p):
-        '''block : DATE text END'''
-        self.vcd['info']['date'] = p[2]
+    def p_info(self, p):
+        '''block : VERSION text END
+                 | DATE text END
+                 | TIMESCALE text END'''
+        self.vcd['info'][p[1][1:]] = p[2]
 
     def p_comment2(self, p):
         '''block : comment'''
@@ -257,10 +231,6 @@ class VCDParse:
     def p_comment(self, p):
         '''comment : COMMENT text END'''
         self.vcd['comment'].append(p[2])
-
-    def p_timescale(self, p):
-        '''block : TIMESCALE text END'''
-        self.vcd['info']['timescale'] = p[2]
 
     def p_enddefinitions(self, p):
         '''enddefinitions : ENDDEFINITIONS text END'''
@@ -304,8 +274,8 @@ class VCDParse:
             self.vcd['var'].update(p[0])
 
     def p_scope(self, p):
-        '''scope : SCOPE SPACE WORD SPACE WORD SPACE END'''
-        p[0] = p[5]
+        '''scope : SCOPE  WORD  WORD  END'''
+        p[0] = p[3]
         self.scope += 1
 
     def p_upscope(self, p):
@@ -321,48 +291,30 @@ class VCDParse:
         p[0] = p[1]
 
     def p_var2(self, p):
-        '''var : VAR SPACE WORD SPACE WORD SPACE WORD SPACE WORD SPACE WORD SPACE END'''
-        p[0] = {p[7]: {'reference': p[9], 'size': int(p[5]),
-                        'type': p[3], 'bit': p[11]}}
+        '''var : VAR  WORD  WORD  WORD  WORD  WORD END'''
+        p[0] = {p[4]: {'reference': p[5], 'size': int(p[3]),
+                        'type': p[2], 'bit': p[6]}}
         # add placeholder in 'data'
-        self.vcd['data'][p[7]] = []
+        self.vcd['data'][p[4]] = []
 
     def p_var(self, p):
-        '''var : VAR SPACE WORD SPACE WORD SPACE WORD SPACE WORD SPACE END'''
-        p[0] = {p[7]: {'reference': p[9], 'size': int(p[5]),
-                       'type': p[3], 'bit': None}}
+        '''var : VAR  WORD  WORD  WORD  WORD  END'''
+        p[0] = {p[4]: {'reference': p[5], 'size': int(p[3]),
+                       'type': p[2], 'bit': None}}
 
         # add placeholder in 'data'
-        self.vcd['data'][p[7]] = []
+        self.vcd['data'][p[4]] = []
 
-    def p_text_multi(self, p):
-        '''text : text logicline'''
-        p[0] = p[1] + p[2]
+    def p_text2(self, p):
+        '''text : text plaintext'''
+        p[0] = p[1] + ' ' + p[2]
 
-    def p_text_single(self, p):
-        '''text : logicline'''
+    def p_text(self, p):
+        '''text : plaintext'''
         p[0] = p[1]
 
-    def p_logicline(self, p):
-        '''logicline : line'''
-        p[0] = p[1]
-
-    def p_line_multi(self, p):
-        '''line : line plaintext'''
-        p[0] = p[1] + p[2]
-
-    def p_line(self, p):
-        '''line : plaintext'''
-        p[0] = p[1]
-
-    def p_plaintext_multi(self, p):
-        '''plaintext : plaintext WORD
-                     | plaintext SPACE'''
-        p[0] = p[1] + p[2]
-
-    def p_plaintext_single(self, p):
+    def p_plaintext(self, p):
         '''plaintext : WORD
-                     | SPACE
                      | empty'''
         p[0] = p[1]
 
