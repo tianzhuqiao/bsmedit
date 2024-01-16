@@ -1,5 +1,5 @@
-#ifndef _BSM_H
-#define _BSM_H
+#ifndef SRC_SYSC_BSM_BSM_H_
+#define SRC_SYSC_BSM_BSM_H_
 
 #ifdef WIN32
 #define BSMEDIT_EXPORT __declspec(dllexport)
@@ -46,7 +46,7 @@ extern "C"\
 {\
     BSMEDIT_EXPORT void bsm_sim_top(sim_context *context)\
     {\
-        g_sim = new bsm_sim_context_impl(new T(name));\
+        g_sim = bsm_create_sim_context(new T(name));\
         snprintf(context->copyright, MAX_NAME_LEN, "%s", g_sim->sc_copyright());\
         snprintf(context->version, MAX_NAME_LEN, "%s", g_sim->sc_version());\
     }\
@@ -65,11 +65,13 @@ BSMEDIT_EXPORT typedef int(*bsm_callback)(int);
 BSMEDIT_EXPORT void ctx_set_callback(bsm_callback fun);
 BSMEDIT_EXPORT bool ctx_create_trace_file(sim_trace_file* t);
 BSMEDIT_EXPORT bool ctx_close_trace_file(sim_trace_file* t);
-BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj, sim_object* val, int trigger);
+BSMEDIT_EXPORT bool ctx_trace_file(sim_trace_file* t, sim_object* obj,
+                                   sim_object* val, int trigger);
 BSMEDIT_EXPORT bool ctx_create_trace_buf(sim_trace_buf* t);
 BSMEDIT_EXPORT bool ctx_close_trace_buf(sim_trace_buf* t);
-BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj, sim_object* val, int trigger);
+BSMEDIT_EXPORT bool ctx_trace_buf(sim_trace_buf* t, sim_object* obj,
+                                  sim_object* val, int trigger);
 BSMEDIT_EXPORT bool ctx_read_trace_buf(sim_trace_buf* t);
 BSMEDIT_EXPORT bool ctx_resize_trace_buf(sim_trace_buf* t);
-#endif  // _BSM_H
+#endif  // SRC_SYSC_BSM_BSM_H_
 
