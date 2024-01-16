@@ -32,7 +32,7 @@ def load_vcd3(filename):
                     d[signal[i]] = {}
                 d = d[signal[i]]
             d[signal[-1]] = vcd['data'].pop(k)
-            d[signal[-1]].rename(columns={'value': signal[-1]}, inplace=True)
+            d[signal[-1]].rename(columns={d[signal[-1]].columns[-1]: signal[-1]}, inplace=True)
     return vcd
 
 def load_vcd(filename):
@@ -240,7 +240,8 @@ class CommentListCtrl(ListCtrlBase):
             self.comment = [m for m in self.vcd['comment'] if self.pattern in m.lower() or self.pattern]
 
         self.SetItemCount(len(self.comment))
-        self.RefreshItems(0, len(self.comment)-1)
+        if self.GetItemCount() > 0:
+            self.RefreshItems(0, len(self.comment)-1)
 
     def OnGetItemText(self, item, column):
         if column == 0:
@@ -289,7 +290,8 @@ class InfoListCtrl(ListCtrlBase):
 
         self.info = sorted(self.info, key=lambda x: x[0])
         self.SetItemCount(len(self.info))
-        self.RefreshItems(0, len(self.info)-1)
+        if self.GetItemCount() > 0:
+            self.RefreshItems(0, len(self.info)-1)
 
     def OnGetItemText(self, item, column):
         if column == 0:
@@ -671,7 +673,7 @@ class VCD:
             vcd = manager.vcd
         elif filename:
             try:
-                vcd = load_vcd(filename)
+                vcd = load_vcd3(filename)
             except:
                 traceback.print_exc(file=sys.stdout)
         if vcd:

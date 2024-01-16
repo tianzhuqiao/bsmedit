@@ -135,7 +135,8 @@ class MessageListCtrl(ListCtrlBase):
             self.messages = [m for m in self.ulg.logged_messages if self.pattern in m.message.lower() or self.pattern in m.log_level_str().lower()]
 
         self.SetItemCount(len(self.messages))
-        self.RefreshItems(0, len(self.messages)-1)
+        if self.GetItemCount() > 0:
+            self.RefreshItems(0, len(self.messages)-1)
 
     def OnGetItemText(self, item, column):
         if column == 0:
@@ -221,7 +222,8 @@ class ParamListCtrl(ListCtrlBase):
 
         self.info = sorted(self.info, key=lambda x: x[0])
         self.SetItemCount(len(self.info))
-        self.RefreshItems(0, len(self.info)-1)
+        if self.GetItemCount():
+            self.RefreshItems(0, len(self.info)-1)
 
     def OnGetItemText(self, item, column):
         if column == 0:
