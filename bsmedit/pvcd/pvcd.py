@@ -2,6 +2,7 @@ import os
 import sys
 import traceback
 import re
+import numpy as np
 import pandas as pd
 from ply import lex, yacc
 import click
@@ -46,9 +47,10 @@ class VCDParse:
         lex.lex(module=self, reflags=re.M)
         yacc.yacc(module=self, debug=verbose)
 
+        self.time_units = {'fs': 1e-15, 'ps': 1e-12, 'ns': 1e-9, 'us': 1e-6, 'ms': 1e-3, 's': 1}
         self.verbose = verbose
         self.filename = ""
-        self.vcd = {'info':{}, 'data':{}, 'var': {}, 'comment': []}
+        self.vcd = {'info':{}, 'data':{}, 'var': {}, 'comment': [], 'timescale': 1e-6}
         self.scope = 0
         self.t = 0
 
@@ -140,7 +142,7 @@ class VCDParse:
 
     def t_DATA_REAL(self, t):
         r'^[rR][-+]?(\d+(\.\d*)?|\.\d+)([eE][-+]?\d+)?[^\S\n]*'
-        t.value = float(t.value[1:])
+        t.value = t.value[1:].strip()
         return t
 
     def t_DATA_STRING(self, t):
@@ -177,14 +179,25 @@ class VCDParse:
                    | header enddefinitions'''
         for k in self.vcd['data']:
             self.vcd['data'][k] = pd.DataFrame.from_records(self.vcd['data'][k],
-                                                            columns=['timestamp', 'value'])
+                                                            columns=['timestamp', 'raw'])
             try:
                 # try to convert string to int (DATA_LOGIC/BINARY
-                if pd.api.types.is_string_dtype(self.vcd['data'][k].value):
-                    self.vcd['data'][k].value = self.vcd['data'][k].value.map(lambda x: int(x, 2))
+                if pd.api.types.is_string_dtype(self.vcd['data'][k].raw):
+                    value = self.vcd['data'][k].raw.map(lambda x: int(x, 2))
+                    self.vcd['data'][k]['value'] = value.astype(np.int64)
+                continue
             except ValueError:
                 pass
-
+            except OverflowError:
+                self.vcd['data'][k]['value'] = value
+            try:
+                # try to convert string to int (DATA_LOGIC/BINARY
+                if pd.api.types.is_string_dtype(self.vcd['data'][k].raw):
+                    value = self.vcd['data'][k].raw.astype(np.float64)
+                    self.vcd['data'][k]['value'] = value
+                continue
+            except ValueError:
+                pass
 
         data = dict(self.vcd['var'])
         data = self.update_data(data)
@@ -219,11 +232,19 @@ class VCDParse:
                 | DUMPALL content END'''
         p[0] = ""
 
-    def p_info(self, p):
+    def p_info2(self, p):
         '''block : VERSION text END
-                 | DATE text END
-                 | TIMESCALE text END'''
+                 | DATE text END'''
         self.vcd['info'][p[1][1:]] = p[2]
+
+    def p_info(self, p):
+        '''block : TIMESCALE text END'''
+        self.vcd['info'][p[1][1:]] = p[2]
+        d = re.match(r'(\d+)((fs|ps|ns|us|ms|s))', p[2])
+        if d:
+            scale = int(d.group(1))
+            unit = self.time_units[d.group(2)]
+            self.vcd['timescale'] = scale*unit
 
     def p_comment2(self, p):
         '''block : comment'''
@@ -374,4 +395,3 @@ def load_vcd(filename, encoding=None, lex_only=False, yacc_only=False, verbose=F
     except:
         traceback.print_exc(file=sys.stdout)
     return None
-

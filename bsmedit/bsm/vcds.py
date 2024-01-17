@@ -4,6 +4,7 @@ import json
 import traceback
 import wx
 import wx.py.dispatcher as dp
+import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from vcd.reader import TokenKind, tokenize
@@ -304,6 +305,19 @@ class VcdPanel(wx.Panel):
     ID_VCD_OPEN = wx.NewIdRef()
     ID_VCD_EXPORT = wx.NewIdRef()
     ID_VCD_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
+    ID_VCD_TO_PYINT = wx.NewIdRef()
+    ID_VCD_TO_INT8 = wx.NewIdRef()
+    ID_VCD_TO_UINT8 = wx.NewIdRef()
+    ID_VCD_TO_INT16 = wx.NewIdRef()
+    ID_VCD_TO_UINT16 = wx.NewIdRef()
+    ID_VCD_TO_INT32 = wx.NewIdRef()
+    ID_VCD_TO_UINT32 = wx.NewIdRef()
+    ID_VCD_TO_INT64 = wx.NewIdRef()
+    ID_VCD_TO_UINT64 = wx.NewIdRef()
+    ID_VCD_TO_FLOAT16 = wx.NewIdRef()
+    ID_VCD_TO_FLOAT32 = wx.NewIdRef()
+    ID_VCD_TO_FLOAT64 = wx.NewIdRef()
+    ID_VCD_TO_FLOAT128 = wx.NewIdRef()
 
     def __init__(self, parent, filename=None):
         wx.Panel.__init__(self, parent)
@@ -402,17 +416,83 @@ class VcdPanel(wx.Panel):
         item = event.GetItem()
         if not item.IsOk():
             return
-        has_child = self.tree.ItemHasChildren(item)
+
+        path = self.tree.GetItemPath(item)
+        data = self.tree.GetData(item)
+        if data is None:
+            return
+        value = data[path[-1]]
+        if len(value) == 0:
+            return
+
         menu = wx.Menu()
         menu.Append(self.ID_VCD_EXPORT, "&Export to shell")
-        if not has_child:
-            menu.Append(self.ID_VCD_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
+        menu.Append(self.ID_VCD_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
+
+        menu.AppendSeparator()
+        type_menu = wx.Menu()
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_PYINT, "int in Python")
+        mitem.Check(isinstance(value[0], int))
+        type_menu.AppendSeparator()
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_INT8, "int8")
+        mitem.Check(value.dtype == np.int8)
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_UINT8, "uint8")
+        mitem.Check(value.dtype == np.uint8)
+        type_menu.AppendSeparator()
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_INT16, "int16")
+        mitem.Check(value.dtype == np.int16)
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_UINT16, "uint16")
+        mitem.Check(value.dtype == np.uint16)
+        type_menu.AppendSeparator()
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_INT32, "int32")
+        mitem.Check(value.dtype == np.int32)
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_UINT32, "uint32")
+        mitem.Check(value.dtype == np.uint32)
+        type_menu.AppendSeparator()
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_INT64, "int64")
+        mitem.Check(value.dtype == np.int64)
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_UINT64, "uint64")
+        mitem.Check(value.dtype == np.uint64)
+        type_menu.AppendSeparator()
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_FLOAT16, "float16")
+        mitem.Check(value.dtype == np.float16)
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_FLOAT32, "float32")
+        mitem.Check(value.dtype == np.float32)
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_FLOAT64, "float64")
+        mitem.Check(value.dtype == np.float64)
+        mitem = type_menu.AppendCheckItem(self.ID_VCD_TO_FLOAT128, "float128")
+        mitem.Check(value.dtype == np.float128)
+
+        menu.AppendSubMenu(type_menu, 'As type')
 
         cmd = PopupMenu(self, menu)
         text = self.tree.GetItemText(item)
-        path = self.tree.GetItemPath(item)
         if not path:
             return
+
+        def _as_type(nptype):
+            try:
+                value = data.raw.map(lambda x: int(x, 2))
+                data[path[-1]] = value.astype(nptype)
+                return
+            except ValueError:
+                pass
+            except OverflowError:
+                data[path[-1]] = value
+            try:
+                value = data.raw.astype(nptype)
+                data[path[-1]] = value
+                return
+            except ValueError:
+                pass
+            try:
+                value = data.raw.astype(np.float128)
+                data[path[-1]] = value.astype(nptype)
+                return
+            except ValueError:
+                pass
+            print(f"Fail to convert to {nptype}")
+
         if cmd in [self.ID_VCD_EXPORT, self.ID_VCD_EXPORT_WITH_TIMESTAMP]:
             name = text.replace('[', '').replace(']', '')
             command = f'{name}=VCD.get()'
@@ -420,13 +500,58 @@ class VcdPanel(wx.Panel):
                 command += f'["{p}"]'
             if cmd == self.ID_VCD_EXPORT_WITH_TIMESTAMP:
                 command += f'.get(["timestamp", "{path[-1]}"])'
-            elif not has_child:
+            else:
                 command += f'.get(["{path[-1]}"])'
             dp.send(signal='shell.run',
                 command=command,
                 prompt=True,
                 verbose=True,
                 history=True)
+        elif cmd == self.ID_VCD_TO_PYINT:
+            try:
+                value = data.raw.map(lambda x: int(x, 2))
+                data[path[-1]] = value
+                return
+            except ValueError:
+                pass
+            try:
+                value = data.raw.map(lambda x: int(x))
+                data[path[-1]] = value
+                return
+            except ValueError:
+                pass
+            try:
+                value = data.raw.map(lambda x: int(float(x)))
+                data[path[-1]] = value
+                return
+            except ValueError:
+                pass
+            print(f"Fail to convert to int")
+
+        elif cmd == self.ID_VCD_TO_INT8:
+            _as_type(np.int8)
+        elif cmd == self.ID_VCD_TO_UINT8:
+            _as_type(np.uint8)
+        elif cmd == self.ID_VCD_TO_INT16:
+            _as_type(np.int16)
+        elif cmd == self.ID_VCD_TO_UINT16:
+            _as_type(np.uint16)
+        elif cmd == self.ID_VCD_TO_INT32:
+            _as_type(np.int32)
+        elif cmd == self.ID_VCD_TO_UINT32:
+            _as_type(np.uint32)
+        elif cmd == self.ID_VCD_TO_INT64:
+            _as_type(np.int64)
+        elif cmd == self.ID_VCD_TO_UINT64:
+            _as_type(np.uint64)
+        elif cmd == self.ID_VCD_TO_FLOAT16:
+            _as_type(np.float16)
+        elif cmd == self.ID_VCD_TO_FLOAT32:
+            _as_type(np.float32)
+        elif cmd == self.ID_VCD_TO_FLOAT64:
+            _as_type(np.float64)
+        elif cmd == self.ID_VCD_TO_FLOAT128:
+            _as_type(np.float128)
 
     def OnTreeItemActivated(self, event):
         item = event.GetItem()
@@ -472,7 +597,8 @@ class VcdPanel(wx.Panel):
                 break
             path = self.tree.GetItemPath(item)
             data = self.tree.GetData(item)
-            data['timestamp'] *= self.vcd.get('timescale', 1e-6) * 1e6
+            data = data.get(['timestamp', path[-1]]).copy()
+            data.timestamp *= self.vcd.get('timescale', 1e-6) * 1e6
             objs.append(['/'.join(path[:-1]), data.to_json()])
 
         # need to explicitly allow drag
