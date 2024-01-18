@@ -1,12 +1,13 @@
 import sys
 import os
+import re
 import json
 import traceback
 import wx
 import wx.py.dispatcher as dp
 import numpy as np
 import pandas as pd
-from pandas.api.types import is_numeric_dtype
+from pandas.api.types import is_numeric_dtype, is_integer_dtype
 from vcd.reader import TokenKind, tokenize
 from ..aui import aui
 from . import graph
@@ -82,8 +83,8 @@ def load_vcd(filename):
                 signal = vcd['var'][k].get('reference', None) or k
                 if signal != k:
                     if signal in vcd['data']:
-                        num = len([dk for dk in vcd['data'].keys() if dk == signal])
-                        print(f'Found duplicated signal {signal}')
+                        num = len([dk for dk in vcd['data'] if dk == signal])
+                        print(f'Found duplicated signal "{signal}"')
                         signal  = f"{signal}-{num}"
                     vcd['data'][signal] = vcd['data'].pop(k)
 
@@ -101,6 +102,14 @@ def load_vcd(filename):
                 d[signal[-1]].rename(columns={k: signal[-1]}, inplace=True)
     return vcd
 
+
+def GetDataBit(value, bit):
+    if not is_integer_dtype(value) or bit < 0:
+        return None
+    return value.map(lambda x: (x >> bit) & 1)
+
+def GetVariableName(name):
+    return name.replace('[', '').replace(']', '')
 
 class VcdTree(FastLoadTreeCtrl):
     """the tree control to show the hierarchy of the objects in the vcd"""
@@ -305,6 +314,10 @@ class VcdPanel(wx.Panel):
     ID_VCD_OPEN = wx.NewIdRef()
     ID_VCD_EXPORT = wx.NewIdRef()
     ID_VCD_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
+    ID_VCD_EXPORT_RAW = wx.NewIdRef()
+    ID_VCD_EXPORT_RAW_WITH_TIMESTAMP = wx.NewIdRef()
+    ID_VCD_EXPORT_BITS = wx.NewIdRef()
+    ID_VCD_EXPORT_BITS_WITH_TIMESTAMP = wx.NewIdRef()
     ID_VCD_TO_PYINT = wx.NewIdRef()
     ID_VCD_TO_INT8 = wx.NewIdRef()
     ID_VCD_TO_UINT8 = wx.NewIdRef()
@@ -428,6 +441,13 @@ class VcdPanel(wx.Panel):
         menu = wx.Menu()
         menu.Append(self.ID_VCD_EXPORT, "&Export to shell")
         menu.Append(self.ID_VCD_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
+        menu.AppendSeparator()
+        menu.Append(self.ID_VCD_EXPORT_RAW, "Export raw value to shell")
+        menu.Append(self.ID_VCD_EXPORT_RAW_WITH_TIMESTAMP, "Export raw value to shell with timestamp")
+        if is_integer_dtype(value):
+            menu.AppendSeparator()
+            menu.Append(self.ID_VCD_EXPORT_BITS, "Export selected bits to shell")
+            menu.Append(self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP, "Export selected bits to shell with timestamp")
 
         menu.AppendSeparator()
         type_menu = wx.Menu()
@@ -493,13 +513,18 @@ class VcdPanel(wx.Panel):
                 pass
             print(f"Fail to convert to {nptype}")
 
-        if cmd in [self.ID_VCD_EXPORT, self.ID_VCD_EXPORT_WITH_TIMESTAMP]:
-            name = text.replace('[', '').replace(']', '')
+        if cmd in [self.ID_VCD_EXPORT, self.ID_VCD_EXPORT_WITH_TIMESTAMP,
+                   self.ID_VCD_EXPORT_RAW, self.ID_VCD_EXPORT_RAW_WITH_TIMESTAMP]:
+            name = GetVariableName(text)
             command = f'{name}=VCD.get()'
             for p in path:
                 command += f'["{p}"]'
             if cmd == self.ID_VCD_EXPORT_WITH_TIMESTAMP:
                 command += f'.get(["timestamp", "{path[-1]}"])'
+            elif cmd == self.ID_VCD_EXPORT_RAW_WITH_TIMESTAMP:
+                command += '.get(["timestamp", "raw"])'
+            elif cmd == self.ID_VCD_EXPORT_RAW:
+                command += '.get(["raw"])'
             else:
                 command += f'.get(["{path[-1]}"])'
             dp.send(signal='shell.run',
@@ -507,6 +532,30 @@ class VcdPanel(wx.Panel):
                 prompt=True,
                 verbose=True,
                 history=True)
+        elif cmd in [self.ID_VCD_EXPORT_BITS, self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP]:
+            message = 'Type the index of bit to export, separate by ",", e.g., "0,1,2"'
+            dlg = wx.TextEntryDialog(self, message, value='')
+            if dlg.ShowModal() == wx.ID_OK:
+                idx = dlg.GetValue()
+                idx = sorted([int(i) for i in re.findall(r'\d+', idx)])
+                df = pd.DataFrame()
+                if cmd == self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP:
+                    df['timestamp'] = data['timestamp']
+                for i in idx:
+                    df[f'bit{i}'] = GetDataBit(value, i)
+                df.to_pickle('_vcds.pickle')
+                name = GetVariableName(text)
+                dp.send('shell.run',
+                        command=f'{name} = pd.read_pickle("_vcds.pickle")',
+                        prompt=False,
+                        verbose=False,
+                        history=False)
+                dp.send('shell.run',
+                        command=f'{name}',
+                        prompt=True,
+                        verbose=True,
+                        history=False)
+
         elif cmd == self.ID_VCD_TO_PYINT:
             try:
                 value = data.raw.map(lambda x: int(x, 2))
@@ -526,7 +575,7 @@ class VcdPanel(wx.Panel):
                 return
             except ValueError:
                 pass
-            print(f"Fail to convert to int")
+            print(f'Fail to convert "{text}" to int')
 
         elif cmd == self.ID_VCD_TO_INT8:
             _as_type(np.int8)
@@ -671,7 +720,12 @@ class VCD:
 
     @classmethod
     def _initialized(cls):
-        # add vcd to the shell
+        # add pandas and vcd to the shell
+        dp.send(signal='shell.run',
+                command='import pandas as pd',
+                prompt=False,
+                verbose=False,
+                history=False)
         dp.send(signal='shell.run',
                 command='from bsmedit.bsm.vcds import VCD as VCD',
                 prompt=False,
@@ -710,11 +764,11 @@ class VCD:
     def open(cls,
             filename=None,
             num=None,
-            activate=False):
+            activate=True):
         """
         open an vcd file
 
-        If the vcd has already been opened, return its handler; otherwise, create it.
+        If the vcd has already been opened, return its handler; otherwise, create one.
         """
         if filename is not None:
             _, ext = os.path.splitext(filename)
@@ -729,6 +783,7 @@ class VCD:
             dp.send(signal="frame.add_panel",
                     panel=manager,
                     title=title,
+                    active=activate,
                     target="History",
                     pane_menu={'rxsignal': 'bsm.vcd.pane_menu',
                            'menu': [
@@ -744,7 +799,7 @@ class VCD:
                                ]} )
             return manager
         # activate the manager
-        elif manager and activate:
+        if manager and activate:
             dp.send(signal='frame.show_panel', panel=manager)
         return manager
 
