@@ -21,7 +21,7 @@ from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT
 from .. import propgrid as pg
 from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
-from .utility import MakeBitmap, FastLoadTreeCtrl, PopupMenu
+from .utility import MakeBitmap, FastLoadTreeCtrl
 from .utility import svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
 from .. import to_byte
@@ -667,7 +667,9 @@ class DumpManageDlg(wx.Dialog):
         if isinstance(prop, pg.PropSeparator):
             menu = wx.Menu()
             menu.Append(self.ID_MP_DUMP_STOP, 'Stop dumpping file')
-            cmd = PopupMenu(self, menu)
+            cmd = self.GetPopupMenuSelectionFromUser(menu)
+            if cmd == wx.ID_NONE:
+                return
 
             if cmd == self.ID_MP_DUMP_STOP:
                 filename = prop.GetLabel()
@@ -862,7 +864,9 @@ class SimPanel(wx.Panel):
             nid += 1
 
         menu.AppendSubMenu(submenu, "Add to...")
-        cmd = PopupMenu(self, menu)
+        cmd = self.GetPopupMenuSelectionFromUser(menu)
+        if cmd == wx.ID_NONE:
+            return
         if cmd in [self.ID_MP_DUMP, self.ID_MP_TRACE_BUF]:
             objs = [o for o, v in six.iteritems(self.sim.objects) if \
                     v['numeric'] and v['readable']]

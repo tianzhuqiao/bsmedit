@@ -20,7 +20,7 @@ import matplotlib.transforms as mtransforms
 from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
-from .utility import PopupMenu, build_menu_from_list, svg_to_bitmap
+from .utility import build_menu_from_list, svg_to_bitmap
 from .bsmxpm import split_vert_svg, delete_svg, line_style_svg, \
                     new_page_svg2, home_svg2, backward_svg2, backward_gray_svg2, \
                     forward_svg2, forward_gray_svg2, zoom_svg, pan_svg, copy_svg, \
@@ -298,7 +298,9 @@ class Toolbar(GraphToolbar):
                     # update the line/marker on the legend
                     ax.legend()
 
-        cmd = PopupMenu(self, menu)
+        cmd = self.GetPopupMenuSelectionFromUser(menu)
+        if cmd == wx.ID_NONE:
+            return
         if cmd == self.ID_LINE_STYLE_LINE:
             _set_linestyle('-', '')
         elif cmd == self.ID_LINE_STYLE_DOT:
@@ -703,8 +705,8 @@ class DataDropTarget(wx.DropTarget):
                                 label="/".join([title, label])
                             if not is_numeric_dtype(line[line.columns[0]]) or \
                                not is_numeric_dtype(line[line.columns[1]]):
-                                   # ignore non-numeric data
-                                   continue
+                                # ignore non-numeric data
+                                continue
 
                             ax.plot(line[line.columns[0]], line[line.columns[i]],
                                     label=label,

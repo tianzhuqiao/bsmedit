@@ -5,7 +5,6 @@ import platform
 import six
 import wx
 import wx.svg
-from ..aui import aui
 
 def MakeBitmap(red, green, blue, alpha=128, size=None, scale_factor=1):
     # Create the bitmap that we will stuff pixel values into using
@@ -45,21 +44,6 @@ def MakeBitmap(red, green, blue, alpha=128, size=None, scale_factor=1):
         pixels.Set(red, green, blue, wx.ALPHA_OPAQUE)
 
     return bmp
-
-
-def PopupMenu(wnd, menu):
-    # popup a menu, and return the selected command
-    if not wnd or not menu:
-        return wx.ID_NONE
-
-    cc = aui.ToolbarCommandCapture()
-    wnd.PushEventHandler(cc)
-
-    wnd.PopupMenu(menu)
-
-    command = cc.GetCommandId()
-    wnd.PopEventHandler(True)
-    return command
 
 
 class FastLoadTreeCtrl(wx.TreeCtrl):

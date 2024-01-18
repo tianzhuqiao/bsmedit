@@ -15,7 +15,7 @@ from .aui import aui
 from .frameplus import FramePlus
 from .mainframexpm import  bsmedit_svg
 from . import __version__
-from .bsm.utility import PopupMenu, svg_to_bitmap, build_menu_from_list
+from .bsm.utility import svg_to_bitmap, build_menu_from_list
 from .bsm import auto_load_module
 
 class FileDropTarget(wx.FileDropTarget):
@@ -352,7 +352,9 @@ class MainFrame(FramePlus):
             menu.AppendSeparator()
             pane_menu = self.paneMenu[panel]
             build_menu_from_list(pane_menu['menu'], menu)
-        command = PopupMenu(self, menu)
+        command = self.GetPopupMenuSelectionFromUser(menu)
+        if command == wx.ID_NONE:
+            return
         if command == self.ID_VM_RENAME:
             pane = self._mgr.GetPane(panel)
             if not pane:

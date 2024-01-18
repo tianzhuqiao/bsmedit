@@ -13,7 +13,7 @@ from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, PopupMenu, _dict, svg_to_bitmap
+from .utility import FastLoadTreeCtrl, _dict, svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
 from .listctrl_base import ListCtrlBase
@@ -510,7 +510,9 @@ class VcdPanel(wx.Panel):
 
         menu.AppendSubMenu(type_menu, 'As type')
 
-        cmd = PopupMenu(self, menu)
+        cmd = self.GetPopupMenuSelectionFromUser(menu)
+        if cmd == wx.ID_NONE:
+            return
         text = self.tree.GetItemText(item)
         if not path:
             return
