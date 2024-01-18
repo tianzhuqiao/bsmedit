@@ -95,6 +95,7 @@ class ULogTree(FastLoadTreeCtrl):
             name = self.GetItemText(child)
             if name in self.expanded:
                 self.Expand(child)
+                break
             child, cookie = self.GetNextChild(item, cookie)
 
 class MessageListCtrl(ListCtrlBase):
@@ -407,9 +408,14 @@ class ULogPanel(wx.Panel):
                     command += f'.get(["{path[1]}"])'
             dp.send(signal='shell.run',
                 command=command,
+                prompt=False,
+                verbose=False,
+                history=True)
+            dp.send(signal='shell.run',
+                command=f'{name}',
                 prompt=True,
                 verbose=True,
-                history=True)
+                history=False)
 
     def OnTreeItemActivated(self, event):
         item = event.GetItem()
