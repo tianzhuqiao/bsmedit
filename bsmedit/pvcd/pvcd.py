@@ -50,7 +50,7 @@ class VCDParse:
         self.time_units = {'fs': 1e-15, 'ps': 1e-12, 'ns': 1e-9, 'us': 1e-6, 'ms': 1e-3, 's': 1}
         self.verbose = verbose
         self.filename = ""
-        self.vcd = {'info':{}, 'data':{}, 'var': {}, 'comment': [], 'timescale': 1e-6}
+        self.vcd = {'info':{}, 'data':{}, 'var': {}, 'comment': [], 'timescale': None}
         self.scope = 0
         self.t = 0
 
@@ -240,11 +240,13 @@ class VCDParse:
     def p_info(self, p):
         '''block : TIMESCALE text END'''
         self.vcd['info'][p[1][1:]] = p[2]
-        d = re.match(r'(\d+)((fs|ps|ns|us|ms|s))', p[2])
+        d = re.match(r'(\d+)[^\S\n]*((fs|ps|ns|us|ms|s))', p[2])
         if d:
             scale = int(d.group(1))
             unit = self.time_units[d.group(2)]
             self.vcd['timescale'] = scale*unit
+        else:
+            print(f'Fail to extract timescale: "{p[2]}"')
 
     def p_comment2(self, p):
         '''block : comment'''
