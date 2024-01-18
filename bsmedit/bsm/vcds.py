@@ -318,6 +318,9 @@ class VcdPanel(wx.Panel):
     ID_VCD_EXPORT_RAW_WITH_TIMESTAMP = wx.NewIdRef()
     ID_VCD_EXPORT_BITS = wx.NewIdRef()
     ID_VCD_EXPORT_BITS_WITH_TIMESTAMP = wx.NewIdRef()
+    ID_VCD_PLOT = wx.NewIdRef()
+    ID_VCD_PLOT_BITS = wx.NewIdRef()
+    ID_VCD_PLOT_BITS_VERT = wx.NewIdRef()
     ID_VCD_TO_PYINT = wx.NewIdRef()
     ID_VCD_TO_INT8 = wx.NewIdRef()
     ID_VCD_TO_UINT8 = wx.NewIdRef()
@@ -425,6 +428,21 @@ class VcdPanel(wx.Panel):
         self.Gcv.destroy(self.num)
         super().Destroy()
 
+    def GetDataBits(self, value):
+        if not is_integer_dtype(value):
+            print(f"Can't retrieve bits from non-integer value")
+            return None
+        message = 'Type the index of bit to retrieve, separate by ",", e.g., "0,1,2"'
+        dlg = wx.TextEntryDialog(self, message, value='')
+        if dlg.ShowModal() == wx.ID_OK:
+            idx = dlg.GetValue()
+            idx = sorted([int(i) for i in re.findall(r'\d+', idx)])
+            df = pd.DataFrame()
+            for i in idx:
+                df[f'bit{i}'] = GetDataBit(value, i)
+            return df
+        return None
+
     def OnTreeItemMenu(self, event):
         item = event.GetItem()
         if not item.IsOk():
@@ -441,13 +459,20 @@ class VcdPanel(wx.Panel):
         menu = wx.Menu()
         menu.Append(self.ID_VCD_EXPORT, "&Export to shell")
         menu.Append(self.ID_VCD_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
-        menu.AppendSeparator()
-        menu.Append(self.ID_VCD_EXPORT_RAW, "Export raw value to shell")
-        menu.Append(self.ID_VCD_EXPORT_RAW_WITH_TIMESTAMP, "Export raw value to shell with timestamp")
+        export_menu = wx.Menu()
+        export_menu.Append(self.ID_VCD_EXPORT_RAW, "Export raw value to shell")
+        export_menu.Append(self.ID_VCD_EXPORT_RAW_WITH_TIMESTAMP, "Export raw value to shell with timestamp")
         if is_integer_dtype(value):
+            export_menu.AppendSeparator()
+            export_menu.Append(self.ID_VCD_EXPORT_BITS, "Export selected bits to shell")
+            export_menu.Append(self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP, "Export selected bits to shell with timestamp")
+        menu.AppendSubMenu(export_menu, 'More. ..')
+        if is_numeric_dtype(value):
             menu.AppendSeparator()
-            menu.Append(self.ID_VCD_EXPORT_BITS, "Export selected bits to shell")
-            menu.Append(self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP, "Export selected bits to shell with timestamp")
+            menu.Append(self.ID_VCD_PLOT, "Plot")
+            if is_integer_dtype(value):
+                menu.Append(self.ID_VCD_PLOT_BITS, "Plot selected bits")
+                menu.Append(self.ID_VCD_PLOT_BITS_VERT, "Plot selected bits vertically")
 
         menu.AppendSeparator()
         type_menu = wx.Menu()
@@ -529,20 +554,19 @@ class VcdPanel(wx.Panel):
                 command += f'.get(["{path[-1]}"])'
             dp.send(signal='shell.run',
                 command=command,
+                prompt=False,
+                verbose=False,
+                history=True)
+            dp.send(signal='shell.run',
+                command=f'{name}',
                 prompt=True,
                 verbose=True,
-                history=True)
+                history=False)
         elif cmd in [self.ID_VCD_EXPORT_BITS, self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP]:
-            message = 'Type the index of bit to export, separate by ",", e.g., "0,1,2"'
-            dlg = wx.TextEntryDialog(self, message, value='')
-            if dlg.ShowModal() == wx.ID_OK:
-                idx = dlg.GetValue()
-                idx = sorted([int(i) for i in re.findall(r'\d+', idx)])
-                df = pd.DataFrame()
+            df = self.GetDataBits(value)
+            if df is not None:
                 if cmd == self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP:
-                    df['timestamp'] = data['timestamp']
-                for i in idx:
-                    df[f'bit{i}'] = GetDataBit(value, i)
+                    df.insert(loc=0, column='timestamp',  value=data['timestamp'])
                 df.to_pickle('_vcds.pickle')
                 name = GetVariableName(text)
                 dp.send('shell.run',
@@ -555,6 +579,20 @@ class VcdPanel(wx.Panel):
                         prompt=True,
                         verbose=True,
                         history=False)
+
+        elif cmd in [self.ID_VCD_PLOT, self.ID_VCD_PLOT_BITS, self.ID_VCD_PLOT_BITS_VERT]:
+            x = data['timestamp']*self.vcd.get('timescale', 1e-6)*1e6
+            if cmd == self.ID_VCD_PLOT:
+                self.plot(x, value, '/'.join(path))
+                return
+            # plot bits
+            df = self.GetDataBits(value)
+            if df is not None:
+                if cmd == self.ID_VCD_PLOT_BITS_VERT:
+                    offsets = (np.arange(len(df.columns), 0, -1) - 1) * 1.2
+                    df += offsets
+                for bit in df:
+                    self.plot(x, df[bit], '/'.join(path+[bit]), step=True)
 
         elif cmd == self.ID_VCD_TO_PYINT:
             try:
@@ -615,7 +653,9 @@ class VcdPanel(wx.Panel):
         if not is_numeric_dtype(y):
             print(f"{path[-1]} is not numeric, ignore plotting!")
             return
+        self.plot(x, y, "/".join(path))
 
+    def plot(self, x, y, label, step=False):
         # plot
         mgr = graph.plt.get_current_fig_manager()
         if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
@@ -627,11 +667,20 @@ class VcdPanel(wx.Panel):
             # match the line/marker style of the existing line
             line = mgr.figure.gca().lines[0]
             ls, ms = line.get_linestyle(), line.get_marker()
-        mgr.figure.gca().plot(x, y, label="/".join(path),
-                              linestyle=ls, marker=ms)
+        if step:
+            mgr.figure.gca().step(x, y, label=label, linestyle=ls, marker=ms)
+        else:
+            mgr.figure.gca().plot(x, y, label=label, linestyle=ls, marker=ms)
+
         mgr.figure.gca().legend()
-        mgr.figure.gca().grid(True)
-        mgr.figure.gca().set_xlabel('t(us)')
+        if ls is None:
+            # 1st plot in axes
+            mgr.figure.gca().grid(True)
+            if self.vcd['timescale']:
+                mgr.figure.gca().set_xlabel('t(us)')
+            if step:
+                # hide the y-axis tick label
+                mgr.figure.gca().get_yaxis().set_ticklabels([])
 
     def OnTreeBeginDrag(self, event):
         if not self.tree.data:
