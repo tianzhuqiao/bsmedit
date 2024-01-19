@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import traceback
+from csv import Sniffer
 import wx
 import wx.py.dispatcher as dp
 import numpy as np
@@ -13,6 +14,16 @@ from .pymgr_helpers import Gcm
 from .utility import FastLoadTreeCtrl, svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
+
+def read_csv(filename):
+    sep = ','
+    with open(filename, encoding='utf-8') as fp:
+        line = fp.readline()
+        s = Sniffer()
+        d = s.sniff(line)
+        sep = d.delimiter
+    u = pd.read_csv(filename, sep=sep)
+    return u
 
 class CsvTree(FastLoadTreeCtrl):
     """the tree control to show the hierarchy of the objects in the csv"""
@@ -52,6 +63,8 @@ class CsvTree(FastLoadTreeCtrl):
         self.FillTree(self.pattern)
 
     def FindItem(self, text):
+        if not text:
+            return None
         item = self.GetRootItem()
         child, cookie = self.GetFirstChild(item)
         while child.IsOk():
@@ -149,7 +162,7 @@ class CsvPanel(wx.Panel):
 
     def Load(self, filename):
         """load the csv file"""
-        u = pd.read_csv(filename)
+        u = read_csv(filename)
         self.csv = u
         self.filename = filename
         self.tree.Load(u)
@@ -158,6 +171,9 @@ class CsvPanel(wx.Panel):
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
         self.tree.FillTree(pattern)
+        item = self.tree.FindItem(self.x_column)
+        if item:
+            self.tree.SetItemBold(item, True)
         self.search.SetFocus()
 
     def Destroy(self):
@@ -184,7 +200,10 @@ class CsvPanel(wx.Panel):
         text = self.tree.GetItemText(item)
         menu = wx.Menu()
         if not (self.x_column and self.x_column == text):
-            menu.Append(self.ID_CSV_SET_X, "&Set as x-axis data")
+            menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
+        else:
+            mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "&Unset as x-axis data")
+            mitem.Check(True)
         menu.AppendSeparator()
         menu.Append(self.ID_CSV_EXPORT, "&Export to shell")
         if self.x_column and self.x_column != text:
@@ -216,11 +235,17 @@ class CsvPanel(wx.Panel):
                 history=False)
         elif cmd == self.ID_CSV_SET_X:
             if self.x_column:
+                # clear the current x-axis data
                 xitem = self.tree.FindItem(self.x_column)
                 if xitem is not None:
                     self.tree.SetItemBold(xitem, False)
-            self.x_column = text
-            self.tree.SetItemBold(item, True)
+            if self.x_column != text:
+                # select the new data as x-axis
+                self.x_column = text
+                self.tree.SetItemBold(item, True)
+            else:
+                # clear the current x-axis
+                self.x_column = None
 
     def OnTreeItemActivated(self, event):
         item = event.GetItem()
@@ -266,12 +291,12 @@ class CsvPanel(wx.Panel):
                 continue
             if not item.IsOk():
                 break
-            text = self.GetItemText(item)
+            text = self.tree.GetItemText(item)
             if text == self.x_column:
                 continue
             df[text] = self.tree.data[text]
 
-        objs.append(['', data.to_json()])
+        objs.append(['', df.to_json()])
         # need to explicitly allow drag
         # start drag operation
         data = wx.TextDataObject(json.dumps(objs))
@@ -381,7 +406,7 @@ class CSV:
         """
         open an csv file
 
-        If the csv has already been opened, return its handler; otherwise, create it.
+        If the csv has already been opened, return its handler; otherwise, create one.
         """
         if filename is not None:
             _, ext = os.path.splitext(filename)
@@ -411,7 +436,7 @@ class CSV:
                                ]} )
             return manager
         # activate the manager
-        elif manager and activate:
+        if manager and activate:
             dp.send(signal='frame.show_panel', panel=manager)
         return manager
 
@@ -466,7 +491,7 @@ class CSV:
             csv = manager.csv
         elif filename:
             try:
-                csv = pd.read_csv(filename)
+                csv = read_csv(filename)
             except:
                 traceback.print_exc(file=sys.stdout)
         return csv
