@@ -524,7 +524,7 @@ class ULog:
         cls.frame = frame
 
         resp = dp.send(signal='frame.add_menu',
-                       path='File:Open:ulog',
+                       path='File:Open:ulog file',
                        rxsignal='bsm.ulog')
         if resp:
             cls.ID_ULOG_NEW = resp[0][1]
@@ -558,10 +558,7 @@ class ULog:
         for mgr in ULogPanel.Gcu.get_all_managers():
             dp.send('frame.delete_panel', panel=mgr)
 
-        dp.send('frame.delete_menu', path="View:ulog")
-        dp.send('frame.delete_menu',
-                path="File:New:ulog",
-                id=cls.ID_ULOG_NEW)
+        dp.send('frame.delete_menu', path="File:Open:ulog file", id=cls.ID_ULOG_NEW)
 
     @classmethod
     def _process_command(cls, command):

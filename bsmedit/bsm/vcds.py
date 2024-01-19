@@ -756,7 +756,7 @@ class VCD:
         cls.frame = frame
 
         resp = dp.send(signal='frame.add_menu',
-                       path='File:Open:vcd',
+                       path='File:Open:VCD file',
                        rxsignal='bsm.vcd')
         if resp:
             cls.ID_VCD_NEW = resp[0][1]
@@ -795,10 +795,7 @@ class VCD:
         for mgr in VcdPanel.Gcv.get_all_managers():
             dp.send('frame.delete_panel', panel=mgr)
 
-        dp.send('frame.delete_menu', path="View:vcd")
-        dp.send('frame.delete_menu',
-                path="File:New:vcd",
-                id=cls.ID_VCD_NEW)
+        dp.send('frame.delete_menu', path="File:Open:VCD file", id=cls.ID_VCD_NEW)
 
     @classmethod
     def _process_command(cls, command):
