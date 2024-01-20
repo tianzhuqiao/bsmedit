@@ -7,6 +7,7 @@ import wx
 import wx.py.dispatcher as dp
 import numpy as np
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
@@ -198,13 +199,16 @@ class CsvPanel(wx.Panel):
         if not item.IsOk():
             return
         text = self.tree.GetItemText(item)
+        value = self.tree.data[text]
         menu = wx.Menu()
-        if not (self.x_column and self.x_column == text):
-            menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
-        else:
+        if self.x_column and self.x_column == text:
             mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "&Unset as x-axis data")
             mitem.Check(True)
-        menu.AppendSeparator()
+            menu.AppendSeparator()
+        elif is_numeric_dtype(value):
+            menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
+            menu.AppendSeparator()
+
         menu.Append(self.ID_CSV_EXPORT, "&Export to shell")
         if self.x_column and self.x_column != text:
             menu.Append(self.ID_CSV_EXPORT_WITH_TIMESTAMP, "E&xport to shell with x")
@@ -255,6 +259,11 @@ class CsvPanel(wx.Panel):
         if text == self.x_column:
             return
         y = self.tree.data[text]
+
+        if not is_numeric_dtype(y):
+            print(f"{text} is not numeric, ignore plotting!")
+            return
+
         if self.x_column and self.x_column in self.tree.data:
             x = self.tree.data[self.x_column]
         else:

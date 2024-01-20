@@ -6,6 +6,7 @@ import wx
 import wx.py.dispatcher as dp
 import pyulog
 import pandas as pd
+from pandas.api.types import is_numeric_dtype
 from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
@@ -433,6 +434,10 @@ class ULogPanel(wx.Panel):
         dataname = self.tree.GetItemText(item)
         x = dataset['timestamp']/1e6
         y = dataset[dataname]
+
+        if not is_numeric_dtype(y):
+            print(f"{dataname} is not numeric, ignore plotting!")
+            return
 
         # plot
         mgr = graph.plt.get_current_fig_manager()
