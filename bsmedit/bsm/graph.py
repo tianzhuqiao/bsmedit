@@ -20,11 +20,12 @@ import matplotlib.transforms as mtransforms
 from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
+from .graph_timeline import Timeline
 from .utility import build_menu_from_list, svg_to_bitmap
 from .bsmxpm import split_vert_svg, delete_svg, line_style_svg, \
                     new_page_svg2, home_svg2, backward_svg2, backward_gray_svg2, \
                     forward_svg2, forward_gray_svg2, zoom_svg, pan_svg, copy_svg, \
-                    save_svg, edit_svg, note_svg
+                    save_svg, edit_svg, note_svg, timeline_svg
 from .graph_toolbar import GraphToolbar
 from .graph_subplot import add_subplot, del_subplot
 rcParams.update({'figure.autolayout': True, 'toolbar': 'None',
@@ -119,11 +120,13 @@ class Toolbar(GraphToolbar):
         self.figure = figure
         self.datacursor = DataCursor(self.figure, self)
         self.lineeditor = LineEditor(self.figure)
+        self.timeline = Timeline(self.figure)
         self.pan_action = Pan(self.figure)
 
         self.actions = {'datatip': self.datacursor,
                         'edit': self.lineeditor,
-                        'pan/zoom': self.pan_action}
+                        'pan/zoom': self.pan_action,
+                        'timeline': self.timeline}
 
         self.canvas.mpl_connect('pick_event', self.OnPick)
         self.canvas.mpl_connect('motion_notify_event', self.OnMove)
@@ -479,6 +482,7 @@ class Toolbar(GraphToolbar):
             (None, None, None, None, None),
             ('Edit', 'Edit curve', edit_svg, None, 'edit_figure'),
             (None, None, None, None, None),
+            ('Timeline', 'Timeline', timeline_svg, None, 'timeline_figure'),
             #(None, None, None, "stretch"),
             #(None, None, None, None),
             #('Print', 'Print the figure', print_xpm, 'print_figure'),
@@ -500,7 +504,7 @@ class Toolbar(GraphToolbar):
             image_gray = wx.NullBitmap
             if img_gray:
                 image_gray = svg_to_bitmap(img_gray, win=self)
-            if text in ['Pan', 'Zoom', 'Datatip', 'Edit']:
+            if text in ['Pan', 'Zoom', 'Datatip', 'Edit', 'Timeline']:
                 self.AddCheckTool(self.wx_ids[text],
                                   text,
                                   image,
@@ -554,6 +558,8 @@ class Toolbar(GraphToolbar):
             self.ToggleTool(self.wx_ids['Pan'], False)
         if mode != 'zoom':
             self.ToggleTool(self.wx_ids['Zoom'], False)
+        if mode != 'timeline':
+            self.ToggleTool(self.wx_ids['Timeline'], False)
 
         action = self.actions.get(self.mode, None)
         if action is not  None and  hasattr(action, 'deactivated'):
@@ -640,6 +646,28 @@ class Toolbar(GraphToolbar):
             self.set_mode("edit")
         self.set_message(self.mode)
 
+    def timeline_figure(self, evt):
+        """activate the curve timeline mode"""
+        # disable the pan/zoom mode
+        self.set_message(self.mode)
+
+        self._active = None
+        if hasattr(self, '_idPress'):
+            self._idPress = self.canvas.mpl_disconnect(self._idPress)
+
+        if hasattr(self, '_idRelease'):
+            self._idRelease = self.canvas.mpl_disconnect(self._idRelease)
+        self.canvas.widgetlock.release(self)
+        for a in self.canvas.figure.get_axes():
+            a.set_navigate_mode(self._active)
+
+        self._set_picker_all()
+        if self.mode == "timeline":
+            self.set_mode("")
+        else:
+            self.set_mode("timeline")
+        self.set_message(self.mode)
+
     def set_message(self, s):
         """show the status message"""
         dp.send(signal='frame.show_status_text', text=s, index=1, width=160)
@@ -703,6 +731,9 @@ class DataDropTarget(wx.DropTarget):
                             label = line.columns[i]
                             if title:
                                 label="/".join([title, label])
+                            # the label starts with '_' will be ignored, so remove leading '_'
+                            label = label.lstrip('_')
+                            print(label)
                             if not is_numeric_dtype(line[line.columns[0]]) or \
                                not is_numeric_dtype(line[line.columns[1]]):
                                 # ignore non-numeric data
@@ -972,6 +1003,16 @@ class MatplotPanel(wx.Panel):
 
     @classmethod
     def Initialized(cls):
+        dp.send(signal='shell.run',
+                command='import pandas as pd',
+                prompt=False,
+                verbose=False,
+                history=False)
+        dp.send(signal='shell.run',
+                command='import pickle',
+                prompt=False,
+                verbose=False,
+                history=False)
         dp.send('shell.run',
                 command='from matplotlib.pyplot import *',
                 prompt=False,

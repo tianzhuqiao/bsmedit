@@ -53,7 +53,7 @@ class DataCursor(GraphObject):
         self.cx, self.cy = None, None
 
     def pick(self, event):
-        # pick event will not always be triggered for twinx, see following linke
+        # pick event will not always be triggered for twinx, see following link
         # for detail
         # https://matplotlib.org/stable/api/_as_gen/matplotlib.axes.Axes.twinx.html
         return
