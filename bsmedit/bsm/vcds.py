@@ -13,7 +13,7 @@ from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, _dict, svg_to_bitmap
+from .utility import FastLoadTreeCtrl, _dict, svg_to_bitmap, get_variable_name
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
 from .listctrl_base import ListCtrlBase
@@ -107,9 +107,6 @@ def GetDataBit(value, bit):
     if not is_integer_dtype(value) or bit < 0:
         return None
     return value.map(lambda x: (x >> bit) & 1)
-
-def GetVariableName(name):
-    return name.replace('[', '').replace(']', '')
 
 class VcdTree(FastLoadTreeCtrl):
     """the tree control to show the hierarchy of the objects in the vcd"""
@@ -542,7 +539,7 @@ class VcdPanel(wx.Panel):
 
         if cmd in [self.ID_VCD_EXPORT, self.ID_VCD_EXPORT_WITH_TIMESTAMP,
                    self.ID_VCD_EXPORT_RAW, self.ID_VCD_EXPORT_RAW_WITH_TIMESTAMP]:
-            name = GetVariableName(text)
+            name = get_variable_name(text)
             command = f'{name}=VCD.get()'
             for p in path:
                 command += f'["{p}"]'
@@ -659,6 +656,7 @@ class VcdPanel(wx.Panel):
 
     def plot(self, x, y, label, step=False):
         # plot
+        label = label.lstrip('_')
         mgr = graph.plt.get_current_fig_manager()
         if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
             mgr = mgr.frame

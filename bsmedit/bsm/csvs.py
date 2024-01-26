@@ -12,7 +12,7 @@ from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, svg_to_bitmap
+from .utility import FastLoadTreeCtrl, svg_to_bitmap, get_variable_name
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
 
@@ -220,7 +220,7 @@ class CsvPanel(wx.Panel):
         if not path:
             return
         if cmd in [self.ID_CSV_EXPORT, self.ID_CSV_EXPORT_WITH_TIMESTAMP]:
-            name = text.replace('[', '').replace(']', '')
+            name = get_variable_name(text)
             command = f'{name}=CSV.get()["{path[0]}"]'
             if len(path) > 1:
                 if cmd == self.ID_CSV_EXPORT_WITH_TIMESTAMP:
@@ -280,7 +280,7 @@ class CsvPanel(wx.Panel):
             # match the line/marker style of the existing line
             line = mgr.figure.gca().lines[0]
             ls, ms = line.get_linestyle(), line.get_marker()
-        mgr.figure.gca().plot(x, y, label=f'{text}', linestyle=ls, marker=ms)
+        mgr.figure.gca().plot(x, y, label=f'{text.lstrip("_")}', linestyle=ls, marker=ms)
         mgr.figure.gca().legend()
         mgr.figure.gca().grid(True)
 

@@ -2,6 +2,7 @@
 import os
 import subprocess
 import platform
+import keyword
 import six
 import wx
 import wx.svg
@@ -164,6 +165,12 @@ def build_menu_from_list(items, menu=None):
             item.Enable(m.get('enable', True))
     return menu
 
+def get_variable_name(text):
+    name = text.replace('[', '').replace(']', '')
+    name = name.replace('.', '_').replace('->', '_')
+    if keyword.iskeyword(name):
+        name = f'{name}_'
+    return name
 
 class _dict(dict):
     """dict like object that exposes keys as attributes"""

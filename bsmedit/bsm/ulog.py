@@ -11,7 +11,7 @@ from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, _dict, svg_to_bitmap
+from .utility import FastLoadTreeCtrl, _dict, svg_to_bitmap, get_variable_name
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
 from .listctrl_base import ListCtrlBase
@@ -402,7 +402,7 @@ class ULogPanel(wx.Panel):
         if not path:
             return
         if cmd in [self.ID_ULOG_EXPORT, self.ID_ULOG_EXPORT_WITH_TIMESTAMP]:
-            name = text.replace('[', '').replace(']', '')
+            name = get_variable_name(text)
             command = f'{name}=ulog.get()["{path[0]}"]'
             if len(path) > 1:
                 if cmd == self.ID_ULOG_EXPORT_WITH_TIMESTAMP:
@@ -450,7 +450,7 @@ class ULogPanel(wx.Panel):
             # match the line/marker style of the existing line
             line = mgr.figure.gca().lines[0]
             ls, ms = line.get_linestyle(), line.get_marker()
-        mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]),
+        mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]).lstrip('_'),
                               linestyle=ls, marker=ms)
         mgr.figure.gca().legend()
         mgr.figure.gca().grid(True)
