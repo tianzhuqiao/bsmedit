@@ -3,6 +3,7 @@ import os
 import subprocess
 import platform
 import keyword
+import re
 import six
 import wx
 import wx.svg
@@ -166,16 +167,38 @@ def build_menu_from_list(items, menu=None):
     return menu
 
 def get_variable_name(text):
-    name = text.replace('[', '').replace(']', '')
-    name = name.replace('.', '_').replace('->', '_')
-    if keyword.iskeyword(name):
-        name = f'{name}_'
-    return name
+    def _get(text):
+        # array[0] -> array0
+        # a->b -> a_b
+        # a.b -> a_b
+        # [1] -> None
+        name = text.replace('[', '').replace(']', '')
+        name = name.replace('.', '_').replace('->', '_')
+        if keyword.iskeyword(name):
+            name = f'{name}_'
+        if not name.isidentifier():
+            return None
+        return name
+    if isinstance(text, str):
+        text = [text]
+    name = ""
+    for t in reversed(text):
+        name = t + name
+        var = _get(name)
+        if var:
+            return var
+    return "unknown"
 
 def build_tree(data, sep='.'):
     tree = dict(data)
     for k in list(tree.keys()):
         signal = k.split(sep)
+        if len(signal) == 1:
+            # array[0] -> ['array', '[0]']
+            x = re.search(r'(\[\d+\])+', k)
+            if x and x.group() != k:
+                signal = [k[:x.start(0)], x.group(0), k[x.end(0):]]
+                signal = [s for s in signal if s]
         if len(signal) > 1:
             d = tree
             for i in range(len(signal)-1):

@@ -28,7 +28,7 @@ def read_csv(filename):
     d = {}
     for c in csv:
         d[c] = csv[c]
-    return build_tree(csv)
+    return build_tree(build_tree(csv), '->')
 
 class CsvTree(TreeCtrlBase):
     ID_CSV_SET_X = wx.NewIdRef()
@@ -146,7 +146,7 @@ class CsvTree(TreeCtrlBase):
         if not path:
             return
         if cmd in [self.ID_CSV_EXPORT, self.ID_CSV_EXPORT_WITH_TIMESTAMP]:
-            name = get_variable_name(text)
+            name = get_variable_name(path)
             x, y = self.GetItemPlotData(item)
             if cmd == self.ID_CSV_EXPORT_WITH_TIMESTAMP:
                 data = pd.concat((x, y), axis=1)

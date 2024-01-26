@@ -258,7 +258,7 @@ class VcdTree(TreeCtrlBase):
 
         if cmd in [self.ID_VCD_EXPORT, self.ID_VCD_EXPORT_WITH_TIMESTAMP,
                    self.ID_VCD_EXPORT_RAW, self.ID_VCD_EXPORT_RAW_WITH_TIMESTAMP]:
-            name = get_variable_name(text)
+            name = get_variable_name(path)
             command = f'{name}=VCD.get()'
             for p in path:
                 command += f'["{p}"]'

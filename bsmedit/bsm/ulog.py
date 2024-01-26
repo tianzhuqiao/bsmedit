@@ -76,7 +76,7 @@ class ULogTree(TreeCtrlBase):
         if not path:
             return
         if cmd in [self.ID_ULOG_EXPORT, self.ID_ULOG_EXPORT_WITH_TIMESTAMP]:
-            name = get_variable_name(text)
+            name = get_variable_name(path)
             command = f'{name}=ulog.get()["{path[0]}"]'
             if len(path) > 1:
                 if cmd == self.ID_ULOG_EXPORT_WITH_TIMESTAMP:
