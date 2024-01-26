@@ -12,9 +12,10 @@ from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, svg_to_bitmap, get_variable_name
-from .utility import get_file_finder_name, show_file_in_finder
+from .utility import svg_to_bitmap, get_variable_name
+from .utility import get_file_finder_name, show_file_in_finder, build_tree
 from .autocomplete import AutocompleteTextCtrl
+from .treectrlbase import TreeCtrlBase
 
 def read_csv(filename):
     sep = ','
@@ -23,88 +24,162 @@ def read_csv(filename):
         s = Sniffer()
         d = s.sniff(line)
         sep = d.delimiter
-    u = pd.read_csv(filename, sep=sep)
-    return u
+    csv = pd.read_csv(filename, sep=sep)
+    d = {}
+    for c in csv:
+        d[c] = csv[c]
+    return build_tree(csv)
 
-class CsvTree(FastLoadTreeCtrl):
-    """the tree control to show the hierarchy of the objects in the csv"""
-    def __init__(self, parent, style=wx.TR_DEFAULT_STYLE):
-        style = style | wx.TR_HAS_VARIABLE_ROW_HEIGHT | wx.TR_HIDE_ROOT |\
-                wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
-        FastLoadTreeCtrl.__init__(self, parent, self.get_children, style=style)
+class CsvTree(TreeCtrlBase):
+    ID_CSV_SET_X = wx.NewIdRef()
+    ID_CSV_EXPORT = wx.NewIdRef()
+    ID_CSV_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
 
-        self.data = None
-        self.filename = ""
-        self.pattern = None
-        self.expanded = {}
+    def __init__(self, *args, **kwargs):
+        TreeCtrlBase.__init__(self, *args, **kwargs)
+        self.x_path = None
 
-    def get_children(self, item):
-        """ callback function to return the children of item """
-        children = []
-        pattern = self.pattern
-        if item == self.GetRootItem():
-            children = [c for c in self.data.columns if not pattern or pattern in c]
-        else:
-            pass
-        children = [{'label': c, 'img':-1, 'imgsel':-1, 'data': None, 'is_folder': False} for c in children]
-        return children
-
-    def OnCompareItems(self, item1, item2):
-        """compare the two items for sorting"""
-        text1 = self.GetItemText(item1)
-        text2 = self.GetItemText(item2)
-        rtn = -2
-        if text1 and text2:
-            return text1.lower() > text2.lower()
-        return rtn
-
-    def Load(self, csv):
-        """load the csv file"""
-        self.data = csv
-        self.FillTree(self.pattern)
-
-    def FindItem(self, text):
-        if not text:
+    def FindItemFromPath(self, path):
+        if not path:
             return None
         item = self.GetRootItem()
-        child, cookie = self.GetFirstChild(item)
-        while child.IsOk():
-            name = self.GetItemText(child)
-            if name == text:
-                return child
-            child, cookie = self.GetNextChild(item, cookie)
-        return None
+        for p in path:
+            child, cookie = self.GetFirstChild(item)
+            while child.IsOk():
+                name = self.GetItemText(child)
+                if name == p:
+                    item = child
+                    break
+                child, cookie = self.GetNextChild(item, cookie)
+            else:
+                return None
+        return item
 
-    def FillTree(self, pattern=None):
-        """fill the csv objects tree"""
-        #clear the tree control
-        self.expanded = {}
-        self.DeleteAllItems()
-        if self.data is None or self.data.empty:
-            return
-        self.pattern = pattern
-        # add the root item
-        item = self.AddRoot("bsmedit")
-        # fill the top level item
-        self.FillChildren(item)
+    def GetItemPlotData(self, item):
+        y = self.GetItemData(item)
 
-        if not self.expanded:
+        if not is_numeric_dtype(y):
+            text = self.GetItemText(item)
+            print(f"{text} is not numeric, ignore plotting!")
+            return None, None
+
+        if self.x_path is not None:
+            x = self.GetItemDataFromPath(self.x_path)
+        else:
+            x = np.arange(0, len(y))
+        return x, y
+
+    def GetItemDragData(self, item):
+        pass
+
+    def OnTreeBeginDrag(self, event):
+        if self.data.empty:
             return
-        # expand the child to show the items that match pattern
-        child, cookie = self.GetFirstChild(item)
-        while child.IsOk():
-            name = self.GetItemText(child)
-            if name in self.expanded:
-                self.Expand(child)
+
+        ids = self.GetSelections()
+        objs = []
+        df = pd.DataFrame()
+
+        for item in ids:
+            if item == self.GetRootItem() or self.ItemHasChildren(item):
+                continue
+            if not item.IsOk():
                 break
-            child, cookie = self.GetNextChild(item, cookie)
+            path = self.GetItemPath(item)
+            if path == self.x_path:
+                # ignore x-axis data
+                continue
+            df[path[-1]] = self.GetItemData(item)
+
+        if df.empty:
+            return
+
+        x = np.arange(0, len(df))
+        if self.x_path:
+            x = self.GetItemDataFromPath(self.x_path)
+        df.insert(loc=0, column='_x',  value=x)
+
+        objs.append(['', df.to_json()])
+        # need to explicitly allow drag
+        # start drag operation
+        data = wx.TextDataObject(json.dumps(objs))
+        source = wx.DropSource(self.tree)
+        source.SetData(data)
+        rtn = source.DoDragDrop(True)
+        if rtn == wx.DragError:
+            wx.LogError("An error occurred during drag and drop operation")
+        elif rtn == wx.DragNone:
+            pass
+        elif rtn == wx.DragCopy:
+            pass
+        elif rtn == wx.DragMove:
+            pass
+        elif rtn == wx.DragCancel:
+            pass
+
+    def OnTreeItemMenu(self, event):
+        item = event.GetItem()
+        if not item.IsOk():
+            return
+        if self.ItemHasChildren(item):
+            return
+        text = self.GetItemText(item)
+        path = self.GetItemPath(item)
+        value = self.GetItemData(item)
+        menu = wx.Menu()
+        if self.x_path and self.x_path == path:
+            mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "&Unset as x-axis data")
+            mitem.Check(True)
+            menu.AppendSeparator()
+        elif is_numeric_dtype(value):
+            menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
+            menu.AppendSeparator()
+
+        menu.Append(self.ID_CSV_EXPORT, "&Export to shell")
+        if self.x_path and self.x_path != path:
+            menu.Append(self.ID_CSV_EXPORT_WITH_TIMESTAMP, "E&xport to shell with x")
+
+        cmd = self.GetPopupMenuSelectionFromUser(menu)
+        if cmd == wx.ID_NONE:
+            return
+        path = self.GetItemPath(item)
+        if not path:
+            return
+        if cmd in [self.ID_CSV_EXPORT, self.ID_CSV_EXPORT_WITH_TIMESTAMP]:
+            name = get_variable_name(text)
+            x, y = self.GetItemPlotData(item)
+            if cmd == self.ID_CSV_EXPORT_WITH_TIMESTAMP:
+                data = pd.concat((x, y), axis=1)
+            else:
+                data = y
+            data.to_pickle('_csv.pickle')
+            dp.send(signal='shell.run',
+                command=f'{name}=pd.read_pickle("_csv.pickle")',
+                prompt=False,
+                verbose=False,
+                history=False)
+            dp.send('shell.run',
+                    command=f'{name}',
+                    prompt=True,
+                    verbose=True,
+                    history=False)
+        elif cmd == self.ID_CSV_SET_X:
+            if self.x_path:
+                # clear the current x-axis data
+                xitem = self.FindItemFromPath(self.x_path)
+                if xitem is not None:
+                    self.SetItemBold(xitem, False)
+            if self.x_path != path:
+                # select the new data as x-axis
+                self.x_path = path
+                self.SetItemBold(item, True)
+            else:
+                # clear the current x-axis
+                self.x_path = None
 
 class CsvPanel(wx.Panel):
     Gcc = Gcm()
     ID_CSV_OPEN = wx.NewIdRef()
-    ID_CSV_SET_X = wx.NewIdRef()
-    ID_CSV_EXPORT = wx.NewIdRef()
-    ID_CSV_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
 
     def __init__(self, parent, filename=None):
         wx.Panel.__init__(self, parent)
@@ -135,14 +210,10 @@ class CsvPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
-        self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
-        self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
-        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnTreeItemActivated)
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
 
         # load the csv
         self.csv = None
-        self.x_column = None
         if filename is not None:
             self.Load(filename)
 
@@ -172,7 +243,7 @@ class CsvPanel(wx.Panel):
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
         self.tree.FillTree(pattern)
-        item = self.tree.FindItem(self.x_column)
+        item = self.tree.FindItemFromPath(self.tree.x_path)
         if item:
             self.tree.SetItemBold(item, True)
         self.search.SetFocus()
@@ -183,145 +254,6 @@ class CsvPanel(wx.Panel):
         """
         self.Gcc.destroy(self.num)
         super().Destroy()
-
-    def GetItemPath(self, item):
-        if not item.IsOk():
-            return []
-        text = self.tree.GetItemText(item)
-        path = [text]
-        parent = self.tree.GetItemParent(item)
-        if parent.IsOk() and parent != self.tree.GetRootItem():
-            path.insert(0, self.tree.GetItemText(parent))
-        return path
-
-    def OnTreeItemMenu(self, event):
-        item = event.GetItem()
-        if not item.IsOk():
-            return
-        text = self.tree.GetItemText(item)
-        value = self.tree.data[text]
-        menu = wx.Menu()
-        if self.x_column and self.x_column == text:
-            mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "&Unset as x-axis data")
-            mitem.Check(True)
-            menu.AppendSeparator()
-        elif is_numeric_dtype(value):
-            menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
-            menu.AppendSeparator()
-
-        menu.Append(self.ID_CSV_EXPORT, "&Export to shell")
-        if self.x_column and self.x_column != text:
-            menu.Append(self.ID_CSV_EXPORT_WITH_TIMESTAMP, "E&xport to shell with x")
-
-        cmd = self.GetPopupMenuSelectionFromUser(menu)
-        if cmd == wx.ID_NONE:
-            return
-        path = self.GetItemPath(item)
-        if not path:
-            return
-        if cmd in [self.ID_CSV_EXPORT, self.ID_CSV_EXPORT_WITH_TIMESTAMP]:
-            name = get_variable_name(text)
-            command = f'{name}=CSV.get()["{path[0]}"]'
-            if len(path) > 1:
-                if cmd == self.ID_CSV_EXPORT_WITH_TIMESTAMP:
-                    command += f'.get([f"{self.x_column}", "{path[1]}"])'
-                else:
-                    command += f'.get(["{path[1]}"])'
-            dp.send(signal='shell.run',
-                command=command,
-                prompt=False,
-                verbose=False,
-                history=True)
-            dp.send(signal='shell.run',
-                command=f'{name}',
-                prompt=True,
-                verbose=True,
-                history=False)
-        elif cmd == self.ID_CSV_SET_X:
-            if self.x_column:
-                # clear the current x-axis data
-                xitem = self.tree.FindItem(self.x_column)
-                if xitem is not None:
-                    self.tree.SetItemBold(xitem, False)
-            if self.x_column != text:
-                # select the new data as x-axis
-                self.x_column = text
-                self.tree.SetItemBold(item, True)
-            else:
-                # clear the current x-axis
-                self.x_column = None
-
-    def OnTreeItemActivated(self, event):
-        item = event.GetItem()
-        if not item.IsOk():
-            return
-        text = self.tree.GetItemText(item)
-        if text == self.x_column:
-            return
-        y = self.tree.data[text]
-
-        if not is_numeric_dtype(y):
-            print(f"{text} is not numeric, ignore plotting!")
-            return
-
-        if self.x_column and self.x_column in self.tree.data:
-            x = self.tree.data[self.x_column]
-        else:
-            x = np.arange(0, len(y))
-
-        # plot
-        mgr = graph.plt.get_current_fig_manager()
-        if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
-            mgr = mgr.frame
-        if not mgr.IsShownOnScreen():
-            dp.send('frame.show_panel', panel=mgr)
-        ls, ms = None, None
-        if mgr.figure.gca().lines:
-            # match the line/marker style of the existing line
-            line = mgr.figure.gca().lines[0]
-            ls, ms = line.get_linestyle(), line.get_marker()
-        mgr.figure.gca().plot(x, y, label=f'{text.lstrip("_")}', linestyle=ls, marker=ms)
-        mgr.figure.gca().legend()
-        mgr.figure.gca().grid(True)
-
-    def OnTreeBeginDrag(self, event):
-        if self.tree.data.empty:
-            return
-
-        ids = self.tree.GetSelections()
-        objs = []
-        df = pd.DataFrame()
-        if self.x_column and self.x_column in self.tree.data:
-            df[self.x_column] = self.tree.data[self.x_column]
-        else:
-            df[self.x_column] = np.arange(0, len(self.tree.data))
-        for item in ids:
-            if item == self.tree.GetRootItem():
-                continue
-            if not item.IsOk():
-                break
-            text = self.tree.GetItemText(item)
-            if text == self.x_column:
-                continue
-            df[text] = self.tree.data[text]
-
-        objs.append(['', df.to_json()])
-        # need to explicitly allow drag
-        # start drag operation
-        data = wx.TextDataObject(json.dumps(objs))
-        source = wx.DropSource(self.tree)
-        source.SetData(data)
-        rtn = source.DoDragDrop(True)
-        if rtn == wx.DragError:
-            wx.LogError("An error occurred during drag and drop operation")
-        elif rtn == wx.DragNone:
-            pass
-        elif rtn == wx.DragCopy:
-            pass
-        elif rtn == wx.DragMove:
-            pass
-        elif rtn == wx.DragCancel:
-            pass
 
     def OnProcessCommand(self, event):
         """process the menu command"""

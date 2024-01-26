@@ -172,6 +172,19 @@ def get_variable_name(text):
         name = f'{name}_'
     return name
 
+def build_tree(data, sep='.'):
+    tree = dict(data)
+    for k in list(tree.keys()):
+        signal = k.split(sep)
+        if len(signal) > 1:
+            d = tree
+            for i in range(len(signal)-1):
+                if not signal[i] in d:
+                    d[signal[i]] = {}
+                d = d[signal[i]]
+            d[signal[-1]] = tree.pop(k)
+    return tree
+
 class _dict(dict):
     """dict like object that exposes keys as attributes"""
     def __getattr__(self, key):

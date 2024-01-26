@@ -11,22 +11,15 @@ from ..aui import aui
 from . import graph
 from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, _dict, svg_to_bitmap, get_variable_name
+from .utility import _dict, svg_to_bitmap, get_variable_name
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
 from .listctrl_base import ListCtrlBase
+from .treectrlbase import TreeCtrlBase
 
-class ULogTree(FastLoadTreeCtrl):
-    """the tree control to show the hierarchy of the objects in the ulog"""
-    def __init__(self, parent, style=wx.TR_DEFAULT_STYLE):
-        style = style | wx.TR_HAS_VARIABLE_ROW_HEIGHT | wx.TR_HIDE_ROOT |\
-                wx.TR_MULTIPLE | wx.TR_LINES_AT_ROOT
-        FastLoadTreeCtrl.__init__(self, parent, self.get_children, style=style)
-
-        self.data = _dict()
-        self.filename = ""
-        self.pattern = None
-        self.expanded = {}
+class ULogTree(TreeCtrlBase):
+    ID_ULOG_EXPORT = wx.NewIdRef()
+    ID_ULOG_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
 
     def get_children(self, item):
         """ callback function to return the children of item """
@@ -57,47 +50,74 @@ class ULogTree(FastLoadTreeCtrl):
         children = [{'label': c, 'img':-1, 'imgsel':-1, 'data': None, 'is_folder': is_folder} for c in children]
         return children
 
-    def OnCompareItems(self, item1, item2):
-        """compare the two items for sorting"""
-        text1 = self.GetItemText(item1)
-        text2 = self.GetItemText(item2)
-        rtn = -2
-        if text1 and text2:
-            return text1.lower() > text2.lower()
-        return rtn
-
     def Load(self, ulg):
         """load the ulog file"""
         data = _dict()
         for d in ulg.data_list:
             df = pd.DataFrame(d.data)
             data[d.name] = df
-        self.data = data
-        self.FillTree(self.pattern)
+        super().Load(data)
 
-    def FillTree(self, pattern=None):
-        """fill the ulog objects tree"""
-        #clear the tree control
-        self.expanded = {}
-        self.DeleteAllItems()
-        if not self.data:
+    def OnTreeItemMenu(self, event):
+        item = event.GetItem()
+        if not item.IsOk():
             return
-        self.pattern = pattern
-        # add the root item
-        item = self.AddRoot("bsmedit")
-        # fill the top level item
-        self.FillChildren(item)
+        has_child = self.ItemHasChildren(item)
+        menu = wx.Menu()
+        menu.Append(self.ID_ULOG_EXPORT, "&Export to shell")
+        if not has_child:
+            menu.Append(self.ID_ULOG_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
 
-        if not self.expanded:
+        cmd = self.GetPopupMenuSelectionFromUser(menu)
+        if cmd == wx.ID_NONE:
             return
-        # expand the child to show the items that match pattern
-        child, cookie = self.GetFirstChild(item)
-        while child.IsOk():
-            name = self.GetItemText(child)
-            if name in self.expanded:
-                self.Expand(child)
-                break
-            child, cookie = self.GetNextChild(item, cookie)
+        text = self.GetItemText(item)
+        path = self.GetItemPath(item)
+        if not path:
+            return
+        if cmd in [self.ID_ULOG_EXPORT, self.ID_ULOG_EXPORT_WITH_TIMESTAMP]:
+            name = get_variable_name(text)
+            command = f'{name}=ulog.get()["{path[0]}"]'
+            if len(path) > 1:
+                if cmd == self.ID_ULOG_EXPORT_WITH_TIMESTAMP:
+                    command += f'.get(["timestamp", "{path[1]}"])'
+                else:
+                    command += f'.get(["{path[1]}"])'
+            dp.send(signal='shell.run',
+                command=command,
+                prompt=False,
+                verbose=False,
+                history=True)
+            dp.send(signal='shell.run',
+                command=f'{name}',
+                prompt=True,
+                verbose=True,
+                history=False)
+
+    def GetItemPlotData(self, item):
+        if self.ItemHasChildren(item):
+            return None, None
+        parent = self.GetItemParent(item)
+        if not parent.IsOk():
+            return
+        datasetname = self.GetItemText(parent)
+        dataset = self.data[datasetname]
+        dataname = self.GetItemText(item)
+        x = dataset['timestamp']/1e6
+        y = dataset[dataname]
+        return x, y
+
+    def GetItemDragData(self, item):
+        path = self.GetItemPath(item)
+        if len(path) == 1:
+            data = self.data[path[0]]
+        else:
+            data = self.data[path[0]].loc[:, ['timestamp', path[1]]]
+            data['timestamp'] /= 1e6
+        return data
+
+    def GetPlotXLabel(self):
+        return "t(s)"
 
 class MessageListCtrl(ListCtrlBase):
     def __init__(self, parent):
@@ -271,8 +291,6 @@ class ChgParamListCtrl(ListCtrlBase):
 class ULogPanel(wx.Panel):
     Gcu = Gcm()
     ID_ULOG_OPEN = wx.NewIdRef()
-    ID_ULOG_EXPORT = wx.NewIdRef()
-    ID_ULOG_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
 
     def __init__(self, parent, filename=None):
         wx.Panel.__init__(self, parent)
@@ -315,9 +333,6 @@ class ULogPanel(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
         self.Bind(wx.EVT_MENU, self.OnProcessCommand)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
-        self.tree.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
-        self.tree.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
-        self.tree.Bind(wx.EVT_TREE_ITEM_ACTIVATED, self.OnTreeItemActivated)
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchLog, self.search_log)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchParam, self.search_param)
@@ -373,123 +388,6 @@ class ULogPanel(wx.Panel):
         """
         self.Gcu.destroy(self.num)
         super().Destroy()
-
-    def GetItemPath(self, item):
-        if not item.IsOk():
-            return []
-        text = self.tree.GetItemText(item)
-        path = [text]
-        parent = self.tree.GetItemParent(item)
-        if parent.IsOk() and parent != self.tree.GetRootItem():
-            path.insert(0, self.tree.GetItemText(parent))
-        return path
-
-    def OnTreeItemMenu(self, event):
-        item = event.GetItem()
-        if not item.IsOk():
-            return
-        has_child = self.tree.ItemHasChildren(item)
-        menu = wx.Menu()
-        menu.Append(self.ID_ULOG_EXPORT, "&Export to shell")
-        if not has_child:
-            menu.Append(self.ID_ULOG_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
-
-        cmd = self.GetPopupMenuSelectionFromUser(menu)
-        if cmd == wx.ID_NONE:
-            return
-        text = self.tree.GetItemText(item)
-        path = self.GetItemPath(item)
-        if not path:
-            return
-        if cmd in [self.ID_ULOG_EXPORT, self.ID_ULOG_EXPORT_WITH_TIMESTAMP]:
-            name = get_variable_name(text)
-            command = f'{name}=ulog.get()["{path[0]}"]'
-            if len(path) > 1:
-                if cmd == self.ID_ULOG_EXPORT_WITH_TIMESTAMP:
-                    command += f'.get(["timestamp", "{path[1]}"])'
-                else:
-                    command += f'.get(["{path[1]}"])'
-            dp.send(signal='shell.run',
-                command=command,
-                prompt=False,
-                verbose=False,
-                history=True)
-            dp.send(signal='shell.run',
-                command=f'{name}',
-                prompt=True,
-                verbose=True,
-                history=False)
-
-    def OnTreeItemActivated(self, event):
-        item = event.GetItem()
-        if not item.IsOk():
-            return
-        if self.tree.ItemHasChildren(item):
-            return
-        parent = self.tree.GetItemParent(item)
-        if not parent.IsOk():
-            return
-        datasetname = self.tree.GetItemText(parent)
-        dataset = self.tree.data[datasetname]
-        dataname = self.tree.GetItemText(item)
-        x = dataset['timestamp']/1e6
-        y = dataset[dataname]
-
-        if not is_numeric_dtype(y):
-            print(f"{dataname} is not numeric, ignore plotting!")
-            return
-
-        # plot
-        mgr = graph.plt.get_current_fig_manager()
-        if not isinstance(mgr, graph.MatplotPanel) and hasattr(mgr, 'frame'):
-            mgr = mgr.frame
-        if not mgr.IsShownOnScreen():
-            dp.send('frame.show_panel', panel=mgr)
-        ls, ms = None, None
-        if mgr.figure.gca().lines:
-            # match the line/marker style of the existing line
-            line = mgr.figure.gca().lines[0]
-            ls, ms = line.get_linestyle(), line.get_marker()
-        mgr.figure.gca().plot(x, y, label="/".join([datasetname, dataname]).lstrip('_'),
-                              linestyle=ls, marker=ms)
-        mgr.figure.gca().legend()
-        mgr.figure.gca().grid(True)
-        mgr.figure.gca().set_xlabel('t(s)')
-
-    def OnTreeBeginDrag(self, event):
-        if not self.tree.data:
-            return
-
-        ids = self.tree.GetSelections()
-        objs = []
-        for item in ids:
-            if item == self.tree.GetRootItem():
-                continue
-            if not item.IsOk():
-                break
-            path = self.GetItemPath(item)
-            if len(path) == 1:
-                data = self.tree.data[path[0]]
-            else:
-                data = self.tree.data[path[0]].loc[:, ['timestamp', path[1]]]
-                data['timestamp'] /= 1e6
-            objs.append([path[0], data.to_json()])
-        # need to explicitly allow drag
-        # start drag operation
-        data = wx.TextDataObject(json.dumps(objs))
-        source = wx.DropSource(self.tree)
-        source.SetData(data)
-        rtn = source.DoDragDrop(True)
-        if rtn == wx.DragError:
-            wx.LogError("An error occurred during drag and drop operation")
-        elif rtn == wx.DragNone:
-            pass
-        elif rtn == wx.DragCopy:
-            pass
-        elif rtn == wx.DragMove:
-            pass
-        elif rtn == wx.DragCancel:
-            pass
 
     def OnProcessCommand(self, event):
         """process the menu command"""
