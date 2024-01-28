@@ -5,11 +5,9 @@ import wx
 import wx.py.dispatcher as dp
 import pyulog
 import pandas as pd
-from pandas.api.types import is_numeric_dtype
 from .pymgr_helpers import Gcm
 from .utility import _dict, get_variable_name
-from .utility import get_file_finder_name, show_file_in_finder
-from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase
+from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase, FileViewBase
 
 class ULogTree(TreeCtrlBase):
     ID_ULOG_EXPORT = wx.NewIdRef()
@@ -44,10 +42,10 @@ class ULogTree(TreeCtrlBase):
         children = [{'label': c, 'img':-1, 'imgsel':-1, 'data': None, 'is_folder': is_folder} for c in children]
         return children
 
-    def Load(self, ulg):
+    def Load(self, data):
         """load the ulog file"""
         data = _dict()
-        for d in ulg.data_list:
+        for d in data.data_list:
             df = pd.DataFrame(d.data)
             data[d.name] = df
         super().Load(data)
@@ -347,41 +345,37 @@ class ULogPanel(PanelBase):
         self.Gcu.destroy(self.num)
         super().Destroy()
 
-    def GetFileType(self):
+    @classmethod
+    def GetFileType(cls):
         return "ulog files (*.ulg;*.ulog)|*.ulg;*.ulog|All files (*.*)|*.*"
 
-class ULog:
-    frame = None
-    ID_ULOG_NEW = wx.NOT_FOUND
-    ID_PANE_COPY_PATH = wx.NewIdRef()
-    ID_PANE_COPY_PATH_REL = wx.NewIdRef()
-    ID_PANE_SHOW_IN_FINDER = wx.NewIdRef()
-    ID_PANE_SHOW_IN_BROWSING = wx.NewIdRef()
-    ID_PANE_CLOSE = wx.NewIdRef()
-    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
-    ID_PANE_CLOSE_ALL = wx.NewIdRef()
-
+    @classmethod
+    def get_all_managers(cls):
+        return cls.Gcu.get_all_managers()
 
     @classmethod
-    def initialize(cls, frame):
-        if cls.frame is not None:
-            # already initialized
-            return
-        cls.frame = frame
+    def get_active(cls):
+        return cls.Gcu.get_active()
 
-        resp = dp.send(signal='frame.add_menu',
-                       path='File:Open:ulog file',
-                       rxsignal='bsm.ulog')
-        if resp:
-            cls.ID_ULOG_NEW = resp[0][1]
+    @classmethod
+    def set_active(cls, panel):
+        cls.Gcu.set_active(panel)
 
-        dp.connect(cls._process_command, signal='bsm.ulog')
-        dp.connect(receiver=cls._frame_set_active,
-                   signal='frame.activate_panel')
-        dp.connect(receiver=cls._frame_uninitialize, signal='frame.exiting')
-        dp.connect(receiver=cls._initialized, signal='frame.initialized')
-        dp.connect(receiver=cls.open, signal='frame.file_drop')
-        dp.connect(cls.PaneMenu, 'bsm.ulog.pane_menu')
+    @classmethod
+    def get_manager(cls, num):
+        return cls.Gcu.get_manager(num)
+
+class ULog(FileViewBase):
+    name = 'ulog'
+    panel_type = ULogPanel
+
+    @classmethod
+    def check_filename(cls, filename):
+        if filename is None:
+            return True
+
+        _, ext = os.path.splitext(filename)
+        return (ext.lower() in ['.ulog', '.ulg'])
 
     @classmethod
     def _initialized(cls):
@@ -391,114 +385,6 @@ class ULog:
                 prompt=False,
                 verbose=False,
                 history=False)
-
-    @classmethod
-    def _frame_set_active(cls, pane):
-        if pane and isinstance(pane, ULogPanel):
-            if ULogPanel.Gcu.get_active() == pane:
-                return
-            ULogPanel.Gcu.set_active(pane)
-
-    @classmethod
-    def _frame_uninitialize(cls):
-        for mgr in ULogPanel.Gcu.get_all_managers():
-            dp.send('frame.delete_panel', panel=mgr)
-
-        dp.send('frame.delete_menu', path="File:Open:ulog file", id=cls.ID_ULOG_NEW)
-
-    @classmethod
-    def _process_command(cls, command):
-        if command == cls.ID_ULOG_NEW:
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            wildcard = "ulog files (*.ulg;*.ulog)|*.ulg;*.ulog|All files (*.*)|*.*"
-            dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", wildcard, style)
-            if dlg.ShowModal() == wx.ID_OK:
-                filename = dlg.GetPath()
-                cls.open(filename=filename)
-            dlg.Destroy()
-
-    @classmethod
-    def open(cls,
-            filename=None,
-            num=None,
-            activate=False):
-        """
-        open an ulog file
-
-        If the ulog has already been opened, return its handler; otherwise, create it.
-        """
-        if filename is not None:
-            _, ext = os.path.splitext(filename)
-            if not (ext.lower() in ['.ulog', '.ulg']):
-                return None
-
-        manager = cls._get_manager(num, filename)
-        if manager is None:
-            manager = ULogPanel(cls.frame, filename)
-            (_, filename) = os.path.split(filename)
-            title = filename
-            dp.send(signal="frame.add_panel",
-                    panel=manager,
-                    title=title,
-                    target="History",
-                    pane_menu={'rxsignal': 'bsm.ulog.pane_menu',
-                           'menu': [
-                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
-                               {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
-                               {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
-                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
-                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
-                               ]} )
-            return manager
-        # activate the manager
-        elif manager and activate:
-            dp.send(signal='frame.show_panel', panel=manager)
-        return manager
-
-    @classmethod
-    def PaneMenu(cls, pane, command):
-        if not pane or not isinstance(pane, ULogPanel):
-            return
-        if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
-            if wx.TheClipboard.Open():
-                filepath = pane.filename
-                if command == cls.ID_PANE_COPY_PATH_REL:
-                    filepath = os.path.relpath(filepath, os.getcwd())
-                wx.TheClipboard.SetData(wx.TextDataObject(filepath))
-                wx.TheClipboard.Close()
-        elif command == cls.ID_PANE_SHOW_IN_FINDER:
-            show_file_in_finder(pane.filename)
-        elif command == cls.ID_PANE_SHOW_IN_BROWSING:
-            dp.send(signal='dirpanel.goto', filepath=pane.filename, show=True)
-        elif command == cls.ID_PANE_CLOSE:
-            dp.send(signal='frame.delete_panel', panel=pane)
-        elif command == cls.ID_PANE_CLOSE_OTHERS:
-            mgrs =  ULogPanel.Gcu.get_all_managers()
-            for mgr in mgrs:
-                if mgr == pane:
-                    continue
-                dp.send(signal='frame.delete_panel', panel=mgr)
-        elif command == cls.ID_PANE_CLOSE_ALL:
-            mgrs =  ULogPanel.Gcu.get_all_managers()
-            for mgr in mgrs:
-                dp.send(signal='frame.delete_panel', panel=mgr)
-
-    @classmethod
-    def _get_manager(cls, num=None, filename=None):
-        manager = None
-        if num is not None:
-            manager = ULogPanel.Gcu.get_manager(num)
-        if manager is None and isinstance(filename, str):
-            abs_filename = os.path.abspath(filename)
-            for m in ULogPanel.Gcu.get_all_managers():
-                if abs_filename == os.path.abspath(m.filename):
-                    manager = m
-                    break
-        return manager
 
     @classmethod
     def _load_ulog(cls, ulg):

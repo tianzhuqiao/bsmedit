@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import json
 import traceback
 from csv import Sniffer
@@ -10,8 +10,8 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from .pymgr_helpers import Gcm
 from .utility import get_variable_name
-from .utility import get_file_finder_name, show_file_in_finder, build_tree
-from .fileviewbase import TreeCtrlBase, PanelBase
+from .utility import build_tree
+from .fileviewbase import TreeCtrlBase, PanelBase, FileViewBase
 
 def read_csv(filename):
     sep = ','
@@ -106,7 +106,6 @@ class CsvTree(TreeCtrlBase):
         selections = self.GetSelections()
         if not selections:
             selections = [item]
-        text = self.GetItemText(item)
         path = self.GetItemPath(item)
         value = self.GetItemData(item)
         menu = wx.Menu()
@@ -210,40 +209,37 @@ class CsvPanel(PanelBase):
         self.Gcc.destroy(self.num)
         super().Destroy()
 
-    def GetFileType(self):
+    @classmethod
+    def GetFileType(cls):
         return "csv files (*.csv)|*.csv|All files (*.*)|*.*"
 
-class CSV:
-    frame = None
-    ID_CSV_NEW = wx.NOT_FOUND
-    ID_PANE_COPY_PATH = wx.NewIdRef()
-    ID_PANE_COPY_PATH_REL = wx.NewIdRef()
-    ID_PANE_SHOW_IN_FINDER = wx.NewIdRef()
-    ID_PANE_SHOW_IN_BROWSING = wx.NewIdRef()
-    ID_PANE_CLOSE = wx.NewIdRef()
-    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
-    ID_PANE_CLOSE_ALL = wx.NewIdRef()
+    @classmethod
+    def get_all_managers(cls):
+        return cls.Gcc.get_all_managers()
 
     @classmethod
-    def initialize(cls, frame):
-        if cls.frame is not None:
-            # already initialized
-            return
-        cls.frame = frame
+    def get_active(cls):
+        return cls.Gcc.get_active()
 
-        resp = dp.send(signal='frame.add_menu',
-                       path='File:Open:CSV file',
-                       rxsignal='bsm.csv')
-        if resp:
-            cls.ID_CSV_NEW = resp[0][1]
+    @classmethod
+    def set_active(cls, panel):
+        cls.Gcc.set_active(panel)
 
-        dp.connect(cls._process_command, signal='bsm.csv')
-        dp.connect(receiver=cls._frame_set_active,
-                   signal='frame.activate_panel')
-        dp.connect(receiver=cls._frame_uninitialize, signal='frame.exiting')
-        dp.connect(receiver=cls._initialized, signal='frame.initialized')
-        dp.connect(receiver=cls.open, signal='frame.file_drop')
-        dp.connect(cls.PaneMenu, 'bsm.csv.pane_menu')
+    @classmethod
+    def get_manager(cls, num):
+        return cls.Gcc.get_manager(num)
+
+class CSV(FileViewBase):
+    name = 'csv'
+    panel_type = CsvPanel
+
+    @classmethod
+    def check_filename(cls, filename):
+        if filename is None:
+            return True
+
+        _, ext = os.path.splitext(filename)
+        return (ext.lower() in ['.csv'])
 
     @classmethod
     def _initialized(cls):
@@ -255,115 +251,7 @@ class CSV:
                 history=False)
 
     @classmethod
-    def _frame_set_active(cls, pane):
-        if pane and isinstance(pane, CsvPanel):
-            if CsvPanel.Gcc.get_active() == pane:
-                return
-            CsvPanel.Gcc.set_active(pane)
-
-    @classmethod
-    def _frame_uninitialize(cls):
-        for mgr in CsvPanel.Gcc.get_all_managers():
-            dp.send('frame.delete_panel', panel=mgr)
-
-        dp.send('frame.delete_menu', path="File:Open:csv", id=cls.ID_CSV_NEW)
-
-    @classmethod
-    def _process_command(cls, command):
-        if command == cls.ID_CSV_NEW:
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            wildcard = "csv files (*.csv)|*.csv|All files (*.*)|*.*"
-            dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", wildcard, style)
-            if dlg.ShowModal() == wx.ID_OK:
-                filename = dlg.GetPath()
-                cls.open(filename=filename)
-            dlg.Destroy()
-
-    @classmethod
-    def open(cls,
-            filename=None,
-            num=None,
-            activate=False):
-        """
-        open an csv file
-
-        If the csv has already been opened, return its handler; otherwise, create one.
-        """
-        if filename is not None:
-            _, ext = os.path.splitext(filename)
-            if not (ext.lower() in ['.csv']):
-                return None
-
-        manager = cls._get_manager(num, filename)
-        if manager is None:
-            manager = CsvPanel(cls.frame, filename)
-            (_, filename) = os.path.split(filename)
-            title = filename
-            dp.send(signal="frame.add_panel",
-                    panel=manager,
-                    title=title,
-                    target="History",
-                    pane_menu={'rxsignal': 'bsm.csv.pane_menu',
-                           'menu': [
-                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
-                               {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
-                               {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
-                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
-                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
-                               ]} )
-            return manager
-        # activate the manager
-        if manager and activate:
-            dp.send(signal='frame.show_panel', panel=manager)
-        return manager
-
-    @classmethod
-    def PaneMenu(cls, pane, command):
-        if not pane or not isinstance(pane, CsvPanel):
-            return
-        if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
-            if wx.TheClipboard.Open():
-                filepath = pane.filename
-                if command == cls.ID_PANE_COPY_PATH_REL:
-                    filepath = os.path.relpath(filepath, os.getcwd())
-                wx.TheClipboard.SetData(wx.TextDataObject(filepath))
-                wx.TheClipboard.Close()
-        elif command == cls.ID_PANE_SHOW_IN_FINDER:
-            show_file_in_finder(pane.filename)
-        elif command == cls.ID_PANE_SHOW_IN_BROWSING:
-            dp.send(signal='dirpanel.goto', filepath=pane.filename, show=True)
-        elif command == cls.ID_PANE_CLOSE:
-            dp.send(signal='frame.delete_panel', panel=pane)
-        elif command == cls.ID_PANE_CLOSE_OTHERS:
-            mgrs =  CsvPanel.Gcc.get_all_managers()
-            for mgr in mgrs:
-                if mgr == pane:
-                    continue
-                dp.send(signal='frame.delete_panel', panel=mgr)
-        elif command == cls.ID_PANE_CLOSE_ALL:
-            mgrs =  CsvPanel.Gcc.get_all_managers()
-            for mgr in mgrs:
-                dp.send(signal='frame.delete_panel', panel=mgr)
-
-    @classmethod
-    def _get_manager(cls, num=None, filename=None):
-        manager = None
-        if num is not None:
-            manager = CsvPanel.Gcc.get_manager(num)
-        if manager is None and isinstance(filename, str):
-            abs_filename = os.path.abspath(filename)
-            for m in CsvPanel.Gcc.get_all_managers():
-                if abs_filename == os.path.abspath(m.filename):
-                    manager = m
-                    break
-        return manager
-
-    @classmethod
-    def get(cls, num=None, filename=None):
+    def get(cls, num=None, filename=None, dataOnly=True):
         manager = cls._get_manager(num, filename)
         if num is None and filename is None and manager is None:
             manager = CsvPanel.Gcc.get_active()

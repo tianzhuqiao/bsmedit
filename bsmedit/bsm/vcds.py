@@ -1,5 +1,5 @@
-import sys
 import os
+import sys
 import re
 import traceback
 import wx
@@ -10,8 +10,8 @@ from pandas.api.types import is_numeric_dtype, is_integer_dtype
 from vcd.reader import TokenKind, tokenize
 from .pymgr_helpers import Gcm
 from .utility import _dict, get_variable_name
-from .utility import get_file_finder_name, show_file_in_finder, build_tree
-from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase
+from .utility import build_tree
+from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase, FileViewBase
 from ..pvcd.pvcd import load_vcd as load_vcd2
 
 def load_vcd3(filename):
@@ -504,41 +504,37 @@ class VcdPanel(PanelBase):
         self.Gcv.destroy(self.num)
         super().Destroy()
 
-    def GetFileType(self):
+    @classmethod
+    def GetFileType(cls):
         return "vcd files (*.vcd)|*.vcd|All files (*.*)|*.*"
 
-class VCD:
-    frame = None
-    ID_VCD_NEW = wx.NOT_FOUND
-    ID_PANE_COPY_PATH = wx.NewIdRef()
-    ID_PANE_COPY_PATH_REL = wx.NewIdRef()
-    ID_PANE_SHOW_IN_FINDER = wx.NewIdRef()
-    ID_PANE_SHOW_IN_BROWSING = wx.NewIdRef()
-    ID_PANE_CLOSE = wx.NewIdRef()
-    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
-    ID_PANE_CLOSE_ALL = wx.NewIdRef()
-
+    @classmethod
+    def get_all_managers(cls):
+        return cls.Gcv.get_all_managers()
 
     @classmethod
-    def initialize(cls, frame):
-        if cls.frame is not None:
-            # already initialized
-            return
-        cls.frame = frame
+    def get_active(cls):
+        return cls.Gcv.get_active()
 
-        resp = dp.send(signal='frame.add_menu',
-                       path='File:Open:VCD file',
-                       rxsignal='bsm.vcd')
-        if resp:
-            cls.ID_VCD_NEW = resp[0][1]
+    @classmethod
+    def set_active(cls, panel):
+        cls.Gcv.set_active(panel)
 
-        dp.connect(cls._process_command, signal='bsm.vcd')
-        dp.connect(receiver=cls._frame_set_active,
-                   signal='frame.activate_panel')
-        dp.connect(receiver=cls._frame_uninitialize, signal='frame.exiting')
-        dp.connect(receiver=cls._initialized, signal='frame.initialized')
-        dp.connect(receiver=cls.open, signal='frame.file_drop')
-        dp.connect(cls.PaneMenu, 'bsm.vcd.pane_menu')
+    @classmethod
+    def get_manager(cls, num):
+        return cls.Gcv.get_manager(num)
+
+class VCD(FileViewBase):
+    name = 'vcd'
+    panel_type = VcdPanel
+
+    @classmethod
+    def check_filename(cls, filename):
+        if filename is None:
+            return True
+
+        _, ext = os.path.splitext(filename)
+        return (ext.lower() in ['.vcd', '.bsm'])
 
     @classmethod
     def _initialized(cls):
@@ -553,115 +549,6 @@ class VCD:
                 prompt=False,
                 verbose=False,
                 history=False)
-
-    @classmethod
-    def _frame_set_active(cls, pane):
-        if pane and isinstance(pane, VcdPanel):
-            if VcdPanel.Gcv.get_active() == pane:
-                return
-            VcdPanel.Gcv.set_active(pane)
-
-    @classmethod
-    def _frame_uninitialize(cls):
-        for mgr in VcdPanel.Gcv.get_all_managers():
-            dp.send('frame.delete_panel', panel=mgr)
-
-        dp.send('frame.delete_menu', path="File:Open:VCD file", id=cls.ID_VCD_NEW)
-
-    @classmethod
-    def _process_command(cls, command):
-        if command == cls.ID_VCD_NEW:
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            wildcard = "vcd files (*.vcd)|*.vcd|All files (*.*)|*.*"
-            dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", wildcard, style)
-            if dlg.ShowModal() == wx.ID_OK:
-                filename = dlg.GetPath()
-                cls.open(filename=filename)
-            dlg.Destroy()
-
-    @classmethod
-    def open(cls,
-            filename=None,
-            num=None,
-            activate=True):
-        """
-        open an vcd file
-
-        If the vcd has already been opened, return its handler; otherwise, create one.
-        """
-        if filename is not None:
-            _, ext = os.path.splitext(filename)
-            if not (ext.lower() in ['.vcd', '.bsm']):
-                return None
-
-        manager = cls._get_manager(num, filename)
-        if manager is None:
-            manager = VcdPanel(cls.frame, filename)
-            (_, filename) = os.path.split(filename)
-            title = filename
-            dp.send(signal="frame.add_panel",
-                    panel=manager,
-                    title=title,
-                    active=activate,
-                    target="History",
-                    pane_menu={'rxsignal': 'bsm.vcd.pane_menu',
-                           'menu': [
-                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
-                               {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
-                               {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
-                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
-                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
-                               ]} )
-            return manager
-        # activate the manager
-        if manager and activate:
-            dp.send(signal='frame.show_panel', panel=manager)
-        return manager
-
-    @classmethod
-    def PaneMenu(cls, pane, command):
-        if not pane or not isinstance(pane, VcdPanel):
-            return
-        if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
-            if wx.TheClipboard.Open():
-                filepath = pane.filename
-                if command == cls.ID_PANE_COPY_PATH_REL:
-                    filepath = os.path.relpath(filepath, os.getcwd())
-                wx.TheClipboard.SetData(wx.TextDataObject(filepath))
-                wx.TheClipboard.Close()
-        elif command == cls.ID_PANE_SHOW_IN_FINDER:
-            show_file_in_finder(pane.filename)
-        elif command == cls.ID_PANE_SHOW_IN_BROWSING:
-            dp.send(signal='dirpanel.goto', filepath=pane.filename, show=True)
-        elif command == cls.ID_PANE_CLOSE:
-            dp.send(signal='frame.delete_panel', panel=pane)
-        elif command == cls.ID_PANE_CLOSE_OTHERS:
-            mgrs =  VcdPanel.Gcv.get_all_managers()
-            for mgr in mgrs:
-                if mgr == pane:
-                    continue
-                dp.send(signal='frame.delete_panel', panel=mgr)
-        elif command == cls.ID_PANE_CLOSE_ALL:
-            mgrs =  VcdPanel.Gcv.get_all_managers()
-            for mgr in mgrs:
-                dp.send(signal='frame.delete_panel', panel=mgr)
-
-    @classmethod
-    def _get_manager(cls, num=None, filename=None):
-        manager = None
-        if num is not None:
-            manager = VcdPanel.Gcv.get_manager(num)
-        if manager is None and isinstance(filename, str):
-            abs_filename = os.path.abspath(filename)
-            for m in VcdPanel.Gcv.get_all_managers():
-                if abs_filename == os.path.abspath(m.filename):
-                    manager = m
-                    break
-        return manager
 
     @classmethod
     def get(cls, num=None, filename=None, dataOnly=True):
