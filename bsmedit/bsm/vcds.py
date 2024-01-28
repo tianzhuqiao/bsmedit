@@ -1,7 +1,6 @@
 import sys
 import os
 import re
-import json
 import traceback
 import wx
 import wx.py.dispatcher as dp
@@ -9,15 +8,10 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_integer_dtype
 from vcd.reader import TokenKind, tokenize
-from ..aui import aui
-from . import graph
-from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import _dict, svg_to_bitmap, get_variable_name
+from .utility import _dict, get_variable_name
 from .utility import get_file_finder_name, show_file_in_finder, build_tree
-from .autocomplete import AutocompleteTextCtrl
-from .listctrl_base import ListCtrlBase
-from .treectrlbase import TreeCtrlBase
+from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase
 from ..pvcd.pvcd import load_vcd as load_vcd2
 
 def load_vcd3(filename):
@@ -162,7 +156,7 @@ class VcdTree(TreeCtrlBase):
         item = event.GetItem()
         if not item.IsOk():
             return
-
+        self.UnselectAll()
         path = self.GetItemPath(item)
         data = self.GetItemData(item)
         if data is None:
@@ -454,26 +448,20 @@ class InfoListCtrl(ListCtrlBase):
         column -= 1
         return str(self.info[item][column])
 
-class VcdPanel(wx.Panel):
+class VcdPanel(PanelBase):
     Gcv = Gcm()
-    ID_VCD_OPEN = wx.NewIdRef()
 
     def __init__(self, parent, filename=None):
-        wx.Panel.__init__(self, parent)
+        PanelBase.__init__(self, parent, filename=filename)
 
-        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
-        self.tb.SetToolBitmapSize(wx.Size(16, 16))
+        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearchInfo, self.search_info)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearchComment, self.search_comment)
 
-        open_bmp = wx.Bitmap(svg_to_bitmap(open_svg, win=self))
-        self.tb.AddTool(self.ID_VCD_OPEN, "Open", open_bmp,
-                        wx.NullBitmap, wx.ITEM_NORMAL,
-                        "Open vcd file")
+        self.num = self.Gcv.get_next_num()
+        self.Gcv.set_active(self)
 
-        self.tb.Realize()
-
-        agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER
-        self.notebook = aui.AuiNotebook(self, agwStyle=agwStyle)
-
+    def init_pages(self):
         # data page
         panel, self.search, self.tree = self.CreatePageWithSearch(VcdTree)
         self.notebook.AddPage(panel, 'Data')
@@ -484,39 +472,7 @@ class VcdPanel(wx.Panel):
         panel_comment, self.search_comment, self.commentList = self.CreatePageWithSearch(CommentListCtrl)
         self.notebook.AddPage(panel_comment, 'Comment')
 
-        self.box = wx.BoxSizer(wx.VERTICAL)
-        self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(self.notebook, 1, wx.EXPAND)
-
-        self.box.Fit(self)
-        self.SetSizer(self.box)
-
-        self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearchInfo, self.search_info)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearchComment, self.search_comment)
-
-        # load the vcd
         self.vcd = None
-        if filename is not None:
-            self.Load(filename)
-
-        self.num = self.Gcv.get_next_num()
-        self.Gcv.set_active(self)
-
-    def CreatePageWithSearch(self, PageClass):
-        panel = wx.Panel(self.notebook)
-        search = AutocompleteTextCtrl(panel)
-        search.SetHint('searching ...')
-        ctrl = PageClass(panel)
-        szAll = wx.BoxSizer(wx.VERTICAL)
-        szAll.Add(search, 0, wx.EXPAND|wx.ALL, 2)
-        szAll.Add(ctrl, 1, wx.EXPAND)
-        szAll.Fit(panel)
-        panel.SetSizer(szAll)
-        return panel, search, ctrl
 
     def Load(self, filename):
         """load the vcd file"""
@@ -526,7 +482,7 @@ class VcdPanel(wx.Panel):
         self.tree.Load(u)
         self.infoList.Load(u)
         self.commentList.Load(u)
-        dp.send('frame.add_file_history', filename=filename)
+        super().Load(filename)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
@@ -548,23 +504,8 @@ class VcdPanel(wx.Panel):
         self.Gcv.destroy(self.num)
         super().Destroy()
 
-    def OnProcessCommand(self, event):
-        """process the menu command"""
-        eid = event.GetId()
-        if eid == self.ID_VCD_OPEN:
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            wildcard = "vcd files (*.vcd)|*.vcd|All files (*.*)|*.*"
-            dlg = wx.FileDialog(self, "Choose a file", "", "", wildcard, style)
-            if dlg.ShowModal() == wx.ID_OK:
-                filename = dlg.GetPath()
-                self.Load(filename=filename)
-                (_, title) = os.path.split(filename)
-                dp.send('frame.set_panel_title', pane=self, title=title)
-            dlg.Destroy()
-
-    def OnUpdateCmdUI(self, event):
-        eid = event.GetId()
-
+    def GetFileType(self):
+        return "vcd files (*.vcd)|*.vcd|All files (*.*)|*.*"
 
 class VCD:
     frame = None

@@ -1,21 +1,15 @@
 import sys
 import os
-import json
 import traceback
 import wx
 import wx.py.dispatcher as dp
 import pyulog
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
-from ..aui import aui
-from . import graph
-from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import _dict, svg_to_bitmap, get_variable_name
+from .utility import _dict, get_variable_name
 from .utility import get_file_finder_name, show_file_in_finder
-from .autocomplete import AutocompleteTextCtrl
-from .listctrl_base import ListCtrlBase
-from .treectrlbase import TreeCtrlBase
+from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase
 
 class ULogTree(TreeCtrlBase):
     ID_ULOG_EXPORT = wx.NewIdRef()
@@ -62,6 +56,7 @@ class ULogTree(TreeCtrlBase):
         item = event.GetItem()
         if not item.IsOk():
             return
+        self.UnselectAll()
         has_child = self.ItemHasChildren(item)
         menu = wx.Menu()
         menu.Append(self.ID_ULOG_EXPORT, "&Export to shell")
@@ -71,7 +66,6 @@ class ULogTree(TreeCtrlBase):
         cmd = self.GetPopupMenuSelectionFromUser(menu)
         if cmd == wx.ID_NONE:
             return
-        text = self.GetItemText(item)
         path = self.GetItemPath(item)
         if not path:
             return
@@ -99,7 +93,7 @@ class ULogTree(TreeCtrlBase):
             return None, None
         parent = self.GetItemParent(item)
         if not parent.IsOk():
-            return
+            return None, None
         datasetname = self.GetItemText(parent)
         dataset = self.data[datasetname]
         dataname = self.GetItemText(item)
@@ -288,25 +282,21 @@ class ChgParamListCtrl(ListCtrlBase):
         return str(m[column])
 
 
-class ULogPanel(wx.Panel):
+class ULogPanel(PanelBase):
     Gcu = Gcm()
-    ID_ULOG_OPEN = wx.NewIdRef()
 
     def __init__(self, parent, filename=None):
-        wx.Panel.__init__(self, parent)
+        self.ulg = None
+        PanelBase.__init__(self, parent, filename=filename)
 
-        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
-        self.tb.SetToolBitmapSize(wx.Size(16, 16))
+        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearchLog, self.search_log)
+        self.Bind(wx.EVT_TEXT, self.OnDoSearchParam, self.search_param)
 
-        open_bmp = wx.Bitmap(svg_to_bitmap(open_svg, win=self))
-        self.tb.AddTool(self.ID_ULOG_OPEN, "Open", open_bmp,
-                        wx.NullBitmap, wx.ITEM_NORMAL,
-                        "Open ulog file")
+        self.num = self.Gcu.get_next_num()
+        self.Gcu.set_active(self)
 
-        self.tb.Realize()
-
-        self.notebook = aui.AuiNotebook(self, agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER)
-
+    def init_pages(self):
         # data page
         panel, self.search, self.tree = self.CreatePageWithSearch(ULogTree)
         self.notebook.AddPage(panel, 'Data')
@@ -323,39 +313,7 @@ class ULogPanel(wx.Panel):
         self.chgParamList = ChgParamListCtrl(self.notebook)
         self.notebook.AddPage(self.chgParamList, 'Changed Param')
 
-        self.box = wx.BoxSizer(wx.VERTICAL)
-        self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(self.notebook, 1, wx.EXPAND)
-
-        self.box.Fit(self)
-        self.SetSizer(self.box)
-
-        self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearchLog, self.search_log)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearchParam, self.search_param)
-
-        # load the ulog
         self.ulg = None
-        if filename is not None:
-            self.Load(filename)
-
-        self.num = self.Gcu.get_next_num()
-        self.Gcu.set_active(self)
-
-    def CreatePageWithSearch(self, PageClass):
-        panel = wx.Panel(self.notebook)
-        search = AutocompleteTextCtrl(panel)
-        search.SetHint('searching ...')
-        ctrl = PageClass(panel)
-        szAll = wx.BoxSizer(wx.VERTICAL)
-        szAll.Add(search, 0, wx.EXPAND|wx.ALL, 2)
-        szAll.Add(ctrl, 1, wx.EXPAND)
-        szAll.Fit(panel)
-        panel.SetSizer(szAll)
-        return panel, search, ctrl
 
     def Load(self, filename):
         """load the ulog file"""
@@ -367,7 +325,7 @@ class ULogPanel(wx.Panel):
         self.infoList.Load(u)
         self.paramList.Load(u)
         self.chgParamList.Load(u)
-        dp.send('frame.add_file_history', filename=filename)
+        super().Load(filename)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
@@ -389,23 +347,8 @@ class ULogPanel(wx.Panel):
         self.Gcu.destroy(self.num)
         super().Destroy()
 
-    def OnProcessCommand(self, event):
-        """process the menu command"""
-        eid = event.GetId()
-        if eid == self.ID_ULOG_OPEN:
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            wildcard = "ulog files (*.ulg;*.ulog)|*.ulg;*.ulog|All files (*.*)|*.*"
-            dlg = wx.FileDialog(self, "Choose a file", "", "", wildcard, style)
-            if dlg.ShowModal() == wx.ID_OK:
-                filename = dlg.GetPath()
-                self.Load(filename=filename)
-                (_, title) = os.path.split(filename)
-                dp.send('frame.set_panel_title', pane=self, title=title)
-            dlg.Destroy()
-
-    def OnUpdateCmdUI(self, event):
-        eid = event.GetId()
-
+    def GetFileType(self):
+        return "ulog files (*.ulg;*.ulog)|*.ulg;*.ulog|All files (*.*)|*.*"
 
 class ULog:
     frame = None

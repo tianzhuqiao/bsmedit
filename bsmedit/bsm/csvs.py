@@ -8,14 +8,10 @@ import wx.py.dispatcher as dp
 import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
-from ..aui import aui
-from . import graph
-from .bsmxpm import open_svg
 from .pymgr_helpers import Gcm
-from .utility import svg_to_bitmap, get_variable_name
+from .utility import get_variable_name
 from .utility import get_file_finder_name, show_file_in_finder, build_tree
-from .autocomplete import AutocompleteTextCtrl
-from .treectrlbase import TreeCtrlBase
+from .fileviewbase import TreeCtrlBase, PanelBase
 
 def read_csv(filename):
     sep = ','
@@ -39,22 +35,6 @@ class CsvTree(TreeCtrlBase):
         TreeCtrlBase.__init__(self, *args, **kwargs)
         self.x_path = None
 
-    def FindItemFromPath(self, path):
-        if not path:
-            return None
-        item = self.GetRootItem()
-        for p in path:
-            child, cookie = self.GetFirstChild(item)
-            while child.IsOk():
-                name = self.GetItemText(child)
-                if name == p:
-                    item = child
-                    break
-                child, cookie = self.GetNextChild(item, cookie)
-            else:
-                return None
-        return item
-
     def GetItemPlotData(self, item):
         y = self.GetItemData(item)
 
@@ -63,7 +43,7 @@ class CsvTree(TreeCtrlBase):
             print(f"{text} is not numeric, ignore plotting!")
             return None, None
 
-        if self.x_path is not None:
+        if self.x_path is not None and self.GetItemPath(item) != self.x_path:
             x = self.GetItemDataFromPath(self.x_path)
         else:
             x = np.arange(0, len(y))
@@ -123,20 +103,25 @@ class CsvTree(TreeCtrlBase):
             return
         if self.ItemHasChildren(item):
             return
+        selections = self.GetSelections()
+        if not selections:
+            selections = [item]
         text = self.GetItemText(item)
         path = self.GetItemPath(item)
         value = self.GetItemData(item)
         menu = wx.Menu()
-        if self.x_path and self.x_path == path:
-            mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "&Unset as x-axis data")
-            mitem.Check(True)
-            menu.AppendSeparator()
-        elif is_numeric_dtype(value):
-            menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
-            menu.AppendSeparator()
+        if len(selections) <= 1:
+            # single item selection
+            if self.x_path and self.x_path == path:
+                mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "&Unset as x-axis data")
+                mitem.Check(True)
+                menu.AppendSeparator()
+            elif is_numeric_dtype(value):
+                menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
+                menu.AppendSeparator()
 
         menu.Append(self.ID_CSV_EXPORT, "&Export to shell")
-        if self.x_path and self.x_path != path:
+        if self.x_path and (self.x_path != path or len(selections) > 1):
             menu.Append(self.ID_CSV_EXPORT_WITH_TIMESTAMP, "E&xport to shell with x")
 
         cmd = self.GetPopupMenuSelectionFromUser(menu)
@@ -146,12 +131,19 @@ class CsvTree(TreeCtrlBase):
         if not path:
             return
         if cmd in [self.ID_CSV_EXPORT, self.ID_CSV_EXPORT_WITH_TIMESTAMP]:
-            name = get_variable_name(path)
+            if len(selections) <= 1:
+                name = get_variable_name(path)
+            else:
+                name = "_csv"
             x, y = self.GetItemPlotData(item)
             if cmd == self.ID_CSV_EXPORT_WITH_TIMESTAMP:
-                data = pd.concat((x, y), axis=1)
+                data = x.to_frame()
             else:
-                data = y
+                data = pd.DataFrame()
+            for sel in selections:
+                x, y = self.GetItemPlotData(sel)
+                data[y.name] = y
+
             data.to_pickle('_csv.pickle')
             dp.send(signal='shell.run',
                 command=f'{name}=pd.read_pickle("_csv.pickle")',
@@ -177,60 +169,23 @@ class CsvTree(TreeCtrlBase):
                 # clear the current x-axis
                 self.x_path = None
 
-class CsvPanel(wx.Panel):
+class CsvPanel(PanelBase):
     Gcc = Gcm()
-    ID_CSV_OPEN = wx.NewIdRef()
 
     def __init__(self, parent, filename=None):
-        wx.Panel.__init__(self, parent)
+        PanelBase.__init__(self, parent, filename=filename)
 
-        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
-        self.tb.SetToolBitmapSize(wx.Size(16, 16))
+        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
+        self.num = self.Gcc.get_next_num()
+        self.Gcc.set_active(self)
 
-        open_bmp = wx.Bitmap(svg_to_bitmap(open_svg, win=self))
-        self.tb.AddTool(self.ID_CSV_OPEN, "Open", open_bmp,
-                        wx.NullBitmap, wx.ITEM_NORMAL,
-                        "Open csv file")
-
-        self.tb.Realize()
-
-        self.notebook = aui.AuiNotebook(self, agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER)
-
+    def init_pages(self):
         # data page
         panel, self.search, self.tree = self.CreatePageWithSearch(CsvTree)
         self.notebook.AddPage(panel, 'Data')
 
-        self.box = wx.BoxSizer(wx.VERTICAL)
-        self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(self.notebook, 1, wx.EXPAND)
-
-        self.box.Fit(self)
-        self.SetSizer(self.box)
-
-        self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
-        self.Bind(wx.EVT_MENU, self.OnProcessCommand)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
-        self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
-
         # load the csv
         self.csv = None
-        if filename is not None:
-            self.Load(filename)
-
-        self.num = self.Gcc.get_next_num()
-        self.Gcc.set_active(self)
-
-    def CreatePageWithSearch(self, PageClass):
-        panel = wx.Panel(self.notebook)
-        search = AutocompleteTextCtrl(panel)
-        search.SetHint('searching ...')
-        ctrl = PageClass(panel)
-        szAll = wx.BoxSizer(wx.VERTICAL)
-        szAll.Add(search, 0, wx.EXPAND|wx.ALL, 2)
-        szAll.Add(ctrl, 1, wx.EXPAND)
-        szAll.Fit(panel)
-        panel.SetSizer(szAll)
-        return panel, search, ctrl
 
     def Load(self, filename):
         """load the csv file"""
@@ -238,7 +193,7 @@ class CsvPanel(wx.Panel):
         self.csv = u
         self.filename = filename
         self.tree.Load(u)
-        dp.send('frame.add_file_history', filename=filename)
+        super().Load(filename)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
@@ -255,23 +210,8 @@ class CsvPanel(wx.Panel):
         self.Gcc.destroy(self.num)
         super().Destroy()
 
-    def OnProcessCommand(self, event):
-        """process the menu command"""
-        eid = event.GetId()
-        if eid == self.ID_CSV_OPEN:
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            wildcard = "csv files (*.csv)|*.csv|All files (*.*)|*.*"
-            dlg = wx.FileDialog(self, "Choose a file", "", "", wildcard, style)
-            if dlg.ShowModal() == wx.ID_OK:
-                filename = dlg.GetPath()
-                self.Load(filename=filename)
-                (_, title) = os.path.split(filename)
-                dp.send('frame.set_panel_title', pane=self, title=title)
-            dlg.Destroy()
-
-    def OnUpdateCmdUI(self, event):
-        eid = event.GetId()
-
+    def GetFileType(self):
+        return "csv files (*.csv)|*.csv|All files (*.*)|*.*"
 
 class CSV:
     frame = None
