@@ -113,6 +113,7 @@ class VCDParse:
               'DATA_REAL',
               'DATA_STRING',
               'WORD',
+              'TIME',
               ] + list(reserved.values())
 
 
@@ -152,7 +153,8 @@ class VCDParse:
 
     def t_TIME(self, t):
         r'^#\d+[^\S\n]*'
-        self.t = int(t.value[1:])
+        t.value = t.value[1:]
+        return t
 
     def t_space(self, t):
         r'[^\S\n]+'
@@ -224,6 +226,10 @@ class VCDParse:
                 | DATA_REAL WORD
                 | DATA_STRING WORD'''
         self.vcd['data'][p[2]].append([self.t, p[1]])
+
+    def p_time(self, p):
+        '''data : TIME'''
+        self.t = int(p[1])
 
     def p_dumpvars(self, p):
         '''data : DUMPVARS content END
