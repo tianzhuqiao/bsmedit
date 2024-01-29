@@ -6,8 +6,29 @@ import wx.py.dispatcher as dp
 import pyulog
 import pandas as pd
 from .pymgr_helpers import Gcm
-from .utility import _dict, get_variable_name
+from .utility import get_variable_name
 from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelNotebookBase, FileViewBase
+
+def load_ulog(filename):
+    try:
+        ulg = pyulog.ULog(filename)
+    except:
+        traceback.print_exc(file=sys.stdout)
+        return {}
+
+    data = {}
+    for d in ulg.data_list:
+        df = pd.DataFrame(d.data)
+        data[d.name] = df
+    t = [m.timestamp for m in ulg.logged_messages]
+    m = [m.message for m in ulg.logged_messages]
+    l = [m.log_level_str() for m in ulg.logged_messages]
+    log = pd.DataFrame.from_dict({'timestamp': t, 'level': l, "message": m})
+    info = ulg.msg_info_dict
+    param = ulg.initial_parameters
+    changed_param = ulg.changed_parameters
+    return {'data': data, 'log': log, 'info': info, 'param': param,
+            'changed_param': changed_param}
 
 class ULogTree(TreeCtrlBase):
     ID_ULOG_EXPORT = wx.NewIdRef()
@@ -41,14 +62,6 @@ class ULogTree(TreeCtrlBase):
                     children = [c for c in children if pattern in c]
         children = [{'label': c, 'img':-1, 'imgsel':-1, 'data': None, 'is_folder': is_folder} for c in children]
         return children
-
-    def Load(self, data):
-        """load the ulog file"""
-        data = _dict()
-        for d in data.data_list:
-            df = pd.DataFrame(d.data)
-            data[d.name] = df
-        super().Load(data)
 
     def OnTreeItemMenu(self, event):
         item = event.GetItem()
@@ -112,169 +125,128 @@ class ULogTree(TreeCtrlBase):
         return "t(s)"
 
 class MessageListCtrl(ListCtrlBase):
-    def __init__(self, parent):
-        ListCtrlBase.__init__(self, parent)
-        self.ulg = None
-        self.InsertColumn(0, "#", width=60)
-        self.InsertColumn(1, "Timestamp", width=120)
-        self.InsertColumn(2, "Type", width=120)
-        self.InsertColumn(3, "Message", width=wx.LIST_AUTOSIZE_USEHEADER)
-        self.messages = []
-        self.pattern = None
+
+    def BuildColumns(self):
+        super().BuildColumns()
+        start = self.data_start_column
+        self.InsertColumn(start, "Timestamp", width=120)
+        self.InsertColumn(start+1, "Type", width=120)
+        self.InsertColumn(start+2, "Message", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.messages[i].message
+            m = self.data_shown.iloc[i].message
             if self.Search(m, text, flags):
                 return i
 
         # not found
         return -1
 
-    def Load(self, ulg):
-        self.ulg = ulg
-        self.SetItemCount(0)
-        if self.ulg is not None:
-            self.FillMessage(self.pattern)
-
-    def FillMessage(self, pattern):
-        self.pattern = pattern
-        if isinstance(self.pattern, str):
-            self.pattern = self.pattern.lower()
-            self.pattern.strip()
+    def ApplyPattern(self):
         if not self.pattern:
-            self.messages = self.ulg.logged_messages
+            self.data_shown = self.data
         else:
-            self.messages = [m for m in self.ulg.logged_messages if self.pattern in m.message.lower() or self.pattern in m.log_level_str().lower()]
-
-        self.SetItemCount(len(self.messages))
-        if self.GetItemCount() > 0:
-            self.RefreshItems(0, len(self.messages)-1)
+            self.data_shown = self.data.loc[self.data.level.str.contains(self.pattern, case=False) | self.data.message.str.contains(self.pattern, case=False)]
 
     def OnGetItemText(self, item, column):
-        if column == 0:
-            return f"{item+1}"
-        column -= 1
-        m = self.messages[item]
+        if column < self.data_start_column:
+            return super().OnGetItemText(item, column)
+        column -= self.data_start_column
+        m = self.data_shown.iloc[item]
         if column == 0:
             return str(m.timestamp/1e6)
         if column == 1:
-            return m.log_level_str()
+            return m.level
         if column == 2:
             return m.message
         return ""
 
 class InfoListCtrl(ListCtrlBase):
-    def __init__(self, parent):
-        ListCtrlBase.__init__(self, parent)
-        self.ulg = None
-        self.info = []
-        self.InsertColumn(0, "#", width=60)
-        self.InsertColumn(1, "Key", width=120)
-        self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+
+    def BuildColumns(self):
+        super().BuildColumns()
+        start = self.data_start_column
+        self.InsertColumn(start, "Key", width=120)
+        self.InsertColumn(start+1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.info[i]
+            m = self.data_shown[i]
             if self.Search(m[0], text, flags) or self.Search(str(m[1]), text, flags):
                 return i
 
         # not found
         return -1
 
-    def Load(self, ulg):
-        self.ulg = ulg
-        self.SetItemCount(0)
-        if self.ulg is not None:
-            self.info = [[k, v] for k, v in self.ulg.msg_info_dict.items()]
-            self.info = sorted(self.info, key=lambda x: x[0])
-            self.SetItemCount(len(self.info))
+    def Load(self, data):
+        data = [[k, v] for k, v in data.items()]
+        data = sorted(data, key=lambda x: x[0])
+        super().Load(data)
 
     def OnGetItemText(self, item, column):
-        if column == 0:
-            return f"{item+1}"
-        column -= 1
-        return str(self.info[item][column])
+        if column < self.data_start_column:
+            return super().OnGetItemText(item, column)
+        column -= self.data_start_column
+        return str(self.data_shown[item][column])
 
 class ParamListCtrl(ListCtrlBase):
-    def __init__(self, parent):
-        ListCtrlBase.__init__(self, parent)
-        self.ulg = None
-        self.info = []
-        self.InsertColumn(0, "#", width=60)
-        self.InsertColumn(1, "Key", width=200)
-        self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
-        self.pattern = None
+
+    def BuildColumns(self):
+        super().BuildColumns()
+        start = self.data_start_column
+        self.InsertColumn(start, "Key", width=200)
+        self.InsertColumn(start+1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.info[i]
+            m = self.data_shown[i]
             if self.Search(str(m[0]), text, flags) or self.Search(str(m[1]), text, flags):
                 return i
 
         # not found
         return -1
 
-    def Load(self, ulg):
-        self.ulg = ulg
-        self.SetItemCount(0)
-        if self.ulg is not None:
-            self.FillParams(self.pattern)
-
-    def FillParams(self, pattern):
-        self.pattern = pattern
-        if isinstance(self.pattern, str):
-            self.pattern = self.pattern.lower()
-            self.pattern.strip()
+    def ApplyPattern(self):
         if self.pattern:
-            self.info = [[k, v] for k, v in self.ulg.initial_parameters.items() if self.pattern in str(k).lower() or self.pattern.lower() in str(v).lower()]
+            self.data_shown = [[k, v] for k, v in self.data.items() if self.pattern in str(k).lower() or self.pattern.lower() in str(v).lower()]
         else:
-            self.info = [[k, v] for k, v in self.ulg.initial_parameters.items()]
+            self.data_shown = [[k, v] for k, v in self.data.items()]
 
-        self.info = sorted(self.info, key=lambda x: x[0])
-        self.SetItemCount(len(self.info))
-        if self.GetItemCount():
-            self.RefreshItems(0, len(self.info)-1)
+        self.data_shown = sorted(self.data_shown, key=lambda x: x[0])
 
     def OnGetItemText(self, item, column):
-        if column == 0:
-            return f"{item+1}"
-        column -= 1
-        return str(self.info[item][column])
+        if column < self.data_start_column:
+            return super().OnGetItemText(item, column)
+        column -= self.data_start_column
+        return str(self.data_shown[item][column])
 
 class ChgParamListCtrl(ListCtrlBase):
-    def __init__(self, parent):
-        ListCtrlBase.__init__(self, parent)
-        self.ulg = None
-        self.InsertColumn(0, "#", width=60)
-        self.InsertColumn(1, "Timestamp", width=120)
-        self.InsertColumn(2, "Key", width=200)
-        self.InsertColumn(3, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+
+    def BuildColumns(self):
+        super().BuildColumns()
+        start = self.data_start_column
+        self.InsertColumn(start, "Timestamp", width=120)
+        self.InsertColumn(start+1, "Key", width=200)
+        self.InsertColumn(start+2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.ulg.changed_parameters[i]
+            m = self.data_shown[i]
             if self.Search(str(m[1]), text, flags) or self.Search(str(m[2]), text, flags):
                 return i
 
         # not found
         return -1
 
-    def Load(self, ulg):
-        self.ulg = ulg
-        self.SetItemCount(0)
-        if self.ulg is not None:
-            self.SetItemCount(len(self.ulg.changed_parameters))
-
     def OnGetItemText(self, item, column):
-        if column == 0:
-            return f"{item+1}"
-        column -= 1
-        m = self.ulg.changed_parameters[item]
+        if column < self.data_start_column:
+            return super().OnGetItemText(item, column)
+        column -= self.data_start_column
+        m = self.data_shown[item]
         if column == 0:
             return str(m[0]/1e6)
         return str(m[column])
@@ -315,28 +287,28 @@ class ULogPanel(PanelNotebookBase):
 
     def Load(self, filename, add_to_history=True):
         """load the ulog file"""
-        u = pyulog.ULog(filename)
+        u = load_ulog(filename)
         self.ulg = u
         self.filename = filename
-        self.tree.Load(u)
-        self.logList.Load(u)
-        self.infoList.Load(u)
-        self.paramList.Load(u)
-        self.chgParamList.Load(u)
+        self.tree.Load(u['data'])
+        self.logList.Load(u['log'])
+        self.infoList.Load(u['info'])
+        self.paramList.Load(u['param'])
+        self.chgParamList.Load(u['changed_param'])
         super().Load(filename, add_to_history=add_to_history)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
-        self.tree.FillTree(pattern)
+        self.tree.Fill(pattern)
         self.search.SetFocus()
 
     def OnDoSearchLog(self, evt):
         pattern = self.search_log.GetValue()
-        self.logList.FillMessage(pattern)
+        self.logList.Fill(pattern)
 
     def OnDoSearchParam(self, evt):
         pattern = self.search_param.GetValue()
-        self.paramList.FillParams(pattern)
+        self.paramList.Fill(pattern)
 
     def Destroy(self):
         """
@@ -387,38 +359,18 @@ class ULog(FileViewBase):
                 history=False)
 
     @classmethod
-    def _load_ulog(cls, ulg):
-        if not isinstance(ulg, pyulog.ULog):
-            return None
-        data = {}
-        for d in ulg.data_list:
-            df = pd.DataFrame(d.data)
-            data[d.name] = df
-        t = [m.timestamp for m in ulg.logged_messages]
-        m = [m.message for m in ulg.logged_messages]
-        l = [m.log_level_str() for m in ulg.logged_messages]
-        log = pd.DataFrame.from_dict({'timestamp': t, 'level': l, "message": m})
-        info = ulg.msg_info_dict
-        param = ulg.initial_parameters
-        changed_param = ulg.changed_parameters
-        return {'data': data, 'log': log, 'info': info, 'param': param,
-                'changed_param': changed_param}
-
-    @classmethod
     def get(cls, num=None, filename=None, data_only=True):
-        manager = cls._get_manager(num, filename)
-        if num is None and filename is None and manager is None:
-            manager = ULogPanel.Gcu.get_active()
+        manager = super().get(num, filename, data_only)
         ulg = None
         if manager:
             ulg = manager.ulg
         elif filename:
             try:
-                ulg = pyulog.ULog(filename)
+                ulg = load_ulog(filename)
             except:
                 traceback.print_exc(file=sys.stdout)
         if ulg:
-            data = cls._load_ulog(ulg)
+            data = ulg
             if data_only and data:
                 return data.get('data', None)
             return data

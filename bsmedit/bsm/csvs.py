@@ -196,7 +196,7 @@ class CsvPanel(PanelNotebookBase):
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
-        self.tree.FillTree(pattern)
+        self.tree.Fill(pattern)
         item = self.tree.FindItemFromPath(self.tree.x_path)
         if item:
             self.tree.SetItemBold(item, True)
@@ -252,9 +252,7 @@ class CSV(FileViewBase):
 
     @classmethod
     def get(cls, num=None, filename=None, data_only=True):
-        manager = cls._get_manager(num, filename)
-        if num is None and filename is None and manager is None:
-            manager = CsvPanel.Gcc.get_active()
+        manager = super().get(num, filename, data_only)
         csv = None
         if manager:
             csv = manager.csv

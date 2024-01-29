@@ -120,7 +120,7 @@ class VcdTree(TreeCtrlBase):
 
     def Load(self, data):
         """load the vcd file"""
-        vcd = _dict(data['data'])
+        vcd = _dict(data)
         super().Load(vcd)
 
     def GetItemPlotData(self, item):
@@ -354,99 +354,66 @@ class VcdTree(TreeCtrlBase):
 
 
 class CommentListCtrl(ListCtrlBase):
-    def __init__(self, parent):
-        ListCtrlBase.__init__(self, parent)
-        self.vcd = None
-        self.InsertColumn(0, "#", width=60)
-        self.InsertColumn(1, "Comment", width=wx.LIST_AUTOSIZE_USEHEADER)
-        self.comment = []
-        self.pattern = None
+
+    def BuildColumns(self):
+        super().BuildColumns()
+        start = self.data_start_column
+        self.InsertColumn(start, "Comment", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.comment[i]
+            m = self.data_shown[i]
             if self.Search(m, text, flags):
                 return i
 
         # not found
         return -1
 
-    def Load(self, vcd):
-        self.vcd = vcd
-        self.SetItemCount(0)
-        if self.vcd is not None:
-            self.FillComment(self.pattern)
-
-    def FillComment(self, pattern):
-        self.pattern = pattern
-        if isinstance(self.pattern, str):
-            self.pattern = self.pattern.lower()
-            self.pattern.strip()
+    def ApplyPattern(self):
         if not self.pattern:
-            self.comment = self.vcd['comment']
+            self.data_shown = self.data
         else:
-            self.comment = [m for m in self.vcd['comment'] if self.pattern in m.lower() or self.pattern]
-
-        self.SetItemCount(len(self.comment))
-        if self.GetItemCount() > 0:
-            self.RefreshItems(0, len(self.comment)-1)
+            self.data_shown = [m for m in self.data if self.pattern in m.lower()]
 
     def OnGetItemText(self, item, column):
-        if column == 0:
-            return f"{item+1}"
-        column -= 1
-        m = self.comment[item]
+        if column < self.data_start_column:
+            return super().OnGetItemText(item, column)
+        column -= self.data_start_column
+        m = self.data_shown[item]
         if column == 0:
             return m
         return ""
 
 class InfoListCtrl(ListCtrlBase):
-    def __init__(self, parent):
-        ListCtrlBase.__init__(self, parent)
-        self.vcd = None
-        self.info = []
-        self.pattern = None
-        self.InsertColumn(0, "#", width=60)
-        self.InsertColumn(1, "Key", width=120)
-        self.InsertColumn(2, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
+
+    def BuildColumns(self):
+        super().BuildColumns()
+        start = self.data_start_column
+        self.InsertColumn(start, "Key", width=120)
+        self.InsertColumn(start+1, "Value", width=wx.LIST_AUTOSIZE_USEHEADER)
 
     def FindText(self, start, end, text, flags=0):
         direction = 1 if end > start else -1
         for i in range(start, end+direction, direction):
-            m = self.info[i]
+            m = self.data_shown[i]
             if self.Search(m[0], text, flags) or self.Search(str(m[1]), text, flags):
                 return i
 
         # not found
         return -1
 
-    def Load(self, vcd):
-        self.vcd = vcd
-        self.SetItemCount(0)
-        if self.vcd is not None:
-            self.FillInfo(self.pattern)
-
-    def FillInfo(self, pattern):
-        self.pattern = pattern
-        if isinstance(self.pattern, str):
-            self.pattern = self.pattern.lower()
-            self.pattern.strip()
+    def ApplyPattern(self):
         if self.pattern:
-            self.info = [[k, v] for k, v in self.vcd['info'].items() if self.pattern in str(k).lower() or self.pattern.lower() in str(v).lower()]
+            self.data_shown = [[k, v] for k, v in self.data.items() if self.pattern in str(k).lower() or self.pattern.lower() in str(v).lower()]
         else:
-            self.info = [[k, v] for k, v in self.vcd['info'].items()]
-
-        self.info = sorted(self.info, key=lambda x: x[0])
-        self.SetItemCount(len(self.info))
-        if self.GetItemCount() > 0:
-            self.RefreshItems(0, len(self.info)-1)
+            self.data_shown = [[k, v] for k, v in self.data.items()]
 
     def OnGetItemText(self, item, column):
-        if column == 0:
-            return f"{item+1}"
-        column -= 1
-        return str(self.info[item][column])
+        if column < self.data_start_column:
+            return super().OnGetItemText(item, column)
+        column -= self.data_start_column
+        return str(self.data_shown[item][column])
 
 class VcdPanel(PanelNotebookBase):
     Gcv = Gcm()
@@ -479,23 +446,23 @@ class VcdPanel(PanelNotebookBase):
         u = load_vcd3(filename)
         self.vcd = u
         self.filename = filename
-        self.tree.Load(u)
-        self.infoList.Load(u)
-        self.commentList.Load(u)
+        self.tree.Load(u['data'])
+        self.infoList.Load(u['info'])
+        self.commentList.Load(u['comment'])
         super().Load(filename, add_to_history=add_to_history)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
-        self.tree.FillTree(pattern)
+        self.tree.Fill(pattern)
         self.search.SetFocus()
 
     def OnDoSearchInfo(self, evt):
         pattern = self.search_info.GetValue()
-        self.infoList.FillM(pattern)
+        self.infoList.Fill(pattern)
 
     def OnDoSearchComment(self, evt):
         pattern = self.search_param.GetValue()
-        self.commentList.FillComment(pattern)
+        self.commentList.Fill(pattern)
 
     def Destroy(self):
         """
@@ -552,9 +519,7 @@ class VCD(FileViewBase):
 
     @classmethod
     def get(cls, num=None, filename=None, data_only=True):
-        manager = cls._get_manager(num, filename)
-        if num is None and filename is None and manager is None:
-            manager = VcdPanel.Gcv.get_active()
+        manager = super().get(num, filename, data_only)
         vcd = None
         if manager:
             vcd = manager.vcd

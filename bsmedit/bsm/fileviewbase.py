@@ -246,6 +246,41 @@ class ListCtrlBase(FindListCtrl, ListCtrlAutoWidthMixin):
         self.EnableAlternateRowColours()
         self.ExtendRulesAndAlternateColour()
 
+        self.data_start_column = 0
+        self.BuildColumns()
+
+        self.data = None
+        self.pattern = None
+        self.data_shown = []
+
+    def BuildColumns(self):
+        self.InsertColumn(0, "#", width=60)
+        self.data_start_column = 1
+
+    def OnGetItemText(self, item, column):
+        if self.data_start_column > 0 and column == 0:
+            # index column
+            return f"{item+1}"
+        return ""
+
+    def Load(self, data):
+        self.data = data
+        self.SetItemCount(0)
+        if self.data is not None:
+            self.Fill(self.pattern)
+
+    def ApplyPattern(self):
+        self.data_shown = self.data
+
+    def Fill(self, pattern):
+        self.pattern = pattern
+        if isinstance(self.pattern, str):
+            self.pattern = self.pattern.lower()
+            self.pattern.strip()
+        self.ApplyPattern()
+        self.SetItemCount(len(self.data_shown))
+        if self.GetItemCount():
+            self.RefreshItems(0, len(self.data_shown)-1)
 
 class TreeCtrlBase(FastLoadTreeCtrl):
     """the tree control to show the hierarchy of the objects in the vcd"""
@@ -423,9 +458,9 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         """load the dict data"""
         assert isinstance(data, dict)
         self.data = data
-        self.FillTree(self.pattern)
+        self.Fill(self.pattern)
 
-    def FillTree(self, pattern=None):
+    def Fill(self, pattern=None):
         """fill the vcd  objects tree"""
         #clear the tree control
         self.expanded = {}
@@ -503,15 +538,15 @@ class PanelBase(wx.Panel):
 
     @classmethod
     def get_active(cls):
-        return None
+        raise NotImplementedError
 
     @classmethod
     def set_active(cls, panel):
-        pass
+        raise NotImplementedError
 
     @classmethod
     def get_manager(cls, num):
-        return None
+        raise NotImplementedError
 
     def OnProcessCommand(self, event):
         """process the menu command"""
@@ -564,6 +599,8 @@ class PanelNotebookBase(PanelBase):
 
         self.box.Fit(self)
         self.SetSizer(self.box)
+
+        super().init()
 
     def init_pages(self):
         return
@@ -640,6 +677,7 @@ class FileViewBase:
 
     @classmethod
     def uninitializing(cls):
+        # before save perspective
         for mgr in cls.panel_type.get_all_managers():
             dp.send('frame.delete_panel', panel=mgr)
         for key, menu in cls.get_menu():
@@ -649,6 +687,7 @@ class FileViewBase:
 
     @classmethod
     def uninitialized(cls):
+        # after save perspective
         pass
 
     @classmethod
@@ -680,7 +719,7 @@ class FileViewBase:
         if not cls.check_filename(filename):
             return None
 
-        manager = cls._get_manager(num, filename)
+        manager = cls.get_manager(num, filename)
         if manager is None:
             manager = cls.panel_type(cls.frame)
             title = 'untitled'
@@ -739,18 +778,22 @@ class FileViewBase:
                 dp.send(signal='frame.delete_panel', panel=mgr)
 
     @classmethod
-    def _get_manager(cls, num=None, filename=None):
+    def get_manager(cls, num=None, filename=None):
         manager = None
         if num is not None:
             manager = cls.panel_type.get_manager(num)
         if manager is None and isinstance(filename, str):
-            abs_filename = os.path.abspath(filename)
+            abs_filename = os.path.abspath(filename).lower()
             for m in cls.panel_type.get_all_managers():
-                if abs_filename == os.path.abspath(m.filename):
+                if abs_filename == os.path.abspath(m.filename).lower():
                     manager = m
                     break
         return manager
 
     @classmethod
     def get(cls, num=None, filename=None, data_only=True):
-        raise NotImplementedError
+        # return the content of a file
+        manager = cls.get_manager(num, filename)
+        if num is None and filename is None and manager is None:
+            manager = cls.panel_type.get_active()
+        return manager
