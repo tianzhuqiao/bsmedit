@@ -2,6 +2,7 @@ import os
 import json
 import wx
 import wx.py.dispatcher as dp
+from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import numpy as np
 from pandas.api.types import is_numeric_dtype
 from ..aui import aui
@@ -238,10 +239,10 @@ class FindListCtrl(wx.ListCtrl):
 
         return pattern in src
 
-class ListCtrlBase(FindListCtrl, wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin):
+class ListCtrlBase(FindListCtrl, ListCtrlAutoWidthMixin):
     def __init__(self, parent):
         FindListCtrl.__init__(self, parent, style=wx.LC_REPORT|wx.LC_HRULES|wx.LC_VRULES|wx.LC_VIRTUAL)
-        wx.lib.mixins.listctrl.ListCtrlAutoWidthMixin.__init__(self)
+        ListCtrlAutoWidthMixin.__init__(self)
         self.EnableAlternateRowColours()
         self.ExtendRulesAndAlternateColour()
 
@@ -465,66 +466,32 @@ class TreeCtrlBase(FastLoadTreeCtrl):
 
 
 class PanelBase(wx.Panel):
+
     ID_OPEN = wx.NewIdRef()
     ID_REFRESH = wx.NewIdRef()
-
     def __init__(self, parent, filename=None):
         wx.Panel.__init__(self, parent)
 
-        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
-        self.tb.SetToolBitmapSize(wx.Size(16, 16))
+        self.init()
 
-        open_bmp = svg_to_bitmap(open_svg, win=self)
-        self.tb.AddTool(self.ID_OPEN, "Open", open_bmp,
-                        wx.NullBitmap, wx.ITEM_NORMAL,
-                        "Open file")
-        self.tb.AddSeparator()
-        refresh_bmp = svg_to_bitmap(refresh_svg, win=self)
-        self.tb.AddTool(self.ID_REFRESH, "Refresh", refresh_bmp,
-                        wx.NullBitmap, wx.ITEM_NORMAL,
-                        "Refresh file")
-
-        self.tb.Realize()
-
-        self.notebook = aui.AuiNotebook(self, agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER)
-
-        self.init_pages()
-
-        self.box = wx.BoxSizer(wx.VERTICAL)
-        self.box.Add(self.tb, 0, wx.EXPAND, 5)
-        self.box.Add(self.notebook, 1, wx.EXPAND)
-
-        self.box.Fit(self)
-        self.SetSizer(self.box)
-
-        self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
-        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
-
-        # load the file
         self.filename = None
         if filename is not None:
             self.Load(filename)
 
-    def init_pages(self):
-        return
+    def init(self):
+        self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
+        self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
 
-    def CreatePageWithSearch(self, PageClass):
-        panel = wx.Panel(self.notebook)
-        search = AutocompleteTextCtrl(panel)
-        search.SetHint('searching ...')
-        ctrl = PageClass(panel)
-        szAll = wx.BoxSizer(wx.VERTICAL)
-        szAll.Add(search, 0, wx.EXPAND|wx.ALL, 2)
-        szAll.Add(ctrl, 1, wx.EXPAND)
-        szAll.Fit(panel)
-        panel.SetSizer(szAll)
-        return panel, search, ctrl
-
-    def Load(self, filename):
+    def Load(self, filename, add_to_history=True):
         """load the file"""
         self.filename = filename
         # add the filename to history
-        dp.send('frame.add_file_history', filename=filename)
+        if add_to_history:
+            dp.send('frame.add_file_history', filename=filename)
+        title = 'untitled'
+        if filename:
+            (_, title) = os.path.split(filename)
+        dp.send('frame.set_panel_title', pane=self, title=title)
 
     @classmethod
     def GetFileType(cls):
@@ -568,11 +535,57 @@ class PanelBase(wx.Panel):
         if eid == self.ID_REFRESH:
             event.Enable(self.filename is not None)
 
+
+class PanelNotebookBase(PanelBase):
+
+    def init(self):
+        self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
+        self.tb.SetToolBitmapSize(wx.Size(16, 16))
+
+        open_bmp = svg_to_bitmap(open_svg, win=self)
+        self.tb.AddTool(self.ID_OPEN, "Open", open_bmp,
+                        wx.NullBitmap, wx.ITEM_NORMAL,
+                        "Open file")
+        self.tb.AddSeparator()
+        refresh_bmp = svg_to_bitmap(refresh_svg, win=self)
+        self.tb.AddTool(self.ID_REFRESH, "Refresh", refresh_bmp,
+                        wx.NullBitmap, wx.ITEM_NORMAL,
+                        "Refresh file")
+
+        self.tb.Realize()
+
+        self.notebook = aui.AuiNotebook(self, agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER)
+
+        self.init_pages()
+
+        self.box = wx.BoxSizer(wx.VERTICAL)
+        self.box.Add(self.tb, 0, wx.EXPAND, 5)
+        self.box.Add(self.notebook, 1, wx.EXPAND)
+
+        self.box.Fit(self)
+        self.SetSizer(self.box)
+
+    def init_pages(self):
+        return
+
+    def CreatePageWithSearch(self, PageClass):
+        panel = wx.Panel(self.notebook)
+        search = AutocompleteTextCtrl(panel)
+        search.SetHint('searching ...')
+        ctrl = PageClass(panel)
+        szAll = wx.BoxSizer(wx.VERTICAL)
+        szAll.Add(search, 0, wx.EXPAND|wx.ALL, 2)
+        szAll.Add(ctrl, 1, wx.EXPAND)
+        szAll.Fit(panel)
+        panel.SetSizer(szAll)
+        return panel, search, ctrl
+
+
 class FileViewBase:
     name = None
     panel_type = PanelBase
     frame = None
-    ID_NEW = wx.NOT_FOUND
+
     ID_PANE_COPY_PATH = wx.NewIdRef()
     ID_PANE_COPY_PATH_REL = wx.NewIdRef()
     ID_PANE_SHOW_IN_FINDER = wx.NewIdRef()
@@ -583,49 +596,64 @@ class FileViewBase:
 
 
     @classmethod
-    def initialize(cls, frame):
+    def initialize(cls, frame, **kwargs):
         if cls.frame is not None:
             # already initialized
             return
         cls.frame = frame
+        cls.IDS = {}
+        cls.init_menu()
 
-        assert cls.name is not None
-        resp = dp.send(signal='frame.add_menu',
-                       path=f'File:Open:{cls.name} file',
-                       rxsignal=f'bsm.{cls.name}')
-        if resp:
-            cls.ID_NEW = resp[0][1]
-
-        dp.connect(cls._process_command, signal=f'bsm.{cls.name}')
-        dp.connect(receiver=cls._frame_set_active,
-                   signal='frame.activate_panel')
-        dp.connect(receiver=cls._frame_uninitialize, signal='frame.exiting')
-        dp.connect(receiver=cls._initialized, signal='frame.initialized')
+        dp.connect(cls.process_command, signal=f'bsm.{cls.name}')
+        dp.connect(receiver=cls.set_active, signal='frame.activate_panel')
+        dp.connect(receiver=cls.initialized, signal='frame.initialized')
+        dp.connect(receiver=cls.uninitializing, signal='frame.exiting')
+        dp.connect(receiver=cls.uninitialized, signal='frame.exit')
         dp.connect(receiver=cls.open, signal='frame.file_drop')
         dp.connect(cls.PaneMenu, f'bsm.{cls.name}.pane_menu')
 
     @classmethod
-    def _initialized(cls):
+    def get_menu(cls):
+        return [['open', f'File:Open:{cls.name} file']]
+
+    @classmethod
+    def init_menu(cls):
+        assert cls.name is not None
+        for key, menu in cls.get_menu():
+            resp = dp.send(signal='frame.add_menu',
+                           path=menu,
+                            rxsignal=f'bsm.{cls.name}')
+            if resp:
+                cls.IDS[key] = resp[0][1]
+
+    @classmethod
+    def initialized(cls):
         # add interface to the shell
         pass
 
     @classmethod
-    def _frame_set_active(cls, pane):
+    def set_active(cls, pane):
         if pane and isinstance(pane, cls.panel_type):
             if cls.panel_type.get_active() == pane:
                 return
             cls.panel_type.set_active(pane)
 
     @classmethod
-    def _frame_uninitialize(cls):
+    def uninitializing(cls):
         for mgr in cls.panel_type.get_all_managers():
             dp.send('frame.delete_panel', panel=mgr)
-
-        dp.send('frame.delete_menu', path=f"File:Open:{cls.name} file", id=cls.ID_NEW)
+        for key, menu in cls.get_menu():
+            if key not in cls.IDS:
+                continue
+            dp.send('frame.delete_menu', path=menu, id=cls.IDS[key])
 
     @classmethod
-    def _process_command(cls, command):
-        if command == cls.ID_NEW:
+    def uninitialized(cls):
+        pass
+
+    @classmethod
+    def process_command(cls, command):
+        if command == cls.IDS.get('open', None):
             style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
             wildcard = cls.panel_type.GetFileType()
             dlg = wx.FileDialog(cls.frame, "Choose a file", "", "", wildcard, style)
@@ -642,7 +670,8 @@ class FileViewBase:
     def open(cls,
             filename=None,
             num=None,
-            activate=False):
+            activate=True,
+            add_to_history=True):
         """
         open an file
 
@@ -653,9 +682,12 @@ class FileViewBase:
 
         manager = cls._get_manager(num, filename)
         if manager is None:
-            manager = cls.panel_type(cls.frame, filename)
-            (_, filename) = os.path.split(filename)
-            title = filename
+            manager = cls.panel_type(cls.frame)
+            title = 'untitled'
+            if filename:
+                manager.Load(filename, add_to_history=add_to_history)
+                (_, filename) = os.path.split(filename)
+                title = filename
             dp.send(signal="frame.add_panel",
                     panel=manager,
                     title=title,
@@ -720,5 +752,5 @@ class FileViewBase:
         return manager
 
     @classmethod
-    def get(cls, num=None, filename=None, dataOnly=True):
+    def get(cls, num=None, filename=None, data_only=True):
         raise NotImplementedError

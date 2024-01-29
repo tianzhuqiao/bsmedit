@@ -7,7 +7,7 @@ import pyulog
 import pandas as pd
 from .pymgr_helpers import Gcm
 from .utility import _dict, get_variable_name
-from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase, FileViewBase
+from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelNotebookBase, FileViewBase
 
 class ULogTree(TreeCtrlBase):
     ID_ULOG_EXPORT = wx.NewIdRef()
@@ -280,12 +280,12 @@ class ChgParamListCtrl(ListCtrlBase):
         return str(m[column])
 
 
-class ULogPanel(PanelBase):
+class ULogPanel(PanelNotebookBase):
     Gcu = Gcm()
 
     def __init__(self, parent, filename=None):
         self.ulg = None
-        PanelBase.__init__(self, parent, filename=filename)
+        PanelNotebookBase.__init__(self, parent, filename=filename)
 
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchLog, self.search_log)
@@ -313,7 +313,7 @@ class ULogPanel(PanelBase):
 
         self.ulg = None
 
-    def Load(self, filename):
+    def Load(self, filename, add_to_history=True):
         """load the ulog file"""
         u = pyulog.ULog(filename)
         self.ulg = u
@@ -323,7 +323,7 @@ class ULogPanel(PanelBase):
         self.infoList.Load(u)
         self.paramList.Load(u)
         self.chgParamList.Load(u)
-        super().Load(filename)
+        super().Load(filename, add_to_history=add_to_history)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
@@ -378,7 +378,7 @@ class ULog(FileViewBase):
         return (ext.lower() in ['.ulog', '.ulg'])
 
     @classmethod
-    def _initialized(cls):
+    def initialized(cls):
         # add ulog to the shell
         dp.send(signal='shell.run',
                 command='from bsmedit.bsm.ulog import ULog as ulog',
@@ -405,7 +405,7 @@ class ULog(FileViewBase):
                 'changed_param': changed_param}
 
     @classmethod
-    def get(cls, num=None, filename=None, dataOnly=True):
+    def get(cls, num=None, filename=None, data_only=True):
         manager = cls._get_manager(num, filename)
         if num is None and filename is None and manager is None:
             manager = ULogPanel.Gcu.get_active()
@@ -419,7 +419,7 @@ class ULog(FileViewBase):
                 traceback.print_exc(file=sys.stdout)
         if ulg:
             data = cls._load_ulog(ulg)
-            if dataOnly and data:
+            if data_only and data:
                 return data.get('data', None)
             return data
         return None

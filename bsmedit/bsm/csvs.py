@@ -11,7 +11,7 @@ from pandas.api.types import is_numeric_dtype
 from .pymgr_helpers import Gcm
 from .utility import get_variable_name
 from .utility import build_tree
-from .fileviewbase import TreeCtrlBase, PanelBase, FileViewBase
+from .fileviewbase import TreeCtrlBase, PanelNotebookBase, FileViewBase
 
 def read_csv(filename):
     sep = ','
@@ -168,11 +168,11 @@ class CsvTree(TreeCtrlBase):
                 # clear the current x-axis
                 self.x_path = None
 
-class CsvPanel(PanelBase):
+class CsvPanel(PanelNotebookBase):
     Gcc = Gcm()
 
     def __init__(self, parent, filename=None):
-        PanelBase.__init__(self, parent, filename=filename)
+        PanelNotebookBase.__init__(self, parent, filename=filename)
 
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
         self.num = self.Gcc.get_next_num()
@@ -186,13 +186,13 @@ class CsvPanel(PanelBase):
         # load the csv
         self.csv = None
 
-    def Load(self, filename):
+    def Load(self, filename, add_to_history=True):
         """load the csv file"""
         u = read_csv(filename)
         self.csv = u
         self.filename = filename
         self.tree.Load(u)
-        super().Load(filename)
+        super().Load(filename, add_to_history=add_to_history)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
@@ -242,7 +242,7 @@ class CSV(FileViewBase):
         return (ext.lower() in ['.csv'])
 
     @classmethod
-    def _initialized(cls):
+    def initialized(cls):
         # add csv to the shell
         dp.send(signal='shell.run',
                 command='from bsmedit.bsm.csvs import CSV',
@@ -251,7 +251,7 @@ class CSV(FileViewBase):
                 history=False)
 
     @classmethod
-    def get(cls, num=None, filename=None, dataOnly=True):
+    def get(cls, num=None, filename=None, data_only=True):
         manager = cls._get_manager(num, filename)
         if num is None and filename is None and manager is None:
             manager = CsvPanel.Gcc.get_active()

@@ -1,4 +1,6 @@
+import sys
 import os
+import traceback
 import keyword
 import pprint
 import six
@@ -7,12 +9,13 @@ import wx
 from wx import stc
 import wx.py.dispatcher as dp
 from ..aui import aui
-from .bsmxpm import open_svg, reload_svg, save_svg, save_gray_svg, saveas_svg, \
+from .bsmxpm import open_svg, refresh_svg, save_svg, save_gray_svg, saveas_svg, \
                     play_svg, debug_svg, more_svg, indent_inc_svg, indent_dec_svg, \
                     check_svg, search_svg
 from .pymgr_helpers import Gcm
-from .utility import get_file_finder_name, show_file_in_finder, svg_to_bitmap
+from .utility import svg_to_bitmap
 from .editor_base import *
+from .fileviewbase import PanelBase, FileViewBase
 
 
 class BreakpointSettingsDlg(wx.Dialog):
@@ -488,7 +491,7 @@ class PyEditor(EditorBase):
             return True
         return False
 
-class PyEditorPanel(wx.Panel):
+class PyEditorPanel(PanelBase):
     Gce = Gcm()
     ID_RUN_SCRIPT = wx.NewIdRef()
     ID_DEBUG_SCRIPT = wx.NewIdRef()
@@ -503,22 +506,12 @@ class PyEditorPanel(wx.Panel):
     ID_DBG_STEP = wx.NewIdRef()
     ID_DBG_STEP_INTO = wx.NewIdRef()
     ID_DBG_STEP_OUT = wx.NewIdRef()
-    ID_PANE_COPY_PATH = wx.NewIdRef()
-    ID_PANE_COPY_PATH_REL = wx.NewIdRef()
-    ID_PANE_SHOW_IN_FINDER = wx.NewIdRef()
-    ID_PANE_SHOW_IN_BROWSING = wx.NewIdRef()
-    ID_PANE_CLOSE = wx.NewIdRef()
-    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
-    ID_PANE_CLOSE_ALL = wx.NewIdRef()
     ID_MORE = wx.NewIdRef()
 
-    wildcard = 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
     frame = None
 
-    def __init__(self, parent):
-        wx.Panel.__init__(self, parent, size=(1, 1))
+    def init(self):
 
-        self.fileName = """"""
         self.splitter = wx.SplitterWindow(self, style=wx.SP_LIVE_UPDATE)
         self.editor = PyEditor(self.splitter)
         self.editor2 = None
@@ -526,7 +519,7 @@ class PyEditorPanel(wx.Panel):
         self.Bind(stc.EVT_STC_CHANGE, self.OnCodeModified)
         item = (
             (wx.ID_OPEN, 'Open', open_svg, None, 'Open Python script'),
-            (wx.ID_REFRESH, 'Reload', reload_svg, None, 'Reload script'),
+            (wx.ID_REFRESH, 'Reload', refresh_svg, None, 'Reload script'),
             (wx.ID_SAVE, 'Save', save_svg, save_gray_svg, 'Save script (Ctrl+S)'),
             (wx.ID_SAVEAS, 'Save As', saveas_svg, None, 'Save script as'),
             (None, None, None, None, None),
@@ -591,8 +584,10 @@ class PyEditorPanel(wx.Panel):
         dp.connect(self.debug_bpadded, 'debugger.breakpoint_added')
         dp.connect(self.debug_bpcleared, 'debugger.breakpoint_cleared')
         self.debug_curline = None
+
         self.num = self.Gce.get_next_num()
         self.Gce.set_active(self)
+
 
     @classmethod
     def get_instances(cls):
@@ -665,7 +660,7 @@ class PyEditorPanel(wx.Panel):
             if frames is not None:
                 for frame in frames:
                     filename = frame.f_code.co_filename
-                    if filename == self.fileName:
+                    if filename == self.filename:
                         lineno = frame.f_lineno
                         marker = MARKER_BP_PAUSED
                         break
@@ -713,55 +708,51 @@ class PyEditorPanel(wx.Panel):
     def OnCodeModified(self, event):
         """called when the file is modified"""
         filename = 'untitled'
-        if self.fileName != "":
-            (_, filename) = os.path.split(self.fileName)
+        if self.filename:
+            (_, filename) = os.path.split(self.filename)
         if self.editor.GetModify():
             filename = filename + '*'
         dp.send('frame.set_panel_title', pane=self, title=filename)
 
-    def LoadFile(self, path):
+    def Load(self, filename, add_to_history=True):
         """open file"""
-        self.editor.LoadFile(path)
-        self.fileName = path
-        (_, filename) = os.path.split(self.fileName)
-        dp.send('frame.set_panel_title', pane=self, title=filename)
+        self.editor.LoadFile(filename)
+        super().Load(filename, add_to_history=add_to_history)
 
     def OnBtnOpen(self, event):
         """open the script"""
-        defaultDir = os.path.dirname(self.fileName)
+        defaultDir = os.path.dirname(self.filename)
         style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
         dlg = wx.FileDialog(self,
                             'Open',
                             defaultDir=defaultDir,
-                            wildcard=self.wildcard,
+                            wildcard=self.GetFileType(),
                             style=style)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPaths()[0]
-            self.LoadFile(path)
+            self.Load(path)
         dlg.Destroy()
 
     def OnBtnReload(self, event):
         """reload file"""
-        if self.fileName:
-            self.LoadFile(self.fileName)
+        if self.filename:
+            self.Load(self.filename)
 
     def saveFile(self):
-        if self.fileName == "":
-            defaultDir = os.path.dirname(self.fileName)
+        if not self.filename:
             # use top level frame as parent, otherwise it may crash when
             # it is called in Destroy()
             style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
             dlg = wx.FileDialog(self.GetTopLevelParent(),
                                 'Save As',
-                                defaultDir=defaultDir,
-                                wildcard=self.wildcard,
+                                wildcard=self.GetFileType(),
                                 style=style)
             if dlg.ShowModal() == wx.ID_OK:
                 path = dlg.GetPath()
-                self.fileName = path
+                self.filename = path
             dlg.Destroy()
-        self.editor.SaveFile(self.fileName)
-        (path, filename) = os.path.split(self.fileName)
+        self.editor.SaveFile(self.filename)
+        (path, filename) = os.path.split(self.filename)
         dp.send('frame.set_panel_title', pane=self, title=filename)
         self.update_bp()
 
@@ -771,19 +762,19 @@ class PyEditorPanel(wx.Panel):
 
     def OnBtnSaveAs(self, event):
         """save the script with different filename"""
-        defaultDir = os.path.dirname(self.fileName)
+        defaultDir = os.path.dirname(self.filename)
         style = wx.FD_SAVE | wx.FD_OVERWRITE_PROMPT | wx.FD_CHANGE_DIR
         dlg = wx.FileDialog(self,
                             'Save As',
                             defaultDir=defaultDir,
-                            wildcard=self.wildcard,
+                            wildcard=self.GetFileType(),
                             style=style)
         if dlg.ShowModal() == wx.ID_OK:
             path = dlg.GetPaths()[0]
-            self.fileName = path
+            self.filename = path
             dlg.Destroy()
-        self.editor.SaveFile(self.fileName)
-        (path, filename) = os.path.split(self.fileName)
+        self.editor.SaveFile(self.filename)
+        (path, filename) = os.path.split(self.filename)
         dp.send('frame.set_panel_title', pane=self, title=filename)
         self.update_bp()
 
@@ -797,7 +788,7 @@ class PyEditorPanel(wx.Panel):
             if resp:
                 event.Enable(not resp[0][1])
         elif eid == wx.ID_REFRESH:
-            event.Enable(self.fileName != "")
+            event.Enable(self.filename != "")
 
     def OnShowFindReplace(self, event):
         """Find and Replace dialog and action."""
@@ -825,8 +816,8 @@ class PyEditorPanel(wx.Panel):
         """check whether it is modified"""
         if self.editor.GetModify():
             filename = 'untitled'
-            if self.fileName != "":
-                (_, filename) = os.path.split(self.fileName)
+            if self.filename != "":
+                (_, filename) = os.path.split(self.filename)
             msg = f'"{filename}" has been modified. Save it first?'
             # use top level frame as parent, otherwise it may crash when
             # it is called in Destroy()
@@ -843,14 +834,14 @@ class PyEditorPanel(wx.Panel):
         """check the syntax"""
         if self.CheckModified():
             return
-        if self.fileName == """""":
+        if self.filename == """""":
             return
         self.RunCommand('import sys', verbose=False)
         self.RunCommand('_bsm_source = open(r\'%s\',\'r\').read()+\'\\n\'' %
-                        self.fileName,
+                        self.filename,
                         verbose=False)
         self.RunCommand('_bsm_code = compile(_bsm_source,r\'%s\',\'exec\')' %
-                        self.fileName,
+                        self.filename,
                         prompt=True,
                         verbose=False)
         self.RunCommand('del _bsm_source', verbose=False)
@@ -859,11 +850,11 @@ class PyEditorPanel(wx.Panel):
         """execute the script"""
         if self.CheckModified():
             return
-        if not self.fileName:
+        if not self.filename:
             return
         self.RunCommand('import six', verbose=False)
         cmd = "compile(open(r'{0}', 'rb').read(), r'{0}', 'exec')".format(
-            self.fileName)
+            self.filename)
         self.RunCommand('six.exec_(%s)' % cmd,
                         prompt=True,
                         verbose=False,
@@ -873,14 +864,14 @@ class PyEditorPanel(wx.Panel):
         """execute the script in debug mode"""
         if self.CheckModified():
             return
-        if not self.fileName:
+        if not self.filename:
             return
         self.RunCommand('import six', verbose=False)
         # disable the debugger button
         self.tb.EnableTool(self.ID_DEBUG_SCRIPT, False)
 
         cmd = "compile(open(r'{0}', 'rb').read(), r'{0}', 'exec')".format(
-            self.fileName)
+            self.filename)
         self.RunCommand('six.exec_(%s)' % cmd,
                         prompt=True,
                         verbose=False,
@@ -891,9 +882,9 @@ class PyEditorPanel(wx.Panel):
 
     def OnSetCurFolder(self, event):
         """set the current folder to the folder with the file"""
-        if not self.fileName:
+        if not self.filename:
             return
-        path, _ = os.path.split(self.fileName)
+        path, _ = os.path.split(self.filename)
         self.RunCommand('import os', verbose=False)
         self.RunCommand('os.chdir(r\'%s\')' % path, verbose=False)
 
@@ -961,69 +952,180 @@ class PyEditorPanel(wx.Panel):
         # make sure the button is "un-stuck"
         tb.SetToolSticky(event.GetId(), False)
 
+
     @classmethod
-    def Initialize(cls, frame, **kwargs):
+    def GetFileType(cls):
+        return 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
+
+    @classmethod
+    def get_all_managers(cls):
+        return cls.Gce.get_all_managers()
+
+    @classmethod
+    def get_active(cls):
+        return cls.Gce.get_active()
+
+    @classmethod
+    def set_active(cls, panel):
+        cls.Gce.set_active(panel)
+
+    @classmethod
+    def get_manager(cls, num):
+        return cls.Gce.get_manager(num)
+
+
+class Editor(FileViewBase):
+    name = 'python'
+    panel_type = PyEditorPanel
+
+    ID_NEW = wx.NOT_FOUND
+
+    @classmethod
+    def check_filename(cls, filename):
+        if filename is None:
+            return True
+
+        _, ext = os.path.splitext(filename)
+        return (ext.lower() in ['.py', 'txt'])
+
+    @classmethod
+    def initialize(cls, frame, **kwargs):
         """initialize the module"""
         if cls.frame:
             # if it has already initialized, simply return
             return
-        cls.frame = frame
-        cls.kwargs = kwargs
-        resp = dp.send('frame.add_menu',
-                       path='File:New:Python script\tCtrl+N',
-                       rxsignal='bsm.editor.menu')
-        if resp:
-            cls.ID_EDITOR_NEW = resp[0][1]
-        resp = dp.send('frame.add_menu',
-                       path='File:Open:Python script\tCtrl+O',
-                       rxsignal='bsm.editor.menu')
-        if resp:
-            cls.ID_EDITOR_OPEN = resp[0][1]
-        dp.connect(cls.ProcessCommand, 'bsm.editor.menu')
-        dp.connect(cls.PaneMenu, 'bsm.editor.pane_menu')
-        dp.connect(cls.Uninitialize, 'frame.exit')
+
+
+        super().initialize(frame, **kwargs)
+
         dp.connect(cls.OnFrameClosing, 'frame.closing')
         dp.connect(cls.OnFrameClosePane, 'frame.close_pane')
-        dp.connect(cls.OpenScript, 'frame.file_drop')
         dp.connect(cls.DebugPaused, 'debugger.paused')
         dp.connect(cls.DebugUpdateScope, 'debugger.update_scopes')
-        dp.connect(cls.SetActive, 'frame.activate_panel')
-        dp.connect(receiver=cls.Initialized, signal='frame.initialized')
-
 
     @classmethod
-    def PaneMenu(cls, pane, command):
-        if not pane or not isinstance(pane, PyEditorPanel):
-            return
-        if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
-            if wx.TheClipboard.Open():
-                filepath = pane.fileName
-                if command == cls.ID_PANE_COPY_PATH_REL:
-                    filepath = os.path.relpath(filepath, os.getcwd())
-                wx.TheClipboard.SetData(wx.TextDataObject(filepath))
-                wx.TheClipboard.Close()
-        elif command == cls.ID_PANE_SHOW_IN_FINDER:
-            show_file_in_finder(pane.fileName)
-        elif command == cls.ID_PANE_SHOW_IN_BROWSING:
-            dp.send(signal='dirpanel.goto', filepath=pane.fileName, show=True)
-        elif command == cls.ID_PANE_CLOSE:
-            dp.send(signal='frame.delete_panel', panel=pane)
-        elif command == cls.ID_PANE_CLOSE_OTHERS:
-            mgrs =  PyEditorPanel.Gce.get_all_managers()
-            for mgr in mgrs:
-                if mgr == pane:
-                    continue
-                dp.send(signal='frame.delete_panel', panel=mgr)
-        elif command == cls.ID_PANE_CLOSE_ALL:
-            mgrs =  PyEditorPanel.Gce.get_all_managers()
-            for mgr in mgrs:
-                dp.send(signal='frame.delete_panel', panel=mgr)
+    def get_menu(cls):
+        menu = [['open', 'File:Open:Python script\tCtrl+O'],
+                ['new', 'File:New:Python script\tCtrl+N']]
+        return menu
 
     @classmethod
-    def SetActive(cls, pane):
-        """set the active figure"""
-        if pane and isinstance(pane, PyEditorPanel):
-            cls.Gce.set_active(pane)
+    def initialized(cls):
+        # add editor to the shell
+        dp.send(signal='shell.run',
+                command='from bsmedit.bsm.editor import Editor',
+                prompt=False,
+                verbose=False,
+                history=False)
+
+        resp = dp.send('frame.get_config', group='editor', key='opened')
+        if resp and resp[0][1]:
+            files = resp[0][1]
+            if len(files[0]) == 2:
+                files = [ f+[False] for f in files]
+            for f, lineno, shown in files:
+                editor = cls.open(f, add_to_history=False)
+                if editor:
+                    if lineno > 0:
+                        editor.JumpToLine(lineno - 1)
+
+    @classmethod
+    def uninitializing(cls):
+        return
+
+    @classmethod
+    def uninitialized(cls):
+        """unload the module"""
+        files = []
+        for panel in cls.panel_type.Gce.get_all_managers():
+            editor = panel.editor
+            files.append([editor.filename, editor.GetCurrentLine(), panel.IsShownOnScreen()])
+
+        dp.send('frame.set_config', group='editor', opened=files)
+
+        dp.send('frame.delete_menu', path=f"File:New:Python script\tCtrl+N", id=cls.ID_NEW)
+        # delete all editors
+        super().uninitializing()
+
+    @classmethod
+    def findEditorByFileName(cls, filename):
+        """
+        find the editor by filename
+
+        If the file is opened in multiple editors, return the first one.
+        """
+        for editor in PyEditorPanel.get_instances():
+            if str(editor.editor.filename).lower() == filename.lower():
+                return editor
+        return None
+
+    @classmethod
+    def OpenScript(cls, filename, activated=True, lineno=0, add_to_history=True):
+        """open the file"""
+        if not filename:
+            return None
+        (_, fileExtension) = os.path.splitext(filename)
+        if fileExtension.lower() != '.py':
+            return None
+
+        editor = cls.findEditorByFileName(filename)
+        if editor is None:
+            editor = cls.open(filename=filename, add_to_history=add_to_history)
+
+        if editor and activated and not editor.IsShownOnScreen():
+            dp.send('frame.show_panel', panel=editor, focus=True)
+        if lineno > 0:
+            editor.JumpToLine(lineno - 1)
+        return editor
+
+    @classmethod
+    def get(cls, num=None, filename=None, data_only=True):
+        manager = cls._get_manager(num, filename)
+        if num is None and filename is None and manager is None:
+            manager = cls.panel_type.get_active()
+        text = None
+        if manager:
+            text = manager.editor.GetText()
+        elif filename:
+            try:
+                with open(filename, 'r') as fp:
+                    text = fp.readlines()
+            except:
+                traceback.print_exc(file=sys.stdout)
+        return text
+
+    @classmethod
+    def process_command(cls, command):
+        """process the menu command"""
+        if command == cls.IDS.get('new', None):
+            cls.open()
+        else :
+            super().process_command(command)
+
+    @classmethod
+    def OnFrameClosePane(cls, event):
+        """closing a pane"""
+        pane = event.GetPane().window
+        if isinstance(pane, aui.auibook.AuiNotebook):
+            for i in range(pane.GetPageCount()):
+                page = pane.GetPage(i)
+                if isinstance(page, PyEditorPanel):
+                    if page.CheckModified():
+                        # the file has been modified, stop closing
+                        event.Veto()
+        elif isinstance(pane, PyEditorPanel):
+            if pane.CheckModified():
+                # the file has been modified, stop closing
+                event.Veto()
+
+    @classmethod
+    def OnFrameClosing(cls, event):
+        """the frame is exiting"""
+        for panel in PyEditorPanel.Gce.get_all_managers():
+            if panel.CheckModified():
+                # the file has been modified, stop closing
+                event.Veto()
+                break
 
     @classmethod
     def DebugPaused(cls):
@@ -1053,132 +1155,7 @@ class PyEditorPanel(wx.Panel):
         for editor in PyEditorPanel.get_instances():
             editor.debug_paused(status)
 
-    @classmethod
-    def Initialized(cls):
-        resp = dp.send('frame.get_config', group='editor', key='opened')
-        if resp and resp[0][1]:
-            files = resp[0][1]
-            if len(files[0]) == 2:
-                files = [ f+[False] for f in files]
-            for f, line, shown in files:
-                cls.OpenScript(f, activated=False, lineno=line, add_to_history=False)
-
-    @classmethod
-    def OnFrameClosePane(cls, event):
-        """closing a pane"""
-        pane = event.GetPane().window
-        if isinstance(pane, aui.auibook.AuiNotebook):
-            for i in range(pane.GetPageCount()):
-                page = pane.GetPage(i)
-                if isinstance(page, PyEditorPanel):
-                    if page.CheckModified():
-                        # the file has been modified, stop closing
-                        event.Veto()
-        elif isinstance(pane, PyEditorPanel):
-            if pane.CheckModified():
-                # the file has been modified, stop closing
-                event.Veto()
-
-    @classmethod
-    def OnFrameClosing(cls, event):
-        """the frame is exiting"""
-        for panel in cls.Gce.get_all_managers():
-            if panel.CheckModified():
-                # the file has been modified, stop closing
-                event.Veto()
-                break
-
-    @classmethod
-    def Uninitialize(cls):
-        """unload the module"""
-        files = []
-        for panel in cls.Gce.get_all_managers():
-            editor = panel.editor
-            files.append([editor.filename, editor.GetCurrentLine(), panel.IsShownOnScreen()])
-
-        for panel in cls.Gce.get_all_managers():
-            dp.send('frame.delete_panel', panel=panel)
-        dp.send('frame.set_config', group='editor', opened=files)
-
-    @classmethod
-    def ProcessCommand(cls, command):
-        """process the menu command"""
-        if command == cls.ID_EDITOR_NEW:
-            cls.AddEditor()
-        elif command == cls.ID_EDITOR_OPEN:
-            defaultDir = os.path.dirname(os.getcwd())
-
-            style = wx.FD_OPEN | wx.FD_FILE_MUST_EXIST
-            dlg = wx.FileDialog(cls.frame,
-                                'Open',
-                                defaultDir=defaultDir,
-                                wildcard=cls.wildcard,
-                                style=style)
-            if dlg.ShowModal() == wx.ID_OK:
-                path = dlg.GetPaths()[0]
-                cls.OpenScript(path)
-            dlg.Destroy()
-
-    @classmethod
-    def AddEditor(cls, title='untitled', activated=True):
-        """create a editor panel"""
-        editor = PyEditorPanel(cls.frame)
-
-        direction = cls.kwargs.get('direction', 'top')
-        dp.send("frame.add_panel",
-                panel=editor,
-                title=title,
-                active=activated,
-                direction=direction,
-                pane_menu={'rxsignal': 'bsm.editor.pane_menu',
-                           'menu': [
-                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
-                               {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
-                               {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
-                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
-                               {'type': wx.ITEM_SEPARATOR},
-                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
-                               {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
-                               ]})
-        return editor
-
-    @classmethod
-    def OpenScript(cls, filename, activated=True, lineno=0, add_to_history=True):
-        """open the file"""
-        if not filename:
-            return None
-        (_, fileExtension) = os.path.splitext(filename)
-        if fileExtension.lower() != '.py':
-            return None
-
-        editor = cls.findEditorByFileName(filename)
-        if editor is None:
-            editor = cls.AddEditor()
-            editor.LoadFile(filename)
-            if add_to_history:
-                dp.send('frame.add_file_history', filename=filename)
-
-        if editor and activated and not editor.IsShownOnScreen():
-            dp.send('frame.show_panel', panel=editor, focus=True)
-        if lineno > 0:
-            editor.JumpToLine(lineno - 1)
-        return editor
-
-    @classmethod
-    def findEditorByFileName(cls, filename):
-        """
-        find the editor by filename
-
-        If the file is opened in multiple editors, return the first one.
-        """
-        for editor in PyEditorPanel.get_instances():
-            if str(editor.editor.filename).lower() == filename.lower():
-                return editor
-        return None
-
 
 def bsm_initialize(frame, **kwargs):
     """initialize the model"""
-    PyEditorPanel.Initialize(frame, **kwargs)
+    Editor.initialize(frame, **kwargs)

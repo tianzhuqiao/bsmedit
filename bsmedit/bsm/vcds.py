@@ -11,7 +11,7 @@ from vcd.reader import TokenKind, tokenize
 from .pymgr_helpers import Gcm
 from .utility import _dict, get_variable_name
 from .utility import build_tree
-from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelBase, FileViewBase
+from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelNotebookBase, FileViewBase
 from ..pvcd.pvcd import load_vcd as load_vcd2
 
 def load_vcd3(filename):
@@ -118,10 +118,10 @@ class VcdTree(TreeCtrlBase):
     ID_VCD_TO_FLOAT64 = wx.NewIdRef()
     ID_VCD_TO_FLOAT128 = wx.NewIdRef()
 
-    def Load(self, vcd):
+    def Load(self, data):
         """load the vcd file"""
-        data = _dict(vcd['data'])
-        super().Load(data)
+        vcd = _dict(data['data'])
+        super().Load(vcd)
 
     def GetItemPlotData(self, item):
         path = self.GetItemPath(item)
@@ -448,11 +448,11 @@ class InfoListCtrl(ListCtrlBase):
         column -= 1
         return str(self.info[item][column])
 
-class VcdPanel(PanelBase):
+class VcdPanel(PanelNotebookBase):
     Gcv = Gcm()
 
     def __init__(self, parent, filename=None):
-        PanelBase.__init__(self, parent, filename=filename)
+        PanelNotebookBase.__init__(self, parent, filename=filename)
 
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchInfo, self.search_info)
@@ -474,7 +474,7 @@ class VcdPanel(PanelBase):
 
         self.vcd = None
 
-    def Load(self, filename):
+    def Load(self, filename, add_to_history=True):
         """load the vcd file"""
         u = load_vcd3(filename)
         self.vcd = u
@@ -482,7 +482,7 @@ class VcdPanel(PanelBase):
         self.tree.Load(u)
         self.infoList.Load(u)
         self.commentList.Load(u)
-        super().Load(filename)
+        super().Load(filename, add_to_history=add_to_history)
 
     def OnDoSearch(self, evt):
         pattern = self.search.GetValue()
@@ -537,7 +537,7 @@ class VCD(FileViewBase):
         return (ext.lower() in ['.vcd', '.bsm'])
 
     @classmethod
-    def _initialized(cls):
+    def initialized(cls):
         # add pandas and vcd to the shell
         dp.send(signal='shell.run',
                 command='import pandas as pd',
@@ -551,7 +551,7 @@ class VCD(FileViewBase):
                 history=False)
 
     @classmethod
-    def get(cls, num=None, filename=None, dataOnly=True):
+    def get(cls, num=None, filename=None, data_only=True):
         manager = cls._get_manager(num, filename)
         if num is None and filename is None and manager is None:
             manager = VcdPanel.Gcv.get_active()
@@ -564,7 +564,7 @@ class VCD(FileViewBase):
             except:
                 traceback.print_exc(file=sys.stdout)
         if vcd:
-            if dataOnly:
+            if data_only:
                 return vcd['data']
         return vcd
 
