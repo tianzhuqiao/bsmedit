@@ -517,15 +517,22 @@ class PanelBase(wx.Panel):
         self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
         self.Bind(wx.EVT_UPDATE_UI, self.OnUpdateCmdUI)
 
+    def GetFileName(self):
+        filename = 'untitled'
+        if self.filename:
+            (_, filename) = os.path.split(self.filename)
+        return filename
+
+    def GetCaption(self):
+        return self.GetFileName()
+
     def Load(self, filename, add_to_history=True):
         """load the file"""
         self.filename = filename
         # add the filename to history
         if add_to_history:
             dp.send('frame.add_file_history', filename=filename)
-        title = 'untitled'
-        if filename:
-            (_, title) = os.path.split(filename)
+        title = self.GetCaption()
         dp.send('frame.set_panel_title', pane=self, title=title)
 
     @classmethod
@@ -558,7 +565,7 @@ class PanelBase(wx.Panel):
             if dlg.ShowModal() == wx.ID_OK:
                 filename = dlg.GetPath()
                 self.Load(filename=filename)
-                (_, title) = os.path.split(filename)
+                title = self.GetCaption()
                 dp.send('frame.set_panel_title', pane=self, title=title)
             dlg.Destroy()
         elif eid == self.ID_REFRESH:
@@ -722,25 +729,23 @@ class FileViewBase:
         manager = cls.get_manager(num, filename)
         if manager is None:
             manager = cls.panel_type(cls.frame)
-            title = 'untitled'
             if filename:
                 manager.Load(filename, add_to_history=add_to_history)
-                (_, filename) = os.path.split(filename)
-                title = filename
+            title = manager.GetCaption()
             dp.send(signal="frame.add_panel",
                     panel=manager,
                     title=title,
                     target="History",
                     pane_menu={'rxsignal': f'bsm.{cls.name}.pane_menu',
                            'menu': [
-                               {'id':cls.ID_PANE_CLOSE, 'label':'Close\tCtrl+W'},
+                               {'id':cls.ID_PANE_CLOSE, 'label':'Close'},
                                {'id':cls.ID_PANE_CLOSE_OTHERS, 'label':'Close Others'},
                                {'id':cls.ID_PANE_CLOSE_ALL, 'label':'Close All'},
                                {'type': wx.ITEM_SEPARATOR},
-                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
-                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
+                               {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path'},
+                               {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path'},
                                {'type': wx.ITEM_SEPARATOR},
-                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
+                               {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}'},
                                {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
                                ]} )
             return manager

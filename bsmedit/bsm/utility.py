@@ -173,6 +173,8 @@ def get_variable_name(text):
         # a.b -> a_b
         # [1] -> None
         name = text.replace('[', '').replace(']', '')
+        name = name.replace('(', '').replace(')', '')
+        name = name.replace('{', '').replace('}', '')
         name = name.replace('.', '_').replace('->', '_')
         if keyword.iskeyword(name):
             name = f'{name}_'

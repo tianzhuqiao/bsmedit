@@ -519,6 +519,7 @@ class PyEditorPanel(PanelBase):
         self.Bind(stc.EVT_STC_CHANGE, self.OnCodeModified)
         item = (
             (wx.ID_OPEN, 'Open', open_svg, None, 'Open Python script'),
+            (None, None, None, None, None),
             (wx.ID_REFRESH, 'Reload', refresh_svg, None, 'Reload script'),
             (wx.ID_SAVE, 'Save', save_svg, save_gray_svg, 'Save script (Ctrl+S)'),
             (wx.ID_SAVEAS, 'Save As', saveas_svg, None, 'Save script as'),
@@ -588,6 +589,7 @@ class PyEditorPanel(PanelBase):
         self.num = self.Gce.get_next_num()
         self.Gce.set_active(self)
 
+        self.was_modified = False
 
     @classmethod
     def get_instances(cls):
@@ -705,18 +707,23 @@ class PyEditorPanel(PanelBase):
             self.editor.SelectLine(line)
         wx.CallLater(1, self.editor.EnsureCaretVisible)
 
+    def GetCaption(self):
+        caption = super().GetCaption()
+        if self.editor.GetModify():
+            caption = caption + '*'
+        return caption
+
     def OnCodeModified(self, event):
         """called when the file is modified"""
-        filename = 'untitled'
-        if self.filename:
-            (_, filename) = os.path.split(self.filename)
-        if self.editor.GetModify():
-            filename = filename + '*'
-        dp.send('frame.set_panel_title', pane=self, title=filename)
+        if self.was_modified == self.editor.GetModify():
+            return
+        self.was_modified = self.editor.GetModify()
+        dp.send('frame.set_panel_title', pane=self, title=self.GetCaption())
 
     def Load(self, filename, add_to_history=True):
         """open file"""
         self.editor.LoadFile(filename)
+        self.was_modified = False
         super().Load(filename, add_to_history=add_to_history)
 
     def OnBtnOpen(self, event):
@@ -752,8 +759,8 @@ class PyEditorPanel(PanelBase):
                 self.filename = path
             dlg.Destroy()
         self.editor.SaveFile(self.filename)
-        (path, filename) = os.path.split(self.filename)
-        dp.send('frame.set_panel_title', pane=self, title=filename)
+        dp.send('frame.set_panel_title', pane=self, title=self.GetCaption())
+        self.was_modified = False
         self.update_bp()
 
     def OnBtnSave(self, event):
@@ -774,8 +781,8 @@ class PyEditorPanel(PanelBase):
             self.filename = path
             dlg.Destroy()
         self.editor.SaveFile(self.filename)
-        (path, filename) = os.path.split(self.filename)
-        dp.send('frame.set_panel_title', pane=self, title=filename)
+        dp.send('frame.set_panel_title', pane=self, title=self.GetCaption())
+        self.was_modified = False
         self.update_bp()
 
     def OnUpdateBtn(self, event):
@@ -815,9 +822,7 @@ class PyEditorPanel(PanelBase):
     def CheckModified(self):
         """check whether it is modified"""
         if self.editor.GetModify():
-            filename = 'untitled'
-            if self.filename != "":
-                (_, filename) = os.path.split(self.filename)
+            filename = self.GetFileName()
             msg = f'"{filename}" has been modified. Save it first?'
             # use top level frame as parent, otherwise it may crash when
             # it is called in Destroy()
@@ -827,8 +832,7 @@ class PyEditorPanel(PanelBase):
             dlg.Destroy()
             if result:
                 self.saveFile()
-                return self.editor.GetModify()
-        return False
+        return self.editor.GetModify()
 
     def OnBtnCheck(self, event):
         """check the syntax"""
@@ -837,11 +841,9 @@ class PyEditorPanel(PanelBase):
         if self.filename == """""":
             return
         self.RunCommand('import sys', verbose=False)
-        self.RunCommand('_bsm_source = open(r\'%s\',\'r\').read()+\'\\n\'' %
-                        self.filename,
+        self.RunCommand(f'_bsm_source = open(r"{self.filename}", "r").read()+"\\n"',
                         verbose=False)
-        self.RunCommand('_bsm_code = compile(_bsm_source,r\'%s\',\'exec\')' %
-                        self.filename,
+        self.RunCommand(f'compile(_bsm_source, r"{self.filename}", "exec") and print(r"Check \'{self.filename}\' successfully.")',
                         prompt=True,
                         verbose=False)
         self.RunCommand('del _bsm_source', verbose=False)
@@ -1080,7 +1082,7 @@ class Editor(FileViewBase):
 
     @classmethod
     def get(cls, num=None, filename=None, data_only=True):
-        manager = cls._get_manager(num, filename)
+        manager = cls.get_manager(num, filename)
         if num is None and filename is None and manager is None:
             manager = cls.panel_type.get_active()
         text = None
@@ -1121,7 +1123,7 @@ class Editor(FileViewBase):
     @classmethod
     def OnFrameClosing(cls, event):
         """the frame is exiting"""
-        for panel in PyEditorPanel.Gce.get_all_managers():
+        for panel in cls.panel_type.get_all_managers():
             if panel.CheckModified():
                 # the file has been modified, stop closing
                 event.Veto()
