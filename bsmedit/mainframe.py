@@ -331,7 +331,7 @@ class MainFrame(FramePlus):
         tabctrl = evt.GetEventObject()
         tabctrl.SetSelection(idx)
         page = tabctrl.GetPage(idx)
-        self.RenamePanel(page)
+        self.OnPanelContextMenu(page)
 
     def OnRightDown(self, evt):
         evt.Skip()
@@ -340,16 +340,21 @@ class MainFrame(FramePlus):
         if not part or part.pane.IsNotebookControl():
             return
 
-        self.RenamePanel(part.pane.window)
+        self.OnPanelContextMenu(part.pane.window)
 
-    def RenamePanel(self, panel):
+    def OnPanelContextMenu(self, panel):
         if not panel:
             return
+        pane = self._mgr.GetPane(panel)
+        if not pane.IsOk():
+            return
         menu = wx.Menu()
-        menu.Append(self.ID_VM_RENAME, "&Rename")
+        if not pane.IsDestroyOnClose():
+            menu.Append(self.ID_VM_RENAME, "&Rename tab label")
         pane_menu = None
         if panel in self.paneMenu:
-            menu.AppendSeparator()
+            if menu.GetMenuItemCount() > 0:
+                menu.AppendSeparator()
             pane_menu = self.paneMenu[panel]
             build_menu_from_list(pane_menu['menu'], menu)
         command = self.GetPopupMenuSelectionFromUser(menu)
