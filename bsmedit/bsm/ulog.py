@@ -33,6 +33,7 @@ def load_ulog(filename):
 class ULogTree(TreeCtrlBase):
     ID_ULOG_EXPORT = wx.NewIdRef()
     ID_ULOG_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
+    ID_ULOG_PLOT = wx.NewIdRef()
 
     def get_children(self, item):
         """ callback function to return the children of item """
@@ -70,9 +71,11 @@ class ULogTree(TreeCtrlBase):
         self.UnselectAll()
         has_child = self.ItemHasChildren(item)
         menu = wx.Menu()
-        menu.Append(self.ID_ULOG_EXPORT, "&Export to shell")
+        menu.Append(self.ID_ULOG_EXPORT, "Export to shell")
         if not has_child:
-            menu.Append(self.ID_ULOG_EXPORT_WITH_TIMESTAMP, "E&xport to shell with timestamp")
+            menu.Append(self.ID_ULOG_EXPORT_WITH_TIMESTAMP, "Export to shell with timestamp")
+        menu.AppendSeparator()
+        menu.Append(self.ID_ULOG_PLOT, "Plot")
 
         cmd = self.GetPopupMenuSelectionFromUser(menu)
         if cmd == wx.ID_NONE:
@@ -98,6 +101,8 @@ class ULogTree(TreeCtrlBase):
                 prompt=True,
                 verbose=True,
                 history=False)
+        elif cmd == self.ID_ULOG_PLOT:
+            self.PlotItem(item)
 
     def GetItemPlotData(self, item):
         if self.ItemHasChildren(item):

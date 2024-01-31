@@ -733,7 +733,6 @@ class DataDropTarget(wx.DropTarget):
                                 label="/".join([title, label])
                             # the label starts with '_' will be ignored, so remove leading '_'
                             label = label.lstrip('_')
-                            print(label)
                             if not is_numeric_dtype(line[line.columns[0]]) or \
                                not is_numeric_dtype(line[line.columns[1]]):
                                 # ignore non-numeric data

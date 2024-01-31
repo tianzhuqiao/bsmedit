@@ -29,7 +29,8 @@ def read_csv(filename):
 class CsvTree(TreeCtrlBase):
     ID_CSV_SET_X = wx.NewIdRef()
     ID_CSV_EXPORT = wx.NewIdRef()
-    ID_CSV_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
+    ID_CSV_EXPORT_WITH_X = wx.NewIdRef()
+    ID_CSV_PLOT = wx.NewIdRef()
 
     def __init__(self, *args, **kwargs):
         TreeCtrlBase.__init__(self, *args, **kwargs)
@@ -37,11 +38,6 @@ class CsvTree(TreeCtrlBase):
 
     def GetItemPlotData(self, item):
         y = self.GetItemData(item)
-
-        if not is_numeric_dtype(y):
-            text = self.GetItemText(item)
-            print(f"{text} is not numeric, ignore plotting!")
-            return None, None
 
         if self.x_path is not None and self.GetItemPath(item) != self.x_path:
             x = self.GetItemDataFromPath(self.x_path)
@@ -83,7 +79,7 @@ class CsvTree(TreeCtrlBase):
         # need to explicitly allow drag
         # start drag operation
         data = wx.TextDataObject(json.dumps(objs))
-        source = wx.DropSource(self.tree)
+        source = wx.DropSource(self)
         source.SetData(data)
         rtn = source.DoDragDrop(True)
         if rtn == wx.DragError:
@@ -112,16 +108,19 @@ class CsvTree(TreeCtrlBase):
         if len(selections) <= 1:
             # single item selection
             if self.x_path and self.x_path == path:
-                mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "&Unset as x-axis data")
+                mitem = menu.AppendCheckItem(self.ID_CSV_SET_X, "Unset as x-axis data")
                 mitem.Check(True)
                 menu.AppendSeparator()
-            elif is_numeric_dtype(value):
-                menu.AppendCheckItem(self.ID_CSV_SET_X, "&Set as x-axis data")
+            else:
+                menu.AppendCheckItem(self.ID_CSV_SET_X, "Set as x-axis data")
                 menu.AppendSeparator()
 
-        menu.Append(self.ID_CSV_EXPORT, "&Export to shell")
+        menu.Append(self.ID_CSV_EXPORT, "Export to shell")
         if self.x_path and (self.x_path != path or len(selections) > 1):
-            menu.Append(self.ID_CSV_EXPORT_WITH_TIMESTAMP, "E&xport to shell with x")
+            menu.Append(self.ID_CSV_EXPORT_WITH_X, "Export to shell with x-axis data")
+
+        menu.AppendSeparator()
+        menu.Append(self.ID_CSV_PLOT, "Plot")
 
         cmd = self.GetPopupMenuSelectionFromUser(menu)
         if cmd == wx.ID_NONE:
@@ -129,7 +128,7 @@ class CsvTree(TreeCtrlBase):
         path = self.GetItemPath(item)
         if not path:
             return
-        if cmd in [self.ID_CSV_EXPORT, self.ID_CSV_EXPORT_WITH_TIMESTAMP]:
+        if cmd in [self.ID_CSV_EXPORT, self.ID_CSV_EXPORT_WITH_X]:
             if len(selections) <= 1:
                 name = get_variable_name(path)
             else:
@@ -156,6 +155,8 @@ class CsvTree(TreeCtrlBase):
             else:
                 # clear the current x-axis
                 self.x_path = None
+        elif cmd in [self.ID_CSV_PLOT]:
+            self.PlotItem(item)
 
 class CsvPanel(PanelNotebookBase):
     Gcc = Gcm()

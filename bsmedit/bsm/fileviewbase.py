@@ -347,20 +347,36 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         x = np.arange(0, len(y))
         return x, y
 
+    def PlotItem(self, item, confirm=True):
+        if self.ItemHasChildren(item):
+            if confirm:
+                text = self.GetItemText(item)
+                msg = f"Do you want to plot all signals under '{text}'?"
+                dlg = wx.MessageDialog(self, msg, 'bsmedit', wx.YES_NO)
+                if dlg.ShowModal() != wx.ID_YES:
+                    return
+
+            child, cookie = self.GetFirstChild(item)
+            while child.IsOk():
+                self.PlotItem(child, confirm=False)
+                child, cookie = self.GetNextChild(item, cookie)
+        else:
+            path = self.GetItemPath(item)
+            x, y = self.GetItemPlotData(item)
+            if x is not None and y is not None:
+                self.plot(x, y, "/".join(path))
+
     def OnTreeItemActivated(self, event):
         item = event.GetItem()
         if not item.IsOk():
             return
-        if self.ItemHasChildren(item):
-            return
-        path = self.GetItemPath(item)
-        x, y = self.GetItemPlotData(item)
+        self.PlotItem(item)
+
+    def plot(self, x, y, label, step=False):
         if x is None or y is None or not is_numeric_dtype(y):
             print(f"{path[-1]} is not numeric, ignore plotting!")
             return
-        self.plot(x, y, "/".join(path))
 
-    def plot(self, x, y, label, step=False):
         # plot
         label = label.lstrip('_')
         mgr = graph.plt.get_current_fig_manager()
