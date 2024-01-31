@@ -1,10 +1,9 @@
 import wx
-import wx.py.dispatcher as dp
 from matplotlib.backends.backend_wx import cursors
 import numpy as np
 import pandas as pd
-import pickle
 from .graph_common import GraphObject
+from .utility import send_data_to_shell
 
 class Timeline(GraphObject):
     ID_CLEAR = wx.NewIdRef()
@@ -262,20 +261,4 @@ class Timeline(GraphObject):
                 axes = self._get_axes(axes, sharex=True)
 
             data = self._export(axes)
-            with open('_timeline.npy', 'wb') as fp:
-                pickle.dump(data, fp)
-            dp.send('shell.run',
-                    command='with open("_timeline.npy", "rb") as fp:\n    timeline_data = pickle.load(fp)',
-                    prompt=False,
-                    verbose=False,
-                    history=False)
-            dp.send('shell.run',
-                    command='',
-                    prompt=False,
-                    verbose=False,
-                    history=False)
-            dp.send('shell.run',
-                    command='timeline_data',
-                    prompt=True,
-                    verbose=True,
-                    history=False)
+            send_data_to_shell('timeline_data', data)

@@ -4,7 +4,9 @@ import math
 import wx
 import wx.py.dispatcher as dp
 import numpy as np
+import pandas as pd
 from .graph_common import GraphObject
+from .utility import send_data_to_shell
 from .. import propgrid as pg
 from ..propgrid import prop
 
@@ -342,23 +344,15 @@ class DataCursor(GraphObject):
             self.active = None
             return True
         elif cmd == self.ID_EXPORT_DATATIP:
-            datatip_data = []
+            data = []
             for idx, ant in enumerate(self.annotations):
                 if ant_in_axes[idx]:
-                    datatip_data.append(ant.xy_orig)
-            datatip_data = np.array(datatip_data)
-
-            np.save('_datatip.npy', datatip_data)
-            dp.send('shell.run',
-                    command='datatip_data = np.load("_datatip.npy", allow_pickle=True)',
-                    prompt=False,
-                    verbose=False,
-                    history=False)
-            dp.send('shell.run',
-                    command='datatip_data',
-                    prompt=True,
-                    verbose=True,
-                    history=False)
+                    data.append(ant.xy_orig)
+            data = np.array(data)
+            df = pd.DataFrame()
+            df['x'] = data[:, 0]
+            df['y'] = data[:, 1]
+            send_data_to_shell('datatip_data', df)
             return True
         elif cmd == self.ID_SETTING:
             settings = [s.duplicate() for s in  self.settings]

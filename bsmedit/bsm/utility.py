@@ -4,9 +4,12 @@ import subprocess
 import platform
 import keyword
 import re
+import pickle
+from pathlib import Path
 import six
 import wx
 import wx.svg
+import wx.py.dispatcher as dp
 
 def MakeBitmap(red, green, blue, alpha=128, size=None, scale_factor=1):
     # Create the bitmap that we will stuff pixel values into using
@@ -165,6 +168,34 @@ def build_menu_from_list(items, menu=None):
             item.Check(m.get('check', True))
             item.Enable(m.get('enable', True))
     return menu
+
+def get_temp_file(filename):
+    path = Path(os.path.join(wx.StandardPaths.Get().GetTempDir(), filename))
+    return path.as_posix()
+
+def send_data_to_shell(name, data):
+    if not name.isidentifier():
+        return False
+
+    filename = get_temp_file('_data.pickle')
+
+    with open(filename, 'wb') as fp:
+        pickle.dump(data, fp)
+    dp.send('shell.run',
+            command=f'with open("{filename}", "rb") as fp:\n    {name} = pickle.load(fp)',
+            prompt=False,
+            verbose=False,
+            history=False)
+    dp.send('shell.run',
+            command='',
+            prompt=False,
+            verbose=False,
+            history=False)
+    dp.send('shell.run',
+            command=f'{name}',
+            prompt=True,
+            verbose=True,
+            history=False)
 
 def get_variable_name(text):
     def _get(text):

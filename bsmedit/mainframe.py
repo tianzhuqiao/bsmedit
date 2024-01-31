@@ -195,6 +195,17 @@ class MainFrame(FramePlus):
         self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPageRightDown)
         self.Bind(wx.EVT_RIGHT_DOWN, self.OnRightDown)
 
+        dp.send(signal='shell.run',
+                command='import pandas as pd',
+                prompt=False,
+                verbose=False,
+                history=False)
+        dp.send(signal='shell.run',
+                command='import pickle',
+                prompt=False,
+                verbose=False,
+                history=False)
+
     def LoadPerspective(self):
         perspective = self.GetConfig('mainframe', 'perspective')
         if perspective and not wx.GetKeyState(wx.WXK_SHIFT):

@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from pandas.api.types import is_numeric_dtype
 from .pymgr_helpers import Gcm
-from .utility import get_variable_name
+from .utility import get_variable_name, send_data_to_shell
 from .utility import build_tree
 from .fileviewbase import TreeCtrlBase, PanelNotebookBase, FileViewBase
 
@@ -53,7 +53,7 @@ class CsvTree(TreeCtrlBase):
         pass
 
     def OnTreeBeginDrag(self, event):
-        if self.data.empty:
+        if not self.data:
             return
 
         ids = self.GetSelections()
@@ -142,18 +142,7 @@ class CsvTree(TreeCtrlBase):
             for sel in selections:
                 x, y = self.GetItemPlotData(sel)
                 data[y.name] = y
-
-            data.to_pickle('_csv.pickle')
-            dp.send(signal='shell.run',
-                command=f'{name}=pd.read_pickle("_csv.pickle")',
-                prompt=False,
-                verbose=False,
-                history=False)
-            dp.send('shell.run',
-                    command=f'{name}',
-                    prompt=True,
-                    verbose=True,
-                    history=False)
+            send_data_to_shell(name, data)
         elif cmd == self.ID_CSV_SET_X:
             if self.x_path:
                 # clear the current x-axis data

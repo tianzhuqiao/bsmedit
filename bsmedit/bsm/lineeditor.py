@@ -1,7 +1,8 @@
 import wx
-import wx.py.dispatcher as dp
 import numpy as np
+import pandas as pd
 from .graph_common import GraphObject
+from .utility import send_data_to_shell
 
 class LineEditor(GraphObject):
     ID_XY_MODE = wx.NewIdRef()
@@ -210,17 +211,11 @@ class LineEditor(GraphObject):
 
         elif cmd == self.ID_EXPORT_TO_TERM:
             x, y = self.active_line.get_data()
-            np.save('_lineeditor.npy', (x, y))
-            dp.send('shell.run',
-                    command='le_data = np.load("_lineeditor.npy", allow_pickle=True)',
-                    prompt=False,
-                    verbose=False,
-                    history=False)
-            dp.send('shell.run',
-                    command='le_data',
-                    prompt=True,
-                    verbose=True,
-                    history=False)
+            data = pd.DataFrame()
+            data['x'] = x
+            data['y'] = y
+            send_data_to_shell('le_line', data)
+
         elif cmd in self.ID_LINES:
             i = 0
             for _, lines in self.lines.items():

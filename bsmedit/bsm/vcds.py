@@ -9,7 +9,7 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype, is_integer_dtype
 from vcd.reader import TokenKind, tokenize
 from .pymgr_helpers import Gcm
-from .utility import _dict, get_variable_name
+from .utility import _dict, get_variable_name, send_data_to_shell
 from .utility import build_tree
 from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelNotebookBase, FileViewBase
 from ..pvcd.pvcd import load_vcd as load_vcd2
@@ -279,18 +279,7 @@ class VcdTree(TreeCtrlBase):
             if df is not None:
                 if cmd == self.ID_VCD_EXPORT_BITS_WITH_TIMESTAMP:
                     df.insert(loc=0, column='timestamp',  value=data['timestamp'])
-                df.to_pickle('_vcds.pickle')
-                name = get_variable_name(text)
-                dp.send('shell.run',
-                        command=f'{name} = pd.read_pickle("_vcds.pickle")',
-                        prompt=False,
-                        verbose=False,
-                        history=False)
-                dp.send('shell.run',
-                        command=f'{name}',
-                        prompt=True,
-                        verbose=True,
-                        history=False)
+                send_data_to_shell(name, df)
 
         elif cmd in [self.ID_VCD_PLOT, self.ID_VCD_PLOT_BITS, self.ID_VCD_PLOT_BITS_VERT]:
             x = data['timestamp']*self.data.get('timescale', 1e-6)*1e6

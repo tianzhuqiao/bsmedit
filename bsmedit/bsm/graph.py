@@ -1003,16 +1003,7 @@ class MatplotPanel(wx.Panel):
 
     @classmethod
     def Initialized(cls):
-        dp.send(signal='shell.run',
-                command='import pandas as pd',
-                prompt=False,
-                verbose=False,
-                history=False)
-        dp.send(signal='shell.run',
-                command='import pickle',
-                prompt=False,
-                verbose=False,
-                history=False)
+
         dp.send('shell.run',
                 command='from matplotlib.pyplot import *',
                 prompt=False,
