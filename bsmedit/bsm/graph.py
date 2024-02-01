@@ -21,6 +21,7 @@ from .graph_common import GraphObject
 from .lineeditor import LineEditor
 from .graph_datatip import DataCursor
 from .graph_timeline import Timeline
+from .graph_dock import GDock
 from .utility import build_menu_from_list, svg_to_bitmap
 from .bsmxpm import split_vert_svg, delete_svg, line_style_svg, \
                     new_page_svg2, home_svg2, backward_svg2, backward_gray_svg2, \
@@ -122,6 +123,7 @@ class Toolbar(GraphToolbar):
         self.lineeditor = LineEditor(self.figure)
         self.timeline = Timeline(self.figure)
         self.pan_action = Pan(self.figure)
+        self.dock = GDock(self.figure)
 
         self.actions = {'datatip': self.datacursor,
                         'edit': self.lineeditor,
@@ -180,6 +182,7 @@ class Toolbar(GraphToolbar):
     def OnPressed(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_pressed'):
+            self.dock.mouse_pressed(event)
             return
         # some lines may be added
         self._set_picker_all()
@@ -192,6 +195,7 @@ class Toolbar(GraphToolbar):
         if action and hasattr(action, 'mouse_released'):
             action.mouse_released(event)
 
+        self.dock.mouse_released(event)
         if event.button == matplotlib.backend_bases.MouseButton.RIGHT:
             self.OnContextMenu(event)
             return
@@ -385,6 +389,7 @@ class Toolbar(GraphToolbar):
     def OnMove(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_move'):
+            self.dock.mouse_move(event)
             return
         if action.mouse_move(event):
             self.canvas.draw()
