@@ -979,6 +979,7 @@ class PyEditorPanel(PanelBase):
 class Editor(FileViewBase):
     name = 'python'
     panel_type = PyEditorPanel
+    target_pane = None
 
     ID_NEW = wx.NOT_FOUND
 
@@ -1112,11 +1113,11 @@ class Editor(FileViewBase):
             for i in range(pane.GetPageCount()):
                 page = pane.GetPage(i)
                 if isinstance(page, PyEditorPanel):
-                    if page.CheckModified():
+                    if page.CheckModified() and page.filename is not None:
                         # the file has been modified, stop closing
                         event.Veto()
         elif isinstance(pane, PyEditorPanel):
-            if pane.CheckModified():
+            if pane.CheckModified() and pane.filename is not None:
                 # the file has been modified, stop closing
                 event.Veto()
 

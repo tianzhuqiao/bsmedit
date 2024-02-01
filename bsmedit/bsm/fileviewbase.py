@@ -645,6 +645,7 @@ class FileViewBase:
     name = None
     panel_type = PanelBase
     frame = None
+    target_pane = "History"
 
     ID_PANE_COPY_PATH = wx.NewIdRef()
     ID_PANE_COPY_PATH_REL = wx.NewIdRef()
@@ -751,7 +752,7 @@ class FileViewBase:
             dp.send(signal="frame.add_panel",
                     panel=manager,
                     title=title,
-                    target="History",
+                    target=cls.target_pane,
                     pane_menu={'rxsignal': f'bsm.{cls.name}.pane_menu',
                            'menu': [
                                {'id':cls.ID_PANE_CLOSE, 'label':'Close'},

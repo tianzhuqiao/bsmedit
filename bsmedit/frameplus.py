@@ -282,15 +282,14 @@ class FramePlus(wx.Frame):
         panel.Reparent(self)
         # hide the window for now to avoid flicker
         panel.Hide()
-        # if the target is None, find the notebook control that has the same
+        # always try to find the notebook control that has the same
         # type as panel. It tries to put the same type panels in the same
         # notebook
-        if target is None:
-            for pane in self._mgr.GetAllPanes():
-                if isinstance(pane.window, type(panel)):
-                    target = pane.window
-                    break
-        elif isinstance(target, six.string_types):
+        for pane in self._mgr.GetAllPanes():
+            if isinstance(pane.window, type(panel)):
+                target = pane.window
+                break
+        if isinstance(target, six.string_types):
             # find the target panel with caption
             for pane in self._mgr.GetAllPanes():
                 if pane.caption == target:
