@@ -134,7 +134,7 @@ class CsvTree(TreeCtrlBase):
             else:
                 name = "_csv"
             x, y = self.GetItemPlotData(item)
-            if cmd == self.ID_CSV_EXPORT_WITH_TIMESTAMP:
+            if cmd == self.ID_CSV_EXPORT_WITH_X:
                 data = x.to_frame()
             else:
                 data = pd.DataFrame()
