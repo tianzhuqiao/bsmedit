@@ -1,5 +1,11 @@
 import matplotlib
 
+def get_top_gridspec(ax):
+    g = ax.get_gridspec()
+    while isinstance(g, matplotlib.gridspec.GridSpecFromSubplotSpec):
+        g = g._subplot_spec.get_gridspec()
+    return g
+
 def get_gridspec(ax, g):
     # check if subplot ax is in g, if yes, return the gridspec
     ga = ax.get_gridspec()
@@ -7,7 +13,7 @@ def get_gridspec(ax, g):
         if isinstance(ga, matplotlib.gridspec.GridSpecFromSubplotSpec):
             if ga._subplot_spec.get_gridspec() == g:
                 return ga
-            ga = ga._subplot_spec
+            ga = ga._subplot_spec.get_gridspec()
         else:
             return None
 
@@ -21,6 +27,7 @@ def del_subplot(ax):
     # delete the ax
     fig = ax.figure
     ax.figure.delaxes(ax)
+    g2 = None
     if r > 1:
         if isinstance(g, matplotlib.gridspec.GridSpecFromSubplotSpec):
             # ax is not a top level subplot, get the parent gridspec
@@ -147,7 +154,6 @@ def get_subplot_grid(ax, direction='bottom', edge=False):
         while isinstance(g, matplotlib.gridspec.GridSpecFromSubplotSpec):
             g = g._subplot_spec.get_gridspec()
         r, c = g.get_geometry()
-        print(vert, c, r)
         if (vert and c != 1) or (not vert and r != 1):
             # g is not in excepted shape, create the except shape, and
             # add g as child
@@ -159,7 +165,6 @@ def get_subplot_grid(ax, direction='bottom', edge=False):
                 si, gi = 0, 1 # index of the added axes and g
             else:
                 si, gi = 1, 0
-            print(si, gi)
             g2_1 = g2[gi].subgridspec(g.nrows, g.ncols)
             for a in ax.figure.axes:
                 if a.get_gridspec() == g:
