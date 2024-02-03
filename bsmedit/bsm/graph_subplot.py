@@ -92,6 +92,9 @@ def del_subplot(ax):
                     gp._subplot_spec = g2[i]
 
     while isinstance(g2, matplotlib.gridspec.GridSpec) and g2.ncols == 1 and g2.nrows == 1:
+        if len(fig.axes) <= 1:
+            # allow GridSpec(1, 1) only if there is one axes left
+            break
         # g2 is toplevel and only one item left, find its only child
         gc = get_gridspec(fig.axes[0], g2)
         if isinstance(gc, matplotlib.gridspec.GridSpec):
