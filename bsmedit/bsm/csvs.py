@@ -36,6 +36,10 @@ class CsvTree(TreeCtrlBase):
         TreeCtrlBase.__init__(self, *args, **kwargs)
         self.x_path = None
 
+    def Load(self, data):
+        self.x_path = None
+        super().Load(data)
+
     def GetItemPlotData(self, item):
         y = self.GetItemData(item)
 
