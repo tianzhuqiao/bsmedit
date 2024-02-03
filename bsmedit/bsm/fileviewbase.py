@@ -374,7 +374,7 @@ class TreeCtrlBase(FastLoadTreeCtrl):
 
     def plot(self, x, y, label, step=False):
         if x is None or y is None or not is_numeric_dtype(y):
-            print(f"{path[-1]} is not numeric, ignore plotting!")
+            print(f"{label} is not numeric, ignore plotting!")
             return
 
         # plot
