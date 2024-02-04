@@ -60,7 +60,7 @@ class Timeline(GraphObject):
                     axvline = l
                     continue
                 label = l.get_label()
-                if label.startswith('_child'):
+                if label.startswith('_'):
                     continue
 
                 label = label.split(' ')
