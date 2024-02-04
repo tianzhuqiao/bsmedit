@@ -5,6 +5,7 @@ from .graph_common import GraphObject
 from .utility import send_data_to_shell
 
 class LineEditor(GraphObject):
+    marker_label = '_bsm_marker'
     ID_XY_MODE = wx.NewIdRef()
     ID_X_MODE = wx.NewIdRef()
     ID_Y_MODE = wx.NewIdRef()
@@ -41,7 +42,8 @@ class LineEditor(GraphObject):
     def _update_marker(self, axes):
         for g in axes:
             if self.marker.get(g, None) is None or self.marker[g] not in g.lines:
-                self.marker[g] = g.plot([], [], marker="o", color="red", zorder=10)[0]
+                self.marker[g] = g.plot([], [], marker="o", color="red", zorder=10,
+                                        label=self.marker_label)[0]
                 self.marker[g].set_visible(False)
             else:
                 if self.marker[g].get_linestyle() != 'None':

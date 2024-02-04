@@ -6,6 +6,7 @@ from .graph_common import GraphObject
 from .utility import send_data_to_shell
 
 class Timeline(GraphObject):
+    axvline_label = "_bsm_axvline"
     ID_CLEAR = wx.NewIdRef()
     ID_CLEAR_SHAREX = wx.NewIdRef()
     ID_CLEAR_ALL = wx.NewIdRef()
@@ -35,20 +36,23 @@ class Timeline(GraphObject):
 
     def _is_close_to_axvline(self, ax, x, y):
         # check if (x, y) is close to the axvline in ax
-        for l in ax.lines:
-            if not self._is_axvline(l):
-                continue
-            trans = l.axes.transData
-            lx, ly = trans.transform((l.get_xdata()[0], 0))
-            if np.abs(lx-x) < 15:
-                return True, l
+        axvline = self._get_axvline(ax)
+        if axvline is not None:
+            trans = axvline.axes.transData
+            lx, ly = trans.transform((axvline.get_xdata()[0], 0))
+            if wx.Platform != '__WXMSW__':
+                ratio = self.figure.canvas.device_pixel_ratio
+            else:
+                ratio = 1
+            if np.abs(lx-x) < 10*ratio:
+                return True, axvline
         return False, None
 
     def update_legend(self, axes, xdata = None):
         # update all sharex
         axes = self._get_axes(axes, sharex=True)
         for ax in axes:
-            axvline = None
+            axvline, x, y, idx = None, None, None, None
             if not self._has_axvline(ax):
                 continue
             for l in ax.lines:
@@ -69,7 +73,8 @@ class Timeline(GraphObject):
                     idx = np.argmin(np.abs(x - xdata))
                     label = f'{label} {y[idx]}'
                 l.set_label(label)
-            if xdata is not None and axvline is not None:
+            if xdata is not None and axvline is not None and x is not None and \
+               y is not None and idx is not None:
                 axvline.set_xdata([x[idx], x[idx]])
                 self.axvline_idx[ax] = idx
             ax.legend()
@@ -123,7 +128,25 @@ class Timeline(GraphObject):
         if len(x) != 2:
             return False
         y = l.get_ydata()
-        return x[0] == x[1] and y[0] == 0 and y[1] == 1
+        return x[0] == x[1] and y[0] == 0 and y[1] == 1 and l.get_label() == self.axvline_label
+
+    def has_visible_lines(self, ax):
+        for l in ax.lines:
+            label = l.get_label()
+            if label.startswith('_bsm'):
+                continue
+            if l.get_visible():
+                return True
+        return False
+
+    def create_axvline_if_needed(self, ax):
+        if self._has_axvline(ax) or not self.has_visible_lines(ax):
+            return None
+        xdata = np.mean(ax.get_xlim())
+        l = ax.axvline(xdata, label=self.axvline_label)
+        l.set_zorder(10)
+        l.set_color('red')
+        return True
 
     def activated(self):
         if self.initialized:
@@ -131,22 +154,22 @@ class Timeline(GraphObject):
         self.initialized = True
         for ax in self.figure.axes:
             # add axvline if not there
-            if not self._has_axvline(ax):
+            if self.create_axvline_if_needed(ax):
                 xdata = np.mean(ax.get_xlim())
-                l = ax.axvline(xdata)
-                l.set_zorder(10)
-                l.set_color('red')
                 self.update_legend([ax], xdata)
 
     def deactivated(self):
         self.draggable = False
 
-    def _has_axvline(self, ax):
-        # check if axes has axvline
+    def _get_axvline(self, ax):
         for l in ax.lines:
             if self._is_axvline(l):
-                return True
-        return False
+                return l
+        return None
+
+    def _has_axvline(self, ax):
+        # check if axes has axvline
+        return self._get_axvline(ax) is not None
 
     def _get_axes(self, axes, sharex=False, all_axes=False):
         if all_axes:
@@ -170,7 +193,8 @@ class Timeline(GraphObject):
                     axvline = l
                 else:
                     label = l.get_label()
-                    if label.startswith('_child'):
+                    if label.startswith('_'):
+                        # ignore line without label
                         continue
                     label = label.split(' ')
                     if len(label) > 1:
@@ -212,28 +236,21 @@ class Timeline(GraphObject):
     def GetMenu(self, axes):
         cmd = [{'id': self.ID_MOVE_TIMELINE_HERE,
                 'label': 'Move timeline in view',
-                'check': False},
+                'enable': self.has_visible_lines(axes[0])},
                {'type': wx.ITEM_SEPARATOR},
                {'id': self.ID_EXPORT_TO_TERM,
-                'label': 'Export to shell',
-                'check': False},
+                'label': 'Export to shell'},
                {'id': self.ID_EXPORT_TO_TERM_SHAREX,
-                'label': 'Export all to shell with shared x-axis',
-                'check': False},
+                'label': 'Export all to shell with shared x-axis'},
                {'id': self.ID_EXPORT_TO_TERM_ALL,
-                'label': 'Export all to shell',
-                'check': False},
+                'label': 'Export all to shell'},
                {'type': wx.ITEM_SEPARATOR},
                {'id': self.ID_CLEAR,
-                'label': 'Clear on current subplot',
-                'check': False},
+                'label': 'Clear on current subplot'},
                {'id': self.ID_CLEAR_SHAREX,
-                'label': 'Clear all with shared x-axis',
-                'check': False},
+                'label': 'Clear all with shared x-axis'},
                {'id': self.ID_CLEAR_ALL,
-                'label': 'Clear all',
-                'check': False},
-
+                'label': 'Clear all'},
               ]
 
         return cmd
@@ -241,12 +258,9 @@ class Timeline(GraphObject):
     def ProcessCommand(self, cmd, axes):
         if cmd == self.ID_MOVE_TIMELINE_HERE:
             for ax in axes:
-                xdata = np.mean(ax.get_xlim())
-                if not self._has_axvline(ax):
-                    l = ax.axvline(xdata)
-                    l.set_zorder(10)
-                    l.set_color('red')
-                self.update_legend([ax], xdata)
+                if self.create_axvline_if_needed(ax):
+                    xdata = np.mean(ax.get_xlim())
+                    self.update_legend([ax], xdata)
         elif cmd == self.ID_CLEAR:
             self._clear_axvline(axes)
         elif cmd == self.ID_CLEAR_SHAREX:

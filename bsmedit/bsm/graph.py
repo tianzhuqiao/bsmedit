@@ -708,8 +708,10 @@ class DataDropTarget(wx.DropTarget):
     def OnData(self, x, y, d):
         if not self.GetData():
             return wx.DragNone
-
-        ratio = self.canvas.device_pixel_ratio
+        if wx.Platform != '__WXMSW__':
+            ratio = self.canvas.device_pixel_ratio
+        else:
+            ratio = 1
         #self.frame.OnDrop(x, y, self.obj.GetText())
         data = self.obj.GetText()
         if isinstance(data, dict):

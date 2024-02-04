@@ -1,3 +1,4 @@
+import wx
 import numpy as np
 
 class GraphObject():
@@ -42,7 +43,10 @@ class GraphObject():
 
         x0, y0 = line.axes.transData.transform((dx, dy))
         dis = np.sqrt((x0-mx)**2 + (y0-my)**2)
-        ratio = self.figure.canvas.device_pixel_ratio
+        if wx.Platform != '__WXMSW__':
+            ratio = self.figure.canvas.device_pixel_ratio
+        else:
+            ratio = 1
         return dis/ratio
 
     def get_closest(self, line, mx, my, tolerance=0):

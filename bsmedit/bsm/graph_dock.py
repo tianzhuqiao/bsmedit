@@ -121,7 +121,10 @@ class GDock(GraphObject):
         pass
 
     def GetAxesRect(self, ax):
-        ratio = self.canvas.device_pixel_ratio
+        if wx.Platform != '__WXMSW__':
+            ratio = self.canvas.device_pixel_ratio
+        else:
+            ratio = 1
         bbox = ax.get_tightbbox()
         w, h = self.canvas.GetSize()
         rc = wx.Rect()
