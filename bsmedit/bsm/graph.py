@@ -214,6 +214,12 @@ class Toolbar(GraphToolbar):
             return
 
         menu = wx.Menu()
+        # menu for current mode
+        menus, name = self.GetMenu(axes)
+        if len(menus) > 0:
+            menu_mode = build_menu_from_list(menus)
+            menu.AppendSubMenu(menu_mode, name.capitalize())
+            menu.AppendSeparator()
         scale_menu = wx.Menu()
         scale_menu.Append(self.ID_AUTO_SCALE_XY, "Auto scale")
         scale_menu.AppendSeparator()
@@ -288,12 +294,7 @@ class Toolbar(GraphToolbar):
 
         menu.AppendSeparator()
         menu.Append(self.ID_COPY_SUBPLOT, "Copy to clipboard")
-        # menu for current mode
-        menus, name = self.GetMenu(axes)
-        if len(menus) > 0:
-            menu.AppendSeparator()
-            menu_mode = build_menu_from_list(menus)
-            menu.AppendSubMenu(menu_mode, name.capitalize())
+
         def _set_linestyle(ls=None, ms=None, ds=None):
             for ax in axes:
                 for l in ax.lines:
