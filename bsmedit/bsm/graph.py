@@ -17,8 +17,9 @@ import matplotlib.pyplot as plt
 from matplotlib import rcParams
 import matplotlib.style as mplstyle
 import matplotlib.transforms as mtransforms
+from .graph_canvas import FigureCanvas as FigureCanvas2
 from .graph_common import GraphObject
-from .lineeditor import LineEditor
+from .graph_edit import LineEditor
 from .graph_datatip import DataCursor
 from .graph_timeline import Timeline
 from .graph_dock import GDock
@@ -134,7 +135,7 @@ class Toolbar(GraphToolbar):
         self.canvas.mpl_connect('motion_notify_event', self.OnMove)
         self.canvas.mpl_connect('button_press_event', self.OnPressed)
         self.canvas.mpl_connect('button_release_event', self.OnReleased)
-        self.canvas.mpl_connect('scroll_event', self.OnZoomFun)
+        self.canvas.mpl_connect('scroll_event', self.OnScroll)
         self.canvas.mpl_connect('key_press_event', self.OnKeyPressed)
         # clear the view history
         wx.CallAfter(self._nav_stack.clear)
@@ -182,7 +183,8 @@ class Toolbar(GraphToolbar):
     def OnPressed(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_pressed'):
-            self.dock.mouse_pressed(event)
+            if not self.mode:
+                self.dock.mouse_pressed(event)
             return
         # some lines may be added
         self._set_picker_all()
@@ -375,6 +377,7 @@ class Toolbar(GraphToolbar):
                 buf2 = np.copy(buf[h-int(pt[1, 1]):h-int(pt[0,1])+1, int(pt[0,0]):int(pt[1,0]+0.5)+1, :])
                 h, w, _ = buf2.shape
                 bitmap = wx.Bitmap.FromBufferRGBA(w, h, buf2)
+                bitmap.SetScaleFactor(self.canvas.device_pixel_ratio)
                 bmp_obj = wx.BitmapDataObject()
                 bmp_obj.SetBitmap(bitmap)
                 if not wx.TheClipboard.IsOpened():
@@ -389,15 +392,21 @@ class Toolbar(GraphToolbar):
     def OnMove(self, event):
         action = self.actions.get(self.mode, None)
         if action is None or not hasattr(action, 'mouse_move'):
-            self.dock.mouse_move(event)
+            if not self.mode:
+                self.dock.mouse_move(event)
             return
         if action.mouse_move(event):
             self.canvas.draw()
+    def OnScroll(self, event):
+        self.do_zoom(event)
 
     def OnZoomFun(self, event):
         # get the current x and y limits
         if not self.GetToolToggled(self.wx_ids['Zoom']):
             return
+        self.do_zoom(event)
+
+    def do_zoom(self, event):
         if self._nav_stack() is None:
             self.push_current()
 
@@ -699,6 +708,8 @@ class DataDropTarget(wx.DropTarget):
     def OnData(self, x, y, d):
         if not self.GetData():
             return wx.DragNone
+
+        ratio = self.canvas.device_pixel_ratio
         #self.frame.OnDrop(x, y, self.obj.GetText())
         data = self.obj.GetText()
         if isinstance(data, dict):
@@ -723,7 +734,7 @@ class DataDropTarget(wx.DropTarget):
                 if ylabel:
                     fig.gca().set_ylabel(ylabel)
             for i, ax in enumerate(fig.get_axes()):
-                if ax.bbox.contains(x, y):
+                if ax.bbox.contains(x*ratio, y*ratio):
                     ls, ms = None, None
                     if ax.lines:
                         # match the line/marker style of the existing line
@@ -775,11 +786,11 @@ class MatplotPanel(wx.Panel):
         self.figure = thisFig
         if not self.figure:
             self.figure = Figure(None, None)
-        self.canvas = FigureCanvas(self, -1, self.figure)
+        self.canvas = FigureCanvas2(self, -1, self.figure)
         # since matplotlib 3.2, it does not allow canvas size to become smaller
         # than MinSize in wx backend. So the canvas size (e.g., (640, 480))may
         # be large than the window size.
-        self.canvas.SetMinSize((1, 1))
+        self.canvas.SetMinSize((2, 2))
         #self.canvas.manager = self
 
         self.num = num

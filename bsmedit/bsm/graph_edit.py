@@ -28,7 +28,7 @@ class LineEditor(GraphObject):
         self.index = None
 
         self.mode = 'x'
-        self.round_y_to = 0
+        self.round_y_to = 100
 
     def update_marker(self):
         # update marker
@@ -38,16 +38,24 @@ class LineEditor(GraphObject):
         if self.draggable and self.active_line:
             self.marker[self.active_line.axes].set_visible(True)
 
+    def _update_marker(self, axes):
+        for g in axes:
+            if self.marker.get(g, None) is None or self.marker[g] not in g.lines:
+                self.marker[g] = g.plot([], [], marker="o", color="red", zorder=10)[0]
+                self.marker[g].set_visible(False)
+            else:
+                if self.marker[g].get_linestyle() != 'None':
+                    self.marker[g].set_linestyle('None')
+                elif self.marker[g].get_marker() != '.':
+                    self.marker[g].set_marker('.')
+
     def mouse_pressed(self, event):
         if not event.inaxes:
             return
         axes = [a for a in self.figure.get_axes()
                 if a.in_axes(event)]
-        for g in axes:
-            if self.marker.get(g, None) is None or self.marker[g] not in g.lines:
-                self.marker[g] = g.plot([], [], marker="o", color="red", zorder=10)[0]
-                self.marker[g].set_visible(False)
         self.axes = axes
+        self._update_marker(axes)
 
         if event.button == 1:
             # left click
@@ -62,7 +70,7 @@ class LineEditor(GraphObject):
     def mouse_move(self, event):
         if not event.inaxes:
             return
-
+        self._update_marker([event.inaxes])
         mx, my = event.xdata, event.ydata
 
         if self.draggable and self.active_line:

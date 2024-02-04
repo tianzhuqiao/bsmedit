@@ -20,10 +20,9 @@ class GDock(GraphObject):
             return
 
         if event.button == matplotlib.backend_bases.MouseButton.LEFT:
-            self._drag_start_ax = event.inaxes
-            self._drag_start_pos = (event.x, event.y)
-            #self.UpdateDockingGuides(event.inaxes)
-            #self.ShowDockingGuides(True)
+            if len(self.figure.axes) > 1:
+                self._drag_start_ax = event.inaxes
+                self._drag_start_pos = (event.x, event.y)
 
     def mouse_move(self, event):
         if event.button != matplotlib.backend_bases.MouseButton.LEFT \
@@ -122,12 +121,13 @@ class GDock(GraphObject):
         pass
 
     def GetAxesRect(self, ax):
+        ratio = self.canvas.device_pixel_ratio
         bbox = ax.get_tightbbox()
         w, h = self.canvas.GetSize()
         rc = wx.Rect()
-        topleft = (bbox.p0[0], h-bbox.p1[1])
+        topleft = (bbox.p0[0]//ratio, h-bbox.p1[1]//ratio)
         rc.SetTopLeft(self.canvas.ClientToScreen(topleft))
-        rc.SetSize((bbox.width, bbox.height))
+        rc.SetSize((bbox.width//ratio, bbox.height//ratio))
         return rc
 
     def GetGridRect(self, g):
@@ -272,12 +272,7 @@ class GDock(GraphObject):
                     continue
                 # bbox's origin is at left bottom corner, convert the origin to
                 # left top corner
-                bbox = ax.get_tightbbox()
-                _, h = self.canvas.GetSize()
-                rc = wx.Rect()
-                topleft = (bbox.p0[0], h-bbox.p1[1])
-                rc.SetTopLeft(self.canvas.ClientToScreen(topleft))
-                rc.SetSize((bbox.width, bbox.height))
+                rc = self.GetAxesRect(ax)
                 pt.x = rc.x + rc.width // 2
                 pt.y = rc.y + rc.height // 2
 
