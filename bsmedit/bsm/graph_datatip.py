@@ -7,8 +7,8 @@ import numpy as np
 import pandas as pd
 from .graph_common import GraphObject
 from .utility import send_data_to_shell
-from .. import propgrid as pg
-from ..propgrid import prop
+from ..propgrid import propgrid as pg
+from ..propgrid.propgrid import prop
 
 class DataCursor(GraphObject):
     xoffset, yoffset = -20, 20

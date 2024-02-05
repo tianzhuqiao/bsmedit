@@ -18,7 +18,7 @@ from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
 from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
                         SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,\
                         SC_OBJ_XSC_ARRAY_ITEM, SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY
-from .. import propgrid as pg
+from ..propgrid import propgrid as pg
 from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import MakeBitmap, FastLoadTreeCtrl
