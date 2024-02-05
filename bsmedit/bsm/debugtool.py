@@ -3,7 +3,7 @@ import six
 import wx
 import wx.py.dispatcher as dp
 import wx.lib.mixins.listctrl as listmix
-from ..aui import aui
+from ..aui import aui2 as aui
 from .bsmxpm import (run_svg, run_grey_svg, step_over_svg, step_over_grey_svg, step_into_svg, \
                      step_into_grey_svg, step_out_svg, step_out_grey_svg, stop_svg, stop_grey_svg)
 

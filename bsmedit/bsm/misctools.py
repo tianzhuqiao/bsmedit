@@ -9,7 +9,7 @@ import six
 import wx
 import wx.py.dispatcher as dp
 import wx.svg
-from  ..aui import aui
+from ..aui import aui2 as aui
 from .dirtreectrl import DirTreeCtrl, Directory
 from .bsmxpm import backward_svg2, backward_gray_svg2, forward_svg2, \
                     forward_gray_svg2, up_svg, home_svg2, more_svg

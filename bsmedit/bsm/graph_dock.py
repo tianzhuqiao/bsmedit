@@ -1,6 +1,6 @@
 import wx
 import matplotlib
-from ..aui import aui
+from ..aui import aui2 as aui
 from .graph_common import GraphObject
 from .graph_subplot import move_axes, get_top_gridspec, get_gridspec
 class GDock(GraphObject):

@@ -6,7 +6,7 @@ import PIL
 import matplotlib as mpl
 from matplotlib.backends.backend_wx import NavigationToolbar2
 from matplotlib import cbook
-from  ..aui import aui
+from ..aui import aui2 as aui
 
 _log = logging.getLogger(__name__)
 

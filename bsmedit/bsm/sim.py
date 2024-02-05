@@ -9,7 +9,7 @@ import six.moves.queue as Queue
 import six
 import wx
 import wx.py.dispatcher as dp
-from ..aui import aui
+from ..aui import aui2 as aui
 from . import graph
 from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
                     step_svg, step_grey_svg, run_svg, run_grey_svg, \

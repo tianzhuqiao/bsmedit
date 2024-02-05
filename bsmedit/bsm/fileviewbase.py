@@ -5,7 +5,7 @@ import wx.py.dispatcher as dp
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import numpy as np
 from pandas.api.types import is_numeric_dtype
-from ..aui import aui
+from ..aui import aui2 as aui
 from .bsmxpm import open_svg, refresh_svg
 from .utility import FastLoadTreeCtrl, _dict
 from .utility import svg_to_bitmap

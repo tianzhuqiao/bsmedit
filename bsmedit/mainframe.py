@@ -11,7 +11,7 @@ import wx
 import wx.py
 import wx.py.dispatcher as dp
 import wx.adv
-from .aui import aui
+from .aui import aui2 as aui
 from .frameplus import FramePlus
 from .mainframexpm import  bsmedit_svg
 from . import __version__
