@@ -1,7 +1,7 @@
 import six
 import wx
 import wx.py.dispatcher as dp
-from .aui import aui2 as aui
+import aui2 as aui
 
 
 class AuiManagerPlus(aui.AuiManager):

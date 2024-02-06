@@ -9,7 +9,7 @@ import six.moves.queue as Queue
 import six
 import wx
 import wx.py.dispatcher as dp
-from ..aui import aui2 as aui
+import aui2 as aui
 from . import graph
 from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
                     step_svg, step_grey_svg, run_svg, run_grey_svg, \
@@ -18,7 +18,7 @@ from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
 from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
                         SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,\
                         SC_OBJ_XSC_ARRAY_ITEM, SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY
-from ..propgrid import propgrid as pg
+import propgrid as pg
 from .pymgr_helpers import Gcm
 from .autocomplete import AutocompleteTextCtrl
 from .utility import MakeBitmap, FastLoadTreeCtrl

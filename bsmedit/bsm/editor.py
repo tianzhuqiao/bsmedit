@@ -8,7 +8,7 @@ import numpy as np
 import wx
 from wx import stc
 import wx.py.dispatcher as dp
-from ..aui import aui2 as aui
+import aui2 as aui
 from .bsmxpm import open_svg, refresh_svg, save_svg, save_gray_svg, saveas_svg, \
                     play_svg, debug_svg, more_svg, indent_inc_svg, indent_dec_svg, \
                     check_svg, search_svg

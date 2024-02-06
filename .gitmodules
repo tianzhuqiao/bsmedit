@@ -4,12 +4,3 @@
 [submodule "glsurface"]
 	path = bsmedit/glsurface
     url = https://github.com/tianzhuqiao/glsurface.git
-[submodule "bsmedit/propgrid"]
-	path = bsmedit/propgrid
-	url = https://github.com/tianzhuqiao/propgrid.git
-[submodule "bsmedit/aui"]
-	path = bsmedit/aui
-	url = https://github.com/tianzhuqiao/aui.git
-[submodule "bsmedit/mplpanel"]
-	path = bsmedit/mplpanel
-	url = https://github.com/tianzhuqiao/mplpanel.git

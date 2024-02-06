@@ -1,5 +1,5 @@
 from bsmedit.bsm.pysim import *
-from bsmedit.propgrid import formatters as fmt
+from propgrid import formatters as fmt
 # create a simulation
 s = simulation(None, './examples/start/libstart.so')
 

@@ -9,7 +9,7 @@ from pandas.api.types import is_numeric_dtype
 import matplotlib
 matplotlib.use('module://bsmedit.bsm.bsmbackend')
 import matplotlib.pyplot as plt
-from ..mplpanel.mplpanel import MPLPanel, Gcf
+from mplpanel import MPLPanel, Gcf
 
 
 class DataDropTarget(wx.DropTarget):
