@@ -451,7 +451,10 @@ class TreeCtrlBase(FastLoadTreeCtrl):
             d = self.data
             for p in path:
                 d = d[p]
-                children = [[k, isinstance(v, dict)]  for k, v in d.items() if not pattern or pattern in k or self._has_pattern(v)]
+            in_path = False
+            if pattern:
+                in_path = any(pattern in p for p in path)
+            children = [[k, isinstance(v, dict)]  for k, v in d.items() if not pattern or in_path or pattern in k or self._has_pattern(v)]
 
         if pattern:
             self.expanded = [c for c, _ in children if pattern not in c]
@@ -593,6 +596,8 @@ class PanelBase(wx.Panel):
         if eid == self.ID_REFRESH:
             event.Enable(self.filename is not None)
 
+    def JumpToLine(self, lineno):
+        return
 
 class PanelNotebookBase(PanelBase):
 
@@ -734,7 +739,9 @@ class FileViewBase:
             filename=None,
             num=None,
             activate=True,
-            add_to_history=True):
+            add_to_history=True,
+            lineno=None,
+            **kwargs):
         """
         open an file
 
@@ -767,8 +774,11 @@ class FileViewBase:
                                ]} )
             return manager
         # activate the manager
-        if manager and activate:
-            dp.send(signal='frame.show_panel', panel=manager)
+        if manager:
+            if activate:
+                dp.send(signal='frame.show_panel', panel=manager)
+            if isinstance(lineno, int) and lineno > 0:
+                manager.JumpToLine(lineno)
         return manager
 
     @classmethod
@@ -807,7 +817,7 @@ class FileViewBase:
         if manager is None and isinstance(filename, str):
             abs_filename = os.path.abspath(filename).lower()
             for m in cls.panel_type.get_all_managers():
-                if abs_filename == os.path.abspath(m.filename).lower():
+                if m.filename and abs_filename == os.path.abspath(m.filename).lower():
                     manager = m
                     break
         return manager
