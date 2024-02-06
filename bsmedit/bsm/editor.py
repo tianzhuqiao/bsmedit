@@ -758,6 +758,8 @@ class PyEditorPanel(PanelBase):
                 path = dlg.GetPath()
                 self.filename = path
             dlg.Destroy()
+        if not self.filename:
+            return
         self.editor.SaveFile(self.filename)
         dp.send('frame.set_panel_title', pane=self, title=self.GetCaption())
         self.was_modified = False
