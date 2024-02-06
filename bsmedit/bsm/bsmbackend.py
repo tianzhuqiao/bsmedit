@@ -18,7 +18,7 @@ def new_figure_manager(num, *args, **kwargs):
     FigureClass = kwargs.pop('FigureClass', Figure)
     thisFig = FigureClass(*args, **kwargs)
 
-    return MatplotPanel.addFigure('Figure %d' % num, num, thisFig)
+    return MatplotPanel.AddFigure('Figure %d' % num, num, thisFig)
 
 
 def draw_if_interactive():

@@ -10,3 +10,6 @@
 [submodule "bsmedit/aui"]
 	path = bsmedit/aui
 	url = https://github.com/tianzhuqiao/aui.git
+[submodule "bsmedit/mplpanel"]
+	path = bsmedit/mplpanel
+	url = https://github.com/tianzhuqiao/mplpanel.git
