@@ -405,7 +405,7 @@ class InfoListCtrl(ListCtrlBase):
         return str(self.data_shown[item][column])
 
 class VcdPanel(PanelNotebookBase):
-    Gcv = Gcm()
+    Gcc = Gcm()
 
     def __init__(self, parent, filename=None):
         PanelNotebookBase.__init__(self, parent, filename=filename)
@@ -413,9 +413,6 @@ class VcdPanel(PanelNotebookBase):
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchInfo, self.search_info)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchComment, self.search_comment)
-
-        self.num = self.Gcv.get_next_num()
-        self.Gcv.set_active(self)
 
     def init_pages(self):
         # data page
@@ -453,32 +450,9 @@ class VcdPanel(PanelNotebookBase):
         pattern = self.search_param.GetValue()
         self.commentList.Fill(pattern)
 
-    def Destroy(self):
-        """
-        Destroy the vcdg properly before close the pane.
-        """
-        self.Gcv.destroy(self.num)
-        super().Destroy()
-
     @classmethod
     def GetFileType(cls):
         return "vcd files (*.vcd)|*.vcd|All files (*.*)|*.*"
-
-    @classmethod
-    def get_all_managers(cls):
-        return cls.Gcv.get_all_managers()
-
-    @classmethod
-    def get_active(cls):
-        return cls.Gcv.get_active()
-
-    @classmethod
-    def set_active(cls, panel):
-        cls.Gcv.set_active(panel)
-
-    @classmethod
-    def get_manager(cls, num):
-        return cls.Gcv.get_manager(num)
 
 class VCD(FileViewBase):
     name = 'vcd'

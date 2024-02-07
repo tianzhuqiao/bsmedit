@@ -7,6 +7,7 @@ import numpy as np
 from pandas.api.types import is_numeric_dtype
 import aui2 as aui
 from .bsmxpm import open_svg, refresh_svg
+from .pymgr_helpers import Gcm
 from .utility import FastLoadTreeCtrl, _dict
 from .utility import svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
@@ -521,6 +522,7 @@ class TreeCtrlBase(FastLoadTreeCtrl):
 
 class PanelBase(wx.Panel):
 
+    Gcc = None
     ID_OPEN = wx.NewIdRef()
     ID_REFRESH = wx.NewIdRef()
     def __init__(self, parent, filename=None):
@@ -531,6 +533,9 @@ class PanelBase(wx.Panel):
         self.filename = None
         if filename is not None:
             self.Load(filename)
+
+        self.num = self.Gcc.get_next_num()
+        self.Gcc.set_active(self)
 
     def init(self):
         self.Bind(wx.EVT_TOOL, self.OnProcessCommand)
@@ -554,25 +559,31 @@ class PanelBase(wx.Panel):
         title = self.GetCaption()
         dp.send('frame.set_panel_title', pane=self, title=title)
 
+    def Destroy(self):
+        """
+        Destroy the mat properly before close the pane.
+        """
+        self.Gcc.destroy(self.num)
+        super().Destroy()
+
     @classmethod
     def GetFileType(cls):
         return "|All files (*.*)|*.*"
 
     @classmethod
     def get_all_managers(cls):
-        return []
-
+        return cls.Gcc.get_all_managers()
     @classmethod
     def get_active(cls):
-        raise NotImplementedError
+        return cls.Gcc.get_active()
 
     @classmethod
     def set_active(cls, panel):
-        raise NotImplementedError
+        return cls.Gcc.set_active(panel)
 
     @classmethod
     def get_manager(cls, num):
-        raise NotImplementedError
+        return cls.Gcc.get_manager(num)
 
     def OnProcessCommand(self, event):
         """process the menu command"""

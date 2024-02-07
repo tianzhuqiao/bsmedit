@@ -169,8 +169,6 @@ class CsvPanel(PanelNotebookBase):
         PanelNotebookBase.__init__(self, parent, filename=filename)
 
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
-        self.num = self.Gcc.get_next_num()
-        self.Gcc.set_active(self)
 
     def init_pages(self):
         # data page
@@ -196,32 +194,9 @@ class CsvPanel(PanelNotebookBase):
             self.tree.SetItemBold(item, True)
         self.search.SetFocus()
 
-    def Destroy(self):
-        """
-        Destroy the csv properly before close the pane.
-        """
-        self.Gcc.destroy(self.num)
-        super().Destroy()
-
     @classmethod
     def GetFileType(cls):
         return "csv files (*.csv)|*.csv|All files (*.*)|*.*"
-
-    @classmethod
-    def get_all_managers(cls):
-        return cls.Gcc.get_all_managers()
-
-    @classmethod
-    def get_active(cls):
-        return cls.Gcc.get_active()
-
-    @classmethod
-    def set_active(cls, panel):
-        cls.Gcc.set_active(panel)
-
-    @classmethod
-    def get_manager(cls, num):
-        return cls.Gcc.get_manager(num)
 
 class CSV(FileViewBase):
     name = 'csv'

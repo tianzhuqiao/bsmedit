@@ -492,7 +492,7 @@ class PyEditor(EditorBase):
         return False
 
 class PyEditorPanel(PanelBase):
-    Gce = Gcm()
+    Gcc = Gcm()
     ID_RUN_SCRIPT = wx.NewIdRef()
     ID_DEBUG_SCRIPT = wx.NewIdRef()
     ID_CHECK_SCRIPT = wx.NewIdRef()
@@ -586,21 +586,16 @@ class PyEditorPanel(PanelBase):
         dp.connect(self.debug_bpcleared, 'debugger.breakpoint_cleared')
         self.debug_curline = None
 
-        self.num = self.Gce.get_next_num()
-        self.Gce.set_active(self)
-
         self.was_modified = False
 
     @classmethod
     def get_instances(cls):
-        for inst in cls.Gce.get_all_managers():
+        for inst in cls.Gcc.get_all_managers():
             yield inst
 
     def Destroy(self):
         """destroy the panel"""
         self.editor.ClearBreakpoint()
-        #self.CheckModified()
-        self.Gce.destroy(self.num)
         return super().Destroy()
 
     def update_bp(self):
@@ -961,22 +956,6 @@ class PyEditorPanel(PanelBase):
     def GetFileType(cls):
         return 'Python source (*.py)|*.py|Text (*.txt)|*.txt|All files (*.*)|*.*'
 
-    @classmethod
-    def get_all_managers(cls):
-        return cls.Gce.get_all_managers()
-
-    @classmethod
-    def get_active(cls):
-        return cls.Gce.get_active()
-
-    @classmethod
-    def set_active(cls, panel):
-        cls.Gce.set_active(panel)
-
-    @classmethod
-    def get_manager(cls, num):
-        return cls.Gce.get_manager(num)
-
 
 class Editor(FileViewBase):
     name = 'python'
@@ -1042,7 +1021,7 @@ class Editor(FileViewBase):
     def uninitialized(cls):
         """unload the module"""
         files = []
-        for panel in cls.panel_type.Gce.get_all_managers():
+        for panel in cls.panel_type.Gcc.get_all_managers():
             editor = panel.editor
             files.append([editor.filename, editor.GetCurrentLine(), panel.IsShownOnScreen()])
 

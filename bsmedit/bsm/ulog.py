@@ -258,7 +258,7 @@ class ChgParamListCtrl(ListCtrlBase):
 
 
 class ULogPanel(PanelNotebookBase):
-    Gcu = Gcm()
+    Gcc = Gcm()
 
     def __init__(self, parent, filename=None):
         self.ulg = None
@@ -267,9 +267,6 @@ class ULogPanel(PanelNotebookBase):
         self.Bind(wx.EVT_TEXT, self.OnDoSearch, self.search)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchLog, self.search_log)
         self.Bind(wx.EVT_TEXT, self.OnDoSearchParam, self.search_param)
-
-        self.num = self.Gcu.get_next_num()
-        self.Gcu.set_active(self)
 
     def init_pages(self):
         # data page
@@ -315,32 +312,9 @@ class ULogPanel(PanelNotebookBase):
         pattern = self.search_param.GetValue()
         self.paramList.Fill(pattern)
 
-    def Destroy(self):
-        """
-        Destroy the ulog properly before close the pane.
-        """
-        self.Gcu.destroy(self.num)
-        super().Destroy()
-
     @classmethod
     def GetFileType(cls):
         return "ulog files (*.ulg;*.ulog)|*.ulg;*.ulog|All files (*.*)|*.*"
-
-    @classmethod
-    def get_all_managers(cls):
-        return cls.Gcu.get_all_managers()
-
-    @classmethod
-    def get_active(cls):
-        return cls.Gcu.get_active()
-
-    @classmethod
-    def set_active(cls, panel):
-        cls.Gcu.set_active(panel)
-
-    @classmethod
-    def get_manager(cls, num):
-        return cls.Gcu.get_manager(num)
 
 class ULog(FileViewBase):
     name = 'ulog'
