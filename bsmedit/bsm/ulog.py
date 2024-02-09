@@ -6,8 +6,7 @@ import wx.py.dispatcher as dp
 import pyulog
 import pandas as pd
 from .pymgr_helpers import Gcm
-from .utility import get_variable_name
-from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelNotebookBase, FileViewBase
+from .fileviewbase import ListCtrlBase, TreeCtrlWithTimeStamp, PanelNotebookBase, FileViewBase
 
 def load_ulog(filename):
     try:
@@ -30,10 +29,7 @@ def load_ulog(filename):
     return {'data': data, 'log': log, 'info': info, 'param': param,
             'changed_param': changed_param}
 
-class ULogTree(TreeCtrlBase):
-    ID_ULOG_EXPORT = wx.NewIdRef()
-    ID_ULOG_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
-    ID_ULOG_PLOT = wx.NewIdRef()
+class ULogTree(TreeCtrlWithTimeStamp):
 
     def get_children(self, item):
         """ callback function to return the children of item """
@@ -64,66 +60,17 @@ class ULogTree(TreeCtrlBase):
         children = [{'label': c, 'img':-1, 'imgsel':-1, 'data': None, 'is_folder': is_folder} for c in children]
         return children
 
-    def OnTreeItemMenu(self, event):
-        item = event.GetItem()
-        if not item.IsOk():
-            return
-        self.UnselectAll()
-        has_child = self.ItemHasChildren(item)
-        menu = wx.Menu()
-        menu.Append(self.ID_ULOG_EXPORT, "Export to shell")
-        if not has_child:
-            menu.Append(self.ID_ULOG_EXPORT_WITH_TIMESTAMP, "Export to shell with timestamp")
-        menu.AppendSeparator()
-        menu.Append(self.ID_ULOG_PLOT, "Plot")
-
-        cmd = self.GetPopupMenuSelectionFromUser(menu)
-        if cmd == wx.ID_NONE:
-            return
-        path = self.GetItemPath(item)
-        if not path:
-            return
-        if cmd in [self.ID_ULOG_EXPORT, self.ID_ULOG_EXPORT_WITH_TIMESTAMP]:
-            name = get_variable_name(path)
-            command = f'{name}=ulog.get()["{path[0]}"]'
-            if len(path) > 1:
-                if cmd == self.ID_ULOG_EXPORT_WITH_TIMESTAMP:
-                    command += f'.get(["timestamp", "{path[1]}"])'
-                else:
-                    command += f'.get(["{path[1]}"])'
-            dp.send(signal='shell.run',
-                command=command,
-                prompt=False,
-                verbose=False,
-                history=True)
-            dp.send(signal='shell.run',
-                command=f'{name}',
-                prompt=True,
-                verbose=True,
-                history=False)
-        elif cmd == self.ID_ULOG_PLOT:
-            self.PlotItem(item)
-
     def GetItemPlotData(self, item):
-        if self.ItemHasChildren(item):
-            return None, None
-        parent = self.GetItemParent(item)
-        if not parent.IsOk():
-            return None, None
-        datasetname = self.GetItemText(parent)
-        dataset = self.data[datasetname]
-        dataname = self.GetItemText(item)
-        x = dataset['timestamp']/1e6
-        y = dataset[dataname]
+        x, y = super().GetItemPlotData(item)
+        if x is not None:
+            # convert us to s
+            x = x/1e6
         return x, y
 
     def GetItemDragData(self, item):
-        path = self.GetItemPath(item)
-        if len(path) == 1:
-            data = self.data[path[0]]
-        else:
-            data = self.data[path[0]].loc[:, ['timestamp', path[1]]]
-            data['timestamp'] /= 1e6
+        data = super().GetItemDragData(item)
+        if self.timestamp_key in data:
+            data[self.timestamp_key] /= 1e6
         return data
 
     def GetPlotXLabel(self):
@@ -290,13 +237,14 @@ class ULogPanel(PanelNotebookBase):
     def Load(self, filename, add_to_history=True):
         """load the ulog file"""
         u = load_ulog(filename)
-        self.ulg = u
-        self.filename = filename
-        self.tree.Load(u['data'])
-        self.logList.Load(u['log'])
-        self.infoList.Load(u['info'])
-        self.paramList.Load(u['param'])
-        self.chgParamList.Load(u['changed_param'])
+        if u:
+            self.ulg = u
+            self.filename = filename
+            self.tree.Load(u['data'])
+            self.logList.Load(u['log'])
+            self.infoList.Load(u['info'])
+            self.paramList.Load(u['param'])
+            self.chgParamList.Load(u['changed_param'])
         super().Load(filename, add_to_history=add_to_history)
 
     def OnDoSearch(self, evt):

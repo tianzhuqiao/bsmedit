@@ -17,8 +17,8 @@ from .bsmxpm import open_svg, run_svg, run_grey_svg, pause_svg, pause_grey_svg, 
                     stop_svg, stop_grey_svg
 from .utility import svg_to_bitmap
 from .pymgr_helpers import Gcm
-from .utility import get_variable_name, send_data_to_shell, build_tree
-from .fileviewbase import TreeCtrlBase, PanelNotebookBase, FileViewBase
+from .utility import build_tree
+from .fileviewbase import TreeCtrlNoTimeStamp, PanelNotebookBase, FileViewBase
 
 
 def flatten(dictionary, parent_key='', separator='.'):
@@ -134,15 +134,10 @@ def zmq_process(ipaddr, qresp, qcmd, debug=False):
         sys.stdout = stdout
         sys.stderr = stderr
 
-class ZMQTree(TreeCtrlBase):
-    ID_SET_X = wx.NewIdRef()
-    ID_EXPORT = wx.NewIdRef()
-    ID_EXPORT_WITH_X = wx.NewIdRef()
-    ID_PLOT = wx.NewIdRef()
+class ZMQTree(TreeCtrlNoTimeStamp):
 
     def __init__(self, *args, **kwargs):
-        TreeCtrlBase.__init__(self, *args, **kwargs)
-        self.x_path = None
+        TreeCtrlNoTimeStamp.__init__(self, *args, **kwargs)
         self.df = collections.deque(maxlen=1000)
         self.num = 0
         dp.connect(self.RetrieveData, 'zmqs.retrieve')
@@ -162,7 +157,6 @@ class ZMQTree(TreeCtrlBase):
         return x, y
 
     def Load(self, data):
-        self.x_path = None
         data_f = flatten(data)
         super().Load(build_tree(data_f))
         self.df.append(data_f)
@@ -222,122 +216,6 @@ class ZMQTree(TreeCtrlBase):
             path = self.GetItemPath(item)
             line.trace_signal = ["zmqs.retrieve", self.num, path]
             line.autorelim = True
-
-    def OnTreeBeginDrag(self, event):
-        if not self.data:
-            return
-
-        ids = self.GetSelections()
-        objs = []
-        df = pd.DataFrame()
-
-        for item in ids:
-            if item == self.GetRootItem() or self.ItemHasChildren(item):
-                continue
-            if not item.IsOk():
-                break
-            path = self.GetItemPath(item)
-            if path == self.x_path:
-                # ignore x-axis data
-                continue
-            df[path[-1]] = self.GetItemData(item)
-
-        if df.empty:
-            return
-
-        x = np.arange(0, len(df))
-        if self.x_path:
-            x = self.GetItemDataFromPath(self.x_path)
-        df.insert(loc=0, column='_x',  value=x)
-
-        objs.append(['', df.to_json()])
-        # need to explicitly allow drag
-        # start drag operation
-        data = wx.TextDataObject(json.dumps(objs))
-        source = wx.DropSource(self)
-        source.SetData(data)
-        rtn = source.DoDragDrop(True)
-        if rtn == wx.DragError:
-            wx.LogError("An error occurred during drag and drop operation")
-        elif rtn == wx.DragNone:
-            pass
-        elif rtn == wx.DragCopy:
-            pass
-        elif rtn == wx.DragMove:
-            pass
-        elif rtn == wx.DragCancel:
-            pass
-
-    def OnTreeItemMenu(self, event):
-        item = event.GetItem()
-        if not item.IsOk():
-            return
-        if self.ItemHasChildren(item):
-            return
-        selections = self.GetSelections()
-        if not selections:
-            selections = [item]
-        path = self.GetItemPath(item)
-        menu = wx.Menu()
-        if len(selections) <= 1:
-            # single item selection
-            if self.x_path and self.x_path == path:
-                mitem = menu.AppendCheckItem(self.ID_SET_X, "Unset as x-axis data")
-                mitem.Check(True)
-                menu.AppendSeparator()
-            else:
-                menu.AppendCheckItem(self.ID_SET_X, "Set as x-axis data")
-                menu.AppendSeparator()
-
-        menu.Append(self.ID_EXPORT, "Export to shell")
-        if self.x_path and (self.x_path != path or len(selections) > 1):
-            menu.Append(self.ID_EXPORT_WITH_X, "Export to shell with x-axis data")
-
-        menu.AppendSeparator()
-        menu.Append(self.ID_PLOT, "Plot")
-
-        cmd = self.GetPopupMenuSelectionFromUser(menu)
-        if cmd == wx.ID_NONE:
-            return
-        path = self.GetItemPath(item)
-        if not path:
-            return
-        if cmd in [self.ID_EXPORT, self.ID_EXPORT_WITH_X]:
-            if len(selections) <= 1:
-                name = get_variable_name(path)
-            else:
-                name = "_zmq"
-            x, y = self.GetItemPlotData(item)
-            data = []
-            if cmd == self.ID_EXPORT_WITH_X:
-                data.append(['x', x])
-            for sel in selections:
-                y = self.GetItemData(sel)
-                name = self.GetItemText(sel)
-                data.append([name, y])
-            data_size = [len(d[1]) for d in data]
-            data_1d = [len(d[1].shape) <= 1 or sorted(d[1].shape)[-2] == 1  for d in data]
-            if all(data_1d) and all(d == data_size[0] for d in data_size):
-                df = pd.DataFrame()
-                for name, val in data:
-                    df[name] = val.flatten()
-                data = df
-            send_data_to_shell(name, data)
-        elif cmd == self.ID_SET_X:
-            if self.x_path:
-                # clear the current x-axis data
-                xitem = self.FindItemFromPath(self.x_path)
-                if xitem is not None:
-                    self.SetItemBold(xitem, False)
-            if self.x_path != path:
-                # select the new data as x-axis
-                self.x_path = path
-                self.SetItemBold(item, True)
-            else:
-                # clear the current x-axis
-                self.x_path = None
-        elif cmd in [self.ID_PLOT]:
-            self.PlotItem(item)
 
 class ZMQSettingDlg(wx.Dialog):
     def __init__(self, parent, settings=None, title='Settings ...',
@@ -645,7 +523,7 @@ class ZMQ(FileViewBase):
             return True
         if isinstance(filename, dict):
             return filename.get('protocol', 'tcp://').startswith('tcp')
-        elif isinstance(filename, str):
+        if isinstance(filename, str):
             return filename.startswith('tcp')
         return False
     @classmethod
@@ -669,8 +547,17 @@ class ZMQ(FileViewBase):
     @classmethod
     def get(cls, num=None, filename=None, data_only=True):
         manager = super().get(num, filename, data_only)
-        mat = None
-        return mat
+        data = None
+        if manager:
+            df = manager.tree.df
+            if len(df) == 0:
+                return data
+            keys = df[0].keys()
+            data = {}
+            for k in keys:
+                data[k] = [d[k] if k in d else np. nan for d in df]
+            data = build_tree(pd.DataFrame(data))
+        return data
 
     @classmethod
     def get_menu(cls):

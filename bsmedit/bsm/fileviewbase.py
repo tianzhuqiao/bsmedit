@@ -4,11 +4,12 @@ import wx
 import wx.py.dispatcher as dp
 from wx.lib.mixins.listctrl import ListCtrlAutoWidthMixin
 import numpy as np
+import pandas as pd
 from pandas.api.types import is_numeric_dtype
 import aui2 as aui
 from .bsmxpm import open_svg, refresh_svg
 from .pymgr_helpers import Gcm
-from .utility import FastLoadTreeCtrl, _dict
+from .utility import FastLoadTreeCtrl, _dict, send_data_to_shell, get_variable_name
 from .utility import svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
 from .autocomplete import AutocompleteTextCtrl
@@ -298,6 +299,10 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         self.Bind(wx.EVT_TREE_ITEM_MENU, self.OnTreeItemMenu)
         self.Bind(wx.EVT_TREE_BEGIN_DRAG, self.OnTreeBeginDrag)
 
+    def OnProcessCommand(self, cmd, item):
+        # process the command from OnTreeItemMenu
+        pass
+
     def GetItemDragData(self, item):
         path = self.GetItemPath(item)
         data = self.GetData(item)
@@ -340,8 +345,21 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         elif rtn == wx.DragCancel:
             pass
 
+    def GetItemMenu(self, item):
+        return None
+
     def OnTreeItemMenu(self, event):
-        pass
+        item = event.GetItem()
+        if not item.IsOk():
+            return
+        #self.UnselectAll()
+        menu = self.GetItemMenu(item)
+        if menu is None:
+            return
+        cmd = self.GetPopupMenuSelectionFromUser(menu)
+        if cmd == wx.ID_NONE:
+            return
+        self.OnProcessCommand(cmd, item)
 
     def GetItemPlotData(self, item):
         y = self.GetItemData(item)
@@ -421,9 +439,6 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         return path
 
     def GetItemData(self, item):
-        if self.ItemHasChildren(item):
-            return None
-
         path = self.GetItemPath(item)
         return self.GetItemDataFromPath(path)
 
@@ -483,7 +498,7 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         self.Fill(self.pattern)
 
     def Fill(self, pattern=None):
-        """fill the vcd  objects tree"""
+        """fill the objects tree"""
         #clear the tree control
         self.expanded = {}
         self.DeleteAllItems()
@@ -520,6 +535,238 @@ class TreeCtrlBase(FastLoadTreeCtrl):
             else:
                 return None
         return item
+
+class TreeCtrlWithTimeStamp(TreeCtrlBase):
+    ID_EXPORT = wx.NewIdRef()
+    ID_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
+    ID_PLOT = wx.NewIdRef()
+    timestamp_key = 'timestamp'
+
+    def GetItemMenu(self, item):
+        if not item.IsOk():
+            return None
+        has_child = self.ItemHasChildren(item)
+        menu = wx.Menu()
+        menu.Append(self.ID_EXPORT, "Export to shell")
+        if not has_child:
+            menu.Append(self.ID_EXPORT_WITH_TIMESTAMP, "Export to shell with timestamp")
+        menu.AppendSeparator()
+        menu.Append(self.ID_PLOT, "Plot")
+        return menu
+
+    def OnProcessCommand(self, cmd, item):
+        path = self.GetItemPath(item)
+        if not path:
+            return
+        if cmd in [self.ID_EXPORT, self.ID_EXPORT_WITH_TIMESTAMP]:
+            data = self.GetItemData(item)
+            output = pd.DataFrame()
+            if self.ItemHasChildren(item):
+                output = data
+                output_name = get_variable_name(path)
+            else:
+                if cmd == self.ID_EXPORT_WITH_TIMESTAMP:
+                    output[self.timestamp_key] = data[self.timestamp_key]
+                output[path[-1]] = data[path[-1]]
+
+                selections = self.GetSelections()
+                for sel in selections:
+                    y = self.GetItemData(sel)
+                    if y != data:
+                        # only combine the data in the same DataFrame
+                        continue
+                    name = self.GetItemText(sel)
+                    output[name] = y[name]
+
+                if len(selections) <= 1:
+                    output_name = get_variable_name(path)
+                else:
+                    output_name = get_variable_name(path[:-1]) or '_data'
+            send_data_to_shell(output_name, output)
+        elif cmd == self.ID_PLOT:
+            self.PlotItem(item)
+
+    def GetItemDataFromPath(self, path):
+        d = self.data
+        for p in path[:-1]:
+            d = d[p]
+        if isinstance(d, dict):
+            # retrieve the data for node
+            d = d[path[-1]]
+        return d
+
+    def GetItemPlotData(self, item):
+        if self.ItemHasChildren(item):
+            return None, None
+        dataset = self.GetItemData(item)
+        dataname = self.GetItemText(item)
+        x = dataset[self.timestamp_key]
+        y = dataset[dataname]
+        return x, y
+
+    def GetItemDragData(self, item):
+        dataset = self.GetItemData(item)
+        if self.ItemHasChildren(item):
+            return dataset
+        dataname = self.GetItemText(item)
+        data = dataset.loc[:, [self.timestamp, dataname]]
+        return data
+
+    def GetPlotXLabel(self):
+        return "t"
+
+
+class TreeCtrlNoTimeStamp(TreeCtrlBase):
+    # the data doesn't have timestamp, so let the use selects the x-axis data
+    ID_SET_X = wx.NewIdRef()
+    ID_EXPORT = wx.NewIdRef()
+    ID_EXPORT_WITH_X = wx.NewIdRef()
+    ID_PLOT = wx.NewIdRef()
+
+    def __init__(self, *args, **kwargs):
+        TreeCtrlBase.__init__(self, *args, **kwargs)
+        self.x_path = None
+
+    def Load(self, data):
+        self.x_path = None
+        super().Load(data)
+
+    def GetItemPlotData(self, item):
+        y = self.GetItemData(item)
+
+        x = None
+        if self.x_path is not None and self.GetItemPath(item) != self.x_path:
+            x = self.GetItemDataFromPath(self.x_path)
+            if len(x) != len(y):
+                name = self.GetItemText(item)
+                print(f"'{name}' and '{self.x_path[-1]}' have different length, ignore x-axis data!")
+                x = None
+        if x is None:
+            x = np.arange(0, len(y))
+        return x, y
+
+    def OnTreeBeginDrag(self, event):
+        if not self.data:
+            return
+
+        ids = self.GetSelections()
+        objs = []
+        df = pd.DataFrame()
+
+        for item in ids:
+            if item == self.GetRootItem() or self.ItemHasChildren(item):
+                continue
+            if not item.IsOk():
+                break
+            path = self.GetItemPath(item)
+            if path == self.x_path:
+                # ignore x-axis data
+                continue
+            df[path[-1]] = self.GetItemData(item)
+
+        if df.empty:
+            return
+
+        x = np.arange(0, len(df))
+        if self.x_path:
+            x = self.GetItemDataFromPath(self.x_path)
+        df.insert(loc=0, column='_x',  value=x)
+
+        objs.append(['', df.to_json()])
+        # need to explicitly allow drag
+        # start drag operation
+        data = wx.TextDataObject(json.dumps(objs))
+        source = wx.DropSource(self)
+        source.SetData(data)
+        rtn = source.DoDragDrop(True)
+        if rtn == wx.DragError:
+            wx.LogError("An error occurred during drag and drop operation")
+        elif rtn == wx.DragNone:
+            pass
+        elif rtn == wx.DragCopy:
+            pass
+        elif rtn == wx.DragMove:
+            pass
+        elif rtn == wx.DragCancel:
+            pass
+
+    def GetItemMenu(self, item):
+        if not item.IsOk():
+            return None
+        if self.ItemHasChildren(item):
+            return None
+        selections = self.GetSelections()
+        if not selections:
+            selections = [item]
+        path = self.GetItemPath(item)
+        menu = wx.Menu()
+        if len(selections) <= 1:
+            # single item selection
+            if self.x_path and self.x_path == path:
+                mitem = menu.AppendCheckItem(self.ID_SET_X, "Unset as x-axis data")
+                mitem.Check(True)
+                menu.AppendSeparator()
+            else:
+                menu.AppendCheckItem(self.ID_SET_X, "Set as x-axis data")
+                menu.AppendSeparator()
+
+        menu.Append(self.ID_EXPORT, "Export to shell")
+        if self.x_path and (self.x_path != path or len(selections) > 1):
+            menu.Append(self.ID_EXPORT_WITH_X, "Export to shell with x-axis data")
+
+        menu.AppendSeparator()
+        menu.Append(self.ID_PLOT, "Plot")
+        return menu
+
+    def OnProcessCommand(self, cmd, item):
+        path = self.GetItemPath(item)
+        if not path:
+            return
+        selections = self.GetSelections()
+        if cmd in [self.ID_EXPORT, self.ID_EXPORT_WITH_X]:
+
+            x, y = self.GetItemPlotData(item)
+            data = []
+            if cmd == self.ID_EXPORT_WITH_X:
+                data.append(['x', x])
+            for sel in selections:
+                if self.ItemHasChildren(sel):
+                    continue
+                y = self.GetItemData(sel)
+                name = self.GetItemText(sel)
+                data.append([name, y])
+            data_size = [len(d[1]) for d in data]
+            data_1d = [len(d[1].shape) <= 1 or sorted(d[1].shape)[-2] == 1  for d in data]
+            if all(data_1d) and all(d == data_size[0] for d in data_size):
+                # if all data has same size, convert it to DataFrame
+                df = pd.DataFrame()
+                for name, val in data:
+                    if isinstance(val, np.ndarray):
+                        val = val.flatten()
+                    df[name] = val
+                data = df
+
+            if len(selections) <= 1:
+                output_name = get_variable_name(path)
+            else:
+                output_name = "_data"
+            send_data_to_shell(output_name, data)
+
+        elif cmd == self.ID_SET_X:
+            if self.x_path:
+                # clear the current x-axis data
+                xitem = self.FindItemFromPath(self.x_path)
+                if xitem is not None:
+                    self.SetItemBold(xitem, False)
+            if self.x_path != path:
+                # select the new data as x-axis
+                self.x_path = path
+                self.SetItemBold(item, True)
+            else:
+                # clear the current x-axis
+                self.x_path = None
+        elif cmd in [self.ID_PLOT]:
+            self.PlotItem(item)
 
 
 class PanelBase(wx.Panel):

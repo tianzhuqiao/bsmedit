@@ -11,7 +11,7 @@ from vcd.reader import TokenKind, tokenize
 from .pymgr_helpers import Gcm
 from .utility import _dict, get_variable_name, send_data_to_shell
 from .utility import build_tree
-from .fileviewbase import ListCtrlBase, TreeCtrlBase, PanelNotebookBase, FileViewBase
+from .fileviewbase import ListCtrlBase, TreeCtrlWithTimeStamp, PanelNotebookBase, FileViewBase
 from ..pvcd.pvcd import load_vcd as load_vcd2
 
 def load_vcd3(filename):
@@ -94,7 +94,7 @@ def GetDataBit(value, bit):
         return None
     return value.map(lambda x: (x >> bit) & 1)
 
-class VcdTree(TreeCtrlBase):
+class VcdTree(TreeCtrlWithTimeStamp):
     ID_VCD_EXPORT = wx.NewIdRef()
     ID_VCD_EXPORT_WITH_TIMESTAMP = wx.NewIdRef()
     ID_VCD_EXPORT_RAW = wx.NewIdRef()
@@ -123,23 +123,24 @@ class VcdTree(TreeCtrlBase):
         vcd = _dict(data)
         super().Load(vcd)
 
+    def GetPlotXLabel(self):
+        return 't(s)'
+
     def GetItemPlotData(self, item):
-        path = self.GetItemPath(item)
-        dataset = self.GetItemData(item)
-        x = dataset['timestamp']*self.data.get('timescale', 1e-6)*1e6
-        y = dataset[path[-1]]
+        x, y = super().GetItemPlotData(item)
+        if x is not None:
+            x *= self.data.get('timescale', 1e-6)*1e6
         return x, y
 
     def GetItemDragData(self, item):
-        path = self.GetItemPath(item)
-        data = self.GetItemData(item)
-        data = data.get(['timestamp', path[-1]]).copy()
-        data.timestamp *= self.data.get('timescale', 1e-6) * 1e6
+        data = super().GetItemDragData(item)
+        if self.timestamp_key in data:
+            data.timestamp *= self.data.get('timescale', 1e-6) * 1e6
         return data
 
     def GetDataBits(self, value):
         if not is_integer_dtype(value):
-            print(f"Can't retrieve bits from non-integer value")
+            print("Can't retrieve bits from non-integer value")
             return None
         message = 'Type the index of bit to retrieve, separate by ",", e.g., "0,1,2"'
         dlg = wx.TextEntryDialog(self, message, value='')
@@ -152,18 +153,16 @@ class VcdTree(TreeCtrlBase):
             return df
         return None
 
-    def OnTreeItemMenu(self, event):
-        item = event.GetItem()
+    def GetItemMenu(self, item):
         if not item.IsOk():
-            return
-        self.UnselectAll()
+            return None
         path = self.GetItemPath(item)
         data = self.GetItemData(item)
         if data is None:
-            return
+            return None
         value = data[path[-1]]
         if len(value) == 0:
-            return
+            return None
 
         menu = wx.Menu()
         menu.Append(self.ID_VCD_EXPORT, "&Export to shell")
@@ -219,11 +218,13 @@ class VcdTree(TreeCtrlBase):
             mitem.Check(value.dtype == np.float128)
 
         menu.AppendSubMenu(type_menu, 'As type')
+        return menu
 
-        cmd = self.GetPopupMenuSelectionFromUser(menu)
-        if cmd == wx.ID_NONE:
-            return
+    def OnProcessCommand(self, cmd, item):
         text = self.GetItemText(item)
+        path = self.GetItemPath(item)
+        data = self.GetItemData(item)
+        value = data[path[-1]]
         if not path:
             return
 
