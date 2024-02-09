@@ -241,6 +241,19 @@ def build_tree(data, sep='.'):
             d[signal[-1]] = tree.pop(k)
     return tree
 
+def flatten_tree(dictionary, parent_key='', sep='.'):
+    items = []
+    for key, value in dictionary.items():
+        separator = sep
+        if re.match(r'(\[\d+\])+', key):
+            sep = ''
+        new_key = parent_key + sep + key if parent_key else key
+        if isinstance(value, MutableMapping):
+            items.extend(flatten_tree(value, new_key, sep=sep).items())
+        else:
+            items.append((new_key, value))
+    return dict(items)
+
 class _dict(dict):
     """dict like object that exposes keys as attributes"""
     def __getattr__(self, key):

@@ -69,7 +69,6 @@ class ZMQMessage:
         self.ipaddr = ipaddr
         self.socket.connect(ipaddr)
         self.socket.subscribe("")
-        #socket.connect ("tcp://172.16.150.202:2967")
 
     def receive(self):
         try:
@@ -81,7 +80,7 @@ class ZMQMessage:
             wx.Sleep(0.1)
 
     def process(self):
-        # wait 1s and try to get so data, so the client can populate the data tree
+        # wait 1s and try to get some data, so the client can populate the data tree
         wx.Sleep(1)
         for i in range(5):
             self.receive()
@@ -157,6 +156,9 @@ class ZMQTree(TreeCtrlNoTimeStamp):
         return x, y
 
     def Load(self, data):
+        # flatten the tree, so make it easy to combine multiple frames together
+        # e.g., frame 1: {'a': [1, 2, 3]}, frame 2 {'a': [1, 2, 3]}, after
+        # combination, it shall become {'a[0]': [1, 1], 'a[1]': [2, 2], 'a[3]': [3, 3]}
         data_f = flatten(data)
         super().Load(build_tree(data_f))
         self.df.append(data_f)
@@ -180,7 +182,9 @@ class ZMQTree(TreeCtrlNoTimeStamp):
                 self.last_updated_time = now
                 dp.send('graph.data_updated')
 
-    def GetItemDataFromPath(self, path):
+    def GetItemKeyFromPath(self, path):
+        # the path shall be joined with '.', and the only exception is array
+        # item, e.g., ['a', '0'] -> 'a[0]'
         tmp = [path[0]]
         for p in path[1:]:
             if re.match(r'(\[\d+\])+', p):
@@ -189,8 +193,11 @@ class ZMQTree(TreeCtrlNoTimeStamp):
                 tmp.append(p)
 
         key = '.'.join(tmp)
+        return key
 
-        data = [d[key] for d in self.df if key in d]
+    def GetItemDataFromPath(self, path):
+        key = self.GetItemKeyFromPath(path)
+        data = [d[key] if key in d else np.nan for d in self.df]
         return np.array(data)
 
     def GetItemPlotData(self, item):
@@ -324,9 +331,9 @@ class ZMQPanel(PanelNotebookBase):
         self.tb.AddTool(self.ID_PAUSE, "Pause", svg_to_bitmap(pause_svg, win=self),
                         svg_to_bitmap(pause_grey_svg, win=self), wx.ITEM_NORMAL,
                         "Pause the ZMQ subscriber")
-        self.tb.AddTool(self.ID_STOP, "Stop", svg_to_bitmap(stop_svg, win=self),
-                        svg_to_bitmap(stop_grey_svg, win=self), wx.ITEM_NORMAL,
-                        "Stop the ZMQ subscriber")
+        #self.tb.AddTool(self.ID_STOP, "Stop", svg_to_bitmap(stop_svg, win=self),
+        #                svg_to_bitmap(stop_grey_svg, win=self), wx.ITEM_NORMAL,
+        #                "Stop the ZMQ subscriber")
     def init_pages(self):
         # data page
         panel, self.search, self.tree = self.CreatePageWithSearch(ZMQTree)

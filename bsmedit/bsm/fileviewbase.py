@@ -8,7 +8,6 @@ import pandas as pd
 from pandas.api.types import is_numeric_dtype
 import aui2 as aui
 from .bsmxpm import open_svg, refresh_svg
-from .pymgr_helpers import Gcm
 from .utility import FastLoadTreeCtrl, _dict, send_data_to_shell, get_variable_name
 from .utility import svg_to_bitmap
 from .utility import get_file_finder_name, show_file_in_finder
@@ -373,7 +372,7 @@ class TreeCtrlBase(FastLoadTreeCtrl):
                 msg = f"Do you want to plot all signals under '{text}'?"
                 dlg = wx.MessageDialog(self, msg, 'bsmedit', wx.YES_NO)
                 if dlg.ShowModal() != wx.ID_YES:
-                    return
+                    return None
 
             child, cookie = self.GetFirstChild(item)
             while child.IsOk():
@@ -395,7 +394,7 @@ class TreeCtrlBase(FastLoadTreeCtrl):
     def plot(self, x, y, label, step=False):
         if x is None or y is None or not is_numeric_dtype(y):
             print(f"{label} is not numeric, ignore plotting!")
-            return
+            return None
 
         # plot
         label = label.lstrip('_')
