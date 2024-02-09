@@ -365,7 +365,8 @@ class TreeCtrlBase(FastLoadTreeCtrl):
             path = self.GetItemPath(item)
             x, y = self.GetItemPlotData(item)
             if x is not None and y is not None:
-                self.plot(x, y, "/".join(path))
+                return self.plot(x, y, "/".join(path))
+        return None
 
     def OnTreeItemActivated(self, event):
         item = event.GetItem()
@@ -391,9 +392,9 @@ class TreeCtrlBase(FastLoadTreeCtrl):
             line = mgr.figure.gca().lines[0]
             ls, ms = line.get_linestyle(), line.get_marker()
         if step:
-            mgr.figure.gca().step(x, y, label=label, linestyle=ls, marker=ms)
+            line = mgr.figure.gca().step(x, y, label=label, linestyle=ls, marker=ms)
         else:
-            mgr.figure.gca().plot(x, y, label=label, linestyle=ls, marker=ms)
+            line = mgr.figure.gca().plot(x, y, label=label, linestyle=ls, marker=ms)
 
         mgr.figure.gca().legend()
         if ls is None:
@@ -405,6 +406,7 @@ class TreeCtrlBase(FastLoadTreeCtrl):
             if step:
                 # hide the y-axis tick label
                 mgr.figure.gca().get_yaxis().set_ticklabels([])
+        return line[0]
 
     def GetItemPath(self, item):
         if not item.IsOk():
@@ -616,16 +618,7 @@ class PanelNotebookBase(PanelBase):
         self.tb = aui.AuiToolBar(self, -1, agwStyle=aui.AUI_TB_OVERFLOW)
         self.tb.SetToolBitmapSize(wx.Size(16, 16))
 
-        open_bmp = svg_to_bitmap(open_svg, win=self)
-        self.tb.AddTool(self.ID_OPEN, "Open", open_bmp,
-                        wx.NullBitmap, wx.ITEM_NORMAL,
-                        "Open file")
-        self.tb.AddSeparator()
-        refresh_bmp = svg_to_bitmap(refresh_svg, win=self)
-        self.tb.AddTool(self.ID_REFRESH, "Refresh", refresh_bmp,
-                        wx.NullBitmap, wx.ITEM_NORMAL,
-                        "Refresh file")
-
+        self.init_toolbar()
         self.tb.Realize()
 
         self.notebook = aui.AuiNotebook(self, agwStyle=aui.AUI_NB_TOP | aui.AUI_NB_TAB_SPLIT | aui.AUI_NB_SCROLL_BUTTONS | wx.NO_BORDER)
@@ -640,6 +633,17 @@ class PanelNotebookBase(PanelBase):
         self.SetSizer(self.box)
 
         super().init()
+
+    def init_toolbar(self):
+        open_bmp = svg_to_bitmap(open_svg, win=self)
+        self.tb.AddTool(self.ID_OPEN, "Open", open_bmp,
+                        wx.NullBitmap, wx.ITEM_NORMAL,
+                        "Open file")
+        self.tb.AddSeparator()
+        refresh_bmp = svg_to_bitmap(refresh_svg, win=self)
+        self.tb.AddTool(self.ID_REFRESH, "Refresh", refresh_bmp,
+                        wx.NullBitmap, wx.ITEM_NORMAL,
+                        "Refresh file")
 
     def init_pages(self):
         return

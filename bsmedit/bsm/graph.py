@@ -106,10 +106,31 @@ class MatplotPanel(MPLPanel):
         MPLPanel.__init__(self, parent, title, num, thisFig)
 
         dp.connect(self.simLoad, 'sim.loaded')
+        dp.connect(self.DataUpdated, 'graph.data_updated')
 
         dt = DataDropTarget(self.canvas)
         self.canvas.SetDropTarget(dt)
 
+    def DataUpdated(self):
+        for ax in self.figure.get_axes():
+            autorelim = False
+            for l in ax.lines:
+                if not hasattr(l, 'trace_signal'):
+                    continue
+                signal, num, path = l.trace_signal
+                resp = dp.send(signal, num=num, path=path)
+                if not resp:
+                    continue
+                x, y = resp[0][1]
+                if x is None or y is None:
+                    continue
+                l.set_data(x, y)
+                if hasattr(l, 'autorelim') and l.autorelim:
+                    autorelim = True
+            if autorelim:
+                #Need both of these in order to rescale
+                ax.relim()
+                ax.autoscale_view()
 
     def simLoad(self, num):
         for ax in self.figure.get_axes():
