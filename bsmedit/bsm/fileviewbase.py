@@ -450,7 +450,7 @@ class TreeCtrlBase(FastLoadTreeCtrl):
     def _has_pattern(self, d):
         if not isinstance(d, dict):
             return False
-        if any(self.pattern in k for k in d.keys()):
+        if any(self.pattern in k.lower() for k in d.keys()):
             return True
         for v in d.values():
             if self._has_pattern(v):
@@ -462,7 +462,8 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         children = []
         pattern = self.pattern
         if item == self.GetRootItem():
-            children = [[k, isinstance(v, dict)]  for k, v in self.data.items() if not pattern or pattern in k or self._has_pattern(v)]
+            children = [[k, isinstance(v, dict)]  for k, v in
+                    self.data.items() if not pattern or pattern in k.lower() or self._has_pattern(v)]
         else:
             path = self.GetItemPath(item)
             d = self.data
@@ -504,6 +505,9 @@ class TreeCtrlBase(FastLoadTreeCtrl):
         if not self.data:
             return
         self.pattern = pattern
+        if isinstance(self.pattern, str):
+            self.pattern = self.pattern.lower()
+            self.pattern.strip()
         # add the root item
         item = self.AddRoot("bsmedit")
         # fill the top level item
