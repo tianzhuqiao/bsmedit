@@ -141,8 +141,10 @@ class ZMQTree(TreeCtrlNoTimeStamp):
         self.num = 0
         dp.connect(self.RetrieveData, 'zmqs.retrieve')
         self.last_updated_time = datetime.datetime.now()
+        self._graph_retrieved = True
 
     def RetrieveData(self, num, path):
+        self._graph_retrieved = True
         if num != self.num:
             return None, None
         y = self.GetItemDataFromPath(path)
@@ -177,10 +179,11 @@ class ZMQTree(TreeCtrlNoTimeStamp):
             data_f = flatten(data)
             self.df.append(data_f)
             now = datetime.datetime.now()
-            if (now - self.last_updated_time).seconds > 1:
+            if self._graph_retrieved and (now - self.last_updated_time).seconds > 1:
                 # notify the graph
+                self._graph_retrieved = False
                 self.last_updated_time = now
-                dp.send('graph.data_updated')
+                wx.CallAfter(dp.send, 'graph.data_updated')
 
     def GetItemKeyFromPath(self, path):
         # the path shall be joined with '.', and the only exception is array
@@ -223,6 +226,7 @@ class ZMQTree(TreeCtrlNoTimeStamp):
             path = self.GetItemPath(item)
             line.trace_signal = ["zmqs.retrieve", self.num, path]
             line.autorelim = True
+        self._graph_retrieved = True
 
 class ZMQSettingDlg(wx.Dialog):
     def __init__(self, parent, settings=None, title='Settings ...',
