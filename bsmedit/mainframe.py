@@ -16,7 +16,7 @@ from .frameplus import FramePlus
 from .mainframexpm import  bsmedit_svg
 from . import __version__
 from .bsm.utility import svg_to_bitmap, build_menu_from_list
-from .bsm import auto_load_module
+from .bsm import auto_load_module, auto_load_module_external
 
 class FileDropTarget(wx.FileDropTarget):
     def __init__(self):
@@ -181,7 +181,8 @@ class MainFrame(FramePlus):
         for p in kwargs.get('path', []):
             sys.path.append(p)
 
-        self.bsm_packages = auto_load_module
+        self.bsm_packages = [f'bsmedit.bsm.{m}' for m in  auto_load_module]
+        self.bsm_packages += auto_load_module_external
         self.addon = {}
         self.InitAddOn(kwargs.get('module', ()), debug=kwargs.get('debug', False))
 
@@ -273,9 +274,9 @@ class MainFrame(FramePlus):
             else:
                 module = [module]
             for pkg in module:
-                if pkg in self.bsm_packages:
+                if f'bsmedit.bsm.{pkg}' in self.bsm_packages:
                     # module in bsm
-                    pkg = 'bsmedit.bsm.%s' % pkg
+                    pkg = f'bsmedit.bsm.{pkg}'
 
                 if pkg in self.addon:
                     # already loaded
