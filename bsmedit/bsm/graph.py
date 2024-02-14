@@ -10,7 +10,7 @@ import matplotlib
 matplotlib.use('module://bsmedit.bsm.bsmbackend')
 import matplotlib.pyplot as plt
 from mplpanel import MPLPanel, Gcf
-
+from bsmutility.bsminterface import Interface
 
 class DataDropTarget(wx.DropTarget):
     def __init__(self, canvas):
@@ -97,10 +97,6 @@ class DataDropTarget(wx.DropTarget):
         return d
 
 class MatplotPanel(MPLPanel):
-    ID_NEW_FIGURE = wx.NOT_FOUND
-    ID_PANE_CLOSE = wx.NewIdRef()
-    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
-    ID_PANE_CLOSE_ALL = wx.NewIdRef()
 
     def __init__(self, parent, title=None, num=-1, thisFig=None):
         MPLPanel.__init__(self, parent, title, num, thisFig)
@@ -144,7 +140,7 @@ class MatplotPanel(MPLPanel):
 
     def show(self):
         """show figure"""
-        if self.IsShown() is False:
+        if self.IsShownOnScreen() is False:
             self.canvas.draw()
             dp.send('frame.show_panel', panel=self)
 
@@ -199,9 +195,85 @@ class MatplotPanel(MPLPanel):
         l.autorelim = autorelim
         self.canvas.draw()
 
+
+class Graph(Interface):
+    kwargs = {}
+    ID_NEW_FIGURE = wx.NOT_FOUND
+    ID_PANE_CLOSE = wx.NewIdRef()
+    ID_PANE_CLOSE_OTHERS = wx.NewIdRef()
+    ID_PANE_CLOSE_ALL = wx.NewIdRef()
+
+    @classmethod
+    def initialize(cls, frame, **kwargs):
+        super().initialize(frame, **kwargs)
+        cls.kwargs = kwargs
+
+        MatplotPanel.Initialize(frame, **kwargs)
+
+        resp = dp.send('frame.add_menu',
+                       path='File:New:Figure\tCtrl+P',
+                       rxsignal='bsm.figure')
+        if resp:
+            cls.ID_NEW_FIGURE = resp[0][1]
+
+        if cls.ID_NEW_FIGURE is not wx.NOT_FOUND:
+            dp.connect(cls.ProcessCommand, 'bsm.figure')
+        dp.connect(cls.SetActive, 'frame.activate_panel')
+        dp.connect(cls.OnBufferChanged, 'sim.buffer_changed')
+        dp.connect(cls.PaneMenu, 'bsm.graph.pane_menu')
+
+    @classmethod
+    def PaneMenu(cls, pane, command):
+        if not pane or not isinstance(pane, MatplotPanel):
+            return
+        if command == cls.ID_PANE_CLOSE:
+            dp.send(signal='frame.delete_panel', panel=pane)
+        elif command == cls.ID_PANE_CLOSE_OTHERS:
+            mgrs =  Gcf.get_all_fig_managers()
+            for mgr in mgrs:
+                if mgr == pane:
+                    continue
+                dp.send(signal='frame.delete_panel', panel=mgr)
+        elif command == cls.ID_PANE_CLOSE_ALL:
+            mgrs = Gcf.get_all_fig_managers()
+            for mgr in mgrs:
+                dp.send(signal='frame.delete_panel', panel=mgr)
+
+    @classmethod
+    def initialized(cls):
+        super().initialized()
+        dp.send('shell.run',
+                command='from matplotlib.pyplot import *',
+                prompt=False,
+                verbose=False,
+                history=False)
+
+    @classmethod
+    def OnBufferChanged(cls, bufs):
+        """the buffer has be changes, update the plot_trace"""
+        for p in Gcf.get_all_fig_managers():
+            p.update_buffer(bufs)
+
+    @classmethod
+    def SetActive(cls, pane):
+        MatplotPanel.SetActive(pane)
+
+    @classmethod
+    def uninitialized(cls):
+        dp.disconnect(cls.SetActive, 'frame.activate_panel')
+        dp.disconnect(cls.OnBufferChanged, 'sim.buffer_changed')
+        dp.disconnect(cls.PaneMenu, 'bsm.graph.pane_menu')
+        super().uninitialized()
+
+    @classmethod
+    def ProcessCommand(cls, command):
+        """process the menu command"""
+        if command == cls.ID_NEW_FIGURE:
+            plt.figure()
+
     @classmethod
     def AddFigure(cls, title=None, num=None, thisFig=None):
-        fig = super().AddFigure(title, num, thisFig)
+        fig = MatplotPanel.AddFigure(title, num, thisFig)
         direction = cls.kwargs.get('direction', 'top')
         # set the minsize to be large enough to avoid some following assert; it
         # will not eliminate all as if a page is added to a notebook, the
@@ -223,66 +295,8 @@ class MatplotPanel(MPLPanel):
                                ]})
         return fig
 
-    @classmethod
-    def Initialize(cls, frame, **kwargs):
-        super().Initialize(frame, **kwargs)
-        resp = dp.send('frame.add_menu',
-                       path='File:New:Figure\tCtrl+P',
-                       rxsignal='bsm.figure')
-        if resp:
-            cls.ID_NEW_FIGURE = resp[0][1]
-
-        if cls.ID_NEW_FIGURE is not wx.NOT_FOUND:
-            dp.connect(cls.ProcessCommand, 'bsm.figure')
-        dp.connect(cls.Uninitialize, 'frame.exiting')
-        dp.connect(cls.Initialized, 'frame.initialized')
-        dp.connect(cls.SetActive, 'frame.activate_panel')
-        dp.connect(cls.OnBufferChanged, 'sim.buffer_changed')
-        dp.connect(cls.PaneMenu, 'bsm.graph.pane_menu')
-
-    @classmethod
-    def PaneMenu(cls, pane, command):
-        if not pane or not isinstance(pane, MatplotPanel):
-            return
-        if command == cls.ID_PANE_CLOSE:
-            dp.send(signal='frame.delete_panel', panel=pane)
-        elif command == cls.ID_PANE_CLOSE_OTHERS:
-            mgrs =  Gcf.get_all_fig_managers()
-            for mgr in mgrs:
-                if mgr == pane:
-                    continue
-                dp.send(signal='frame.delete_panel', panel=mgr)
-        elif command == cls.ID_PANE_CLOSE_ALL:
-            mgrs =  Gcf.get_all_fig_managers()
-            for mgr in mgrs:
-                dp.send(signal='frame.delete_panel', panel=mgr)
-
-    @classmethod
-    def Initialized(cls):
-        dp.send('shell.run',
-                command='from matplotlib.pyplot import *',
-                prompt=False,
-                verbose=False,
-                history=False)
-
-    @classmethod
-    def OnBufferChanged(cls, bufs):
-        """the buffer has be changes, update the plot_trace"""
-        for p in Gcf.get_all_fig_managers():
-            p.update_buffer(bufs)
-
-    @classmethod
-    def Uninitialize(cls):
-        """destroy the module"""
-        Gcf.destroy_all()
-
-    @classmethod
-    def ProcessCommand(cls, command):
-        """process the menu command"""
-        if command == cls.ID_NEW_FIGURE:
-            plt.figure()
 
 
 def bsm_initialize(frame, **kwargs):
     """module initialization"""
-    MatplotPanel.Initialize(frame, **kwargs)
+    Graph.initialize(frame, **kwargs)

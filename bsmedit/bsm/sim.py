@@ -10,20 +10,20 @@ import six
 import wx
 import wx.py.dispatcher as dp
 import aui2 as aui
-from . import graph
-from .bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
+import propgrid as pg
+from bsmutility.pymgr_helpers import Gcm
+from bsmutility.autocomplete import AutocompleteTextCtrl
+from bsmutility.utility import MakeBitmap, FastLoadTreeCtrl
+from bsmutility.utility import svg_to_bitmap
+from bsmutility.utility import get_file_finder_name, show_file_in_finder
+from bsmutility.bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
                     step_svg, step_grey_svg, run_svg, run_grey_svg, \
                     pause_svg, pause_grey_svg, setting_svg, radio_disabled_svg, \
                     radio_activated_svg, radio_checked_svg, radio_unchecked_svg
+from . import graph
 from .simprocess import sim_process, SC_OBJ_UNKNOWN, SC_OBJ_SIGNAL, SC_OBJ_INPUT,\
                         SC_OBJ_OUTPUT, SC_OBJ_INOUT, SC_OBJ_CLOCK, SC_OBJ_XSC_PROP,\
                         SC_OBJ_XSC_ARRAY_ITEM, SC_OBJ_MODULE, SC_OBJ_XSC_ARRAY
-import propgrid as pg
-from .pymgr_helpers import Gcm
-from .autocomplete import AutocompleteTextCtrl
-from .utility import MakeBitmap, FastLoadTreeCtrl
-from .utility import svg_to_bitmap
-from .utility import get_file_finder_name, show_file_in_finder
 from .. import to_byte
 
 Gcs = Gcm()

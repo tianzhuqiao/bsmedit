@@ -14,11 +14,11 @@ def new_figure_manager(num, *args, **kwargs):
     # in order to expose the Figure constructor to the pylab
     # interface we need to create the figure here
 
-    from .graph import MatplotPanel
+    from .graph import Graph
     FigureClass = kwargs.pop('FigureClass', Figure)
     thisFig = FigureClass(*args, **kwargs)
 
-    return MatplotPanel.AddFigure('Figure %d' % num, num, thisFig)
+    return Graph.AddFigure('Figure %d' % num, num, thisFig)
 
 
 def draw_if_interactive():

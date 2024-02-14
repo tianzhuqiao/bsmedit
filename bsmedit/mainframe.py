@@ -12,10 +12,10 @@ import wx.py
 import wx.py.dispatcher as dp
 import wx.adv
 import aui2 as aui
-from .frameplus import FramePlus
+from bsmutility.frameplus import FramePlus
+from bsmutility.utility import svg_to_bitmap, build_menu_from_list
 from .mainframexpm import  bsmedit_svg
 from . import __version__
-from .bsm.utility import svg_to_bitmap, build_menu_from_list
 from .bsm import auto_load_module, auto_load_module_external
 
 class FileDropTarget(wx.FileDropTarget):
