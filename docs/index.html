@@ -48,8 +48,7 @@ id: (id) => 'mjx-eqn-' + id.replace(/\s/g, '_'),
 <li><a href="#sec-3-6">3.6 C/C++ Simulation</a></li>
 </ul></li>
 <li><a href="#sec-4">4 Misc.</a><ul>
-<li><a href="#sec-4-1">4.1 ULog</a></li>
-<li><a href="#sec-4-2">4.2 VCD</a></li>
+<li><a href="#sec-4-1">4.1 VCD/CSV/Mat/ULog</a></li>
 </ul></li>
 </ul>
 </div>
@@ -310,7 +309,7 @@ Your browser does not support the video tag.</video>
 <p>You can following the above steps to start the simulation and monitor the signals each time. However, it is too tedious to repeat each step again and again. In bsmedit, you can write a python script to do all the steps. The script may look like</p>
 <div class="bs-example-src">
 <div class="syntax"><pre><span></span><span class="kn">from</span> <span class="nn">bsmedit.bsm.pysim</span> <span class="kn">import</span> <span class="o">*</span>
-<span class="kn">from</span> <span class="nn">bsmedit.propgrid</span> <span class="kn">import</span> <span class="n">formatters</span> <span class="k">as</span> <span class="n">fmt</span>
+<span class="kn">from</span> <span class="nn">propgrid</span> <span class="kn">import</span> <span class="n">formatters</span> <span class="k">as</span> <span class="n">fmt</span>
 <span class="c1"># create a simulation</span>
 <span class="n">s</span> <span class="o">=</span> <span class="n">simulation</span><span class="p">(</span><span class="kc">None</span><span class="p">,</span> <span class="s1">&#39;./examples/start/libstart.so&#39;</span><span class="p">)</span>
 
@@ -1351,8 +1350,9 @@ Run the following command to show wave in bsmedit</p>
 Your browser does not support the video tag.</video>
 </div>
 <h1 id="sec-4">4 Misc.</h1>
-<h2 id="sec-4-1">4.1 ULog</h2>
-<p><a href="https://docs.px4.io/main/en/dev_log/ulog_file_format.html">ULog</a> is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (menu-&gt;open-&gt;ulog), bsmedit will create a panel to show its content. Different types of message are shown in different tab.</p>
+<h2 id="sec-4-1">4.1 VCD/CSV/Mat/ULog</h2>
+<p>When <a href="https://github.com/tianzhuqiao/bsmplot">bsmplot</a> is installed, bsmplot will also be able to visualize VCD/CSV//Mat/ULog time series. For example,
+<a href="https://docs.px4.io/main/en/dev_log/ulog_file_format.html">ULog</a> is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (<b>menu-&gt;open-&gt;ulog file</b>), bsmedit will create a panel to show its content. Different types of message are shown in different tab.</p>
 <figure class="figure">
 <img src="./images/ulog_panel.png" alt="./images/ulog_panel.png" width="346" height="365">
 </figure>
@@ -1372,8 +1372,6 @@ Your browser does not support the video tag.</video>
 <figure class="figure">
 <img src="./images/ulog_panel_plot2.png" alt="./images/ulog_panel_plot2.png" width="704" height="454">
 </figure>
-<h2 id="sec-4-2">4.2 VCD</h2>
-<p>bsmedit use the similar way to visualize VCD (value change dump) files.</p>
 </div>
 </div>
 <div class="footer">
@@ -1394,7 +1392,7 @@ only support <b>sc_signal.</b> <a href="#footnote_src-3">&#8617;</a>
 </ol>
 </div>
 
-<div class="footer-text"> Last updated 2024-01-15 06:40:38 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
+<div class="footer-text"> Last updated 2024-03-12 03:51:54 UTC, by <a href="http://bsmdoc.feiyilin.com/">bsmdoc</a>  | <a href="mailto:tq@feiyilin.com">Contact</a></div>
 </div>
 </div>
 </body>

@@ -132,7 +132,7 @@ We will discuss the macro in detail in the following sections.
 {!example_src||highlight|makefile||ccodesnippet||
 ../examples/start/Makefile
 !}
-When compile the simulation, the compiler setting (e.g., \tag{b|CC}$ in the above makefile) needs to be same as the one used to compile the SystemC library.
+When compile the simulation, the compiler setting (e.g., \tag{b|CC} in the above makefile) needs to be same as the one used to compile the SystemC library.
 }
 * \tag{b|Compile the project to get simulation} (e.g., \tag{b|start.dll})
 {!div|info||
@@ -1207,8 +1207,9 @@ $ bsmedit -i -p examples/waves waves
 #!}
 
 = Misc.
-== ULog
-[https://docs.px4.io/main/en/dev_log/ulog_file_format.html|ULog] is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (menu->open->ulog), bsmedit will create a panel to show its content. Different types of message are shown in different tab.
+== VCD/CSV/Mat/ULog
+When [https://github.com/tianzhuqiao/bsmplot|bsmplot] is installed, bsmplot will also be able to visualize VCD/CSV//Mat/ULog time series. For example,
+[https://docs.px4.io/main/en/dev_log/ulog_file_format.html|ULog] is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (\tag{b|menu->open->ulog file}), bsmedit will create a panel to show its content. Different types of message are shown in different tab.
 {!image||
 ./images/ulog_panel.png
 !}
@@ -1229,5 +1230,3 @@ To visualize the data, you can either
 {!image||
 ./images/ulog_panel_plot2.png
 !}
-== VCD
-bsmedit use the similar way to visualize VCD (value change dump) files.

@@ -48,15 +48,18 @@ class RunApp(wx.App):
 @click.option('--debug',
               is_flag=True,
               help='Run in debug mode.')
+@click.option('--external/--no-external', default=True,
+              help="Load external modules from bsmplot")
 @click.argument('module', nargs=-1)
-def main(config, path, ignore_perspective, spawn, debug,module):
+def main(config, path, ignore_perspective, spawn, debug, module, external):
     if spawn and hasattr(multiprocessing, 'set_start_method'):
         multiprocessing.set_start_method('spawn')
     app = RunApp(config=config,
                  ignore_perspective=ignore_perspective,
                  path=path,
                  module=module,
-                 debug=debug)
+                 debug=debug,
+                 external=external)
     app.MainLoop()
 
 

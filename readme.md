@@ -25,7 +25,7 @@ $ pip install -e .
 - 2.3.2
 - 2.3.1a
 
-Check the corresponding branch whose name starts with **bsm-**.
+Check the corresponding branch whose name starts with "**bsm-**".
 
 The full cocumentation can be found  [here](http://bsmedit.feiyilin.com).
 
