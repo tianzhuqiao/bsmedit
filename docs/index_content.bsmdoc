@@ -1208,7 +1208,7 @@ $ bsmedit -i -p examples/waves waves
 
 = Misc.
 == VCD/CSV/Mat/ULog
-When [https://github.com/tianzhuqiao/bsmplot|bsmplot] is installed, bsmplot will also be able to visualize VCD/CSV//Mat/ULog time series. For example,
+When [https://github.com/tianzhuqiao/bsmplot|bsmplot] is installed, bsmedit will also be able to visualize VCD/CSV//Mat/ULog time series. For example,
 [https://docs.px4.io/main/en/dev_log/ulog_file_format.html|ULog] is the file format used in PX4 for message logging. The ulog plugin is to load and visualize the ulog messages. When open a ulog file (\tag{b|menu->open->ulog file}), bsmedit will create a panel to show its content. Different types of message are shown in different tab.
 {!image||
 ./images/ulog_panel.png
