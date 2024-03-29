@@ -7,7 +7,7 @@ class PyEditor(Editor):
     def initialized(cls): 
         super().initialized()
         dp.send(signal='shell.run',
-                command='from bsmplot.bsm.editor import PyEditor as Editor',
+                command='from bsmedit.bsm.editor import PyEditor as Editor',
                 prompt=False,
                 verbose=False,
                 history=False)
