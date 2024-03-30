@@ -1316,8 +1316,8 @@ class SimPropArt(pg.PropArtNative):
 
             w, h = self.check_width, self.check_width
             rc = p.regions['check']
-            x = rc.x + (rc.width - w) / 2
-            y = rc.y + (rc.height - h) / 2 + 1
+            x = rc.x + (rc.width - w) // 2
+            y = rc.y + (rc.height - h) // 2 + 1
             render.DrawRadioBitmap(p.grid, dc, (x, y, w, h), state)
 
     def DrawCheck(self, dc, p):
@@ -1333,8 +1333,8 @@ class SimPropArt(pg.PropArtNative):
             if self.img_check.GetImageCount() == 4:
                 (w, h) = self.img_check.GetSize(0)
                 rc = p.regions['check']
-                x = rc.x + (rc.width - w) / 2
-                y = rc.y + (rc.height - h) / 2 + 1
+                x = rc.x + (rc.width - w) // 2
+                y = rc.y + (rc.height - h) // 2 + 1
                 self.img_check.Draw(state, dc, x, y,
                                     wx.IMAGELIST_DRAW_TRANSPARENT)
             else:
@@ -1345,8 +1345,8 @@ class SimPropArt(pg.PropArtNative):
             if hasattr(self, 'img_expand') and self.img_expand.GetImageCount() == 2:
                 (w, h) = self.img_expand.GetSize(0)
                 rc = p.regions['expander']
-                x = rc.x + (rc.width - w) / 2
-                y = rc.y + (rc.height - h) / 2 + 1
+                x = rc.x + (rc.width - w) // 2
+                y = rc.y + (rc.height - h) // 2 + 1
                 idx = 0
                 if not p.IsExpanded():
                     idx = 1
