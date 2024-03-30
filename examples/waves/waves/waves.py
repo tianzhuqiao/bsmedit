@@ -29,7 +29,7 @@ class Wave(object):
 
     def get_frame(self):
         self.sim.get_frame(self.f)
-        return np.reshape(self.frame, (self.f.rows, self.f.cols)).astype(np.float)
+        return np.reshape(self.frame, (self.f.rows, self.f.cols)).astype(np.float32)
 
     def new_frame_arrive(self, evt):
         try:
@@ -45,7 +45,7 @@ class Wave(object):
         except Queue.Empty:
             pass
         if self.frame.size and self.status == 'run':
-            frame = np.reshape(self.frame, (self.f.rows, self.f.cols)).astype(np.float)
+            frame = np.reshape(self.frame, (self.f.rows, self.f.cols)).astype(np.float32)
             self.qResp.put({"frame":frame})
         return self.status != 'stop'
 
