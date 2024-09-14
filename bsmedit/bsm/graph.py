@@ -257,7 +257,10 @@ class Graph(Interface):
 
     @classmethod
     def SetActive(cls, pane):
-        MatplotPanel.SetActive(pane)
+        if pane and isinstance(pane, MatplotPanel):
+            if MatplotPanel.GetActive() == pane:
+                return
+            MatplotPanel.SetActive(pane)
 
     @classmethod
     def uninitializing(cls):

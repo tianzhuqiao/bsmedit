@@ -1,6 +1,3 @@
-import sys
-import importlib
-import traceback
 import datetime
 import wx
 import wx.py
@@ -8,19 +5,20 @@ import wx.py.dispatcher as dp
 import wx.adv
 import aui2 as aui
 from bsmutility.frameplus import FramePlus
-from bsmutility.utility import svg_to_bitmap, build_menu_from_list
+from bsmutility.utility import svg_to_bitmap
 from .mainframexpm import  bsmedit_svg
 from . import __version__
 from .bsm import auto_load_module, auto_load_module_external
 from .version import PROJECT_NAME
 
 class FileDropTarget(wx.FileDropTarget):
-    def __init__(self):
-        wx.FileDropTarget.__init__(self)
+    def __init__(self, frame):
+        super().__init__()
+        self.frame = frame
 
     def OnDropFiles(self, x, y, filenames):
         for fname in filenames:
-            wx.CallAfter(dp.send, signal='frame.file_drop', filename=fname)
+            wx.CallAfter(self.frame.doOpenFile, filename=fname)
         return True
 
 class TaskBarIcon(wx.adv.TaskBarIcon):
@@ -30,7 +28,7 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
     TBMENU_REMOVE = wx.NewIdRef()
 
     def __init__(self, frame, icon):
-        wx.adv.TaskBarIcon.__init__(self, iconType=wx.adv.TBI_DOCK)
+        super().__init__(iconType=wx.adv.TBI_DOCK)
         self.frame = frame
 
         # Set the image
@@ -84,16 +82,15 @@ class TaskBarIcon(wx.adv.TaskBarIcon):
 
 class MainFrame(FramePlus):
     CONFIG_NAME = PROJECT_NAME
-    ID_VM_RENAME = wx.NewIdRef()
-    ID_CONTACT = wx.NewIdRef()
+    options = {}
 
     def __init__(self, parent, **kwargs):
-        FramePlus.__init__(self,
-                           parent,
-                           title='bsmedit',
-                           size=wx.Size(800, 600),
-                           style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL)
-        self.InitMenu()
+        self.options = kwargs
+        super().__init__(parent,
+                         title=PROJECT_NAME,
+                         size=wx.Size(800, 600),
+                         style=wx.DEFAULT_FRAME_STYLE | wx.TAB_TRAVERSAL,
+                         **kwargs)
 
         agw_flags = (self._mgr.GetAGWFlags()
                               | aui.AUI_MGR_ALLOW_ACTIVE_PANE
@@ -120,53 +117,8 @@ class MainFrame(FramePlus):
         self.statusbar_width = [-1]
         self.statusbar.SetStatusWidths(self.statusbar_width)
 
-        # recent file list
-        hsz = self.GetConfig('mainframe', 'file_history_length') or 20
-        if hsz < 0:
-            hsz = 10
-        self.ids_file_history = wx.NewIdRef(hsz)
-        self.filehistory = wx.FileHistory(hsz, self.ids_file_history[0])
-        self.config.SetPath('/FileHistory')
-        self.filehistory.Load(self.config)
-        self.filehistory.UseMenu(self.menuRecentFiles)
-        self.filehistory.AddFilesToMenu()
-        self.Bind(wx.EVT_MENU_RANGE,
-                  self.OnMenuFileHistory,
-                  id=self.ids_file_history[0],
-                  id2=self.ids_file_history[-1])
-
-        self.closing = False
-
         # Create & Link the Drop Target Object to main window
-        self.SetDropTarget(FileDropTarget())
-
-        self.Bind(wx.EVT_ACTIVATE, self.OnActivate)
-        self.Bind(aui.EVT_AUI_PANE_ACTIVATED, self.OnPaneActivated)
-        self.Bind(aui.EVT_AUI_PANE_CLOSE, self.OnPaneClose)
-        dp.connect(self.SetPanelTitle, 'frame.set_panel_title')
-        dp.connect(self.ShowStatusText, 'frame.show_status_text')
-        dp.connect(self.AddFileHistory, 'frame.add_file_history')
-
-        # append sys path
-        sys.path.append('')
-        for p in kwargs.get('path', []):
-            sys.path.append(p)
-
-        self.bsm_packages = [f'bsmedit.bsm.{m}' for m in  auto_load_module]
-        if kwargs.get('external', False):
-            self.bsm_packages += auto_load_module_external
-        self.addon = {}
-        self.InitAddOn(kwargs.get('module', ()), debug=kwargs.get('debug', False))
-
-        # initialization done, broadcasting the message so plugins can do some
-        # after initialization processing.
-        dp.send('frame.initialized')
-        # load the perspective
-        if not kwargs.get('ignore_perspective', False):
-            self.LoadPerspective()
-
-        self.Bind(aui.EVT_AUINOTEBOOK_TAB_RIGHT_DOWN, self.OnPageRightDown)
-        self.Bind(wx.EVT_RIGHT_DOWN, self.OnRightDown)
+        self.SetDropTarget(FileDropTarget(self))
 
         dp.send(signal='shell.run',
                 command='import pandas as pd',
@@ -181,145 +133,32 @@ class MainFrame(FramePlus):
 
     def InitMenu(self):
         """initialize the menubar"""
-        menubar = wx.MenuBar()
-        self.SetMenuBar(menubar)
-
-        self.AddMenu('&File:New', kind="Popup", autocreate=True)
-        self.AddMenu('&File:Open', kind="Popup")
-        self.AddMenu('&File:Sep', kind="Separator")
-        self.AddMenu('&File:Recent Files', kind="Popup")
-        self.menuRecentFiles = self.GetMenu(['File', 'Recent Files'])
-        self.AddMenu('&File:Sep', kind="Separator")
-        self.AddMenu('&File:&Quit', id=wx.ID_CLOSE)
-
-        self.AddMenu('&View:Toolbars', kind="Popup", autocreate=True)
-        self.AddMenu('&View:Sep', kind="Separator")
-        self.AddMenu('&View:Panels', kind="Popup")
-
-        self.AddMenu('&Tools', kind="Popup", autocreate=True)
+        super().InitMenu()
 
         self.AddMenu('&Help:&Home', id=wx.ID_HOME, autocreate=True)
-        self.ID_CONTACT = self.AddMenu('&Help:&Report problem')
+        id_contact = self.AddMenu('&Help:&Report problem')
         self.AddMenu('&Help:Sep', kind="Separator")
         self.AddMenu('&Help:About', id=wx.ID_ABOUT)
 
         # Connect Events
-        self.Bind(wx.EVT_MENU, self.OnFileQuit, id=wx.ID_CLOSE)
         self.Bind(wx.EVT_MENU, self.OnHelpHome, id=wx.ID_HOME)
-        self.Bind(wx.EVT_MENU, self.OnHelpContact, id=self.ID_CONTACT)
+        self.Bind(wx.EVT_MENU, self.OnHelpContact, id=id_contact)
         self.Bind(wx.EVT_MENU, self.OnHelpAbout, id=wx.ID_ABOUT)
 
-    def InitAddOn(self, modules, debug=False):
-        if not modules:
-            # load all modules
-            modules = ["default"]
+    def GetDefaultAddonPackages(self):
+        if self.options.get('external', False):
+            return auto_load_module + auto_load_module_external
+        return auto_load_module
 
-        for module in modules:
-            module = module.split('+')
-            options = {'debug': debug}
-            if len(module) == 2:
-                if all([c in 'htblr' for c in module[1]]):
-                    if 'h' in module[1]:
-                        options['active'] = False
-                    if 't' in module[1]:
-                        options['direction'] = 'Top'
-                    if 'b' in module[1]:
-                        options['direction'] = 'bottom'
-                    if 'l' in module[1]:
-                        options['direction'] = 'left'
-                    if 'r' in module[1]:
-                        options['direction'] = 'right'
-                options['data'] = module[1]
-            module = module[0]
-            if module == 'default':
-                module = self.bsm_packages
-            else:
-                module = [module]
-            for pkg in module:
-                if f'bsmedit.bsm.{pkg}' in self.bsm_packages:
-                    # module in bsm
-                    pkg = f'bsmedit.bsm.{pkg}'
-
-                if pkg in self.addon:
-                    # already loaded
-                    continue
-                self.addon[pkg] = False
-                try:
-                    mod = importlib.import_module(pkg)
-                except ImportError:
-                    traceback.print_exc(file=sys.stdout)
-                else:
-                    if hasattr(mod, 'bsm_initialize'):
-                        mod.bsm_initialize(self, **options)
-                        self.addon[pkg] = True
-                    else:
-                        print("Error: Invalid module: %s" % pkg)
-
-    def AddFileHistory(self, filename):
-        """add the file to recent file list"""
-        self.config.SetPath('/FileHistory')
-        self.filehistory.AddFileToHistory(filename)
-        self.filehistory.Save(self.config)
-        self.config.Flush()
-
-    def OnPageRightDown(self, evt):
-        # get the index inside the current tab control
-        idx = evt.GetSelection()
-        tabctrl = evt.GetEventObject()
-        tabctrl.SetSelection(idx)
-        page = tabctrl.GetPage(idx)
-        self.OnPanelContextMenu(page)
-
-    def OnRightDown(self, evt):
-        evt.Skip()
-
-        part = self._mgr.HitTest(*evt.GetPosition())
-        if not part or part.pane.IsNotebookControl():
-            return
-
-        self.OnPanelContextMenu(part.pane.window)
-
-    def OnPanelContextMenu(self, panel):
-        if not panel:
-            return
-        pane = self._mgr.GetPane(panel)
-        if not pane.IsOk():
-            return
-        menu = wx.Menu()
-        if not pane.IsDestroyOnClose():
-            menu.Append(self.ID_VM_RENAME, "&Rename tab label")
-        pane_menu = None
-        if panel in self.paneMenu:
-            if menu.GetMenuItemCount() > 0:
-                menu.AppendSeparator()
-            pane_menu = self.paneMenu[panel]
-            build_menu_from_list(pane_menu['menu'], menu)
-        command = self.GetPopupMenuSelectionFromUser(menu)
-        if command == wx.ID_NONE:
-            return
-        if command == self.ID_VM_RENAME:
-            pane = self._mgr.GetPane(panel)
-            if not pane:
-                return
-            name = pane.caption
-            name = wx.GetTextFromUser("Type in the name:", "Input Name", name,
-                                      self)
-            # when user click 'cancel', name will be empty, ignore it.
-            if name and name != pane.caption:
-                self.SetPanelTitle(pane.window, name)
-        elif command != 0 and pane_menu is not None:
-            for m in pane_menu['menu']:
-                if command == m.get('id', None):
-                    dp.send(signal=pane_menu['rxsignal'], command=command, pane=panel)
-                    break
+    def GetAbsoluteAddonPath(self, pkg):
+        if pkg in auto_load_module:
+            # module in bsm
+            return 'bsmedit.bsm.%s' % pkg
+        return super().GetAbsoluteAddonPath(pkg)
 
     def OnCloseWindow(self, evt):
         self.tbicon.Destroy()
         evt.Skip()
-
-    def OnClose(self, event):
-        """close the main program"""
-        super().OnClose(event)
 
     def ShowStatusText(self, text, index=0, width=-1):
         """set the status text"""
@@ -331,43 +170,6 @@ class MainFrame(FramePlus):
             self.statusbar_width[index] = width
             self.statusbar.SetStatusWidths(self.statusbar_width)
         self.statusbar.SetStatusText(text, index)
-
-    def OnActivate(self, event):
-        if not self.closing:
-            dp.send('frame.activate', activate=event.GetActive())
-        event.Skip()
-
-    def OnPaneActivated(self, event):
-        """notify the window managers that the panel is activated"""
-        if self.closing:
-            return
-        pane = event.GetPane()
-        if isinstance(pane, aui.auibook.AuiNotebook):
-            window = pane.GetCurrentPage()
-        else:
-            window = pane
-
-        dp.send('frame.activate_panel', pane=window)
-
-    def OnPaneClose(self, event):
-        """notify the window managers that the pane is closing"""
-        if self.closing:
-            return
-        dp.send('frame.close_pane', event=event)
-
-    def SetPanelTitle(self, pane, title):
-        """set the panel title"""
-        if pane:
-            info = self._mgr.GetPane(pane)
-            if info and info.IsOk() and info.caption != title:
-                info.Caption(title)
-                self._mgr.RefreshPaneCaption(pane)
-                self.UpdatePaneMenuLabel()
-
-    # Handlers for mainFrame events.
-    def OnFileQuit(self, event):
-        """close the program"""
-        self.Close(True)
 
     def OnHelpHome(self, event):
         """go to homepage"""
@@ -389,20 +191,12 @@ class MainFrame(FramePlus):
         dlg.ShowModal()
         dlg.Destroy()
 
-    def OnMenuFileHistory(self, event):
-        """open the recent file"""
-        fileNum = event.GetId() - self.ids_file_history[0].GetId()
-        path = self.filehistory.GetHistoryFile(fileNum)
-        self.filehistory.AddFileToHistory(path)
-        dp.send('frame.file_drop', filename=path, activated=True)
-
 
 class AboutDialog(wx.Dialog):
     def __init__(self, parent):
-        wx.Dialog.__init__(self,
-                           parent,
-                           title=f"About {PROJECT_NAME}",
-                           style=wx.DEFAULT_DIALOG_STYLE)
+        super().__init__(parent,
+                         title=f"About {PROJECT_NAME}",
+                         style=wx.DEFAULT_DIALOG_STYLE)
 
         szAll = wx.BoxSizer(wx.VERTICAL)
 
@@ -462,14 +256,12 @@ class AboutDialog(wx.Dialog):
 
         szAll.Add(self.panel, 1, wx.EXPAND | wx.ALL, 0)
 
-        btnsizer = wx.StdDialogButtonSizer()
-
+        btnsizer = wx.BoxSizer(wx.HORIZONTAL)
+        btnsizer.AddStretchSpacer()
         self.btnOK = wx.Button(self, wx.ID_OK)
         self.btnOK.SetDefault()
-        btnsizer.AddButton(self.btnOK)
-        btnsizer.Realize()
-
-        szAll.Add(btnsizer, 0, wx.ALIGN_RIGHT, 10)
+        btnsizer.Add(self.btnOK, 0, wx.EXPAND | wx.ALL, 5)
+        szAll.Add(btnsizer, 0, wx.EXPAND | wx.ALL, 5)
 
         self.SetSizer(szAll)
         self.Layout()

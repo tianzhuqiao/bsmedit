@@ -1860,14 +1860,16 @@ class sim:
                     target="History",
                     icon=page_bmp,
                     showhidemenu=f"View:Simulations:{title}",
-                     pane_menu={'rxsignal': 'bsm.sim.pane_menu',
+                    pane_menu={'rxsignal': 'bsm.sim.pane_menu',
                            'menu': [
                                {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
                                {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
                                {'type': wx.ITEM_SEPARATOR},
                                {'id': cls.ID_PANE_SHOW_IN_FINDER, 'label':f'Reveal in  {get_file_finder_name()}\tAlt+Ctrl+R'},
                                {'id': cls.ID_PANE_SHOW_IN_BROWSING, 'label':'Reveal in Browsing panel'},
-                               ]})
+                               ]},
+                    tooltip=manager.filename or "",
+                    name=manager.filename or "")
             return manager.sim
         # activate the manager
         elif manager and activate:
@@ -1915,6 +1917,7 @@ class sim:
 
         The trace will be automatically updated after each simulation step.
         """
+        s1, obj1, s2, obj2 = None, None, None, None
         if args and isinstance(args[0], six.string_types):
             s1, obj1 = cls._find_object(args[0])
             if not s1 or not obj1:
