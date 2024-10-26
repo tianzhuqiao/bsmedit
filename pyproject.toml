@@ -33,5 +33,8 @@ bsmedit = "bsmedit.__main__:main"
 [tool.setuptools.packages]
 find = {}
 
+[tool.setuptools.package-data]
+bsmedit = ["ico/*.icns", "ico/*.ico", "ico/*.svg"]
+
 [options]
 include_package_data = true
