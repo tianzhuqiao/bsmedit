@@ -111,12 +111,6 @@ class MainFrame(FramePlus):
             icon.CopyFromBitmap(svg_to_bitmap(bsmedit_svg, size=(1024, 1024), win=self))
             self.tbicon = TaskBarIcon(self, icon)
 
-        # status bar
-        self.statusbar = wx.StatusBar(self)
-        self.SetStatusBar(self.statusbar)
-        self.statusbar_width = [-1]
-        self.statusbar.SetStatusWidths(self.statusbar_width)
-
         # Create & Link the Drop Target Object to main window
         self.SetDropTarget(FileDropTarget(self))
 
@@ -159,17 +153,6 @@ class MainFrame(FramePlus):
     def OnCloseWindow(self, evt):
         self.tbicon.Destroy()
         evt.Skip()
-
-    def ShowStatusText(self, text, index=0, width=-1):
-        """set the status text"""
-        if index >= len(self.statusbar_width):
-            exd = [0] * (index + 1 - len(self.statusbar_width))
-            self.statusbar_width.extend(exd)
-            self.statusbar.SetFieldsCount(index + 1)
-        if self.statusbar_width[index] < width:
-            self.statusbar_width[index] = width
-            self.statusbar.SetStatusWidths(self.statusbar_width)
-        self.statusbar.SetStatusText(text, index)
 
     def OnHelpHome(self, event):
         """go to homepage"""
