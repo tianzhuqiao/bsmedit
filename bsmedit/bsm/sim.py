@@ -16,6 +16,7 @@ from bsmutility.autocomplete import AutocompleteTextCtrl
 from bsmutility.utility import MakeBitmap, FastLoadTreeCtrl
 from bsmutility.utility import svg_to_bitmap
 from bsmutility.utility import get_file_finder_name, show_file_in_finder
+from bsmutility.bsminterface import InterfaceRename
 from bsmutility.bsmxpm import module_svg, signal_svg, input_svg, output_svg, inout_svg,\
                     step_svg, step_grey_svg, run_svg, run_grey_svg, \
                     pause_svg, pause_grey_svg, setting_svg, radio_disabled_svg, \
@@ -1636,8 +1637,8 @@ class BreakpointSettingsDlg(wx.Dialog):
         return (self.condition, self.hitcount)
 
 
-class sim:
-    frame = None
+class sim(InterfaceRename):
+
     ID_SIM_NEW = wx.NOT_FOUND
     ID_PROP_NEW = wx.NOT_FOUND
     ID_PANE_COPY_PATH = wx.NewIdRef()
@@ -1647,8 +1648,10 @@ class sim:
 
     @classmethod
     def initialize(cls, frame, **kwargs):
+        super().initialize(frame, **kwargs)
+
         PropGenericUdpate()
-        cls.frame = frame
+
         cls.debug = kwargs.get('debug', False)
 
         resp = dp.send(signal='frame.add_menu',
@@ -1666,8 +1669,6 @@ class sim:
         dp.connect(cls._sim_command, signal='sim.command')
         dp.connect(receiver=cls._frame_set_active,
                    signal='frame.activate_panel')
-        dp.connect(receiver=cls._frame_uninitialize, signal='frame.exiting')
-        dp.connect(receiver=cls.initialized, signal='frame.initialized')
         dp.connect(receiver=cls._prop_insert, signal='prop.insert')
         dp.connect(receiver=cls._prop_delete, signal='prop.delete')
         dp.connect(receiver=cls._prop_drop, signal='prop.drop')
@@ -1675,9 +1676,12 @@ class sim:
         dp.connect(receiver=cls._prop_bp_del, signal='prop.bp_del')
         dp.connect(receiver=cls._prop_changed, signal='prop.changed')
         dp.connect(cls.PaneMenu, 'bsm.sim.pane_menu')
+        dp.connect(cls.PaneMenuPropgrid, 'bsm.sim.pane_menu_progrid')
 
     @classmethod
     def initialized(cls):
+        super().initialized()
+
         dp.send(signal='shell.run',
                 command='from bsmedit.bsm.pysim import *',
                 prompt=False,
@@ -1771,7 +1775,9 @@ class sim:
             SimPropGrid.GCM.set_active(pane)
 
     @classmethod
-    def _frame_uninitialize(cls):
+    def uninitializing(cls):
+        super().uninitializing()
+
         for mgr in Gcs.get_all_managers():
             mgr.stop()
             dp.send('frame.delete_panel', panel=mgr.frame)
@@ -1862,6 +1868,8 @@ class sim:
                     showhidemenu=f"View:Simulations:{title}",
                     pane_menu={'rxsignal': 'bsm.sim.pane_menu',
                            'menu': [
+                               {'id':cls.ID_PANE_RENAME, 'label':'Rename'},
+                               {'type': wx.ITEM_SEPARATOR},
                                {'id':cls.ID_PANE_COPY_PATH, 'label':'Copy Path\tAlt+Ctrl+C'},
                                {'id':cls.ID_PANE_COPY_PATH_REL, 'label':'Copy Relative Path\tAlt+Shift+Ctrl+C'},
                                {'type': wx.ITEM_SEPARATOR},
@@ -1879,19 +1887,28 @@ class sim:
 
     @classmethod
     def PaneMenu(cls, pane, command):
-        if not pane or not isinstance(pane, SimPanel):
+        if not pane or not isinstance(pane.window, SimPanel):
             return
         if command in [cls.ID_PANE_COPY_PATH, cls.ID_PANE_COPY_PATH_REL]:
             if wx.TheClipboard.Open():
-                filepath = pane.filename
+                filepath = pane.window.filename
                 if command == cls.ID_PANE_COPY_PATH_REL:
                     filepath = os.path.relpath(filepath, os.getcwd())
                 wx.TheClipboard.SetData(wx.TextDataObject(filepath))
                 wx.TheClipboard.Close()
         elif command == cls.ID_PANE_SHOW_IN_FINDER:
-            show_file_in_finder(pane.filename)
+            show_file_in_finder(pane.window.filename)
         elif command == cls.ID_PANE_SHOW_IN_BROWSING:
-            dp.send(signal='dirpanel.goto', filepath=pane.filename, show=True)
+            dp.send(signal='dirpanel.goto', filepath=pane.window.filename, show=True)
+        elif command == cls.ID_PANE_RENAME:
+            cls.RenamePane(pane)
+
+    @classmethod
+    def PaneMenuPropgrid(cls, pane, command):
+        if not pane or not isinstance(pane.window, SimPropGrid):
+            return
+        if command == cls.ID_PANE_RENAME:
+            cls.RenamePane(pane)
 
     @classmethod
     def propgrid(cls, num=None, create=True, activate=False):
@@ -1904,7 +1921,11 @@ class sim:
         if not mgr and create:
             mgr = SimPropGrid(cls.frame)
             mgr.SetLabel(f"Propgrid-{mgr.num}")
-            dp.send(signal="frame.add_panel", panel=mgr, title=mgr.GetLabel())
+            dp.send(signal="frame.add_panel", panel=mgr, title=mgr.GetLabel(),
+                    pane_menu={'rxsignal': 'bsm.sim.pane_menu_progrid',
+                               'menu': [{'id':cls.ID_PANE_RENAME, 'label':'Rename'}]
+                               }
+                    )
         elif mgr and activate:
             # activate the window
             dp.send(signal='frame.show_panel', panel=mgr)
