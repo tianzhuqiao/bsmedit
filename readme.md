@@ -19,6 +19,9 @@ $ pip install -e .
 ```
 
  A modified SystemC is needed to make it work with bsmedit, which can be got [here](https://github.com/tianzhuqiao/systemc).  Currently it supports the following SystemC releases
+
+- 3.0.1
+- 3.0.0
 - 3.0.0_pub_rev_20231129
 - 2.3.4
 - 2.3.3
@@ -29,6 +32,6 @@ Check the corresponding branch whose name starts with "**bsm-**".
 
 The full cocumentation can be found  [here](http://bsmedit.feiyilin.com).
 
-<img src="./docs/images/run_sim.gif" width="867" height="528"></img>
+<img src="./docs/images/run_sim.gif" width="867"></img>
 
-<img src="./docs/images/waves.gif" width="368" height="349"></img>
+<img src="./docs/images/waves.gif" width="368"></img>
