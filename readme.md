@@ -30,7 +30,7 @@ $ pip install -e .
 
 Check the corresponding branch whose name starts with "**bsm-**".
 
-The full cocumentation can be found  [here](http://bsmedit.feiyilin.com).
+The full documentation can be found  [here](http://bsmedit.feiyilin.com).
 
 <img src="./docs/images/run_sim.gif" width="867"></img>
 
